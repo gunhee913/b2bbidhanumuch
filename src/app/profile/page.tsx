@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
-export default function MainPage() {
+export default function ProfilePage() {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);
 
@@ -94,65 +94,19 @@ export default function MainPage() {
                 </div>
               </div>
               
-              {/* 서브 메뉴 */}
-              <div className="px-2 md:px-4 pb-1">
-                <div className="flex items-center ml-2">
-                  <div className="relative">
-                    <Button variant="ghost" className="text-base font-medium text-black px-0 h-auto pb-2 hover:bg-transparent hover:text-black">
-                      부분육 경매
-                    </Button>
-                    <div className="absolute bottom-0 left-0 right-0 h-1 bg-red-600"></div>
-                  </div>
-                </div>
-              </div>
+
             </div>
 
             {/* 메인 콘텐츠 */}
             <div className="flex-1 min-h-0 overflow-y-auto">
-              {/* 메인 배너 슬라이드 */}
-              <div className="relative overflow-hidden">
-                <div 
-                  className="flex transition-transform duration-500 ease-in-out"
-                  style={{ transform: `translateX(-${currentSlide * 100}%)` }}
-                >
-                  {banners.map((banner, index) => {
-                    const bgColors = ['#e5e7eb', '#f3f4f6', '#f9fafb']; // gray-200, gray-100, gray-50
-                    return (
-                    <div 
-                      key={index}
-                        className="w-full flex-shrink-0 aspect-square flex items-center justify-center relative overflow-hidden"
-                        style={{ backgroundColor: bgColors[index] }}
-                    >
-                      {/* 배너 컨텐츠는 비워둠 */}
-                      </div>
-                    );
-                  })}
-                </div>
-                
-                {/* 슬라이드 인디케이터 */}
-                <div className="absolute bottom-4 right-4 bg-black/60 text-white text-sm px-3 py-1.5 rounded-full font-medium shadow-lg">
-                  {currentSlide + 1}/{banners.length}
-                </div>
-                
-                {/* 재생/정지 버튼 */}
-                <button
-                  onClick={togglePlayPause}
-                  className="absolute bottom-4 left-4 bg-black/60 text-white p-2 rounded-full shadow-lg hover:bg-black/80 transition-colors"
-                  aria-label={isPlaying ? "슬라이더 정지" : "슬라이더 재생"}
-                >
-                  {isPlaying ? (
-                    <Pause className="h-4 w-4" />
-                  ) : (
-                    <Play className="h-4 w-4" />
-                  )}
-                </button>
-              </div>
+
 
               {/* 메인 컨텐츠 영역 - 빈 상태 */}
-              <div className="px-6 pb-24 pt-8">
+              <div className="px-6 pb-24 pt-8 flex-1 flex items-center justify-center">
                 <div className="text-center py-20">
-                  <h3 className="text-lg font-medium text-gray-500 mb-2">컨텐츠 준비중</h3>
-                  <p className="text-sm text-gray-400">곧 새로운 컨텐츠가 추가될 예정입니다.</p>
+                  <User className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-500 mb-2">회원 정보 서비스 준비중</h3>
+                  <p className="text-sm text-gray-400">곧 프로필 및 설정 서비스가 시작됩니다.</p>
                 </div>
               </div>
             </div>
@@ -161,10 +115,10 @@ export default function MainPage() {
             <div className="flex-shrink-0 bg-white border-t border-gray-200 px-2 md:px-4 py-2 safe-area-pb">
               <div className="flex items-center justify-around">
                 {/* 홈 */}
-                <div className="flex-1 flex flex-col items-center py-2 text-red-600 cursor-pointer">
+                <Link href="/" className="flex-1 flex flex-col items-center py-2 text-gray-600 cursor-pointer">
                   <HomeIcon className="h-6 w-6 mb-1" />
                   <span className="text-xs font-medium">홈</span>
-                </div>
+                </Link>
                 
                 {/* 경매 */}
                 <Link href="/auction" className="flex-1 flex flex-col items-center py-2 text-gray-600 cursor-pointer">
@@ -185,10 +139,10 @@ export default function MainPage() {
                 </Link>
                 
                 {/* 내정보 */}
-                <Link href="/profile" className="flex-1 flex flex-col items-center py-2 text-gray-600">
+                <div className="flex-1 flex flex-col items-center py-2 text-red-600">
                   <User className="h-6 w-6 mb-1" />
                   <span className="text-xs font-medium">내정보</span>
-                </Link>
+                </div>
               </div>
             </div>
           </div>

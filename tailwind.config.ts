@@ -1,7 +1,6 @@
 import type { Config } from 'tailwindcss';
 
 const config = {
-  darkMode: ['class'],
   content: ['./src/**/*.{ts,tsx}'],
   prefix: '',
   theme: {
@@ -14,6 +13,7 @@ const config = {
     },
     extend: {
       colors: {
+        // Shadcn-ui 호환 토큰
         border: 'hsl(var(--border))',
         input: 'hsl(var(--input))',
         ring: 'hsl(var(--ring))',
@@ -47,6 +47,37 @@ const config = {
           DEFAULT: 'hsl(var(--card))',
           foreground: 'hsl(var(--card-foreground))',
         },
+        // HanuMuch 브랜드 팔렛트
+        'hm-primary': {
+          50: '#fff5f5',
+          100: '#ffe3e3',
+          200: '#ffc8c8',
+          300: '#ff9d9d',
+          400: '#ff6b6b',
+          500: '#c40000', // 메인 브랜드 컬러
+          600: '#a10000',
+          700: '#7d0000',
+          800: '#580000',
+          900: '#3b0000',
+        },
+        'hm-neutral': {
+          50: '#fafafa',
+          100: '#f5f5f5',
+          200: '#e5e5e5',
+          300: '#d4d4d4',
+          400: '#a3a3a3',
+          500: '#737373',
+          600: '#525252',
+          700: '#404040',
+          800: '#262626',
+          900: '#171717',
+        },
+        'hm-secondary': '#111111', // 본문 텍스트/헤더
+        'hm-accent': '#dcdcdc', // 약한 구분선/입력창 내부
+        'hm-border': '#e5e5e5',
+        'hm-divider': '#eeeeee',
+        'hm-focus': '#c40000',
+        'hm-overlay': 'rgba(0, 0, 0, 0.4)',
       },
       borderRadius: {
         lg: 'var(--radius)',
