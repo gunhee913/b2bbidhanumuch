@@ -12,9 +12,7 @@ import {
   FileText,
   User,
   Gavel,
-  ArrowLeft,
-  ChevronLeft,
-  ChevronRight
+  ArrowLeft
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -27,9 +25,72 @@ export default function AuctionDetailPage({ params }: PageProps) {
   const [isPlaying, setIsPlaying] = useState(true);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [selectedBidTab, setSelectedBidTab] = useState('입찰하기');
+  const [myBidHistoryTab, setMyBidHistoryTab] = useState('입찰 진행 중');
   const [selectedPart, setSelectedPart] = useState('');
   const [selectedWeight, setSelectedWeight] = useState('');
   const [bidPrice, setBidPrice] = useState('0');
+  const [showBidDialog, setShowBidDialog] = useState(false);
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const [toastType, setToastType] = useState<'warning' | 'success'>('warning');
+  const [myBids, setMyBids] = useState([
+    { 
+      id: 1, 
+      auctionNumber: '250806-001',
+      part: '윗등심(좌)', 
+      weight: '8.5', 
+      price: '83000', 
+      time: '25.08.06.(수) 09:23', 
+      status: 'active',
+      breed: '한우',
+      gender: '거세',
+      grade: '1++A',
+      months: '30',
+      totalAmount: Math.round(83000 * 8.5).toString()
+    },
+    { 
+      id: 2, 
+      auctionNumber: '250806-001',
+      part: '안심(우)', 
+      weight: '3.2', 
+      price: '111000', 
+      time: '25.08.06.(수) 09:47', 
+      status: 'active',
+      breed: '한우',
+      gender: '거세',
+      grade: '1++A',
+      months: '30',
+      totalAmount: Math.round(111000 * 3.2).toString()
+    },
+    { 
+      id: 3, 
+      auctionNumber: '250806-001',
+      part: '채끝(좌)', 
+      weight: '4.2', 
+      price: '22000', 
+      time: '25.08.06.(수) 09:52', 
+      status: 'cancelled',
+      breed: '한우',
+      gender: '거세',
+      grade: '1++A',
+      months: '30',
+      totalAmount: Math.round(22000 * 4.2).toString()
+    },
+    { 
+      id: 4, 
+      auctionNumber: '250806-001',
+      part: '목심(좌)', 
+      weight: '9.3', 
+      price: '23000', 
+      time: '25.08.06.(수) 09:35', 
+      status: 'finished',
+      breed: '한우',
+      gender: '거세',
+      grade: '1++A',
+      months: '30',
+      totalAmount: Math.round(23000 * 9.3).toString()
+    }
+  ]);
 
   // 천단위 콤마 추가 함수
   const formatNumber = (value: string) => {
@@ -44,12 +105,84 @@ export default function AuctionDetailPage({ params }: PageProps) {
     return value.replace(/,/g, '');
   };
 
-  // 메인 이미지 배열 (더미 데이터)
+  // 입찰 취소 함수
+  const cancelBid = (bidId: number) => {
+    setMyBids(prev => 
+      prev.map(bid => 
+        bid.id === bidId ? { ...bid, status: 'cancelled' } : bid
+      )
+    );
+  };
+
+  // 토스트 표시 함수
+  const showToastMessage = (message: string, type: 'warning' | 'success' = 'warning') => {
+    setToastMessage(message);
+    setToastType(type);
+    setShowToast(true);
+    setTimeout(() => {
+      setShowToast(false);
+    }, 3000);
+  };
+
+  // 입찰하기 버튼 클릭 처리
+  const handleBidClick = () => {
+    if (!selectedPart) {
+      showToastMessage('부위를 선택해주세요.');
+      return;
+    }
+    if (!selectedWeight) {
+      showToastMessage('중량을 선택해주세요.');
+      return;
+    }
+    if (!bidPrice || bidPrice === '0') {
+      showToastMessage('입찰가격을 입력해주세요.');
+      return;
+    }
+    setShowBidDialog(true);
+  };
+
+  // 입찰 추가 함수
+  const addNewBid = () => {
+    if (!selectedPart || !selectedWeight || !bidPrice || bidPrice === '0') {
+      return;
+    }
+
+    const now = new Date();
+    const timeString = `25.08.06.(수) ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+    
+    const newBid = {
+      id: myBids.length + 1,
+      auctionNumber: '250806-001',
+      part: selectedPart,
+      weight: selectedWeight,
+      price: removeCommas(bidPrice),
+      time: timeString,
+      status: 'active',
+      breed: '한우',
+      gender: '거세',
+      grade: '1++A',
+      months: '30',
+      totalAmount: Math.round(parseFloat(removeCommas(bidPrice)) * parseFloat(selectedWeight)).toString()
+    };
+
+    setMyBids(prev => [newBid, ...prev]);
+    setShowBidDialog(false);
+    
+    // 입찰 완료 토스트 표시
+    showToastMessage('입찰이 완료되었습니다.', 'success');
+    
+    // 폼 초기화
+    setSelectedPart('');
+    setSelectedWeight('');
+    setBidPrice('0');
+  };
+
+  // 메인 이미지 배열 (등심 이미지)
   const mainImages = [
-    { id: 1, alt: "상품 이미지 1" },
-    { id: 2, alt: "상품 이미지 2" },
-    { id: 3, alt: "상품 이미지 3" },
-    { id: 4, alt: "상품 이미지 4" }
+    { id: 1, src: "/등심1.png", alt: "등심1" },
+    { id: 2, src: "/등심2.png", alt: "등심2" },
+    { id: 3, src: "/등심3.png", alt: "등심3" },
+    { id: 4, src: "/등심4.png", alt: "등심4" }
   ];
 
   // 배너 데이터 (빈 상태)
@@ -59,18 +192,7 @@ export default function AuctionDetailPage({ params }: PageProps) {
     { title: "", subtitle: "", bgColor: "" }
   ];
 
-  // 이미지 네비게이션 함수
-  const goToPrevImage = () => {
-    setCurrentImageIndex((prev) => 
-      prev === 0 ? mainImages.length - 1 : prev - 1
-    );
-  };
 
-  const goToNextImage = () => {
-    setCurrentImageIndex((prev) => 
-      prev === mainImages.length - 1 ? 0 : prev + 1
-    );
-  };
 
   // 동적 viewport 높이 설정
   useEffect(() => {
@@ -153,29 +275,15 @@ export default function AuctionDetailPage({ params }: PageProps) {
             <div className="flex-1 min-h-0 overflow-y-auto">
               {/* 메인 이미지 배너 */}
               <div className="relative overflow-hidden">
-                <div className="w-full aspect-square bg-gray-200 flex items-center justify-center">
-                  <svg className="w-16 h-16 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
+                <div className="w-full aspect-square bg-gray-200">
+                  <img 
+                    src={mainImages[currentImageIndex].src}
+                    alt={mainImages[currentImageIndex].alt}
+                    className="w-full h-full object-cover"
+                  />
                 </div>
                 
-                {/* 왼쪽 버튼 */}
-                <button
-                  onClick={goToPrevImage}
-                  className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-black/50 text-white p-2 rounded-full hover:bg-black/70 transition-colors"
-                  aria-label="이전 이미지"
-                >
-                  <ChevronLeft className="h-6 w-6" />
-                </button>
-                
-                {/* 오른쪽 버튼 */}
-                <button
-                  onClick={goToNextImage}
-                  className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-black/50 text-white p-2 rounded-full hover:bg-black/70 transition-colors"
-                  aria-label="다음 이미지"
-                >
-                  <ChevronRight className="h-6 w-6" />
-                </button>
+
                 
                 {/* 이미지 인디케이터 */}
                 <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2">
@@ -199,15 +307,17 @@ export default function AuctionDetailPage({ params }: PageProps) {
                     <button
                       key={image.id}
                       onClick={() => setCurrentImageIndex(index)}
-                      className={`w-16 h-16 rounded flex items-center justify-center transition-all bg-gray-200 ${
+                      className={`w-20 h-20 rounded overflow-hidden transition-all ${
                         currentImageIndex === index 
                           ? 'border-2 border-black' 
                           : 'border-2 border-transparent hover:border-gray-300'
                       }`}
                     >
-                      <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                      </svg>
+                      <img 
+                        src={image.src}
+                        alt={image.alt}
+                        className="w-full h-full object-cover"
+                      />
                     </button>
                   ))}
                 </div>
@@ -216,7 +326,7 @@ export default function AuctionDetailPage({ params }: PageProps) {
 
 
               {/* 호가창과 입찰주문 창 */}
-              <div className="flex border-t border-gray-200" style={{height: '550px'}}>
+              <div className="flex border-t border-gray-200" style={{height: '570px'}}>
                 {/* 왼쪽 호가창 */}
                 <div className="w-2/5 border-r border-gray-200 flex flex-col border-b border-gray-200">
                   {/* 호가창 헤더 */}
@@ -231,11 +341,11 @@ export default function AuctionDetailPage({ params }: PageProps) {
                   <div className="flex-1 overflow-y-auto">
                     {/* 매도호가 (위쪽, 높은 가격) */}
                     {[
-                      { part: '윗등심(좌)', weight: '3.2' },
-                      { part: '윗등심(우)', weight: '2.8' },
-                      { part: '아랫등심(좌)', weight: '1.9' },
-                      { part: '아랫등심(우)', weight: '3.1' },
-                      { part: '안심(좌)', weight: '2.3' }
+                      { part: '윗등심(좌)', weight: '8.5' },
+                      { part: '윗등심(우)', weight: '8.8' },
+                      { part: '아랫등심(좌)', weight: '9.8' },
+                      { part: '아랫등심(우)', weight: '9.6' },
+                      { part: '안심(좌)', weight: '3.3' }
                     ].map((item, index) => (
                       <div 
                         key={`sell-${index}`}
@@ -261,24 +371,27 @@ export default function AuctionDetailPage({ params }: PageProps) {
                       style={{gridTemplateColumns: '1fr 1fr'}}
                       onClick={() => {
                         setSelectedPart('안심(우)');
-                        setSelectedWeight('2.5');
+                        setSelectedWeight('3.2');
                       }}
                     >
                       <div className="text-center text-xs font-bold text-black flex items-center justify-center border-r border-gray-200">
                         안심(우)
                       </div>
                       <div className="text-center text-xs font-bold text-black flex items-center justify-center">
-                        2.5kg
+                        3.2kg
                       </div>
                     </div>
                     
                     {/* 매수호가 (아래쪽, 낮은 가격) */}
                     {[
-                      { part: '채끝(좌)', weight: '1.7' },
-                      { part: '채끝(우)', weight: '2.9' },
-                      { part: '목심', weight: '3.4' },
-                      { part: '설깃', weight: '2.1' },
-                      { part: '치마살,업진살', weight: '1.6' }
+                      { part: '채끝(좌)', weight: '4.2' },
+                      { part: '채끝(우)', weight: '4.0' },
+                      { part: '목심(좌)', weight: '9.3' },
+                      { part: '목심(우)', weight: '8.9' },
+                      { part: '설깃(좌)', weight: '6.9' },
+                      { part: '설깃(우)', weight: '7.8' },
+                      { part: '치마살,업진살(좌)', weight: '3.1' },
+                      { part: '치마살,업진살(우)', weight: '3.4' }
                     ].map((item, index) => (
                       <div 
                         key={`buy-${index}`}
@@ -289,7 +402,9 @@ export default function AuctionDetailPage({ params }: PageProps) {
                           setSelectedWeight(item.weight);
                         }}
                       >
-                        <div className="text-center text-xs font-bold text-black flex items-center justify-center border-r border-gray-200">
+                        <div className={`text-center font-bold text-black flex items-center justify-center border-r border-gray-200 ${
+                          item.part.includes('치마살,업진살') ? 'text-[10px]' : 'text-xs'
+                        }`}>
                           {item.part}
                         </div>
                         <div className="text-center text-xs font-bold text-black flex items-center justify-center">
@@ -410,10 +525,9 @@ export default function AuctionDetailPage({ params }: PageProps) {
 
                         {/* 주문 요약 */}
                         <div>
-                          <div className="text-xs text-gray-600 mb-1">주문 요약</div>
-                          <div className="bg-gray-50 p-2 border rounded space-y-1">
+                          <div className="bg-gray-50 p-3 border rounded space-y-2">
                             <div className="flex justify-between items-center">
-                              <span className="text-xs text-gray-600">개체정보</span>
+                              <span className="text-sm text-gray-600">개체정보</span>
                               <div className="flex gap-1">
                                 <span className="text-xs px-1.5 py-0.5 bg-amber-600 text-white rounded font-bold">한우거세</span>
                                 <span className="text-xs px-1.5 py-0.5 bg-red-600 text-white rounded font-bold">1++A</span>
@@ -421,21 +535,21 @@ export default function AuctionDetailPage({ params }: PageProps) {
                               </div>
                             </div>
                             <div className="flex justify-between items-center">
-                              <span className="text-xs text-gray-600">부위</span>
-                              <span className="text-xs text-gray-900">{selectedPart || "-"}</span>
+                              <span className="text-sm text-gray-600">부위</span>
+                              <span className="text-sm text-gray-900">{selectedPart || "-"}</span>
                             </div>
                             <div className="flex justify-between items-center">
-                              <span className="text-xs text-gray-600">입찰가격</span>
-                              <span className="text-xs text-gray-900">{bidPrice ? `${bidPrice}원/kg` : "-"}</span>
+                              <span className="text-sm text-gray-600">입찰가격</span>
+                              <span className="text-sm text-gray-900">{bidPrice ? `${bidPrice}원/kg` : "-"}</span>
                             </div>
                             <div className="flex justify-between items-center">
-                              <span className="text-xs text-gray-600">중량</span>
-                              <span className="text-xs text-gray-900">{selectedWeight ? `${selectedWeight}kg` : "-"}</span>
+                              <span className="text-sm text-gray-600">중량</span>
+                              <span className="text-sm text-gray-900">{selectedWeight ? `${selectedWeight}kg` : "-"}</span>
                             </div>
-                            <div className="border-t border-gray-200 pt-1 mt-1">
+                            <div className="border-t border-gray-200 pt-2 mt-2">
                               <div className="flex justify-between items-center">
-                                <span className="text-xs font-bold text-gray-900">총 입찰금액</span>
-                                <span className="text-sm font-bold text-red-600">
+                                <span className="text-sm font-bold text-gray-900">총 입찰금액</span>
+                                <span className="text-base font-bold text-red-600">
                                   {(() => {
                                     if (!bidPrice || !selectedWeight || bidPrice === '0') return '-';
                                     const price = parseFloat(removeCommas(bidPrice));
@@ -450,7 +564,10 @@ export default function AuctionDetailPage({ params }: PageProps) {
                         </div>
 
                         {/* 입찰하기 버튼 */}
-                        <button className="w-full py-2.5 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded">
+                        <button 
+                          onClick={handleBidClick}
+                          className="w-full py-2.5 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded"
+                        >
                           입찰하기
                         </button>
                       </div>
@@ -464,7 +581,11 @@ export default function AuctionDetailPage({ params }: PageProps) {
                           <h4 className="text-sm font-bold text-gray-900 mb-3">개체 기본정보</h4>
                           <div className="space-y-2">
                             <div className="flex justify-between">
-                              <span className="text-xs text-gray-600">개체번호</span>
+                              <span className="text-xs text-gray-600">경매번호</span>
+                              <span className="text-xs text-gray-900">250806-001</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-xs text-gray-600">이력번호</span>
                               <span className="text-xs text-gray-900">002-1486-7293-5</span>
                             </div>
                             <div className="flex justify-between">
@@ -507,16 +628,16 @@ export default function AuctionDetailPage({ params }: PageProps) {
                               <thead>
                                 <tr className="border-b border-gray-300">
                                   <th className="text-center text-gray-600 font-medium py-1 px-2 w-1/4">등지방</th>
-                                  <th className="text-center text-gray-600 font-medium py-1 px-2 w-1/4">등심면적</th>
-                                  <th className="text-center text-gray-600 font-medium py-1 px-2 w-1/4">근내지방</th>
+                                  <th className="text-center text-gray-600 font-medium py-1 px-1 w-1/4">등심면적</th>
+                                  <th className="text-center text-gray-600 font-medium py-1 px-1 w-1/4">근내지방</th>
                                   <th className="text-center text-gray-600 font-medium py-1 px-2 w-1/4">육색</th>
                                 </tr>
                               </thead>
                               <tbody>
                                 <tr>
                                   <td className="text-center text-gray-900 font-bold py-1 px-2">16</td>
-                                  <td className="text-center text-gray-900 font-bold py-1 px-2">123</td>
-                                  <td className="text-center text-gray-900 font-bold py-1 px-2">9</td>
+                                  <td className="text-center text-gray-900 font-bold py-1 px-1">123</td>
+                                  <td className="text-center text-gray-900 font-bold py-1 px-1">9</td>
                                   <td className="text-center text-gray-900 font-bold py-1 px-2">5</td>
                                 </tr>
                                 <tr className="border-b border-gray-300">
@@ -541,8 +662,149 @@ export default function AuctionDetailPage({ params }: PageProps) {
                 </div>
               </div>
 
-              {/* 여분 공간 */}
-              <div className="px-6 pb-24 pt-4 flex-1">
+              {/* 내 입찰내역 */}
+              <div className="px-4 py-4 pb-24 border-t border-gray-200 bg-white">
+                <h3 className="text-sm font-bold text-gray-900 mb-3">내 입찰내역</h3>
+                
+                {/* 탭 메뉴 */}
+                <div className="flex border-b border-gray-200 mb-4">
+                  <button
+                    onClick={() => setMyBidHistoryTab('입찰 진행 중')}
+                    className={`flex-1 py-2 px-1 text-sm font-medium border-b-2 transition-colors ${
+                      myBidHistoryTab === '입찰 진행 중'
+                        ? 'border-red-600 text-red-600'
+                        : 'border-transparent text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    입찰 진행 중
+                  </button>
+                  <button
+                    onClick={() => setMyBidHistoryTab('입찰 종료')}
+                    className={`flex-1 py-2 px-1 text-sm font-medium border-b-2 transition-colors ${
+                      myBidHistoryTab === '입찰 종료'
+                        ? 'border-red-600 text-red-600'
+                        : 'border-transparent text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    입찰 종료
+                  </button>
+                </div>
+
+                {(() => {
+                  const filteredBids = myBids.filter(bid => {
+                    if (myBidHistoryTab === '입찰 진행 중') {
+                      return bid.status === 'active';
+                    } else {
+                      return bid.status === 'cancelled' || bid.status === 'finished';
+                    }
+                  });
+
+                  return filteredBids.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500">
+                      <p className="text-sm">
+                        {myBidHistoryTab === '입찰 진행 중' ? '진행 중인 입찰이 없습니다' : '종료된 입찰이 없습니다'}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {filteredBids.map((bid) => (
+                      <div 
+                        key={bid.id}
+                        className={`p-3 rounded border ${
+                          bid.status === 'cancelled' || bid.status === 'finished'
+                            ? 'bg-gray-50 border-gray-200' 
+                            : 'bg-white border-gray-300'
+                        }`}
+                      >
+                        <div className="space-y-3">
+                          {/* 헤더 정보 */}
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <div className="flex items-center gap-1">
+                                  <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-bold ${
+                                    bid.status === 'cancelled' || bid.status === 'finished'
+                                      ? 'bg-gray-200 text-gray-500' 
+                                      : 'bg-blue-600 text-white'
+                                  }`}>
+                                    {bid.auctionNumber}
+                                  </span>
+                                  <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-bold ${
+                                    bid.status === 'cancelled' || bid.status === 'finished'
+                                      ? 'bg-gray-200 text-gray-500' 
+                                      : 'bg-green-600 text-white'
+                                  }`}>
+                                    {bid.part}
+                                  </span>
+                                </div>
+                                <span className="text-xs text-gray-500">
+                                  {bid.time}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="flex items-center">
+                              {bid.status === 'active' ? (
+                                <button
+                                  onClick={() => cancelBid(bid.id)}
+                                  className="px-3 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
+                                >
+                                  취소
+                                </button>
+                              ) : bid.status === 'cancelled' ? (
+                                <span className="text-xs text-gray-500 px-3 py-1">
+                                  취소됨
+                                </span>
+                              ) : (
+                                <span className="text-xs text-gray-500 px-3 py-1">
+                                  종료됨
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          
+                          {/* 상세 정보 테이블 */}
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-xs border-collapse">
+                              <thead>
+                                <tr className="bg-gray-50">
+                                  <th className="border border-gray-200 px-2 py-1 text-center">품종</th>
+                                  <th className="border border-gray-200 px-2 py-1 text-center">성별</th>
+                                  <th className="border border-gray-200 px-2 py-1 text-center">등급</th>
+                                  <th className="border border-gray-200 px-2 py-1 text-center">중량</th>
+                                  <th className="border border-gray-200 px-2 py-1 text-center">입찰가격</th>
+                                  <th className="border border-gray-200 px-2 py-1 text-center">총 입찰금액</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                <tr>
+                                  <td className="border border-gray-200 px-2 py-1 text-center">{bid.breed}</td>
+                                  <td className="border border-gray-200 px-2 py-1 text-center">{bid.gender}</td>
+                                  <td className="border border-gray-200 px-2 py-1 text-center">{bid.grade}</td>
+                                  <td className="border border-gray-200 px-2 py-1 text-center">{bid.weight}kg</td>
+                                  <td className={`border border-gray-200 px-2 py-1 text-center font-medium ${
+                                    bid.status === 'cancelled' || bid.status === 'finished'
+                                      ? 'text-gray-500' 
+                                      : 'text-red-600'
+                                  }`}>
+                                    {formatNumber(bid.price)}원/kg
+                                  </td>
+                                  <td className={`border border-gray-200 px-2 py-1 text-center font-bold ${
+                                    bid.status === 'cancelled' || bid.status === 'finished'
+                                      ? 'text-gray-500' 
+                                      : 'text-red-600'
+                                  }`}>
+                                    {formatNumber(bid.totalAmount)}원
+                                  </td>
+                                </tr>
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      </div>
+                      ))}
+                    </div>
+                  );
+                })()}
               </div>
             </div>
 
@@ -582,6 +844,100 @@ export default function AuctionDetailPage({ params }: PageProps) {
             </div>
           </div>
         </div>
+
+        {/* 입찰 확인 다이얼로그 */}
+        {showBidDialog && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[10000] p-4">
+            <div className="bg-white rounded-lg w-full max-w-md mx-4">
+              {/* 다이얼로그 헤더 */}
+              <div className="px-6 py-4 border-b border-gray-200">
+                <h3 className="text-lg font-bold text-gray-900">입찰 내용을 확인해 주세요</h3>
+              </div>
+              
+              {/* 다이얼로그 내용 */}
+              <div className="px-6 py-4">
+                <div className="space-y-3">
+                  <div className="bg-gray-50 p-3 rounded border">
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-sm text-gray-600">경매번호</span>
+                        <span className="text-sm text-gray-900">250806-001</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm text-gray-600">부위</span>
+                        <span className="text-sm text-gray-900">{selectedPart || "-"}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm text-gray-600">중량</span>
+                        <span className="text-sm text-gray-900">{selectedWeight ? `${selectedWeight}kg` : "-"}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm text-gray-600">입찰가격</span>
+                        <span className="text-sm text-gray-900">{bidPrice && bidPrice !== '0' ? `${formatNumber(bidPrice)}원/kg` : "-"}</span>
+                      </div>
+                      <div className="border-t border-gray-200 pt-2 mt-2">
+                        <div className="flex justify-between">
+                          <span className="text-sm font-bold text-gray-900">총 입찰금액</span>
+                          <span className="text-base font-bold text-red-600">
+                            {(() => {
+                              if (!bidPrice || !selectedWeight || bidPrice === '0') return '-';
+                              const price = parseFloat(removeCommas(bidPrice));
+                              const weight = parseFloat(selectedWeight);
+                              const total = Math.round(price * weight);
+                              return `${formatNumber(total.toString())}원`;
+                            })()}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              {/* 다이얼로그 버튼 */}
+              <div className="px-6 py-4 border-t border-gray-200 flex gap-3">
+                <button
+                  onClick={() => setShowBidDialog(false)}
+                  className="flex-1 py-2 px-4 border border-gray-300 text-gray-700 rounded hover:bg-gray-50 transition-colors"
+                >
+                  취소
+                </button>
+                <button
+                  onClick={addNewBid}
+                  className="flex-1 py-2 px-4 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+                >
+                  입찰하기
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 토스트 메시지 */}
+        {showToast && (
+          <div className={`fixed left-1/2 transform -translate-x-1/2 z-[10001] transition-all duration-300 ${
+            toastType === 'success' ? 'bottom-20' : 'top-4'
+          }`}>
+            <div className={`px-4 py-3 rounded-lg shadow-lg flex items-center space-x-2 ${
+              toastType === 'success' 
+                ? 'bg-white border border-gray-200 text-gray-800' 
+                : 'bg-gray-800 text-white'
+            }`}>
+              <div className="flex-shrink-0">
+                {toastType === 'success' ? (
+                  <svg className="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                ) : (
+                  <svg className="w-5 h-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                )}
+              </div>
+              <span className="text-sm font-medium">{toastMessage}</span>
+            </div>
+          </div>
+        )}
     </div>
   );
 }
