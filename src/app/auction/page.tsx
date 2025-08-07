@@ -275,7 +275,7 @@ export default function AuctionPage() {
                         </p>
                         <p className="text-sm">
                           <span className="font-bold text-gray-900">업체명:</span> 
-                          <span className="text-gray-600 ml-1">우성농장</span>
+                          <span className="text-gray-600 ml-1">우성미트</span>
                         </p>
                         <p className="text-sm">
                           <span className="font-bold text-gray-900">가공일자:</span> 
@@ -329,7 +329,7 @@ export default function AuctionPage() {
                         </p>
                         <p className="text-sm">
                           <span className="font-bold text-gray-900">업체명:</span> 
-                          <span className="text-gray-600 ml-1">청림목장</span>
+                          <span className="text-gray-600 ml-1">청림가공미트</span>
                         </p>
                         <p className="text-sm">
                           <span className="font-bold text-gray-900">가공일자:</span> 
@@ -383,7 +383,7 @@ export default function AuctionPage() {
                         </p>
                         <p className="text-sm">
                           <span className="font-bold text-gray-900">업체명:</span> 
-                          <span className="text-gray-600 ml-1">한우명가</span>
+                          <span className="text-gray-600 ml-1">안심축산미트</span>
                         </p>
                         <p className="text-sm">
                           <span className="font-bold text-gray-900">가공일자:</span> 
