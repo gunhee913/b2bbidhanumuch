@@ -99,16 +99,23 @@ export default function AuctionPage() {
                 <div className="flex items-center ml-2 space-x-8">
                   <div className="relative">
                     <Button variant="ghost" className="text-base font-medium text-black px-0 h-auto pb-2 hover:bg-transparent hover:text-black">
-                      25.08.06.(수)
+                      금일 경매
                     </Button>
                     <div className="absolute bottom-0 left-0 right-0 h-1 bg-red-600"></div>
                   </div>
                   <div className="relative">
                     <Button variant="ghost" className="text-base font-medium text-gray-500 px-0 h-auto pb-2 hover:bg-transparent hover:text-gray-700">
-                      25.08.07.(목)
+                      지난 경매 확인하기
                     </Button>
                   </div>
                 </div>
+              </div>
+              
+              {/* 안내 문구 박스 */}
+              <div className="px-4 py-3 bg-gray-100 border-b border-gray-200">
+                <p className="text-xs text-gray-600 text-center">
+                  경매는 오전 10시에 일괄 종료되며, 최고입찰가가 낙찰됩니다.
+                </p>
               </div>
             </div>
 
@@ -118,7 +125,7 @@ export default function AuctionPage() {
 
               {/* 메인 컨텐츠 영역 - 상품 목록 */}
               <div className="px-4 pb-24 pt-6 flex-1 overflow-y-auto">
-                {/* 경매 상품 카드 */}
+                {/* 경매 상품 카드 1 */}
                 <Link href="/auction/1" className="block">
                   <div className="bg-white rounded border border-gray-200 p-4 mb-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
                     <div className="flex gap-4">
@@ -133,7 +140,7 @@ export default function AuctionPage() {
                       </div>
                     </div>
                     
-                                        {/* 상품 정보 */}
+                    {/* 상품 정보 */}
                     <div className="flex-1 min-w-0 flex flex-col justify-center">
                       <div className="flex items-start justify-between mb-3">
                         <div className="flex flex-wrap gap-1">
@@ -147,10 +154,13 @@ export default function AuctionPage() {
                             No.9
                           </span>
                         </div>
-
                       </div>
                       
                       <div className="space-y-1">
+                        <p className="text-sm">
+                          <span className="font-bold text-gray-900">경매번호:</span> 
+                          <span className="text-gray-600 ml-1">250806-001</span>
+                        </p>
                         <p className="text-sm">
                           <span className="font-bold text-gray-900">이력번호:</span> 
                           <span className="text-gray-600 ml-1">002-1486-7293-5</span>
@@ -163,14 +173,223 @@ export default function AuctionPage() {
                           <span className="font-bold text-gray-900">가공일자:</span> 
                           <span className="text-gray-600 ml-1">2025.08.05.(화)</span>
                         </p>
-                        <p className="text-sm">
-                          <span className="font-bold text-gray-900">개월령:</span> 
-                          <span className="text-gray-600 ml-1">30개월</span>
-                        </p>
+                      </div>
+                    </div>
+                    </div>
+                  </div>
+                </Link>
 
+                {/* 경매 상품 카드 2 */}
+                <Link href="/auction/2" className="block">
+                  <div className="bg-white rounded border border-gray-200 p-4 mb-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
+                    <div className="flex gap-4">
+                    {/* 상품 이미지 */}
+                    <div className="flex-shrink-0">
+                      <div className="w-28 h-28 md:w-32 md:h-32 rounded bg-gray-200 overflow-hidden">
+                        <img 
+                          src="/등심2.png" 
+                          alt="등심2" 
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    </div>
+                    
+                    {/* 상품 정보 */}
+                    <div className="flex-1 min-w-0 flex flex-col justify-center">
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex flex-wrap gap-1">
+                          <span className="inline-flex items-center px-2 py-1 rounded text-xs font-bold bg-pink-600 text-white">
+                            한우암소
+                          </span>
+                          <span className="inline-flex items-center px-2 py-1 rounded text-xs font-bold bg-red-500 text-white">
+                            1++B
+                          </span>
+                          <span className="inline-flex items-center px-2 py-1 rounded text-xs font-bold bg-orange-500 text-white">
+                            No.8
+                          </span>
+                        </div>
                       </div>
                       
+                      <div className="space-y-1">
+                        <p className="text-sm">
+                          <span className="font-bold text-gray-900">경매번호:</span> 
+                          <span className="text-gray-600 ml-1">250806-002</span>
+                        </p>
+                        <p className="text-sm">
+                          <span className="font-bold text-gray-900">이력번호:</span> 
+                          <span className="text-gray-600 ml-1">002-1486-7294-3</span>
+                        </p>
+                        <p className="text-sm">
+                          <span className="font-bold text-gray-900">업체명:</span> 
+                          <span className="text-gray-600 ml-1">대한축산</span>
+                        </p>
+                        <p className="text-sm">
+                          <span className="font-bold text-gray-900">가공일자:</span> 
+                          <span className="text-gray-600 ml-1">2025.08.05.(화)</span>
+                        </p>
+                      </div>
+                    </div>
+                    </div>
+                  </div>
+                </Link>
 
+                {/* 경매 상품 카드 3 */}
+                <Link href="/auction/3" className="block">
+                  <div className="bg-white rounded border border-gray-200 p-4 mb-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
+                    <div className="flex gap-4">
+                    {/* 상품 이미지 */}
+                    <div className="flex-shrink-0">
+                      <div className="w-28 h-28 md:w-32 md:h-32 rounded bg-gray-200 overflow-hidden">
+                        <img 
+                          src="/등심3.png" 
+                          alt="등심3" 
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    </div>
+                    
+                    {/* 상품 정보 */}
+                    <div className="flex-1 min-w-0 flex flex-col justify-center">
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex flex-wrap gap-1">
+                          <span className="inline-flex items-center px-2 py-1 rounded text-xs font-bold bg-amber-600 text-white">
+                            한우거세
+                          </span>
+                          <span className="inline-flex items-center px-2 py-1 rounded text-xs font-bold bg-blue-500 text-white">
+                            1+A
+                          </span>
+                          <span className="inline-flex items-center px-2 py-1 rounded text-xs font-bold bg-orange-500 text-white">
+                            No.6
+                          </span>
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-1">
+                        <p className="text-sm">
+                          <span className="font-bold text-gray-900">경매번호:</span> 
+                          <span className="text-gray-600 ml-1">250806-003</span>
+                        </p>
+                        <p className="text-sm">
+                          <span className="font-bold text-gray-900">이력번호:</span> 
+                          <span className="text-gray-600 ml-1">002-1486-7295-8</span>
+                        </p>
+                        <p className="text-sm">
+                          <span className="font-bold text-gray-900">업체명:</span> 
+                          <span className="text-gray-600 ml-1">우성농장</span>
+                        </p>
+                        <p className="text-sm">
+                          <span className="font-bold text-gray-900">가공일자:</span> 
+                          <span className="text-gray-600 ml-1">2025.08.05.(화)</span>
+                        </p>
+                      </div>
+                    </div>
+                    </div>
+                  </div>
+                </Link>
+
+                {/* 경매 상품 카드 4 */}
+                <Link href="/auction/4" className="block">
+                  <div className="bg-white rounded border border-gray-200 p-4 mb-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
+                    <div className="flex gap-4">
+                    {/* 상품 이미지 */}
+                    <div className="flex-shrink-0">
+                      <div className="w-28 h-28 md:w-32 md:h-32 rounded bg-gray-200 overflow-hidden">
+                        <img 
+                          src="/등심4.png" 
+                          alt="등심4" 
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    </div>
+                    
+                    {/* 상품 정보 */}
+                    <div className="flex-1 min-w-0 flex flex-col justify-center">
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex flex-wrap gap-1">
+                          <span className="inline-flex items-center px-2 py-1 rounded text-xs font-bold bg-pink-600 text-white">
+                            한우암소
+                          </span>
+                          <span className="inline-flex items-center px-2 py-1 rounded text-xs font-bold bg-blue-500 text-white">
+                            1+C
+                          </span>
+                          <span className="inline-flex items-center px-2 py-1 rounded text-xs font-bold bg-orange-500 text-white">
+                            No.5
+                          </span>
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-1">
+                        <p className="text-sm">
+                          <span className="font-bold text-gray-900">경매번호:</span> 
+                          <span className="text-gray-600 ml-1">250806-004</span>
+                        </p>
+                        <p className="text-sm">
+                          <span className="font-bold text-gray-900">이력번호:</span> 
+                          <span className="text-gray-600 ml-1">002-1486-7296-1</span>
+                        </p>
+                        <p className="text-sm">
+                          <span className="font-bold text-gray-900">업체명:</span> 
+                          <span className="text-gray-600 ml-1">청림목장</span>
+                        </p>
+                        <p className="text-sm">
+                          <span className="font-bold text-gray-900">가공일자:</span> 
+                          <span className="text-gray-600 ml-1">2025.08.05.(화)</span>
+                        </p>
+                      </div>
+                    </div>
+                    </div>
+                  </div>
+                </Link>
+
+                {/* 경매 상품 카드 5 */}
+                <Link href="/auction/5" className="block">
+                  <div className="bg-white rounded border border-gray-200 p-4 mb-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
+                    <div className="flex gap-4">
+                    {/* 상품 이미지 */}
+                    <div className="flex-shrink-0">
+                      <div className="w-28 h-28 md:w-32 md:h-32 rounded bg-gray-200 overflow-hidden">
+                        <img 
+                          src="/등심1.png" 
+                          alt="등심1" 
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    </div>
+                    
+                    {/* 상품 정보 */}
+                    <div className="flex-1 min-w-0 flex flex-col justify-center">
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex flex-wrap gap-1">
+                          <span className="inline-flex items-center px-2 py-1 rounded text-xs font-bold bg-pink-600 text-white">
+                            한우암소
+                          </span>
+                          <span className="inline-flex items-center px-2 py-1 rounded text-xs font-bold bg-red-500 text-white">
+                            1++C
+                          </span>
+                          <span className="inline-flex items-center px-2 py-1 rounded text-xs font-bold bg-orange-500 text-white">
+                            No.7
+                          </span>
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-1">
+                        <p className="text-sm">
+                          <span className="font-bold text-gray-900">경매번호:</span> 
+                          <span className="text-gray-600 ml-1">250806-005</span>
+                        </p>
+                        <p className="text-sm">
+                          <span className="font-bold text-gray-900">이력번호:</span> 
+                          <span className="text-gray-600 ml-1">002-1486-7297-6</span>
+                        </p>
+                        <p className="text-sm">
+                          <span className="font-bold text-gray-900">업체명:</span> 
+                          <span className="text-gray-600 ml-1">한우명가</span>
+                        </p>
+                        <p className="text-sm">
+                          <span className="font-bold text-gray-900">가공일자:</span> 
+                          <span className="text-gray-600 ml-1">2025.08.05.(화)</span>
+                        </p>
+                      </div>
                     </div>
                     </div>
                   </div>
