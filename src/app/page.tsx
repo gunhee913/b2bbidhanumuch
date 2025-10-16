@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { 
   Home as HomeIcon,
@@ -20,6 +21,7 @@ import {
 import { Button } from '@/components/ui/button';
 
 export default function MainPage() {
+  const searchParams = useSearchParams();
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isBalanceVisible, setIsBalanceVisible] = useState(true);
   const [activeTab, setActiveTab] = useState('경매 정보');
@@ -81,6 +83,26 @@ export default function MainPage() {
       status: 'active'
     }
   ]);
+
+  // URL 파라미터로 탭 설정 및 스크롤
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    const bidId = searchParams.get('bidId');
+    
+    if (tab === 'myBids') {
+      setActiveTab('내 입찰 내역');
+      
+      // 탭 전환 후 스크롤 실행
+      if (bidId) {
+        setTimeout(() => {
+          const element = document.getElementById(`bid-card-${bidId}`);
+          if (element) {
+            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }, 100);
+      }
+    }
+  }, [searchParams]);
 
   // 카운트다운
   useEffect(() => {
@@ -516,10 +538,17 @@ export default function MainPage() {
                         
                         <div className="space-y-3">
                         {myBids.map((bid) => (
-                          <div key={bid.id} className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm">
+                          <div key={bid.id} id={`bid-card-${bid.id}`} className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm">
                             {/* 헤더 영역 */}
                             <div className="flex items-center justify-between px-3 py-2.5 bg-gray-50 border-b border-gray-200">
-                              <span className="text-xs font-bold text-gray-900">{bid.auctionNumber}</span>
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-bold text-gray-900">{bid.auctionNumber}</span>
+                                <Link href={`/auction/${bid.id}?from=myBids&bidId=${bid.id}`}>
+                                  <button className="px-2 py-1 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50 transition-colors">
+                                    개체보기
+                                  </button>
+                                </Link>
+                              </div>
                               <span className="text-xs text-gray-500">{bid.time}</span>
                             </div>
 
@@ -530,11 +559,11 @@ export default function MainPage() {
                                   <td className="px-3 py-2 text-gray-600 bg-gray-50 w-24">성별</td>
                                   <td className="px-3 py-2 text-gray-900 font-medium">{bid.gender}</td>
                                   <td className="px-3 py-2 text-gray-600 bg-gray-50 w-24">등급</td>
-                                  <td className="px-3 py-2 text-gray-900 font-bold">{bid.grade}</td>
+                                  <td className="px-3 py-2 text-gray-900 font-medium" style={{ letterSpacing: '-0.05em' }}>{bid.grade}</td>
                                 </tr>
                                 <tr className="border-b border-gray-100">
                                   <td className="px-3 py-2 text-gray-600 bg-gray-50">부위</td>
-                                  <td className="px-3 py-2 text-gray-900 font-medium">{bid.part}</td>
+                                  <td className="px-3 py-2 text-gray-900 font-medium" style={{ letterSpacing: '-0.05em' }}>{bid.part}</td>
                                   <td className="px-3 py-2 text-gray-600 bg-gray-50">중량</td>
                                   <td className="px-3 py-2 text-gray-900 font-medium">{bid.weight.toFixed(1)}kg</td>
                                 </tr>
