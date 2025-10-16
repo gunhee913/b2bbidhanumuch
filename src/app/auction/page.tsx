@@ -79,17 +79,19 @@ export default function AuctionPage() {
             <div className="flex-shrink-0 bg-white border-b border-gray-200 pt-1 md:pt-0">
               <div className="px-2 md:px-4 py-2">
                 <div className="flex items-center justify-between">
-                  <Link href="/" className="text-2xl font-bold text-red-600" style={{ letterSpacing: '-0.05em' }}>
-                    HanuMuch
+                  <Link href="/" className="flex items-center">
+                    <img 
+                      src="/Mainlogo.png" 
+                      alt="HanuMuch" 
+                      className="h-8 w-auto"
+                    />
                   </Link>
                   <div className="flex items-center space-x-3">
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      className="p-1 text-gray-600 hover:bg-transparent hover:text-gray-600"
-                    >
-                      <User className="h-5 w-5" />
-                    </Button>
+                    <img 
+                      src="/음성축산물공판장.png" 
+                      alt="음성축산물공판장" 
+                      className="h-5 w-auto border border-gray-300 rounded px-1 py-0.5"
+                    />
                   </div>
                 </div>
               </div>

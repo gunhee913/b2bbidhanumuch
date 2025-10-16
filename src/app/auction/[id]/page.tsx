@@ -254,18 +254,20 @@ export default function AuctionDetailPage({ params }: PageProps) {
                     >
                       <ArrowLeft className="h-5 w-5" />
                     </Link>
-                    <Link href="/" className="text-2xl font-bold text-red-600" style={{ letterSpacing: '-0.05em' }}>
-                      HanuMuch
+                    <Link href="/" className="flex items-center">
+                      <img 
+                        src="/Mainlogo.png" 
+                        alt="HanuMuch" 
+                        className="h-8 w-auto"
+                      />
                     </Link>
                   </div>
                   <div className="flex items-center space-x-3">
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      className="p-1 text-gray-600 hover:bg-transparent hover:text-gray-600"
-                    >
-                      <User className="h-5 w-5" />
-                    </Button>
+                    <img 
+                      src="/음성축산물공판장.png" 
+                      alt="음성축산물공판장" 
+                      className="h-5 w-auto border border-gray-300 rounded px-1 py-0.5"
+                    />
                   </div>
                 </div>
               </div>
@@ -493,7 +495,7 @@ export default function AuctionDetailPage({ params }: PageProps) {
                                   setBidPrice('0');
                                 }
                               }}
-                              className="w-full px-3 py-2 pr-10 text-right text-sm font-bold border border-gray-300 rounded focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                              className="w-full px-3 py-2 pr-10 text-right text-sm font-bold border border-gray-300 rounded focus:ring-2 focus:ring-red-500 focus:border-transparent bg-white text-black"
                             />
                             <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-sm text-gray-500">
                               원
