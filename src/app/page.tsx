@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
-export default function MainPage() {
+function MainPageContent() {
   const searchParams = useSearchParams();
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isBalanceVisible, setIsBalanceVisible] = useState(true);
@@ -834,5 +834,13 @@ export default function MainPage() {
           </div>
         </div>
     </div>
+  );
+}
+
+export default function MainPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+      <MainPageContent />
+    </Suspense>
   );
 }
