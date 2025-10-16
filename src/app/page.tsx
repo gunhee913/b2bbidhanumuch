@@ -22,7 +22,7 @@ import { Button } from '@/components/ui/button';
 export default function MainPage() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isBalanceVisible, setIsBalanceVisible] = useState(true);
-  const [activeTab, setActiveTab] = useState('금일 경매');
+  const [activeTab, setActiveTab] = useState('경매 정보');
   const [countdown, setCountdown] = useState(3600); // 01시간 00분 00초 = 3600초
   const [showAuctionInfo, setShowAuctionInfo] = useState(false);
   const [isSecondBidNotificationOn, setIsSecondBidNotificationOn] = useState(false);
@@ -329,14 +329,14 @@ export default function MainPage() {
               <div className="mt-4 bg-white">
                 <div className="flex border-b border-gray-200 px-4">
                   <button
-                    onClick={() => setActiveTab('금일 경매')}
+                    onClick={() => setActiveTab('경매 정보')}
                     className={`flex-1 py-3 text-sm font-bold transition-colors ${
-                      activeTab === '금일 경매'
+                      activeTab === '경매 정보'
                         ? 'text-red-600 border-b-2 border-red-600'
                         : 'text-gray-500'
                     }`}
                   >
-                    금일 경매
+                    경매 정보
                   </button>
                   <button
                     onClick={() => setActiveTab('내 입찰 내역')}
@@ -353,44 +353,44 @@ export default function MainPage() {
 
               {/* 탭 컨텐츠 */}
               <div className="pb-24 bg-white">
-                {activeTab === '금일 경매' ? (
+                {activeTab === '경매 정보' ? (
                   <div className="px-4 pt-4">
                     {/* 경매 요약 카드 */}
                     <div className="bg-white rounded-xl p-4 mb-4 border border-gray-200 shadow-sm">
-                      <div className="flex items-center justify-between mb-3">
-                        <h3 className="text-base font-bold text-gray-900">오늘의 경매 (25.08.06.수)</h3>
-                        <span className="text-sm font-bold text-gray-600">총 23두</span>
-                      </div>
-                      
-                      <div className="rounded-lg p-3 mb-3 border border-gray-200 relative">
-                        <div className="flex flex-col items-center justify-center">
-                          <div className="flex items-center gap-1 mb-1">
-                            <span className="text-xs font-medium text-gray-600">마감까지</span>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setShowAuctionInfo(!showAuctionInfo);
-                              }}
-                              className="text-gray-500 hover:text-gray-700 transition-colors relative"
-                            >
-                              <AlertCircle className="h-4 w-4" />
-                            </button>
-                          </div>
-                          <span className="text-2xl font-bold text-gray-900" style={{ letterSpacing: '-0.02em' }}>
-                            {formatTime(countdown)}
-                          </span>
+                      <div className="flex items-center justify-between mb-3 relative">
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-base font-bold text-gray-900">오늘의 경매 (25.08.06.수)</h3>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setShowAuctionInfo(!showAuctionInfo);
+                            }}
+                            className="text-gray-500 hover:text-gray-700 transition-colors"
+                          >
+                            <AlertCircle className="h-4 w-4" />
+                          </button>
                         </div>
                         {showAuctionInfo && (
                           <div 
                             ref={tooltipRef}
-                            className="absolute top-12 left-1/2 transform -translate-x-1/2 z-10 bg-gray-800 text-white text-xs rounded-lg py-2 px-3 shadow-lg min-w-[200px]"
+                            className="absolute top-8 left-0 z-10 bg-gray-800 text-white text-xs rounded-lg py-2 px-3 shadow-lg min-w-[200px]"
                           >
-                            <div className="absolute -top-1.5 left-1/2 transform -translate-x-1/2 w-3 h-3 bg-gray-800 rotate-45"></div>
+                            <div className="absolute -top-1.5 left-6 w-3 h-3 bg-gray-800 rotate-45"></div>
                             <p className="text-center leading-relaxed relative z-10">
                               경매는 오전 10시에 일괄 종료되며,<br />최고가가 낙찰됩니다.
                             </p>
                           </div>
                         )}
+                      </div>
+                      
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-medium text-gray-600">마감까지</span>
+                          <span className="text-xs font-bold text-gray-900" style={{ letterSpacing: '-0.02em' }}>
+                            {formatTime(countdown)}
+                          </span>
+                        </div>
+                        <span className="text-sm font-bold text-gray-600">총 23두</span>
                       </div>
 
                       {/* 한우 거세 */}
@@ -457,9 +457,9 @@ export default function MainPage() {
                       <>
                         {/* 전체내역 버튼 */}
                         <div className="flex justify-end mb-2">
-                          <button className="flex items-center gap-1 text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors">
+                          <button className="flex items-center gap-0.5 text-xs font-medium text-gray-700 hover:text-gray-900 transition-colors">
                             전체내역
-                            <ArrowRight className="h-4 w-4" />
+                            <ArrowRight className="h-3.5 w-3.5" />
                           </button>
                         </div>
 
@@ -631,13 +631,18 @@ export default function MainPage() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">증액 금액</label>
                     <div className="relative">
                       <input
-                        type="text"
+                        type="tel"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
                         value={tempQuickReBidAmount}
                         onChange={(e) => {
                           const value = e.target.value.replace(/[^0-9]/g, '');
                           setTempQuickReBidAmount(value ? parseInt(value).toLocaleString() : '');
                         }}
-                        placeholder="증액할 금액을 입력하세요"
+                        onFocus={(e) => {
+                          setTempQuickReBidAmount('');
+                        }}
+                        placeholder="증액할 금액을 입력하세요 (100원 단위)"
                         className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 bg-white text-gray-900"
                       />
                       <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">원</span>
@@ -645,6 +650,11 @@ export default function MainPage() {
                     <p className="text-xs text-gray-500 mt-2">
                       현재 최고가에 이 금액을 더해 빠른 재입찰합니다.
                     </p>
+                    {tempQuickReBidAmount && parseInt(tempQuickReBidAmount.replace(/,/g, '')) % 100 !== 0 && (
+                      <p className="text-xs text-red-600 mt-1">
+                        ⚠️ 100원 단위로 입력해주세요
+                      </p>
+                    )}
                   </div>
 
                   <div className="flex gap-2">
@@ -659,7 +669,7 @@ export default function MainPage() {
                     </button>
                     <button
                       onClick={saveQuickReBidAmount}
-                      disabled={!tempQuickReBidAmount || parseInt(tempQuickReBidAmount.replace(/,/g, '')) <= 0}
+                      disabled={!tempQuickReBidAmount || parseInt(tempQuickReBidAmount.replace(/,/g, '')) <= 0 || parseInt(tempQuickReBidAmount.replace(/,/g, '')) % 100 !== 0}
                       className="flex-1 bg-red-600 text-white py-2 rounded-lg font-bold hover:bg-red-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
                     >
                       저장
@@ -695,20 +705,33 @@ export default function MainPage() {
                   ) : (
                     <div className="mb-4">
                       <label className="block text-sm font-medium text-gray-700 mb-2">재입찰가격 입력</label>
-                      <input
-                        type="text"
-                        value={customBidPrice}
-                        onChange={(e) => {
-                          const value = e.target.value.replace(/[^0-9]/g, '');
-                          setCustomBidPrice(value ? parseInt(value).toLocaleString() : '');
-                        }}
-                        placeholder="입찰가격을 입력하세요"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 bg-white text-gray-900"
-                      />
+                      <div className="relative">
+                        <input
+                          type="tel"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          value={customBidPrice}
+                          onChange={(e) => {
+                            const value = e.target.value.replace(/[^0-9]/g, '');
+                            setCustomBidPrice(value ? parseInt(value).toLocaleString() : '');
+                          }}
+                          onFocus={(e) => {
+                            setCustomBidPrice('');
+                          }}
+                          placeholder="입찰가격을 입력하세요 (100원 단위)"
+                          className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 bg-white text-gray-900"
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">원</span>
+                      </div>
                       {customBidPrice && (
                         <div className="text-sm text-gray-500 mt-2">
                           총 {(parseInt(customBidPrice.replace(/,/g, '')) * selectedBid.weight).toLocaleString()}원
                         </div>
+                      )}
+                      {customBidPrice && parseInt(customBidPrice.replace(/,/g, '')) % 100 !== 0 && (
+                        <p className="text-xs text-red-600 mt-1">
+                          ⚠️ 100원 단위로 입력해주세요
+                        </p>
                       )}
                     </div>
                   )}
@@ -726,7 +749,7 @@ export default function MainPage() {
                     </button>
                     <button
                       onClick={confirmReBid}
-                      disabled={!selectedBid.reBidPrice && !customBidPrice}
+                      disabled={!selectedBid.reBidPrice && (!customBidPrice || parseInt(customBidPrice.replace(/,/g, '')) % 100 !== 0)}
                       className="flex-1 bg-red-600 text-white py-2 rounded-lg font-bold hover:bg-red-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
                     >
                       재입찰하기
