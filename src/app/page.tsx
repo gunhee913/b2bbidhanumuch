@@ -301,7 +301,7 @@ function MainPageContent() {
                   {/* 환영 메시지 */}
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-bold text-gray-900 truncate">김하누님(72번 중도매인) 안녕하세요.</p>
-                    <p className="text-xs text-gray-600">좋은 아침입니다.</p>
+                    <p className="text-xs text-gray-600">오늘도 즐거운 하루 되세요.</p>
                   </div>
                 </div>
               </div>
@@ -378,10 +378,10 @@ function MainPageContent() {
                 {activeTab === '경매 정보' ? (
                   <div className="px-4 pt-4">
                     {/* 경매 요약 카드 */}
-                    <div className="bg-white rounded-xl p-4 mb-4 border border-gray-200 shadow-sm">
+                    <div className="mb-4">
                       <div className="flex items-center justify-between mb-3 relative">
                         <div className="flex items-center gap-2">
-                          <h3 className="text-base font-bold text-gray-900">오늘의 경매 (25.08.06.수)</h3>
+                          <h3 className="text-base font-bold text-gray-900">오늘의 경매 리스트 (25.08.06.수)</h3>
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
@@ -405,64 +405,55 @@ function MainPageContent() {
                         )}
                       </div>
                       
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-medium text-gray-600">마감까지</span>
-                          <span className="text-xs font-bold text-gray-900" style={{ letterSpacing: '-0.02em' }}>
-                            {formatTime(countdown)}
-                          </span>
-                        </div>
-                        <span className="text-sm font-bold text-gray-600">총 23두</span>
+                      <div className="flex items-center gap-2 mb-3">
+                        <span className="text-xs font-medium text-gray-600">마감까지</span>
+                        <span className="text-xs font-bold text-gray-900" style={{ letterSpacing: '-0.02em' }}>
+                          {formatTime(countdown)}
+                        </span>
                       </div>
 
-                      {/* 한우 거세 */}
-                      <div className="bg-gray-50 rounded-lg p-3 mb-2.5 border border-gray-100">
-                        <div className="flex items-center justify-between mb-2.5">
-                          <span className="text-sm font-bold text-gray-900">한우 거세</span>
-                          <span className="text-xs font-bold text-gray-600">15두</span>
-                        </div>
-                        <div className="grid grid-cols-3 gap-2">
-                          <div className="bg-white rounded-lg px-2.5 py-2 text-center border border-gray-200 shadow-sm">
-                            <div className="text-[11px] font-medium text-gray-600 mb-1">1++</div>
-                            <div className="text-sm font-bold text-gray-900">5두</div>
-                          </div>
-                          <div className="bg-white rounded-lg px-2.5 py-2 text-center border border-gray-200 shadow-sm">
-                            <div className="text-[11px] font-medium text-gray-600 mb-1">1+</div>
-                            <div className="text-sm font-bold text-gray-900">7두</div>
-                          </div>
-                          <div className="bg-white rounded-lg px-2.5 py-2 text-center border border-gray-200 shadow-sm">
-                            <div className="text-[11px] font-medium text-gray-600 mb-1">1</div>
-                            <div className="text-sm font-bold text-gray-900">3두</div>
-                          </div>
-                        </div>
+                      {/* 경매 정보 테이블 */}
+                      <div className="mb-3 overflow-hidden border border-gray-200">
+                        <table className="w-full text-xs">
+                          <thead>
+                            <tr className="bg-gray-50 border-b border-gray-200">
+                              <th className="py-2.5 px-3 text-left font-bold text-gray-700">구분</th>
+                              <th className="py-2.5 px-3 text-center font-bold text-gray-700">1++</th>
+                              <th className="py-2.5 px-3 text-center font-bold text-gray-700">1+</th>
+                              <th className="py-2.5 px-3 text-center font-bold text-gray-700">1</th>
+                              <th className="py-2.5 px-3 text-right font-bold text-gray-700">합계</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            <tr className="border-b border-gray-200">
+                              <td className="py-3 px-3 font-bold text-gray-900">한우 거세</td>
+                              <td className="py-3 px-3 text-center font-bold text-gray-900">5두</td>
+                              <td className="py-3 px-3 text-center font-bold text-gray-900">7두</td>
+                              <td className="py-3 px-3 text-center font-bold text-gray-900">3두</td>
+                              <td className="py-3 px-3 text-right font-bold text-gray-600">15두</td>
+                            </tr>
+                            <tr className="border-b border-gray-200">
+                              <td className="py-3 px-3 font-bold text-gray-900">한우 암소</td>
+                              <td className="py-3 px-3 text-center font-bold text-gray-900">3두</td>
+                              <td className="py-3 px-3 text-center font-bold text-gray-900">3두</td>
+                              <td className="py-3 px-3 text-center font-bold text-gray-900">2두</td>
+                              <td className="py-3 px-3 text-right font-bold text-gray-600">8두</td>
+                            </tr>
+                            <tr className="bg-gray-50">
+                              <td className="py-3 px-3 font-bold text-gray-900">합계</td>
+                              <td className="py-3 px-3 text-center font-bold text-gray-900">8두</td>
+                              <td className="py-3 px-3 text-center font-bold text-gray-900">10두</td>
+                              <td className="py-3 px-3 text-center font-bold text-gray-900">5두</td>
+                              <td className="py-3 px-3 text-right font-bold text-gray-600">23두</td>
+                            </tr>
+                          </tbody>
+                        </table>
                       </div>
 
-                      {/* 한우 암소 */}
-                      <div className="bg-gray-50 rounded-lg p-3 mb-3 border border-gray-100">
-                        <div className="flex items-center justify-between mb-2.5">
-                          <span className="text-sm font-bold text-gray-900">한우 암소</span>
-                          <span className="text-xs font-bold text-gray-600">8두</span>
-                        </div>
-                        <div className="grid grid-cols-3 gap-2">
-                          <div className="bg-white rounded-lg px-2.5 py-2 text-center border border-gray-200 shadow-sm">
-                            <div className="text-[11px] font-medium text-gray-600 mb-1">1++</div>
-                            <div className="text-sm font-bold text-gray-900">3두</div>
-                          </div>
-                          <div className="bg-white rounded-lg px-2.5 py-2 text-center border border-gray-200 shadow-sm">
-                            <div className="text-[11px] font-medium text-gray-600 mb-1">1+</div>
-                            <div className="text-sm font-bold text-gray-900">3두</div>
-                          </div>
-                          <div className="bg-white rounded-lg px-2.5 py-2 text-center border border-gray-200 shadow-sm">
-                            <div className="text-[11px] font-medium text-gray-600 mb-1">1</div>
-                            <div className="text-sm font-bold text-gray-900">2두</div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* 전체 경매 보기 버튼 */}
+                      {/* 경매 참가하기 버튼 */}
                       <Link href="/auction" className="block">
                         <button className="w-full bg-gray-900 hover:bg-gray-800 active:bg-black text-white font-bold text-sm py-3 rounded-lg transition-all shadow-sm hover:shadow-md active:shadow-sm flex items-center justify-center gap-2 active:scale-[0.98]">
-                          전체 경매 보기
+                          경매 참가하기
                           <ArrowRight className="h-4 w-4" />
                         </button>
                       </Link>
