@@ -364,6 +364,7 @@ function MainPageContent() {
                     onClick={() => setActiveTab('내 입찰 내역')}
                     className={`flex-1 py-3 text-sm font-bold transition-colors ${
                       activeTab === '내 입찰 내역'
+                      
                         ? 'text-red-600 border-b-2 border-red-600'
                         : 'text-gray-500'
                     }`}
