@@ -422,6 +422,7 @@ function MainPageContent() {
                               <th className="py-2.5 px-3 text-center font-bold text-gray-700">1++</th>
                               <th className="py-2.5 px-3 text-center font-bold text-gray-700">1+</th>
                               <th className="py-2.5 px-3 text-center font-bold text-gray-700">1</th>
+                              <th className="py-2.5 px-3 text-center font-bold text-gray-700">2</th>
                               <th className="py-2.5 px-3 text-right font-bold text-gray-700">합계</th>
                             </tr>
                           </thead>
@@ -431,21 +432,24 @@ function MainPageContent() {
                               <td className="py-3 px-3 text-center font-bold text-gray-900">5두</td>
                               <td className="py-3 px-3 text-center font-bold text-gray-900">7두</td>
                               <td className="py-3 px-3 text-center font-bold text-gray-900">3두</td>
-                              <td className="py-3 px-3 text-right font-bold text-gray-600">15두</td>
+                              <td className="py-3 px-3 text-center font-bold text-gray-900">2두</td>
+                              <td className="py-3 px-3 text-right font-bold text-gray-600">17두</td>
                             </tr>
                             <tr className="border-b border-gray-200">
                               <td className="py-3 px-3 font-bold text-gray-900">한우 암소</td>
                               <td className="py-3 px-3 text-center font-bold text-gray-900">3두</td>
                               <td className="py-3 px-3 text-center font-bold text-gray-900">3두</td>
                               <td className="py-3 px-3 text-center font-bold text-gray-900">2두</td>
-                              <td className="py-3 px-3 text-right font-bold text-gray-600">8두</td>
+                              <td className="py-3 px-3 text-center font-bold text-gray-900">1두</td>
+                              <td className="py-3 px-3 text-right font-bold text-gray-600">9두</td>
                             </tr>
                             <tr className="bg-gray-50">
                               <td className="py-3 px-3 font-bold text-gray-900">합계</td>
                               <td className="py-3 px-3 text-center font-bold text-gray-900">8두</td>
                               <td className="py-3 px-3 text-center font-bold text-gray-900">10두</td>
                               <td className="py-3 px-3 text-center font-bold text-gray-900">5두</td>
-                              <td className="py-3 px-3 text-right font-bold text-gray-600">23두</td>
+                              <td className="py-3 px-3 text-center font-bold text-gray-900">3두</td>
+                              <td className="py-3 px-3 text-right font-bold text-gray-600">26두</td>
                             </tr>
                           </tbody>
                         </table>

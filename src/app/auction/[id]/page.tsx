@@ -244,24 +244,42 @@ export default function AuctionDetailPage({ params }: PageProps) {
 
   const mainImages = getImagesForAuction(resolvedParams.id);
 
-  // 개체별 부위 중량 데이터 생성 (0.1~0.3kg 차이)
+  // 개체별 부위 중량 데이터 생성
   const getPartsData = (auctionId: string) => {
     const id = parseInt(auctionId);
-    const baseWeights = [
-      { part: '윗등심(좌)', baseWeight: 8.5 },
-      { part: '윗등심(우)', baseWeight: 8.8 },
-      { part: '아랫등심(좌)', baseWeight: 9.8 },
-      { part: '아랫등심(우)', baseWeight: 9.6 },
-      { part: '안심(좌)', baseWeight: 3.3 }
+    
+    // 부위별 중량 범위 (min, max) - 좌/우 각각의 중량
+    const partsWithRange = [
+      { part: '등심(좌)', min: 15.0, max: 16.0 },
+      { part: '등심(우)', min: 15.0, max: 16.0 },
+      { part: '안심', min: 4.0, max: 5.0 },
+      { part: '채끝', min: 7.5, max: 8.5 },
+      { part: '갈비(좌)', min: 12.0, max: 13.0 },
+      { part: '갈비(우)', min: 12.0, max: 13.0 },
+      { part: '특수부위', min: 3.0, max: 4.0 },
+      { part: '설도(좌)', min: 16.0, max: 17.5 },
+      { part: '설도(우)', min: 16.0, max: 17.5 },
+      { part: '앞다리', min: 24.0, max: 26.0 },
+      { part: '우둔', min: 20.0, max: 22.0 },
+      { part: '목심', min: 14.0, max: 15.0 },
+      { part: '양지(좌)', min: 12.0, max: 13.0 },
+      { part: '양지(우)', min: 12.0, max: 13.0 },
+      { part: '사태', min: 14.5, max: 15.5 },
+      { part: '꼬리', min: 15.5, max: 16.5 },
+      { part: '족', min: 10.0, max: 11.0 },
+      { part: '사골', min: 3.0, max: 4.0 },
+      { part: '잡뼈', min: 21.0, max: 23.0 }
     ];
 
-    // ID에 따라 중량 변화 (-0.3 ~ +0.3)
-    const weightVariation = ((id - 1) * 0.15) % 0.6 - 0.3;
-    
-    return baseWeights.map(item => ({
-      part: item.part,
-      weight: (item.baseWeight + weightVariation).toFixed(1)
-    }));
+    // ID에 따라 결정론적으로 중량 계산 (범위 내에서)
+    return partsWithRange.map((item, index) => {
+      const variation = ((id + index) * 0.17) % 1; // 0~1 사이 값
+      const weight = item.min + (item.max - item.min) * variation;
+      return {
+        part: item.part,
+        weight: weight.toFixed(1)
+      };
+    });
   };
 
   const partsData = getPartsData(resolvedParams.id);
@@ -270,13 +288,15 @@ export default function AuctionDetailPage({ params }: PageProps) {
   const getAuctionInfo = (auctionId: string) => {
     const id = parseInt(auctionId);
     const breeds = ['한우거세', '한우암소', '한우거세', '한우거세', '한우암소'];
-    const grades = ['1++(9)', '1++(8)', '1+(7)', '1++(9)', '1+(8)'];
+    const qualityGrades = ['1++', '1++', '1+', '1++', '1+']; // 육질 등급
+    const yieldGrades = ['A', 'B', 'A', 'A', 'C']; // 육량 지수
+    const marbling = ['9', '8', '7', '9', '8']; // 근내지방도
     const months = ['30', '28', '32', '29', '31'];
     
     return {
       auctionNumber: `250806-${String(id).padStart(3, '0')}`,
       breed: breeds[(id - 1) % breeds.length],
-      grade: grades[(id - 1) % grades.length],
+      grade: `${qualityGrades[(id - 1) % qualityGrades.length]}${yieldGrades[(id - 1) % yieldGrades.length]}(${marbling[(id - 1) % marbling.length]})`,
       months: months[(id - 1) % months.length]
     };
   };
@@ -679,59 +699,6 @@ export default function AuctionDetailPage({ params }: PageProps) {
                       </div>
                     ))}
                     
-                    {/* 현재가 (기준점) */}
-                    <div 
-                      className="grid px-1 py-1.5 bg-white border-b border-gray-100 cursor-pointer hover:bg-gray-50" 
-                      style={{gridTemplateColumns: '1fr 0.7fr 0.8fr'}}
-                      onClick={() => {
-                        setSelectedPart('안심(우)');
-                        setSelectedWeight('3.2');
-                      }}
-                    >
-                      <div className="text-center text-[10px] font-bold text-black flex items-center justify-center border-r border-gray-200">
-                        안심(우)
-                      </div>
-                      <div className="text-center text-[10px] font-bold text-black flex items-center justify-center border-r border-gray-200">
-                        3.2kg
-                      </div>
-                      <div className="text-center text-[10px] text-gray-600 flex items-center justify-center">
-                        -
-                      </div>
-                    </div>
-                    
-                    {/* 매수호가 (아래쪽, 낮은 가격) */}
-                    {[
-                      { part: '채끝(좌)', weight: '4.2' },
-                      { part: '채끝(우)', weight: '4.0' },
-                      { part: '목심(좌)', weight: '9.3' },
-                      { part: '목심(우)', weight: '8.9' },
-                      { part: '설깃(좌)', weight: '6.9' },
-                      { part: '설깃(우)', weight: '7.8' },
-                      { part: '치마살(좌)', weight: '1.6' },
-                      { part: '치마살(우)', weight: '1.7' },
-                      { part: '업진살(좌)', weight: '1.5' },
-                      { part: '업진살(우)', weight: '1.7' }
-                    ].map((item, index) => (
-                      <div 
-                        key={`buy-${index}`}
-                        className="grid px-1 py-1.5 border-b border-gray-100 bg-white hover:bg-gray-50 cursor-pointer"
-                        style={{gridTemplateColumns: '1fr 0.7fr 0.8fr'}}
-                        onClick={() => {
-                          setSelectedPart(item.part);
-                          setSelectedWeight(item.weight);
-                        }}
-                      >
-                        <div className="text-center text-[10px] font-bold text-black flex items-center justify-center border-r border-gray-200">
-                          {item.part}
-                        </div>
-                        <div className="text-center text-[10px] font-bold text-black flex items-center justify-center border-r border-gray-200">
-                          {item.weight}kg
-                        </div>
-                        <div className="text-center text-[10px] text-gray-600 flex items-center justify-center">
-                          -
-                        </div>
-                      </div>
-                    ))}
                   </div>
                 </div>
 

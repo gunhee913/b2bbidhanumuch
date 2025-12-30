@@ -11,8 +11,15 @@ import {
   TrendingUp,
   TrendingDown,
   Minus,
-  ChevronDown
+  ChevronDown,
+  Calendar as CalendarIcon,
+  ZoomIn,
+  ZoomOut,
+  RotateCcw
 } from 'lucide-react';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Button } from '@/components/ui/button';
 import {
   LineChart,
   Line,
@@ -63,10 +70,11 @@ const GRADES: Grade[] = [
 
 // 평균 유형 목록
 const AVERAGE_TYPES: AverageType[] = [
-  { id: 'daily', name: '일간 평균', unit: 'daily' },
-  { id: 'weekly', name: '주간 평균', unit: 'weekly' },
-  { id: 'monthly', name: '월간 평균', unit: 'monthly' },
+  { id: 'daily', name: '일간 평균가', unit: 'daily' },
+  { id: 'weekly', name: '주간 평균가', unit: 'weekly' },
+  { id: 'monthly', name: '월간 평균가', unit: 'monthly' },
 ];
+
 
 // 시세 데이터 타입
 type PriceData = {
@@ -241,6 +249,12 @@ export default function MarketPage() {
   const [selectedAverageType, setSelectedAverageType] = useState(AVERAGE_TYPES[0]); // 기본 일간 평균
   const [showGradeDropdown, setShowGradeDropdown] = useState(false);
   const [showAverageDropdown, setShowAverageDropdown] = useState(false);
+  
+  // 차트 드래그 스크롤 관련
+  const chartScrollRef = useRef<HTMLDivElement>(null);
+  const [isChartDragging, setIsChartDragging] = useState(false);
+  const [chartStartX, setChartStartX] = useState(0);
+  const [chartScrollLeft, setChartScrollLeft] = useState(0);
 
   // 드래그 스크롤 관련
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -271,10 +285,52 @@ export default function MarketPage() {
     setIsDragging(false);
   }, []);
 
+  // 테이블 표시 개수
+  const [tableDisplayCount, setTableDisplayCount] = useState(10);
+
+  // 기간 직접 선택
+  const [customDateRange, setCustomDateRange] = useState<{
+    from: Date | undefined;
+    to: Date | undefined;
+  }>({
+    from: subDays(new Date(), 30),
+    to: new Date(),
+  });
+
+  // 필터 변경 시 테이블 표시 개수 초기화
+  useEffect(() => {
+    setTableDisplayCount(10);
+  }, [selectedPart.id, selectedGrade.id, selectedAverageType.unit]);
+
   // 시세 데이터 생성 (메모이제이션)
   const priceData = useMemo(() => {
-    return generatePriceData(selectedPart.id, selectedGrade.id, selectedAverageType.unit);
-  }, [selectedPart.id, selectedGrade.id, selectedAverageType.unit]);
+    let data: PriceData[] = [];
+    
+    // 기간 직접 선택인 경우
+    if (selectedAverageType.id === 'custom' && customDateRange.from && customDateRange.to) {
+      let currentDate = new Date(customDateRange.to);
+      const endDate = new Date(customDateRange.from);
+      
+      while (currentDate >= endDate) {
+        if (!isWeekend(currentDate)) {
+          const price = getDailyPrice(currentDate, selectedPart.id, selectedGrade.id);
+          const dateStr = format(currentDate, 'yyyy-MM-dd');
+          
+          data.unshift({
+            date: dateStr,
+            displayDate: format(currentDate, 'M.d.(EEE)', { locale: ko }),
+            fullDate: format(currentDate, 'yyyy.M.d.(EEE)', { locale: ko }),
+            price,
+          });
+        }
+        currentDate = subDays(currentDate, 1);
+      }
+    } else {
+      data = generatePriceData(selectedPart.id, selectedGrade.id, selectedAverageType.unit);
+    }
+    
+    return data;
+  }, [selectedPart.id, selectedGrade.id, selectedAverageType.unit, selectedAverageType.id, customDateRange.from, customDateRange.to]);
 
   // 통계 계산
   const stats = useMemo(() => {
@@ -299,6 +355,85 @@ export default function MarketPage() {
     
     return { today, change, changePercent: parseFloat(changePercent), max, min, avg, yTicks, yMin, yMax };
   }, [priceData]);
+
+  // 차트 드래그 함수들
+  const handleChartMouseDown = useCallback((e: React.MouseEvent) => {
+    if (!chartScrollRef.current) return;
+    setIsChartDragging(true);
+    setChartStartX(e.pageX - chartScrollRef.current.offsetLeft);
+    setChartScrollLeft(chartScrollRef.current.scrollLeft);
+  }, []);
+
+  const handleChartMouseMove = useCallback((e: React.MouseEvent) => {
+    if (!isChartDragging || !chartScrollRef.current) return;
+    e.preventDefault();
+    const x = e.pageX - chartScrollRef.current.offsetLeft;
+    const walk = (x - chartStartX) * 1.5;
+    chartScrollRef.current.scrollLeft = chartScrollLeft - walk;
+  }, [isChartDragging, chartStartX, chartScrollLeft]);
+
+  const handleChartMouseUp = useCallback(() => {
+    setIsChartDragging(false);
+  }, []);
+
+  // 줌 함수들
+  const handleZoomIn = useCallback(() => {
+    if (!chartScrollRef.current) return;
+    const scrollContainer = chartScrollRef.current;
+    const innerDiv = scrollContainer.firstElementChild as HTMLElement;
+    if (!innerDiv) return;
+    
+    const currentWidth = parseInt(innerDiv.style.width) || scrollContainer.clientWidth;
+    const newWidth = currentWidth * 1.3;
+    innerDiv.style.width = `${newWidth}px`;
+    
+    // 오른쪽 끝(오늘)으로 스크롤
+    setTimeout(() => {
+      scrollContainer.scrollLeft = scrollContainer.scrollWidth - scrollContainer.clientWidth;
+    }, 10);
+  }, []);
+
+  const handleZoomOut = useCallback(() => {
+    if (!chartScrollRef.current) return;
+    const scrollContainer = chartScrollRef.current;
+    const innerDiv = scrollContainer.firstElementChild as HTMLElement;
+    if (!innerDiv) return;
+    
+    const currentWidth = parseInt(innerDiv.style.width) || scrollContainer.clientWidth;
+    const minWidth = scrollContainer.clientWidth;
+    const newWidth = Math.max(minWidth, currentWidth * 0.7);
+    innerDiv.style.width = `${newWidth}px`;
+    
+    // 오른쪽 끝(오늘)으로 스크롤
+    setTimeout(() => {
+      scrollContainer.scrollLeft = scrollContainer.scrollWidth - scrollContainer.clientWidth;
+    }, 10);
+  }, []);
+
+  const handleZoomReset = useCallback(() => {
+    if (!chartScrollRef.current) return;
+    const scrollContainer = chartScrollRef.current;
+    const innerDiv = scrollContainer.firstElementChild as HTMLElement;
+    if (!innerDiv) return;
+    
+    const defaultWidth = priceData.length > 30 ? `${Math.max(priceData.length * 12, 500)}px` : '100%';
+    innerDiv.style.width = defaultWidth;
+    
+    // 오른쪽 끝(오늘)으로 스크롤
+    setTimeout(() => {
+      scrollContainer.scrollLeft = scrollContainer.scrollWidth - scrollContainer.clientWidth;
+    }, 10);
+  }, [priceData.length]);
+
+  // 초기 로드 시 오늘 날짜(오른쪽 끝)로 스크롤
+  useEffect(() => {
+    if (chartScrollRef.current && priceData.length > 30) {
+      const scrollContainer = chartScrollRef.current;
+      setTimeout(() => {
+        scrollContainer.scrollLeft = scrollContainer.scrollWidth - scrollContainer.clientWidth;
+      }, 100);
+    }
+  }, [priceData.length]);
 
   // 동적 viewport 높이 설정
   useEffect(() => {
@@ -349,6 +484,17 @@ export default function MarketPage() {
               display: none;
             }
           `}</style>
+          <style jsx global>{`
+            .recharts-wrapper,
+            .recharts-surface,
+            .recharts-wrapper svg,
+            .recharts-wrapper svg:focus,
+            .recharts-surface:focus {
+              outline: none !important;
+              border: none !important;
+              box-shadow: none !important;
+            }
+          `}</style>
           
           {/* 모바일 메인 헤더 */}
           <div className="flex-shrink-0 bg-white border-b border-gray-200">
@@ -374,13 +520,15 @@ export default function MarketPage() {
 
           {/* 메인 콘텐츠 */}
           <div className="flex-1 min-h-0 overflow-y-auto bg-gray-50">
-            {/* 페이지 타이틀 */}
-            <div className="px-4 py-3 bg-white border-b border-gray-100">
-              <h1 className="text-lg font-bold text-gray-900">부위별 시세</h1>
-            </div>
+            {/* 고정 영역 (타이틀 + 부위 탭 + 필터) */}
+            <div className="sticky top-0 z-20 bg-white shadow-sm">
+              {/* 페이지 타이틀 */}
+              <div className="px-4 py-3 border-b border-gray-100">
+                <h1 className="text-lg font-bold text-gray-900">부위별 시세</h1>
+              </div>
 
-            {/* 부위 선택 탭 */}
-            <div className="bg-white border-b border-gray-200 overflow-hidden">
+              {/* 부위 선택 탭 */}
+              <div className="border-b border-gray-200 overflow-hidden">
               <div 
                 ref={scrollRef}
                 className="flex overflow-x-auto px-2 py-2 gap-1.5 select-none" 
@@ -415,7 +563,7 @@ export default function MarketPage() {
             </div>
 
             {/* 필터 영역 */}
-            <div className="px-4 py-3 bg-white border-b border-gray-100 flex gap-3">
+            <div className="px-4 py-3 bg-white border-b border-gray-100 flex flex-wrap gap-3 items-center">
               {/* 등급 드롭다운 */}
               <div className="relative">
                 <button
@@ -464,7 +612,7 @@ export default function MarketPage() {
                   <ChevronDown className={`h-4 w-4 transition-transform ${showAverageDropdown ? 'rotate-180' : ''}`} />
                 </button>
                 {showAverageDropdown && (
-                  <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-10 min-w-[120px]">
+                  <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-10 min-w-[140px]">
                     {AVERAGE_TYPES.map((avgType) => (
                       <button
                         key={avgType.id}
@@ -480,9 +628,60 @@ export default function MarketPage() {
                         {avgType.name}
                       </button>
                     ))}
+                    {/* 기간 직접 선택 */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedAverageType({ id: 'custom', name: '기간 직접 선택', unit: 'daily' });
+                        setShowAverageDropdown(false);
+                      }}
+                      className={`block w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 last:rounded-b-lg ${
+                        selectedAverageType.id === 'custom' ? 'bg-red-50 text-red-600 font-bold' : 'text-gray-700'
+                      }`}
+                    >
+                      기간 직접 선택
+                    </button>
                   </div>
                 )}
               </div>
+
+              {/* 기간 직접 선택 시 달력 버튼 */}
+              {selectedAverageType.id === 'custom' && (
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <button
+                      className="flex items-center gap-1.5 px-3 py-2 bg-gray-100 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-200 transition-colors"
+                    >
+                      <CalendarIcon className="h-4 w-4" />
+                      <span>
+                        {customDateRange.from && customDateRange.to
+                          ? `${format(customDateRange.from, 'yy.M.d', { locale: ko })} ~ ${format(customDateRange.to, 'yy.M.d', { locale: ko })}`
+                          : '기간 선택'
+                        }
+                      </span>
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0 z-[10000]" align="start">
+                    <div className="p-3 bg-white rounded-lg">
+                      <Calendar
+                        mode="range"
+                        selected={{ from: customDateRange.from, to: customDateRange.to }}
+                        onSelect={(range) => {
+                          setCustomDateRange({ from: range?.from, to: range?.to });
+                        }}
+                        numberOfMonths={1}
+                        disabled={(date) => date > new Date()}
+                        weekStartsOn={0}
+                        formatters={{
+                          formatCaption: (date) => format(date, 'yyyy년 M월', { locale: ko }),
+                          formatWeekdayName: (date) => format(date, 'EEE', { locale: ko }),
+                        }}
+                      />
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              )}
+            </div>
             </div>
 
             {/* 오늘 시세 요약 */}
@@ -492,11 +691,13 @@ export default function MarketPage() {
                 <span className="text-gray-300">|</span>
                 <span className="text-xs text-gray-500">
                   {selectedPart.name} / {selectedGrade.name} / {
-                    selectedAverageType.unit === 'daily' 
-                      ? format(new Date(), 'yyyy.M.d.(EEE)', { locale: ko })
-                      : selectedAverageType.unit === 'weekly'
-                        ? `${format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yy.M.d.', { locale: ko })} ~ ${format(endOfWeek(new Date(), { weekStartsOn: 1 }), 'yy.M.d.', { locale: ko })}`
-                        : format(new Date(), 'yyyy년 M월', { locale: ko })
+                    selectedAverageType.id === 'custom' && customDateRange.from && customDateRange.to
+                      ? `${format(customDateRange.from, 'yy.M.d.', { locale: ko })} ~ ${format(customDateRange.to, 'yy.M.d.', { locale: ko })}`
+                      : selectedAverageType.unit === 'daily' 
+                        ? format(new Date(), 'yyyy.M.d.(EEE)', { locale: ko })
+                        : selectedAverageType.unit === 'weekly'
+                          ? `${format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yy.M.d.', { locale: ko })} ~ ${format(endOfWeek(new Date(), { weekStartsOn: 1 }), 'yy.M.d.', { locale: ko })}`
+                          : format(new Date(), 'yyyy년 M월', { locale: ko })
                   }
                 </span>
               </div>
@@ -513,59 +714,108 @@ export default function MarketPage() {
 
             {/* 차트 영역 */}
             <div className="mx-4 mt-4 p-4 bg-white rounded-xl border border-gray-200 shadow-sm">
-              <div className="h-[280px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart
-                    data={priceData}
-                    margin={{ top: 15, right: 10, left: 5, bottom: 10 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" vertical={false} />
-                    <XAxis 
-                      dataKey="displayDate" 
-                      tick={{ fontSize: 10, fill: '#6B7280' }}
-                      tickLine={false}
-                      axisLine={{ stroke: '#E5E7EB' }}
-                      interval={selectedAverageType.unit === 'monthly' ? 2 : selectedAverageType.unit === 'weekly' ? 2 : 5}
-                      angle={0}
-                      textAnchor="middle"
-                      height={35}
-                      padding={{ left: 15, right: 15 }}
-                    />
-                    <YAxis 
-                      orientation="right"
-                      tick={(props: any) => {
-                        const { x, y, payload, index } = props;
-                        // 맨 아래 tick (index 0)은 라벨 숨김
-                        if (index === 0) return null;
-                        return (
-                          <text x={x} y={y} dy={4} textAnchor="start" fontSize={10} fill="#6B7280">
-                            {payload.value.toLocaleString()}
-                          </text>
-                        );
-                      }}
-                      tickLine={false}
-                      axisLine={false}
-                      domain={[stats.yMin, stats.yMax]}
-                      ticks={stats.yTicks}
-                      width={42}
-                      allowDecimals={false}
-                    />
-                    <Tooltip content={<CustomTooltip />} />
-                    <Line
-                      type="monotone"
-                      dataKey="price"
-                      stroke={selectedPart.color}
-                      strokeWidth={2.5}
-                      dot={false}
-                      activeDot={{ r: 6, strokeWidth: 2, fill: '#fff', stroke: selectedPart.color }}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
+              {/* 줌 컨트롤 */}
+              <div className="flex justify-end gap-1 mb-2">
+                <button
+                  onClick={handleZoomIn}
+                  className="p-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors"
+                  title="확대"
+                >
+                  <ZoomIn className="h-4 w-4 text-gray-600" />
+                </button>
+                <button
+                  onClick={handleZoomOut}
+                  className="p-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors"
+                  title="축소"
+                >
+                  <ZoomOut className="h-4 w-4 text-gray-600" />
+                </button>
+                <button
+                  onClick={handleZoomReset}
+                  className="p-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors"
+                  title="초기화"
+                >
+                  <RotateCcw className="h-4 w-4 text-gray-600" />
+                </button>
               </div>
+              
+              {/* 차트 + Y축 고정 레이아웃 */}
+              <div className="relative h-[280px]">
+                {/* 스크롤 가능한 차트 영역 */}
+                <div 
+                  ref={chartScrollRef}
+                  className="absolute inset-0 right-[45px] overflow-x-auto overflow-y-hidden select-none outline-none focus:outline-none"
+                  style={{ 
+                    cursor: isChartDragging ? 'grabbing' : 'grab',
+                    scrollbarWidth: 'none',
+                    msOverflowStyle: 'none',
+                    WebkitOverflowScrolling: 'touch'
+                  }}
+                  tabIndex={-1}
+                  onMouseDown={handleChartMouseDown}
+                  onMouseMove={handleChartMouseMove}
+                  onMouseUp={handleChartMouseUp}
+                  onMouseLeave={handleChartMouseUp}
+                >
+                  <div style={{ 
+                    width: priceData.length > 30 ? `${Math.max(priceData.length * 12, 500)}px` : '100%',
+                    height: '100%',
+                    minWidth: '100%'
+                  }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart
+                        data={priceData}
+                        margin={{ top: 15, right: 5, left: 5, bottom: 10 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" vertical={false} />
+                        <XAxis 
+                          dataKey="displayDate" 
+                          tick={{ fontSize: 10, fill: '#6B7280' }}
+                          tickLine={false}
+                          axisLine={{ stroke: '#E5E7EB' }}
+                          interval={Math.max(0, Math.floor(priceData.length / 6) - 1)}
+                          angle={0}
+                          textAnchor="middle"
+                          height={35}
+                          padding={{ left: 15, right: 15 }}
+                        />
+                        <YAxis 
+                          hide={true}
+                          domain={[stats.yMin, stats.yMax]}
+                          ticks={stats.yTicks}
+                        />
+                        <Tooltip content={<CustomTooltip />} />
+                        <Line
+                          type="monotone"
+                          dataKey="price"
+                          stroke={selectedPart.color}
+                          strokeWidth={2.5}
+                          dot={false}
+                          activeDot={{ r: 6, strokeWidth: 2, fill: '#fff', stroke: selectedPart.color }}
+                          isAnimationActive={false}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+                
+                {/* 고정된 Y축 */}
+                <div className="absolute top-0 right-0 w-[45px] h-full bg-white flex flex-col justify-between py-[15px] pb-[45px]">
+                  {stats.yTicks?.slice().reverse().slice(0, -1).map((tick, index) => (
+                    <span key={index} className="text-[10px] text-gray-500 text-right pr-1">
+                      {tick.toLocaleString()}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              
+              {priceData.length > 30 && (
+                <p className="text-xs text-gray-400 text-center mt-1">← 마우스로 드래그하여 좌우 이동 →</p>
+              )}
             </div>
 
             {/* 통계 카드 */}
-            <div className="mx-4 mt-4 mb-6 grid grid-cols-3 gap-3">
+            <div className="mx-4 mt-4 mb-4 grid grid-cols-3 gap-3">
               <div className="p-3 bg-white rounded-xl border border-gray-200 text-center">
                 <p className="text-xs text-gray-500 mb-1">기간 최고가</p>
                 <p className="text-sm font-bold text-red-600">{stats.max?.toLocaleString()}원</p>
@@ -578,6 +828,48 @@ export default function MarketPage() {
                 <p className="text-xs text-gray-500 mb-1">기간 최저가</p>
                 <p className="text-sm font-bold text-blue-600">{stats.min?.toLocaleString()}원</p>
               </div>
+            </div>
+
+            {/* 시세 데이터 테이블 */}
+            <div className="mx-4 mb-6 bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+              <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
+                <h3 className="text-sm font-bold text-gray-900">시세 상세 데이터</h3>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-gray-50 border-b border-gray-200">
+                      <th className="px-4 py-2.5 text-left font-bold text-gray-700">날짜</th>
+                      <th className="px-4 py-2.5 text-right font-bold text-gray-700">평균가</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[...priceData].reverse().slice(0, tableDisplayCount).map((item, index) => (
+                      <tr 
+                        key={item.date} 
+                        className={`border-b border-gray-100 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}
+                      >
+                        <td className="px-4 py-2.5 text-gray-900 font-medium">
+                          {item.fullDate}
+                        </td>
+                        <td className="px-4 py-2.5 text-right text-gray-900 font-bold">
+                          {item.price.toLocaleString()}원
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {priceData.length > tableDisplayCount && (
+                <button 
+                  onClick={() => setTableDisplayCount(prev => Math.min(prev + 10, priceData.length))}
+                  className="w-full px-4 py-3 border-t border-gray-200 bg-gray-50 text-center hover:bg-gray-100 transition-colors"
+                >
+                  <span className="text-sm font-medium text-red-600">
+                    더 보기 ({tableDisplayCount}/{priceData.length})
+                  </span>
+                </button>
+              )}
             </div>
 
             {/* 하단 여백 */}
