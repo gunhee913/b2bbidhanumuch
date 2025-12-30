@@ -63,9 +63,9 @@ const GRADES: Grade[] = [
 
 // 평균 유형 목록
 const AVERAGE_TYPES: AverageType[] = [
-  { id: 'daily', name: '일간 평균가', unit: 'daily' },
-  { id: 'weekly', name: '주간 평균가', unit: 'weekly' },
-  { id: 'monthly', name: '월간 평균가', unit: 'monthly' },
+  { id: 'daily', name: '일간 평균', unit: 'daily' },
+  { id: 'weekly', name: '주간 평균', unit: 'weekly' },
+  { id: 'monthly', name: '월간 평균', unit: 'monthly' },
 ];
 
 // 시세 데이터 타입
