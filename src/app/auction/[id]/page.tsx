@@ -16,7 +16,9 @@ import {
   ArrowLeft,
   Edit2,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  X,
+  ExternalLink
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -34,6 +36,9 @@ export default function AuctionDetailPage({ params }: PageProps) {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [selectedBidTab, setSelectedBidTab] = useState(fromMyBids ? '개체정보' : '입찰하기');
   const [myBidHistoryTab, setMyBidHistoryTab] = useState('입찰 진행 중');
+  const [showBidSheet, setShowBidSheet] = useState(false);
+  const [showInfoPanel, setShowInfoPanel] = useState(false);
+  const [remainingTime, setRemainingTime] = useState(60 * 60); // 60분 = 3600초
   const [selectedPart, setSelectedPart] = useState('');
   const [selectedWeight, setSelectedWeight] = useState('');
   const [bidPrice, setBidPrice] = useState('0');
@@ -137,6 +142,25 @@ export default function AuctionDetailPage({ params }: PageProps) {
     };
 
     setMyBids(prev => [newBid, ...prev]);
+    
+    // 부위별 입찰 정보 업데이트
+    const myPrice = parseInt(removeCommas(bidPrice));
+    const existingBid = partBids[selectedPart];
+    const currentTopPrice = existingBid?.topBidPrice || 0;
+    
+    // 나의 입찰가가 현재 최고가보다 높거나 같으면 최고가
+    const isTopBid = myPrice >= currentTopPrice;
+    const newTopPrice = isTopBid ? myPrice : currentTopPrice;
+    
+    setPartBids(prev => ({
+      ...prev,
+      [selectedPart]: {
+        myBidPrice: myPrice,
+        topBidPrice: newTopPrice,
+        isTopBid: isTopBid
+      }
+    }));
+    
     setShowBidDialog(false);
     
     // 입찰 완료 토스트 표시
@@ -352,6 +376,9 @@ export default function AuctionDetailPage({ params }: PageProps) {
   };
 
   const [myBids, setMyBids] = useState(() => generateAllMyBids());
+  
+  // 부위별 입찰 정보 저장 (해당 경매의 부위별 나의 입찰가, 최고입찰가)
+  const [partBids, setPartBids] = useState<Record<string, { myBidPrice: number; topBidPrice: number; isTopBid: boolean }>>({});
 
   // 다음/이전 개체(경매)로 이동
   const MAX_AUCTION_ID = 5; // 최대 경매 개체 수
@@ -477,6 +504,28 @@ export default function AuctionDetailPage({ params }: PageProps) {
     }
   }, [fromMyBids, selectedBidTab]);
 
+  // 마감시간 카운트다운
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setRemainingTime(prev => {
+        if (prev <= 0) {
+          clearInterval(timer);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
+
+  // 시간 포맷팅 함수
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}분 ${secs.toString().padStart(2, '0')}초`;
+  };
+
   // 동적 viewport 높이 설정
   useEffect(() => {
     const setViewportHeight = () => {
@@ -568,7 +617,7 @@ export default function AuctionDetailPage({ params }: PageProps) {
             {/* 메인 콘텐츠 */}
             <div className="flex-1 min-h-0 overflow-y-auto">
               {/* 경매번호 및 네비게이션 */}
-              <div className="px-4 py-1 bg-white border-b border-gray-200 flex items-center justify-between">
+              <div className="px-4 py-1 bg-white border-b border-gray-200 flex items-center justify-between sticky top-0 z-20">
                 <button
                   onClick={goToPrevAuction}
                   disabled={parseInt(resolvedParams.id) <= 1}
@@ -661,291 +710,204 @@ export default function AuctionDetailPage({ params }: PageProps) {
 
 
 
-              {/* 호가창과 입찰주문 창 */}
-              <div id="bid-order-section" className="flex border-t border-gray-200" style={{height: '480px'}}>
-                {/* 왼쪽 호가창 */}
-                <div className="w-[55%] border-r border-gray-200 flex flex-col border-b border-gray-200">
+              {/* 개체정보 버튼 영역 */}
+              <div className="px-3 py-2 border-t border-gray-200 bg-white flex items-center gap-2">
+                <button
+                  onClick={() => setShowInfoPanel(!showInfoPanel)}
+                  className={`px-3 py-1.5 text-xs font-bold rounded-lg border transition-colors ${
+                    showInfoPanel 
+                      ? 'bg-red-600 text-white border-red-600' 
+                      : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                  }`}
+                >
+                  개체정보 {showInfoPanel ? '닫기' : '보기'}
+                </button>
+                <a
+                  href="https://aunit.mtrace.go.kr/mtracesearch/cattleNoSearch.do?btsProgNo=0109008401&btsActionMethod=SELECT&cattleNo=002189438539"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-3 py-1.5 text-xs font-bold rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-1"
+                >
+                  축산물 이력정보
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+                
+                {/* 마감시간 카운트다운 */}
+                <div className="ml-auto flex items-center gap-1.5">
+                  <span className="text-xs text-gray-500">마감까지</span>
+                  <span className={`text-sm font-bold ${remainingTime <= 300 ? 'text-red-600' : 'text-gray-900'}`}>
+                    {formatTime(remainingTime)}
+                  </span>
+                </div>
+              </div>
+
+              {/* 개체정보 패널 - 버튼 바로 아래 */}
+              {showInfoPanel && (
+                <div className="bg-gray-50 px-3 py-2 border-t border-gray-200">
+                  <div className="space-y-2">
+                    {/* 품질정보 - 1줄로 표시 */}
+                    <div className="bg-white px-3 py-2.5 rounded border">
+                      <div className="grid grid-cols-6 gap-2 text-xs">
+                        <div className="text-center">
+                          <div className="text-gray-500">등지방</div>
+                          <div className="font-bold text-sm">16</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-gray-500">등심면적</div>
+                          <div className="font-bold text-sm">123</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-gray-500">근내지방</div>
+                          <div className="font-bold text-sm">9</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-gray-500">육색</div>
+                          <div className="font-bold text-sm">5</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-gray-500">지방색</div>
+                          <div className="font-bold text-sm">3</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-gray-500">조직감</div>
+                          <div className="font-bold text-sm">1</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 개체 기본정보 & 도축/가공정보 */}
+                    <div className="grid grid-cols-2 gap-2">
+                      {/* 개체 기본정보 - 왼쪽 */}
+                      <div className="bg-white px-3 py-2.5 rounded border">
+                        <h4 className="text-xs font-bold text-gray-700 mb-2">개체 기본정보</h4>
+                        <div className="space-y-1 text-xs">
+                          <div className="flex justify-between">
+                            <span className="text-gray-500">경매번호</span>
+                            <span className="text-gray-900 font-medium">{currentAuctionInfo.auctionNumber}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-500">이력번호</span>
+                            <span className="text-gray-900 font-medium">002-1894-3853-9</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-500">품종/성별</span>
+                            <span className="text-gray-900 font-medium">{currentAuctionInfo.breed}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-500">등급</span>
+                            <span className="text-gray-900 font-medium">{currentAuctionInfo.grade}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-500">개월령</span>
+                            <span className="text-gray-900 font-medium">{currentAuctionInfo.months}개월</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* 도축정보 & 가공정보 - 오른쪽 */}
+                      <div className="bg-white px-3 py-2.5 rounded border">
+                        <div className="space-y-2.5">
+                          {/* 도축정보 */}
+                          <div>
+                            <h4 className="text-xs font-bold text-gray-700 mb-1.5">도축정보</h4>
+                            <div className="space-y-1 text-xs">
+                              <div className="flex justify-between">
+                                <span className="text-gray-500">도축장</span>
+                                <span className="text-gray-900 font-medium">음성축산물공판장</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-500">도축일</span>
+                                <span className="text-gray-900 font-medium">2025.08.04.</span>
+                              </div>
+                            </div>
+                          </div>
+                          {/* 가공정보 */}
+                          <div className="pt-2 border-t border-gray-100">
+                            <h4 className="text-xs font-bold text-gray-700 mb-1.5">가공정보</h4>
+                            <div className="space-y-1 text-xs">
+                              <div className="flex justify-between">
+                                <span className="text-gray-500">가공업체</span>
+                                <span className="text-gray-900 font-medium">송정가공</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-500">가공일</span>
+                                <span className="text-gray-900 font-medium">2025.08.05.</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* 호가창 */}
+              <div id="bid-order-section" className="border-t border-gray-200">
+                {/* 호가창 */}
+                <div className="w-full flex flex-col border-b border-gray-200">
                   {/* 호가창 헤더 */}
-                  <div className="bg-gray-50 border-b border-gray-200 flex-shrink-0 h-8 flex items-center">
-                    <div className="grid px-1 text-[10px] font-bold text-gray-700 w-full" style={{gridTemplateColumns: '1fr 0.7fr 0.8fr'}}>
+                  <div className="bg-gray-50 border-b border-gray-200 flex-shrink-0 h-10 flex items-center">
+                    <div className="grid px-2 text-xs font-bold text-gray-700 w-full" style={{gridTemplateColumns: '1.2fr 0.8fr 1fr 1fr 0.6fr'}}>
                       <div className="text-center border-r border-gray-300">부위</div>
                       <div className="text-center border-r border-gray-300">중량</div>
-                      <div className="text-center">입찰가</div>
+                      <div className="text-center border-r border-gray-300">최고입찰가</div>
+                      <div className="text-center border-r border-gray-300">나의입찰가</div>
+                      <div className="text-center">상태</div>
                     </div>
                   </div>
 
                   {/* 호가 데이터 스크롤 영역 */}
                   <div className="flex-1 overflow-y-auto">
                     {/* 매도호가 (위쪽, 높은 가격) */}
-                    {partsData.map((item, index) => (
-                      <div 
-                        key={`sell-${index}`}
-                        className="grid px-1 py-1.5 border-b border-gray-100 bg-white hover:bg-gray-50 cursor-pointer"
-                        style={{gridTemplateColumns: '1fr 0.7fr 0.8fr'}}
-                        onClick={() => {
-                          setSelectedPart(item.part);
-                          setSelectedWeight(item.weight);
-                        }}
-                      >
-                        <div className="text-center text-[10px] font-bold text-black flex items-center justify-center border-r border-gray-200">
-                          {item.part}
-                        </div>
-                        <div className="text-center text-[10px] font-bold text-black flex items-center justify-center border-r border-gray-200">
-                          {item.weight}kg
-                        </div>
-                        <div className="text-center text-[10px] text-gray-600 flex items-center justify-center">
-                          -
-                        </div>
-                      </div>
-                    ))}
-                    
-                  </div>
-                </div>
-
-                {/* 오른쪽 입찰주문 창 */}
-                <div className="w-[45%] flex flex-col border-b border-gray-200">
-                  {/* 탭 헤더 */}
-                  <div className="bg-gray-50 border-b border-gray-200 flex-shrink-0 h-8">
-                    <div className="flex h-full">
-                      <button
-                        onClick={() => setSelectedBidTab('입찰하기')}
-                        className={`flex-1 flex items-center justify-center text-[10px] font-bold transition-colors ${
-                          selectedBidTab === '입찰하기'
-                            ? 'bg-white text-black border-b-2 border-red-600'
-                            : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
-                        }`}
-                      >
-                        입찰하기
-                      </button>
-                      <button
-                        onClick={() => setSelectedBidTab('개체정보')}
-                        className={`flex-1 flex items-center justify-center text-[10px] font-bold transition-colors ${
-                          selectedBidTab === '개체정보'
-                            ? 'bg-white text-black border-b-2 border-red-600'
-                            : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
-                        }`}
-                      >
-                        개체정보
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="px-1.5 py-2 flex-1 overflow-y-auto">
-                    {/* 입찰하기 탭 */}
-                    {selectedBidTab === '입찰하기' && (
-                      <div className="space-y-2.5">
-                        {/* 선택된 부위 표시 */}
-                        <div>
-                          <div className="text-[10px] text-gray-600 mb-1">선택된 부위</div>
-                          <div className="relative">
-                            <div className="w-full px-2 py-1.5 pr-8 text-xs border border-gray-300 rounded bg-gray-50 text-right">
-                              {selectedPart ? <span className="font-bold">{selectedPart}</span> : <span className="text-gray-400">좌측에서 경매 부위 선택</span>}
-                            </div>
-                            <div className="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs text-gray-500">
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* 중량 */}
-                        <div>
-                          <div className="text-[10px] text-gray-600 mb-1">중량</div>
-                          <div className="relative">
-                            <div className="w-full px-2 py-1.5 pr-8 text-right text-xs border border-gray-300 rounded bg-gray-50">
-                              {selectedWeight ? <span className="font-bold">{selectedWeight}</span> : <span className="text-gray-400">좌측에서 경매 부위 선택</span>}
-                            </div>
-                            <div className="absolute right-2 top-1/2 transform -translate-y-1/2 text-[10px] text-gray-500">
-                              kg
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* 입찰가격 */}
-                        <div>
-                          <div className="flex items-center justify-between mb-1">
-                            <div className="text-[10px] text-gray-600">입찰가격(원/kg)</div>
-                            <div className="text-[9px] text-gray-400">100원 단위</div>
-                          </div>
-                          <div className="relative mb-1.5">
-                            <input
-                              type="text"
-                              value={bidPrice}
-                              onChange={(e) => {
-                                const formattedValue = formatNumber(e.target.value);
-                                setBidPrice(formattedValue);
-                              }}
-                              onFocus={(e) => {
-                                if (e.target.value === '0') {
-                                  setBidPrice('');
-                                }
-                              }}
-                              onBlur={(e) => {
-                                if (e.target.value === '') {
-                                  setBidPrice('0');
-                                }
-                              }}
-                              placeholder="입찰가격 입력"
-                              className="w-full px-2 py-1.5 pr-8 text-right text-xs font-bold border border-gray-300 rounded focus:ring-2 focus:ring-red-500 focus:border-transparent bg-white text-black placeholder:text-gray-400"
-                            />
-                            <div className="absolute right-2 top-1/2 transform -translate-y-1/2 text-[10px] text-gray-500">
-                              원
-                            </div>
-                          </div>
-                          {/* 가격 조정 버튼 */}
-                          <div className="flex gap-0.5">
-                            {[1000, 5000, 10000].map((amount) => (
-                              <button
-                                key={amount}
-                                onClick={() => {
-                                  const currentPrice = bidPrice === '0' ? 0 : parseFloat(removeCommas(bidPrice));
-                                  const newPrice = currentPrice + amount;
-                                  setBidPrice(formatNumber(newPrice.toString()));
-                                }}
-                                className="flex-1 py-1 text-[10px] border border-gray-300 rounded hover:bg-gray-50 font-medium"
-                              >
-                                +{amount === 1000 ? '천원' : amount === 5000 ? '오천' : '만원'}
-                              </button>
-                            ))}
-                            <button
-                              onClick={() => setBidPrice('0')}
-                              className="flex-1 py-1 text-[10px] bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 text-gray-700 font-medium"
-                            >
-                              초기화
-                            </button>
-                          </div>
-                        </div>
-
-                        {/* 주문 요약 */}
-                        <div>
-                          <div className="bg-gray-50 p-2 border rounded space-y-1">
-                            <div className="flex justify-end items-center gap-0.5 pb-1 border-b border-gray-200">
-                              <span className="text-[9px] px-1 py-0.5 bg-white border border-gray-300 text-gray-700 rounded font-bold whitespace-nowrap">{currentAuctionInfo.breed}</span>
-                              <span className="text-[9px] px-1 py-0.5 bg-white border border-gray-300 text-gray-700 rounded font-bold whitespace-nowrap">{currentAuctionInfo.grade}</span>
-                              <span className="text-[9px] px-1 py-0.5 bg-white border border-gray-300 text-gray-700 rounded font-bold whitespace-nowrap">{currentAuctionInfo.months}개월</span>
-                            </div>
-                            <div className="flex justify-between items-center">
-                              <span className="text-[10px] text-gray-600">부위</span>
-                              <span className="text-[10px] text-gray-900 font-medium">{selectedPart || "-"}</span>
-                            </div>
-                            <div className="flex justify-between items-center">
-                              <span className="text-[10px] text-gray-600">입찰가격</span>
-                              <span className="text-[10px] text-gray-900 font-medium">{bidPrice && bidPrice !== '0' ? `${bidPrice}원/kg` : "-"}</span>
-                            </div>
-                            <div className="flex justify-between items-center">
-                              <span className="text-[10px] text-gray-600">중량</span>
-                              <span className="text-[10px] text-gray-900 font-medium">{selectedWeight ? `${selectedWeight}kg` : "-"}</span>
-                            </div>
-                            <div className="border-t border-gray-200 pt-1 mt-1">
-                              <div className="flex justify-between items-center">
-                                <span className="text-[10px] font-bold text-gray-900">총 입찰금액</span>
-                                <span className="text-xs font-bold text-red-600">
-                                  {(() => {
-                                    if (!bidPrice || !selectedWeight || bidPrice === '0') return '-';
-                                    const price = parseFloat(removeCommas(bidPrice));
-                                    const weight = parseFloat(selectedWeight);
-                                    const total = Math.round(price * weight);
-                                    return `${formatNumber(total.toString())}원`;
-                                  })()}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* 입찰하기 버튼 */}
-                        <button 
-                          onClick={handleBidClick}
-                          className="w-full py-2 bg-red-600 hover:bg-red-700 text-white font-bold text-[11px] rounded"
+                    {partsData.map((item, index) => {
+                      const bidInfo = partBids[item.part];
+                      const hasBid = !!bidInfo;
+                      
+                      return (
+                        <div 
+                          key={`sell-${index}`}
+                          className={`grid px-2 py-2.5 border-b border-gray-100 cursor-pointer ${
+                            hasBid 
+                              ? bidInfo.isTopBid 
+                                ? 'bg-blue-50 hover:bg-blue-100' 
+                                : 'bg-red-50 hover:bg-red-100'
+                              : 'bg-white hover:bg-gray-50'
+                          }`}
+                          style={{gridTemplateColumns: '1.2fr 0.8fr 1fr 1fr 0.6fr'}}
+                          onClick={() => {
+                            setSelectedPart(item.part);
+                            setSelectedWeight(item.weight);
+                            setShowBidSheet(true);
+                          }}
                         >
-                          입찰하기
-                        </button>
-                      </div>
-                    )}
-
-                                          {/* 개체정보 탭 */}
-                      {selectedBidTab === '개체정보' && (
-                      <div className="space-y-1.5">
-                        {/* 개체 정보 */}
-                        <div className="bg-gray-50 p-1.5 rounded border">
-                          <h4 className="text-[10px] font-bold text-gray-900 mb-1.5">개체 기본정보</h4>
-                          <div className="space-y-1">
-                            <div className="flex justify-between">
-                              <span className="text-[9px] text-gray-600">경매번호</span>
-                              <span className="text-[9px] text-gray-900 font-medium">{currentAuctionInfo.auctionNumber}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-[9px] text-gray-600">이력번호</span>
-                              <span className="text-[9px] text-gray-900 font-medium">002-1486-7293-{resolvedParams.id}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-[9px] text-gray-600">품종 / 성별</span>
-                              <span className="text-[9px] text-gray-900 font-medium">{currentAuctionInfo.breed}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-[9px] text-gray-600">등급</span>
-                              <span className="text-[9px] text-gray-900 font-medium">{currentAuctionInfo.grade}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-[9px] text-gray-600">개월령</span>
-                              <span className="text-[9px] text-gray-900 font-medium">{currentAuctionInfo.months}개월령</span>
-                            </div>
+                          <div className="text-center text-xs font-bold text-black flex items-center justify-center border-r border-gray-200">
+                            {item.part}
+                          </div>
+                          <div className="text-center text-xs font-bold text-black flex items-center justify-center border-r border-gray-200">
+                            {item.weight}kg
+                          </div>
+                          <div className="text-center text-xs text-gray-500 flex items-center justify-center border-r border-gray-200">
+                            {hasBid ? `${bidInfo.topBidPrice.toLocaleString()}` : '-'}
+                          </div>
+                          <div className={`text-center text-xs font-bold flex items-center justify-center border-r border-gray-200 ${
+                            hasBid ? 'text-red-600' : 'text-gray-500'
+                          }`}>
+                            {hasBid ? `${bidInfo.myBidPrice.toLocaleString()}` : '-'}
+                          </div>
+                          <div className={`text-center text-xs font-bold flex items-center justify-center ${
+                            hasBid 
+                              ? bidInfo.isTopBid 
+                                ? 'text-blue-600' 
+                                : 'text-red-600'
+                              : 'text-gray-500'
+                          }`}>
+                            {hasBid ? (bidInfo.isTopBid ? '최고순위' : '차순위') : '-'}
                           </div>
                         </div>
-
-                        <div className="bg-gray-50 p-1.5 rounded border">
-                          <h4 className="text-[10px] font-bold text-gray-900 mb-1.5">가공정보</h4>
-                          <div className="space-y-1">
-                            <div className="flex justify-between">
-                              <span className="text-[9px] text-gray-600">가공업체</span>
-                              <span className="text-[9px] text-gray-900 font-medium">송정가공</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-[9px] text-gray-600">가공일자</span>
-                              <span className="text-[9px] text-gray-900 font-medium">2025.08.05.(화)</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-[9px] text-gray-600">도축장</span>
-                              <span className="text-[9px] text-gray-900 font-medium">농협 음성축산물공판장</span>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="bg-gray-50 p-1.5 rounded border">
-                          <h4 className="text-[10px] font-bold text-gray-900 mb-1.5">품질정보</h4>
-                          <div className="overflow-x-auto">
-                            <table className="w-full table-fixed" style={{fontSize: '8px'}}>
-                              <thead>
-                                <tr className="border-b border-gray-300">
-                                  <th className="text-center text-gray-600 font-medium py-0.5 px-0.5 w-1/4">등지방</th>
-                                  <th className="text-center text-gray-600 font-medium py-0.5 px-0.5 w-1/4">등심면적</th>
-                                  <th className="text-center text-gray-600 font-medium py-0.5 px-0.5 w-1/4">근내지방</th>
-                                  <th className="text-center text-gray-600 font-medium py-0.5 px-0.5 w-1/4">육색</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                <tr>
-                                  <td className="text-center text-gray-900 font-bold py-0.5 px-0.5">16</td>
-                                  <td className="text-center text-gray-900 font-bold py-0.5 px-0.5">123</td>
-                                  <td className="text-center text-gray-900 font-bold py-0.5 px-0.5">9</td>
-                                  <td className="text-center text-gray-900 font-bold py-0.5 px-0.5">5</td>
-                                </tr>
-                                <tr className="border-b border-gray-300">
-                                  <th className="text-center text-gray-600 font-medium pt-1 pb-0.5 px-0.5">지방색</th>
-                                  <th className="text-center text-gray-600 font-medium pt-1 pb-0.5 px-0.5">조직감</th>
-                                  <th className="text-center text-gray-600 font-medium pt-1 pb-0.5 px-0.5">성숙도</th>
-                                  <th className="text-center text-gray-600 font-medium pt-1 pb-0.5 px-0.5"></th>
-                                </tr>
-                                <tr>
-                                  <td className="text-center text-gray-900 font-bold py-0.5 px-0.5">3</td>
-                                  <td className="text-center text-gray-900 font-bold py-0.5 px-0.5">1</td>
-                                  <td className="text-center text-gray-900 font-bold py-0.5 px-0.5">3</td>
-                                  <td className="text-center text-gray-900 font-bold py-0.5 px-0.5"></td>
-                                </tr>
-                              </tbody>
-                            </table>
-                          </div>
-                        </div>
-                      </div>
-                    )}
+                      );
+                    })}
+                    
                   </div>
                 </div>
               </div>
@@ -1161,6 +1123,144 @@ export default function AuctionDetailPage({ params }: PageProps) {
                 </Link>
               </div>
             </div>
+
+            {/* 입찰하기 바텀시트 - 모바일 영역 내에서만 표시 */}
+            {showBidSheet && (
+              <div className="absolute inset-0 z-[100]">
+                {/* 배경 오버레이 */}
+                <div 
+                  className="absolute inset-0 bg-black/50"
+                  onClick={() => setShowBidSheet(false)}
+                />
+                {/* 바텀시트 */}
+                <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-2xl max-h-[70vh] overflow-y-auto">
+                  {/* 핸들 */}
+                  <div className="flex justify-center pt-3 pb-2">
+                    <div className="w-10 h-1 bg-gray-300 rounded-full" />
+                  </div>
+                  
+                  {/* 헤더 */}
+                  <div className="px-4 pb-3 border-b border-gray-200">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-bold text-gray-900">입찰하기</h3>
+                      <button 
+                        onClick={() => setShowBidSheet(false)}
+                        className="p-1 hover:bg-gray-100 rounded-full"
+                      >
+                        <X className="h-5 w-5 text-gray-500" />
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-1 mt-1">
+                      <span className="text-xs px-1.5 py-0.5 bg-gray-100 border border-gray-300 text-gray-700 rounded font-medium">{currentAuctionInfo.breed}</span>
+                      <span className="text-xs px-1.5 py-0.5 bg-gray-100 border border-gray-300 text-gray-700 rounded font-medium">{currentAuctionInfo.grade}</span>
+                      <span className="text-xs px-1.5 py-0.5 bg-gray-100 border border-gray-300 text-gray-700 rounded font-medium">{currentAuctionInfo.months}개월</span>
+                    </div>
+                  </div>
+
+                  {/* 입찰 내용 */}
+                  <div className="p-4 space-y-3">
+                    {/* 선택된 부위 & 중량 */}
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <div className="text-xs text-gray-500 mb-1">선택된 부위</div>
+                        <div className="w-full px-3 py-2.5 text-sm font-bold border border-gray-200 rounded-lg bg-gray-50 text-center">
+                          {selectedPart || '-'}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-xs text-gray-500 mb-1">중량</div>
+                        <div className="w-full px-3 py-2.5 text-sm font-bold border border-gray-200 rounded-lg bg-gray-50 text-center">
+                          {selectedWeight ? `${selectedWeight}kg` : '-'}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 입찰가격 */}
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="text-xs text-gray-500">입찰가격 (원/kg)</div>
+                        <div className="text-[10px] text-gray-400">100원 단위</div>
+                      </div>
+                      <div className="relative mb-2">
+                        <input
+                          type="text"
+                          value={bidPrice}
+                          onChange={(e) => {
+                            const formattedValue = formatNumber(e.target.value);
+                            setBidPrice(formattedValue);
+                          }}
+                          onFocus={(e) => {
+                            if (e.target.value === '0') {
+                              setBidPrice('');
+                            }
+                          }}
+                          onBlur={(e) => {
+                            if (e.target.value === '') {
+                              setBidPrice('0');
+                            }
+                          }}
+                          placeholder="0"
+                          className="w-full px-3 py-3 pr-10 text-right text-xl font-bold border border-gray-200 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-white text-black placeholder:text-gray-300"
+                        />
+                        <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-sm text-gray-400">
+                          원
+                        </div>
+                      </div>
+                      {/* 가격 조정 버튼 */}
+                      <div className="grid grid-cols-5 gap-1.5">
+                        {[100, 1000, 10000, 50000].map((amount) => (
+                          <button
+                            key={amount}
+                            onClick={() => {
+                              const currentPrice = bidPrice === '0' ? 0 : parseFloat(removeCommas(bidPrice));
+                              const newPrice = currentPrice + amount;
+                              setBidPrice(formatNumber(newPrice.toString()));
+                            }}
+                            className="py-2.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 font-medium"
+                          >
+                            +{amount.toLocaleString()}
+                          </button>
+                        ))}
+                        <button
+                          onClick={() => setBidPrice('0')}
+                          className="py-2.5 text-xs bg-gray-100 border border-gray-200 rounded-lg hover:bg-gray-200 text-gray-600 font-medium"
+                        >
+                          초기화
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* 총 입찰금액 */}
+                    <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-bold text-gray-700">총 입찰금액</span>
+                        <span className="text-xl font-bold text-red-600">
+                          {(() => {
+                            if (!bidPrice || !selectedWeight || bidPrice === '0') return '-';
+                            const price = parseFloat(removeCommas(bidPrice));
+                            const weight = parseFloat(selectedWeight);
+                            const total = Math.round(price * weight);
+                            return `${formatNumber(total.toString())}원`;
+                          })()}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* 입찰하기 버튼 */}
+                    <button 
+                      onClick={() => {
+                        handleBidClick();
+                        setShowBidSheet(false);
+                      }}
+                      disabled={!bidPrice || bidPrice === '0' || !selectedPart}
+                      className="w-full py-3.5 bg-red-600 hover:bg-red-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-bold text-base rounded-lg"
+                    >
+                      입찰하기
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
