@@ -63,6 +63,7 @@ function AuctionPageContent() {
   
   // 펼쳐진 개체 정보 상태
   const [expandedProductId, setExpandedProductId] = useState<string | null>(null);
+  const [highlightedProductId, setHighlightedProductId] = useState<string | null>(null);
   const [expandedImageIndex, setExpandedImageIndex] = useState<Record<string, number>>({});
   
   // 이미지 스와이프 관련 상태 (useRef 사용)
@@ -967,8 +968,9 @@ function AuctionPageContent() {
                       filteredPartProducts.map((product) => {
                         const bid = globalBids[product.listingNo];
                         const isExpanded = expandedProductId === product.id;
+                        const isHighlighted = highlightedProductId === product.id;
                         return (
-                          <div key={product.id} id={`product-row-${product.id}`}>
+                          <div key={product.id} id={`product-row-${product.id}`} className={`${isHighlighted ? 'border-2 border-red-500' : ''}`}>
                             <div 
                               className={`grid px-3 py-2.5 border-b border-gray-100 cursor-pointer transition-colors items-center ${
                                 bid?.status === 'highest' 
@@ -979,6 +981,9 @@ function AuctionPageContent() {
                               }`}
                               style={{gridTemplateColumns: '1fr 0.8fr 1fr 1.1fr 1.1fr 0.9fr 0.4fr'}}
                               onClick={() => {
+                                if (!isExpanded) {
+                                  setHighlightedProductId(product.id);
+                                }
                                 setExpandedProductId(isExpanded ? null : product.id);
                               }}
                             >
@@ -1100,36 +1105,6 @@ function AuctionPageContent() {
                                     </div>
                                   </div>
 
-                                  {/* 개체정보 버튼 & 축산물 이력정보 */}
-                                  <div className="px-3 py-2 border-t border-gray-200 bg-white flex items-center gap-2">
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setExpandedProductId(null);
-                                        // 해당 행으로 스크롤
-                                        setTimeout(() => {
-                                          const element = document.getElementById(`product-row-${product.id}`);
-                                          if (element) {
-                                            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                                          }
-                                        }, 100);
-                                      }}
-                                      className="px-3 py-1.5 text-xs font-bold rounded-lg border bg-red-600 text-white border-red-600"
-                                    >
-                                      개체정보 닫기
-                                    </button>
-                                    <a
-                                      href="https://aunit.mtrace.go.kr/mtracesearch/cattleNoSearch.do?btsProgNo=0109008401&btsActionMethod=SELECT&cattleNo=002189438539"
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="px-3 py-1.5 text-xs font-bold rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-1"
-                                      onClick={(e) => e.stopPropagation()}
-                                    >
-                                      축산물 이력정보
-                                      <ExternalLink className="w-3 h-3" />
-                                    </a>
-                                  </div>
-
                                   {/* 개체정보 패널 */}
                                   <div className="bg-gray-50 px-3 py-2 border-t border-gray-200">
                                     <div className="space-y-2">
@@ -1171,16 +1146,8 @@ function AuctionPageContent() {
                                       <div className="grid grid-cols-2 gap-2">
                                         {/* 개체 기본정보 - 왼쪽 */}
                                         <div className="bg-white px-3 py-2.5 rounded border">
-                                          <h4 className="text-xs font-bold text-gray-700 mb-2">개체 기본정보</h4>
-                                          <div className="space-y-1.5 text-xs">
-                                            <div className="flex justify-between">
-                                              <span className="text-gray-500">접수번호</span>
-                                              <span className="text-gray-900 font-medium">{product.auctionNo}</span>
-                                            </div>
-                                            <div className="flex justify-between">
-                                              <span className="text-gray-500">이력번호</span>
-                                              <span className="text-gray-900 font-medium">002-1894-3853-9</span>
-                                            </div>
+                                          <h4 className="text-sm font-bold text-gray-700 mb-2">개체 기본정보</h4>
+                                          <div className="space-y-1.5 text-sm">
                                             <div className="flex justify-between">
                                               <span className="text-gray-500">품종</span>
                                               <span className="text-gray-900 font-medium">한우</span>
@@ -1197,6 +1164,14 @@ function AuctionPageContent() {
                                               <span className="text-gray-500">개월령</span>
                                               <span className="text-gray-900 font-medium">30개월</span>
                                             </div>
+                                            <div className="flex justify-between">
+                                              <span className="text-gray-500">이력번호</span>
+                                              <span className="text-gray-900 font-medium">002-1894-3853-9</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                              <span className="text-gray-500">접수번호</span>
+                                              <span className="text-gray-900 font-medium">{product.auctionNo}</span>
+                                            </div>
                                           </div>
                                         </div>
 
@@ -1205,8 +1180,8 @@ function AuctionPageContent() {
                                           <div className="space-y-2.5">
                                             {/* 도축정보 */}
                                             <div>
-                                              <h4 className="text-xs font-bold text-gray-700 mb-1.5">도축정보</h4>
-                                              <div className="space-y-1 text-xs">
+                                              <h4 className="text-sm font-bold text-gray-700 mb-1.5">도축정보</h4>
+                                              <div className="space-y-1 text-sm">
                                                 <div className="flex justify-between">
                                                   <span className="text-gray-500">도축장</span>
                                                   <span className="text-gray-900 font-medium">농협 음성축산물공판장</span>
@@ -1227,8 +1202,8 @@ function AuctionPageContent() {
                                             </div>
                                             {/* 가공정보 */}
                                             <div className="pt-2 border-t border-gray-100">
-                                              <h4 className="text-xs font-bold text-gray-700 mb-1.5">가공정보</h4>
-                                              <div className="space-y-1 text-xs">
+                                              <h4 className="text-sm font-bold text-gray-700 mb-1.5">가공정보</h4>
+                                              <div className="space-y-1 text-sm">
                                                 <div className="flex justify-between">
                                                   <span className="text-gray-500">가공업체</span>
                                                   <span className="text-gray-900 font-medium">송정가공</span>
@@ -1247,6 +1222,48 @@ function AuctionPageContent() {
                                         </div>
                                       </div>
                                     </div>
+                                  </div>
+                                  
+                                  {/* 개체정보 버튼 & 축산물 이력정보 - 맨 아래 */}
+                                  <div className="px-3 py-3 border-t border-gray-200 bg-white flex items-center gap-2">
+                                    <a
+                                      href="https://aunit.mtrace.go.kr/mtracesearch/cattleNoSearch.do?btsProgNo=0109008401&btsActionMethod=SELECT&cattleNo=002189438539"
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="px-3 py-1.5 text-xs font-bold rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-1"
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
+                                      축산물 이력정보
+                                      <ExternalLink className="w-3 h-3" />
+                                    </a>
+                                    <div className="flex-1" />
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setSelectedProduct(product);
+                                        setPartBidPrice(product.price.toLocaleString());
+                                        setShowPartBidSheet(true);
+                                      }}
+                                      className="px-3 py-1.5 text-xs font-bold rounded-lg border bg-red-600 text-white border-red-600 hover:bg-red-700 transition-colors"
+                                    >
+                                      입찰하기
+                                    </button>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setExpandedProductId(null);
+                                        // 해당 행으로 스크롤 (테이블 헤더 바로 아래로)
+                                        setTimeout(() => {
+                                          const element = document.getElementById(`product-row-${product.id}`);
+                                          if (element) {
+                                            element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                          }
+                                        }, 100);
+                                      }}
+                                      className="px-3 py-1.5 text-xs font-bold rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 transition-colors"
+                                    >
+                                      개체정보 닫기
+                                    </button>
                                   </div>
                                 </motion.div>
                               )}

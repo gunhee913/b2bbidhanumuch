@@ -551,18 +551,6 @@ export default function AuctionDetailPage({ params }: PageProps) {
 
 
 
-  // 개체정보 탭으로 스크롤
-  useEffect(() => {
-    if (fromMyBids && selectedBidTab === '개체정보') {
-      setTimeout(() => {
-        const element = document.getElementById('bid-order-section');
-        if (element) {
-          element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-      }, 100);
-    }
-  }, [fromMyBids, selectedBidTab]);
-
   // 마감시간 카운트다운
   useEffect(() => {
     const timer = setInterval(() => {
