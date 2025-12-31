@@ -17,6 +17,7 @@ import {
   X,
   ChevronDown,
   ChevronLeft,
+  ChevronRight,
   ArrowUpDown,
   ExternalLink,
   Edit2
@@ -501,13 +502,23 @@ function AuctionPageContent() {
             <div className="flex-shrink-0 bg-white border-b border-gray-200 pt-1 md:pt-0">
               <div className="px-2 md:px-4 py-2">
                 <div className="flex items-center justify-between">
-                  <Link href="/" className="flex items-center">
-                    <img 
-                      src="/Mainlogo.png" 
-                      alt="HanuMuch" 
-                      className="h-8 w-auto"
-                    />
-                  </Link>
+                  <div className="flex items-center">
+                    {selectedPartId && activeTab === 'part' && (
+                      <button
+                        onClick={handleBackToPartList}
+                        className="mr-1 p-1 text-gray-600 hover:text-gray-900 transition-colors"
+                      >
+                        <ChevronLeft className="h-5 w-5" />
+                      </button>
+                    )}
+                    <Link href="/" className="flex items-center">
+                      <img 
+                        src="/Mainlogo.png" 
+                        alt="HanuMuch" 
+                        className="h-8 w-auto"
+                      />
+                    </Link>
+                  </div>
                   <div className="flex items-center space-x-3">
                     <img 
                       src="/음성축산물공판장.png" 
@@ -788,20 +799,38 @@ function AuctionPageContent() {
               ) : selectedPartId && selectedPart ? (
                 <>
                   {/* 부위별 상세 목록 헤더 */}
-                  <div className="px-3 py-2 bg-white border-b border-gray-100">
-                    <div className="flex items-center gap-2">
+                  <div className="px-3 py-2 bg-white border-b border-gray-100 sticky top-0 z-20">
+                    <div className="flex items-center justify-between">
                       <button
-                        onClick={handleBackToPartList}
-                        className="flex items-center text-gray-600 hover:text-gray-900 transition-colors"
+                        onClick={() => {
+                          const currentIndex = partsData.findIndex(p => p.id === selectedPartId);
+                          const prevIndex = currentIndex > 0 ? currentIndex - 1 : partsData.length - 1;
+                          const prevPart = partsData[prevIndex];
+                          setSelectedPartId(prevPart.id);
+                          router.push(`/auction?tab=part&part=${prevPart.id}`);
+                        }}
+                        className="p-1 text-gray-400 hover:text-gray-700 transition-colors"
                       >
                         <ChevronLeft className="h-5 w-5" />
                       </button>
-                      <div className="flex-1">
+                      <div className="text-center">
                         <h3 className="text-sm font-bold text-gray-900">{selectedPart.name}</h3>
                         <p className="text-[10px] text-gray-500">
                           {filteredPartProducts.length}개 상품
                         </p>
                       </div>
+                      <button
+                        onClick={() => {
+                          const currentIndex = partsData.findIndex(p => p.id === selectedPartId);
+                          const nextIndex = currentIndex < partsData.length - 1 ? currentIndex + 1 : 0;
+                          const nextPart = partsData[nextIndex];
+                          setSelectedPartId(nextPart.id);
+                          router.push(`/auction?tab=part&part=${nextPart.id}`);
+                        }}
+                        className="p-1 text-gray-400 hover:text-gray-700 transition-colors"
+                      >
+                        <ChevronRight className="h-5 w-5" />
+                      </button>
                     </div>
                   </div>
 
