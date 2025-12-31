@@ -19,73 +19,36 @@ import {
   Edit2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useBidStore } from '@/stores/bidStore';
 
 function MainPageContent() {
   const searchParams = useSearchParams();
+  
+  // zustand 스토어에서 입찰 관련 상태 가져오기
+  const { 
+    bids: globalBids, 
+    setBid,
+    quickReBidAmount, 
+    setQuickReBidAmount,
+    isSecondBidNotificationOn,
+    setIsSecondBidNotificationOn
+  } = useBidStore();
+  
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isBalanceVisible, setIsBalanceVisible] = useState(true);
   const [activeTab, setActiveTab] = useState('경매 정보');
   const [countdown, setCountdown] = useState(3600); // 01시간 00분 00초 = 3600초
   const [showAuctionInfo, setShowAuctionInfo] = useState(false);
-  const [isSecondBidNotificationOn, setIsSecondBidNotificationOn] = useState(false);
   const [showReBidDialog, setShowReBidDialog] = useState(false);
   const [selectedBid, setSelectedBid] = useState<any>(null);
   const [customBidPrice, setCustomBidPrice] = useState('');
-  const [quickReBidAmount, setQuickReBidAmount] = useState(1000);
   const [showQuickReBidEdit, setShowQuickReBidEdit] = useState(false);
   const [tempQuickReBidAmount, setTempQuickReBidAmount] = useState('1,000');
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const tooltipRef = useRef<HTMLDivElement>(null);
 
-  // 내 입찰 내역 데이터
-  const [myBids, setMyBids] = useState([
-    {
-      id: 1,
-      auctionNumber: '250806-001',
-      listingNo: '250806-001-0001',
-      part: '등심(좌)',
-      breed: '한우거세',
-      gender: '거세',
-      grade: '1++(9)',
-      weight: 15.2,
-      bidPrice: 83000,
-      topBidPrice: 84000,
-      isTopBid: false,
-      time: '25.08.06.(수) 09:23',
-      status: 'active'
-    },
-    {
-      id: 2,
-      auctionNumber: '250806-002',
-      listingNo: '250806-002-0023',
-      part: '안심',
-      breed: '한우거세',
-      gender: '거세',
-      grade: '1++(8)',
-      weight: 4.5,
-      bidPrice: 111000,
-      topBidPrice: 113000,
-      isTopBid: false,
-      time: '25.08.06.(수) 09:45',
-      status: 'active'
-    },
-    {
-      id: 3,
-      auctionNumber: '250806-003',
-      listingNo: '250806-003-0044',
-      part: '채끝',
-      breed: '한우암소',
-      gender: '암',
-      grade: '1++(7)',
-      weight: 8.2,
-      bidPrice: 75000,
-      topBidPrice: 75000,
-      isTopBid: true,
-      time: '25.08.06.(수) 09:52',
-      status: 'active'
-    }
-  ]);
+  // 내 입찰 내역은 zustand 스토어(globalBids)에서 관리
 
   // URL 파라미터로 탭 설정 및 스크롤
   useEffect(() => {
@@ -198,31 +161,20 @@ function MainPageContent() {
 
   // 재입찰 확정
   const confirmReBid = () => {
-    const finalPrice = selectedBid.reBidPrice || parseInt(customBidPrice.replace(/,/g, ''));
+    if (!selectedBid) return;
     
-    // 입찰 내역 업데이트
-    setMyBids(prevBids => 
-      prevBids.map(bid => {
-        if (bid.id === selectedBid.id) {
-          return {
-            ...bid,
-            bidPrice: finalPrice,
-            topBidPrice: finalPrice,
-            isTopBid: true,
-            time: new Date().toLocaleString('ko-KR', {
-              year: '2-digit',
-              month: '2-digit',
-              day: '2-digit',
-              weekday: 'short',
-              hour: '2-digit',
-              minute: '2-digit',
-              hour12: false
-            }).replace(/\. /g, '.').replace(/\.$/, '')
-          };
-        }
-        return bid;
-      })
-    );
+    const finalPrice = selectedBid.reBidPrice || parseInt(customBidPrice.replace(/,/g, ''));
+    const now = new Date();
+    const timeStr = `${now.getFullYear().toString().slice(2)}.${String(now.getMonth() + 1).padStart(2, '0')}.${String(now.getDate()).padStart(2, '0')}.(${['일','월','화','수','목','금','토'][now.getDay()]}) ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    
+    // zustand 스토어에 저장
+    setBid(selectedBid.listingNo, {
+      myBid: finalPrice,
+      highestBid: finalPrice,
+      status: 'highest',
+      time: timeStr,
+      productInfo: selectedBid.productInfo
+    });
 
     // 토스트 메시지 표시
     setToastMessage(`재입찰이 완료되었습니다. (${finalPrice.toLocaleString()}원/kg)`);
@@ -469,180 +421,197 @@ function MainPageContent() {
                   </div>
                 ) : (
                   <div className="px-4 pt-4">
-                    {myBids.length === 0 ? (
-                      <div className="text-center py-20">
-                        <h3 className="text-base font-medium text-gray-500 mb-2">입찰 내역이 없습니다</h3>
-                        <p className="text-sm text-gray-400">경매에 참여하면 여기에 표시됩니다.</p>
+                    {/* 전체내역 버튼 */}
+                    <div className="flex justify-end mb-2">
+                      <button className="flex items-center gap-0.5 text-xs font-medium text-gray-700 hover:text-gray-900 transition-colors">
+                        전체내역
+                        <ArrowRight className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+
+                    {/* 차순위 알림 & 빠른 재입찰 설정 */}
+                    <div className="flex items-center gap-3 mb-3">
+                      {/* 차순위 알림 */}
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-medium text-gray-700">차순위 알림 받기</span>
+                        <button
+                          onClick={() => setIsSecondBidNotificationOn(!isSecondBidNotificationOn)}
+                          className={`relative inline-flex h-6 w-12 items-center rounded-full transition-colors ${
+                            isSecondBidNotificationOn 
+                              ? 'bg-red-600' 
+                              : 'bg-gray-300'
+                          }`}
+                        >
+                          <span className={`absolute text-[8px] font-bold transition-opacity ${
+                            isSecondBidNotificationOn 
+                              ? 'left-1.5 text-white opacity-100' 
+                              : 'left-1.5 text-white opacity-0'
+                          }`}>
+                            ON
+                          </span>
+                          <span className={`absolute text-[8px] font-bold transition-opacity ${
+                            !isSecondBidNotificationOn 
+                              ? 'right-1.5 text-gray-600 opacity-100' 
+                              : 'right-1.5 text-gray-600 opacity-0'
+                          }`}>
+                            OFF
+                          </span>
+                          <span
+                            className={`inline-block h-5 w-5 rounded-full bg-white shadow-md transition-transform relative z-10 ${
+                              isSecondBidNotificationOn ? 'translate-x-[26px]' : 'translate-x-[2px]'
+                            }`}
+                          />
+                        </button>
+                      </div>
+
+                      {/* 빠른 재입찰 설정 */}
+                      <button
+                        onClick={() => {
+                          setShowQuickReBidEdit(true);
+                          setTempQuickReBidAmount(quickReBidAmount.toLocaleString());
+                        }}
+                        className="flex items-center gap-1.5 text-xs font-medium text-gray-700 hover:text-gray-900 transition-colors"
+                      >
+                        <span>빠른 재입찰</span>
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-100 text-gray-700 rounded">
+                          +{quickReBidAmount.toLocaleString()}원
+                          <Edit2 className="h-3 w-3" />
+                        </span>
+                      </button>
+                    </div>
+                    
+                    {Object.keys(globalBids).length === 0 ? (
+                      <div className="text-center py-12">
+                        <h3 className="text-base font-medium text-gray-500">입찰 내역이 없습니다</h3>
                       </div>
                     ) : (
-                      <>
-                        {/* 전체내역 버튼 */}
-                        <div className="flex justify-end mb-2">
-                          <button className="flex items-center gap-0.5 text-xs font-medium text-gray-700 hover:text-gray-900 transition-colors">
-                            전체내역
-                            <ArrowRight className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-
-                        {/* 차순위 알림 & 빠른 재입찰 설정 */}
-                        <div className="flex items-center gap-3 mb-3">
-                          {/* 차순위 알림 */}
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-medium text-gray-700">차순위 알림 받기</span>
-                            <button
-                              onClick={() => setIsSecondBidNotificationOn(!isSecondBidNotificationOn)}
-                              className={`relative inline-flex h-6 w-12 items-center rounded-full transition-colors ${
-                                isSecondBidNotificationOn 
-                                  ? 'bg-red-600' 
-                                  : 'bg-gray-300'
-                              }`}
-                            >
-                              <span className={`absolute text-[8px] font-bold transition-opacity ${
-                                isSecondBidNotificationOn 
-                                  ? 'left-1.5 text-white opacity-100' 
-                                  : 'left-1.5 text-white opacity-0'
-                              }`}>
-                                ON
-                              </span>
-                              <span className={`absolute text-[8px] font-bold transition-opacity ${
-                                !isSecondBidNotificationOn 
-                                  ? 'right-1.5 text-gray-600 opacity-100' 
-                                  : 'right-1.5 text-gray-600 opacity-0'
-                              }`}>
-                                OFF
-                              </span>
-                              <span
-                                className={`inline-block h-5 w-5 rounded-full bg-white shadow-md transition-transform relative z-10 ${
-                                  isSecondBidNotificationOn ? 'translate-x-[26px]' : 'translate-x-[2px]'
-                                }`}
-                              />
-                            </button>
-                          </div>
-
-                          {/* 빠른 재입찰 설정 */}
-                          <button
-                            onClick={() => {
-                              setShowQuickReBidEdit(true);
-                              setTempQuickReBidAmount(quickReBidAmount.toLocaleString());
-                            }}
-                            className="flex items-center gap-1.5 text-xs font-medium text-gray-700 hover:text-gray-900 transition-colors"
-                          >
-                            <span>빠른 재입찰</span>
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-100 text-gray-700 rounded">
-                              +{quickReBidAmount.toLocaleString()}원
-                              <Edit2 className="h-3 w-3" />
-                            </span>
-                          </button>
-                        </div>
-                        
-                        <div className="space-y-3">
-                        {myBids.map((bid) => (
-                          <div key={bid.id} id={`bid-card-${bid.id}`} className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm">
-                            {/* 헤더 영역 */}
-                            <div className="flex items-center justify-between px-3 py-2.5 bg-gray-50 border-b border-gray-200">
-                              <div className="flex items-center gap-2">
-                                <span className="text-xs font-bold text-gray-900">{bid.listingNo || bid.auctionNumber}</span>
-                                <Link href={`/auction/${bid.id}?from=myBids&bidId=${bid.id}`}>
-                                  <button className="px-2 py-1 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50 transition-colors">
-                                    개체보기
-                                  </button>
-                                </Link>
+                      <div className="space-y-3">
+                        {Object.entries(globalBids).map(([listingNo, bid]) => {
+                          const productInfo = bid.productInfo;
+                          if (!productInfo) return null;
+                          const weight = parseFloat(productInfo.weight);
+                          
+                          return (
+                            <div key={listingNo} id={`bid-card-${listingNo}`} className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm">
+                              {/* 헤더 영역 */}
+                              <div className="flex items-center justify-between px-3 py-2.5 bg-gray-50 border-b border-gray-200">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs font-bold text-gray-900">{listingNo}</span>
+                                  <Link href={`/auction/1?from=myBids`}>
+                                    <button className="px-2 py-1 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50 transition-colors">
+                                      개체보기
+                                    </button>
+                                  </Link>
+                                </div>
+                                <span className="text-xs text-gray-500">{bid.time}</span>
                               </div>
-                              <span className="text-xs text-gray-500">{bid.time}</span>
-                            </div>
 
-                            {/* 개체 정보 테이블 */}
-                            <table className="w-full text-xs">
-                              <tbody>
-                                <tr className="border-b border-gray-100">
-                                  <td className="px-3 py-2 text-gray-600 bg-gray-50 w-24">성별</td>
-                                  <td className="px-3 py-2 text-gray-900 font-medium">{bid.gender}</td>
-                                  <td className="px-3 py-2 text-gray-600 bg-gray-50 w-24">등급</td>
-                                  <td className="px-3 py-2 text-gray-900 font-medium" style={{ letterSpacing: '-0.05em' }}>{bid.grade}</td>
-                                </tr>
-                                <tr className="border-b border-gray-100">
-                                  <td className="px-3 py-2 text-gray-600 bg-gray-50">부위</td>
-                                  <td className="px-3 py-2 text-gray-900 font-medium" style={{ letterSpacing: '-0.05em' }}>{bid.part}</td>
-                                  <td className="px-3 py-2 text-gray-600 bg-gray-50">중량</td>
-                                  <td className="px-3 py-2 text-gray-900 font-medium">{bid.weight.toFixed(1)}kg</td>
-                                </tr>
-                                <tr className="border-b border-gray-100">
-                                  <td className="px-3 py-2 text-gray-600 bg-gray-50">현재 최고가</td>
-                                  <td className="px-3 py-2 text-gray-900 font-medium" colSpan={3}>
-                                    <div className="flex flex-col gap-0.5">
-                                      <span>{bid.topBidPrice.toLocaleString()}원/kg</span>
-                                      <span className="text-xs text-gray-500">
-                                        총 {(bid.topBidPrice * bid.weight).toLocaleString()}원
-                                      </span>
-                                    </div>
-                                  </td>
-                                </tr>
-                                <tr className="border-b border-gray-100">
-                                  <td className="px-3 py-2 text-gray-600 bg-gray-50">나의 입찰가격</td>
-                                  <td className="px-3 py-2 font-medium" colSpan={3}>
-                                    <div className="flex items-start justify-between">
+                              {/* 개체 정보 테이블 */}
+                              <table className="w-full text-xs">
+                                <tbody>
+                                  <tr className="border-b border-gray-100">
+                                    <td className="px-3 py-2 text-gray-600 bg-gray-50 w-24">성별</td>
+                                    <td className="px-3 py-2 text-gray-900 font-medium">{productInfo.type.includes('거세') ? '거세' : '암소'}</td>
+                                    <td className="px-3 py-2 text-gray-600 bg-gray-50 w-24">등급</td>
+                                    <td className="px-3 py-2 text-gray-900 font-medium" style={{ letterSpacing: '-0.05em' }}>{productInfo.grade}</td>
+                                  </tr>
+                                  <tr className="border-b border-gray-100">
+                                    <td className="px-3 py-2 text-gray-600 bg-gray-50">부위</td>
+                                    <td className="px-3 py-2 text-gray-900 font-medium" style={{ letterSpacing: '-0.05em' }}>{productInfo.partName}</td>
+                                    <td className="px-3 py-2 text-gray-600 bg-gray-50">중량</td>
+                                    <td className="px-3 py-2 text-gray-900 font-medium">{productInfo.weight}</td>
+                                  </tr>
+                                  <tr className="border-b border-gray-100">
+                                    <td className="px-3 py-2 text-gray-600 bg-gray-50">현재 최고가</td>
+                                    <td className="px-3 py-2 text-gray-900 font-medium" colSpan={3}>
                                       <div className="flex flex-col gap-0.5">
-                                        <div className="flex items-center gap-2">
-                                          <span className="text-gray-900">{bid.bidPrice.toLocaleString()}원/kg</span>
-                                          {bid.isTopBid ? (
-                                            <span className="inline-flex px-2 py-0.5 bg-blue-50 text-blue-700 text-[10px] font-bold rounded">
-                                              최고순위
-                                            </span>
-                                          ) : (
-                                            <span className="inline-flex px-2 py-0.5 bg-red-50 text-red-700 text-[10px] font-bold rounded">
-                                              차순위
-                                            </span>
-                                          )}
-                                        </div>
+                                        <span>{bid.highestBid.toLocaleString()}원/kg</span>
                                         <span className="text-xs text-gray-500">
-                                          총 {(bid.bidPrice * bid.weight).toLocaleString()}원
+                                          총 {(bid.highestBid * weight).toLocaleString()}원
                                         </span>
                                       </div>
-                                    </div>
-                                  </td>
-                                </tr>
-                              </tbody>
-                            </table>
+                                    </td>
+                                  </tr>
+                                  <tr className="border-b border-gray-100">
+                                    <td className="px-3 py-2 text-gray-600 bg-gray-50">나의 입찰가격</td>
+                                    <td className="px-3 py-2 font-medium" colSpan={3}>
+                                      <div className="flex items-start justify-between">
+                                        <div className="flex flex-col gap-0.5">
+                                          <div className="flex items-center gap-2">
+                                            <span className="text-gray-900">{bid.myBid.toLocaleString()}원/kg</span>
+                                            {bid.status === 'highest' ? (
+                                              <span className="inline-flex px-2 py-0.5 bg-blue-50 text-blue-700 text-[10px] font-bold rounded">
+                                                최고순위
+                                              </span>
+                                            ) : (
+                                              <span className="inline-flex px-2 py-0.5 bg-red-50 text-red-700 text-[10px] font-bold rounded">
+                                                차순위
+                                              </span>
+                                            )}
+                                          </div>
+                                          <span className="text-xs text-gray-500">
+                                            총 {(bid.myBid * weight).toLocaleString()}원
+                                          </span>
+                                        </div>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                </tbody>
+                              </table>
 
-                            {/* 재입찰 버튼 */}
-                            <div className="px-3 py-2 bg-white border-t border-gray-200">
-                              <div className="flex gap-2">
-                                <button 
-                                  disabled={bid.isTopBid}
-                                  className={`flex-1 text-xs font-bold py-2 rounded-lg transition-colors ${
-                                    bid.isTopBid
-                                      ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                                      : 'bg-red-600 text-white hover:bg-red-700 active:bg-red-800'
-                                  }`}
-                                  onClick={() => {
-                                    if (!bid.isTopBid) {
-                                      handleQuickReBid(bid);
-                                    }
-                                  }}
-                                >
-                                  최고가 +{quickReBidAmount.toLocaleString()}원 재입찰
-                                </button>
-                                <button 
-                                  disabled={bid.isTopBid}
-                                  className={`flex-1 text-xs font-bold py-2 rounded-lg transition-colors ${
-                                    bid.isTopBid
-                                      ? 'bg-white text-gray-400 border-2 border-gray-200 cursor-not-allowed'
-                                      : 'bg-white text-red-700 border-2 border-red-600 hover:bg-red-50 active:bg-red-100'
-                                  }`}
-                                  onClick={() => {
-                                    if (!bid.isTopBid) {
-                                      handleCustomReBid(bid);
-                                    }
-                                  }}
-                                >
-                                  직접 입력
-                                </button>
+                              {/* 재입찰 버튼 */}
+                              <div className="px-3 py-2 bg-white border-t border-gray-200">
+                                <div className="flex gap-2">
+                                  <button 
+                                    disabled={bid.status === 'highest'}
+                                    className={`flex-1 text-xs font-bold py-2 rounded-lg transition-colors ${
+                                      bid.status === 'highest'
+                                        ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                                        : 'bg-red-600 text-white hover:bg-red-700 active:bg-red-800'
+                                    }`}
+                                    onClick={() => {
+                                      if (bid.status !== 'highest') {
+                                        const newBidPrice = bid.highestBid + quickReBidAmount;
+                                        const now = new Date();
+                                        const timeStr = `${now.getFullYear().toString().slice(2)}.${String(now.getMonth() + 1).padStart(2, '0')}.${String(now.getDate()).padStart(2, '0')}.(${['일','월','화','수','목','금','토'][now.getDay()]}) ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+                                        setBid(listingNo, {
+                                          ...bid,
+                                          myBid: newBidPrice,
+                                          highestBid: newBidPrice,
+                                          status: 'highest',
+                                          time: timeStr
+                                        });
+                                        setToastMessage('재입찰이 완료되었습니다.');
+                                        setShowToast(true);
+                                        setTimeout(() => setShowToast(false), 2000);
+                                      }
+                                    }}
+                                  >
+                                    최고가 +{quickReBidAmount.toLocaleString()}원 재입찰
+                                  </button>
+                                  <button 
+                                    disabled={bid.status === 'highest'}
+                                    className={`flex-1 text-xs font-bold py-2 rounded-lg transition-colors ${
+                                      bid.status === 'highest'
+                                        ? 'bg-white text-gray-400 border-2 border-gray-200 cursor-not-allowed'
+                                        : 'bg-white text-red-700 border-2 border-red-600 hover:bg-red-50 active:bg-red-100'
+                                    }`}
+                                    onClick={() => {
+                                      if (bid.status !== 'highest') {
+                                        setSelectedBid({ listingNo, ...bid });
+                                        setCustomBidPrice((bid.highestBid + quickReBidAmount).toLocaleString());
+                                        setShowReBidDialog(true);
+                                      }
+                                    }}
+                                  >
+                                    직접 입력
+                                  </button>
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        ))}
-                        </div>
-                      </>
+                          );
+                        })}
+                      </div>
                     )}
                   </div>
                 )}
@@ -708,61 +677,49 @@ function MainPageContent() {
             )}
 
             {/* 재입찰 다이얼로그 */}
-            {showReBidDialog && selectedBid && (
+            {showReBidDialog && selectedBid && selectedBid.productInfo && (
               <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
                 <div className="bg-white rounded-lg max-w-md w-full p-5">
                   <h3 className="text-lg font-bold mb-4">재입찰 확인</h3>
                   
                   <div className="mb-4 p-3 bg-gray-50 rounded-lg">
-                    <div className="text-sm text-gray-600 mb-2">상장번호: {selectedBid.listingNo || selectedBid.auctionNumber}</div>
-                    <div className="text-sm text-gray-600 mb-2">부위: {selectedBid.part}</div>
-                    <div className="text-sm text-gray-600 mb-2">중량: {selectedBid.weight}kg</div>
-                    <div className="text-sm text-gray-600 mb-2">현재 최고가: {selectedBid.topBidPrice.toLocaleString()}원/kg</div>
+                    <div className="text-sm text-gray-600 mb-2">상장번호: {selectedBid.listingNo}</div>
+                    <div className="text-sm text-gray-600 mb-2">부위: {selectedBid.productInfo.partName}</div>
+                    <div className="text-sm text-gray-600 mb-2">중량: {selectedBid.productInfo.weight}</div>
+                    <div className="text-sm text-gray-600 mb-2">현재 최고가: {selectedBid.highestBid.toLocaleString()}원/kg</div>
                   </div>
 
-                  {selectedBid.reBidPrice ? (
-                    <div className="mb-4">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">재입찰가격</label>
-                      <div className="text-2xl font-bold text-red-600">
-                        {selectedBid.reBidPrice.toLocaleString()}원/kg
-                      </div>
-                      <div className="text-sm text-gray-500 mt-1">
-                        총 {(selectedBid.reBidPrice * selectedBid.weight).toLocaleString()}원
-                      </div>
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">재입찰가격 입력</label>
+                    <div className="relative">
+                      <input
+                        type="tel"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        value={customBidPrice}
+                        onChange={(e) => {
+                          const value = e.target.value.replace(/[^0-9]/g, '');
+                          setCustomBidPrice(value ? parseInt(value).toLocaleString() : '');
+                        }}
+                        onFocus={(e) => {
+                          setCustomBidPrice('');
+                        }}
+                        placeholder="입찰가격을 입력하세요 (100원 단위)"
+                        className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 bg-white text-gray-900"
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">원</span>
                     </div>
-                  ) : (
-                    <div className="mb-4">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">재입찰가격 입력</label>
-                      <div className="relative">
-                        <input
-                          type="tel"
-                          inputMode="numeric"
-                          pattern="[0-9]*"
-                          value={customBidPrice}
-                          onChange={(e) => {
-                            const value = e.target.value.replace(/[^0-9]/g, '');
-                            setCustomBidPrice(value ? parseInt(value).toLocaleString() : '');
-                          }}
-                          onFocus={(e) => {
-                            setCustomBidPrice('');
-                          }}
-                          placeholder="입찰가격을 입력하세요 (100원 단위)"
-                          className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 bg-white text-gray-900"
-                        />
-                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">원</span>
+                    {customBidPrice && (
+                      <div className="text-sm text-gray-500 mt-2">
+                        총 {(parseInt(customBidPrice.replace(/,/g, '')) * parseFloat(selectedBid.productInfo.weight)).toLocaleString()}원
                       </div>
-                      {customBidPrice && (
-                        <div className="text-sm text-gray-500 mt-2">
-                          총 {(parseInt(customBidPrice.replace(/,/g, '')) * selectedBid.weight).toLocaleString()}원
-                        </div>
-                      )}
-                      {customBidPrice && parseInt(customBidPrice.replace(/,/g, '')) % 100 !== 0 && (
-                        <p className="text-xs text-red-600 mt-1">
-                          ⚠️ 100원 단위로 입력해주세요
-                        </p>
-                      )}
-                    </div>
-                  )}
+                    )}
+                    {customBidPrice && parseInt(customBidPrice.replace(/,/g, '')) % 100 !== 0 && (
+                      <p className="text-xs text-red-600 mt-1">
+                        ⚠️ 100원 단위로 입력해주세요
+                      </p>
+                    )}
+                  </div>
 
                   <div className="flex gap-2">
                     <button
@@ -777,7 +734,7 @@ function MainPageContent() {
                     </button>
                     <button
                       onClick={confirmReBid}
-                      disabled={!selectedBid.reBidPrice && (!customBidPrice || parseInt(customBidPrice.replace(/,/g, '')) % 100 !== 0)}
+                      disabled={!customBidPrice || parseInt(customBidPrice.replace(/,/g, '')) % 100 !== 0}
                       className="flex-1 bg-red-600 text-white py-2 rounded-lg font-bold hover:bg-red-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
                     >
                       재입찰하기
