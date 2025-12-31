@@ -86,6 +86,25 @@ export default function AuctionDetailPage({ params }: PageProps) {
     }, 3000);
   };
 
+  // 부위별 최저단가
+  const baseMinPrices: Record<string, number> = {
+    '등심(좌)': 85000, '등심(우)': 85000,
+    '안심': 95000,
+    '채끝': 82000,
+    '갈비(좌)': 78000, '갈비(우)': 78000,
+    '특수부위': 72000,
+    '설도(좌)': 56000, '설도(우)': 56000,
+    '앞다리': 55000,
+    '우둔': 58000,
+    '목심': 62000,
+    '양지(좌)': 52000, '양지(우)': 52000,
+    '사태': 48000,
+    '꼬리': 35000,
+    '족': 25000,
+    '사골': 20000,
+    '잡뼈': 15000
+  };
+
   // 입찰하기 버튼 클릭 처리
   const handleBidClick = () => {
     if (!selectedPart) {
@@ -113,6 +132,13 @@ export default function AuctionDetailPage({ params }: PageProps) {
       return;
     }
     
+    // 최저단가 체크
+    const minPrice = baseMinPrices[selectedPart] || 50000;
+    if (priceValue < minPrice) {
+      showToastMessage(`최저단가(${minPrice.toLocaleString()}원) 이상으로 입찰해주세요.`);
+      return;
+    }
+    
     setShowBidDialog(true);
   };
 
@@ -125,9 +151,14 @@ export default function AuctionDetailPage({ params }: PageProps) {
     const now = new Date();
     const timeString = `25.08.06.(수) ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
     
+    // 선택된 부위의 상장번호 가져오기
+    const selectedPartData = partsData.find(p => p.part === selectedPart);
+    const listingNo = selectedPartData?.listingNo || '';
+    
     const newBid = {
       id: Date.now(), // 고유 ID 생성
       auctionNumber: currentAuctionInfo.auctionNumber,
+      listingNo: listingNo,
       part: selectedPart,
       weight: selectedWeight,
       price: removeCommas(bidPrice),
@@ -268,6 +299,15 @@ export default function AuctionDetailPage({ params }: PageProps) {
 
   const mainImages = getImagesForAuction(resolvedParams.id);
 
+  // 상장번호 생성 함수
+  // 개체당 20개씩 할당: 접수번호 1은 0001~0019, 접수번호 2는 0021~0039, ...
+  const getListingNumber = (auctionId: string, partIndex: number) => {
+    const id = parseInt(auctionId);
+    const baseOffset = (id - 1) * 20; // 개체별 기본 오프셋
+    const listingSeq = baseOffset + partIndex + 1; // 1부터 시작
+    return `250806-${String(id).padStart(3, '0')}-${String(listingSeq).padStart(4, '0')}`;
+  };
+
   // 개체별 부위 중량 데이터 생성
   const getPartsData = (auctionId: string) => {
     const id = parseInt(auctionId);
@@ -301,7 +341,8 @@ export default function AuctionDetailPage({ params }: PageProps) {
       const weight = item.min + (item.max - item.min) * variation;
       return {
         part: item.part,
-        weight: weight.toFixed(1)
+        weight: weight.toFixed(1),
+        listingNo: getListingNumber(auctionId, index)
       };
     });
   };
@@ -340,6 +381,7 @@ export default function AuctionDetailPage({ params }: PageProps) {
       allBids.push({
         id: auctionId * 1000 + 1,
         auctionNumber: auctionInfo.auctionNumber,
+        listingNo: parts[0].listingNo,
         part: parts[0].part,
         weight: parts[0].weight,
         price: '83000',
@@ -357,6 +399,7 @@ export default function AuctionDetailPage({ params }: PageProps) {
         allBids.push({
           id: auctionId * 1000 + 2,
           auctionNumber: auctionInfo.auctionNumber,
+          listingNo: parts[4].listingNo,
           part: parts[4].part,
           weight: parts[4].weight,
           price: '111000',
@@ -606,7 +649,7 @@ export default function AuctionDetailPage({ params }: PageProps) {
                   <div className="flex items-center space-x-3">
                     <img 
                       src="/음성축산물공판장.png" 
-                      alt="음성축산물공판장" 
+                      alt="농협 음성축산물공판장" 
                       className="h-5 w-auto border border-gray-300 rounded px-1 py-0.5"
                     />
                   </div>
@@ -746,8 +789,8 @@ export default function AuctionDetailPage({ params }: PageProps) {
                 <div className="bg-gray-50 px-3 py-2 border-t border-gray-200">
                   <div className="space-y-2">
                     {/* 품질정보 - 1줄로 표시 */}
-                    <div className="bg-white px-3 py-2.5 rounded border">
-                      <div className="grid grid-cols-6 gap-2 text-xs">
+                    <div className="bg-white px-2 py-2.5 rounded border">
+                      <div className="grid grid-cols-7 gap-1 text-[11px]">
                         <div className="text-center">
                           <div className="text-gray-500">등지방</div>
                           <div className="font-bold text-sm">16</div>
@@ -772,6 +815,10 @@ export default function AuctionDetailPage({ params }: PageProps) {
                           <div className="text-gray-500">조직감</div>
                           <div className="font-bold text-sm">1</div>
                         </div>
+                        <div className="text-center">
+                          <div className="text-gray-500">성숙도</div>
+                          <div className="font-bold text-sm">2</div>
+                        </div>
                       </div>
                     </div>
 
@@ -780,9 +827,9 @@ export default function AuctionDetailPage({ params }: PageProps) {
                       {/* 개체 기본정보 - 왼쪽 */}
                       <div className="bg-white px-3 py-2.5 rounded border">
                         <h4 className="text-xs font-bold text-gray-700 mb-2">개체 기본정보</h4>
-                        <div className="space-y-1 text-xs">
+                        <div className="space-y-1.5 text-xs">
                           <div className="flex justify-between">
-                            <span className="text-gray-500">경매번호</span>
+                            <span className="text-gray-500">접수번호</span>
                             <span className="text-gray-900 font-medium">{currentAuctionInfo.auctionNumber}</span>
                           </div>
                           <div className="flex justify-between">
@@ -790,8 +837,12 @@ export default function AuctionDetailPage({ params }: PageProps) {
                             <span className="text-gray-900 font-medium">002-1894-3853-9</span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-gray-500">품종/성별</span>
-                            <span className="text-gray-900 font-medium">{currentAuctionInfo.breed}</span>
+                            <span className="text-gray-500">품종</span>
+                            <span className="text-gray-900 font-medium">한우</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-500">성별</span>
+                            <span className="text-gray-900 font-medium">{currentAuctionInfo.breed.includes('거세') ? '거세' : '암소'}</span>
                           </div>
                           <div className="flex justify-between">
                             <span className="text-gray-500">등급</span>
@@ -813,11 +864,19 @@ export default function AuctionDetailPage({ params }: PageProps) {
                             <div className="space-y-1 text-xs">
                               <div className="flex justify-between">
                                 <span className="text-gray-500">도축장</span>
-                                <span className="text-gray-900 font-medium">음성축산물공판장</span>
+                                <span className="text-gray-900 font-medium">농협 음성축산물공판장</span>
                               </div>
                               <div className="flex justify-between">
                                 <span className="text-gray-500">도축일</span>
                                 <span className="text-gray-900 font-medium">2025.08.04.</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-500">지육번호</span>
+                                <span className="text-gray-900 font-medium">201</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-500">도체중량</span>
+                                <span className="text-gray-900 font-medium">468kg</span>
                               </div>
                             </div>
                           </div>
@@ -833,6 +892,10 @@ export default function AuctionDetailPage({ params }: PageProps) {
                                 <span className="text-gray-500">가공일</span>
                                 <span className="text-gray-900 font-medium">2025.08.05.</span>
                               </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-500">가공중량</span>
+                                <span className="text-gray-900 font-medium">312kg</span>
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -847,12 +910,13 @@ export default function AuctionDetailPage({ params }: PageProps) {
                 {/* 호가창 */}
                 <div className="w-full flex flex-col border-b border-gray-200">
                   {/* 호가창 헤더 */}
-                  <div className="bg-gray-50 border-b border-gray-200 flex-shrink-0 h-10 flex items-center">
-                    <div className="grid px-2 text-xs font-bold text-gray-700 w-full" style={{gridTemplateColumns: '1.2fr 0.8fr 1fr 1fr 0.6fr'}}>
-                      <div className="text-center border-r border-gray-300">부위</div>
-                      <div className="text-center border-r border-gray-300">중량</div>
-                      <div className="text-center border-r border-gray-300">최고입찰가</div>
-                      <div className="text-center border-r border-gray-300">나의입찰가</div>
+                  <div className="bg-gray-100 border-b border-gray-300 flex-shrink-0 h-10 flex items-center">
+                    <div className="grid px-2 text-xs font-bold text-gray-600 w-full" style={{gridTemplateColumns: '0.9fr 0.7fr 0.9fr 1fr 1fr 0.7fr'}}>
+                      <div className="text-center">부위</div>
+                      <div className="text-center">중량</div>
+                      <div className="text-center">최저단가</div>
+                      <div className="text-center">최고입찰가</div>
+                      <div className="text-center">나의입찰가</div>
                       <div className="text-center">상태</div>
                     </div>
                   </div>
@@ -863,46 +927,56 @@ export default function AuctionDetailPage({ params }: PageProps) {
                     {partsData.map((item, index) => {
                       const bidInfo = partBids[item.part];
                       const hasBid = !!bidInfo;
+                      const minPrice = baseMinPrices[item.part] || 50000;
                       
                       return (
                         <div 
                           key={`sell-${index}`}
-                          className={`grid px-2 py-2.5 border-b border-gray-100 cursor-pointer ${
+                          className={`grid px-2 py-3 border-b border-gray-100 cursor-pointer transition-colors ${
                             hasBid 
                               ? bidInfo.isTopBid 
-                                ? 'bg-blue-50 hover:bg-blue-100' 
-                                : 'bg-red-50 hover:bg-red-100'
+                                ? 'bg-blue-50/50 hover:bg-blue-50' 
+                                : 'bg-red-50/50 hover:bg-red-50'
                               : 'bg-white hover:bg-gray-50'
                           }`}
-                          style={{gridTemplateColumns: '1.2fr 0.8fr 1fr 1fr 0.6fr'}}
+                          style={{gridTemplateColumns: '0.9fr 0.7fr 0.9fr 1fr 1fr 0.7fr'}}
                           onClick={() => {
                             setSelectedPart(item.part);
                             setSelectedWeight(item.weight);
                             setShowBidSheet(true);
                           }}
                         >
-                          <div className="text-center text-xs font-bold text-black flex items-center justify-center border-r border-gray-200">
+                          <div className="text-center text-xs font-semibold text-gray-900 flex items-center justify-center">
                             {item.part}
                           </div>
-                          <div className="text-center text-xs font-bold text-black flex items-center justify-center border-r border-gray-200">
+                          <div className="text-center text-xs font-medium text-gray-700 flex items-center justify-center">
                             {item.weight}kg
                           </div>
-                          <div className="text-center text-xs text-gray-500 flex items-center justify-center border-r border-gray-200">
+                          <div className="text-center text-xs font-medium text-gray-500 flex items-center justify-center">
+                            {minPrice.toLocaleString()}
+                          </div>
+                          <div className={`text-center text-xs font-semibold flex items-center justify-center ${
+                            hasBid ? 'text-gray-800' : 'text-gray-400'
+                          }`}>
                             {hasBid ? `${bidInfo.topBidPrice.toLocaleString()}` : '-'}
                           </div>
-                          <div className={`text-center text-xs font-bold flex items-center justify-center border-r border-gray-200 ${
-                            hasBid ? 'text-red-600' : 'text-gray-500'
+                          <div className={`text-center text-xs font-bold flex items-center justify-center ${
+                            hasBid ? 'text-red-600' : 'text-gray-400'
                           }`}>
                             {hasBid ? `${bidInfo.myBidPrice.toLocaleString()}` : '-'}
                           </div>
-                          <div className={`text-center text-xs font-bold flex items-center justify-center ${
-                            hasBid 
-                              ? bidInfo.isTopBid 
-                                ? 'text-blue-600' 
-                                : 'text-red-600'
-                              : 'text-gray-500'
-                          }`}>
-                            {hasBid ? (bidInfo.isTopBid ? '최고순위' : '차순위') : '-'}
+                          <div className="flex items-center justify-center">
+                            {hasBid ? (
+                              <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded ${
+                                bidInfo.isTopBid 
+                                  ? 'bg-blue-100 text-blue-700' 
+                                  : 'bg-red-100 text-red-600'
+                              }`}>
+                                {bidInfo.isTopBid ? '최고순위' : '차순위'}
+                              </span>
+                            ) : (
+                              <span className="text-xs text-gray-400">-</span>
+                            )}
                           </div>
                         </div>
                       );
@@ -988,7 +1062,7 @@ export default function AuctionDetailPage({ params }: PageProps) {
                         {/* 헤더 영역 */}
                         <div className="flex items-center justify-between px-3 py-2.5 bg-gray-50 border-b border-gray-200">
                           <div className="flex items-center gap-2">
-                            <span className="text-xs font-bold text-gray-900">{bid.auctionNumber}</span>
+                            <span className="text-xs font-bold text-gray-900">{bid.listingNo || bid.auctionNumber}</span>
                           </div>
                           <span className="text-xs text-gray-500">{bid.time}</span>
                         </div>
@@ -1150,7 +1224,12 @@ export default function AuctionDetailPage({ params }: PageProps) {
                         <X className="h-5 w-5 text-gray-500" />
                       </button>
                     </div>
-                    <div className="flex items-center gap-1 mt-1">
+                    <div className="flex items-center gap-1 mt-1 flex-wrap">
+                      {selectedPart && (
+                        <span className="text-xs px-1.5 py-0.5 bg-gray-100 border border-gray-300 text-gray-700 rounded font-medium">
+                          {partsData.find(p => p.part === selectedPart)?.listingNo || '-'}
+                        </span>
+                      )}
                       <span className="text-xs px-1.5 py-0.5 bg-gray-100 border border-gray-300 text-gray-700 rounded font-medium">{currentAuctionInfo.breed}</span>
                       <span className="text-xs px-1.5 py-0.5 bg-gray-100 border border-gray-300 text-gray-700 rounded font-medium">{currentAuctionInfo.grade}</span>
                       <span className="text-xs px-1.5 py-0.5 bg-gray-100 border border-gray-300 text-gray-700 rounded font-medium">{currentAuctionInfo.months}개월</span>
@@ -1279,7 +1358,7 @@ export default function AuctionDetailPage({ params }: PageProps) {
                   <div className="bg-gray-50 p-3 rounded border">
                     <div className="space-y-2">
                       <div className="flex justify-between">
-                        <span className="text-sm text-gray-600">경매번호</span>
+                        <span className="text-sm text-gray-600">접수번호</span>
                         <span className="text-sm text-gray-900">{currentAuctionInfo.auctionNumber}</span>
                       </div>
                       <div className="flex justify-between">
@@ -1401,7 +1480,7 @@ export default function AuctionDetailPage({ params }: PageProps) {
               <h3 className="text-lg font-bold mb-4">재입찰 확인</h3>
               
               <div className="mb-4 p-3 bg-gray-50 rounded-lg">
-                <div className="text-sm text-gray-600 mb-2">경매번호: {selectedBid.auctionNumber}</div>
+                <div className="text-sm text-gray-600 mb-2">상장번호: {selectedBid.listingNo || selectedBid.auctionNumber}</div>
                 <div className="text-sm text-gray-600 mb-2">부위: {selectedBid.part}</div>
                 <div className="text-sm text-gray-600 mb-2">중량: {selectedBid.weight}kg</div>
                 <div className="text-sm text-gray-600 mb-2">현재 최고가: {selectedBid.topBidPrice.toLocaleString()}원/kg</div>

@@ -43,11 +43,12 @@ function MainPageContent() {
     {
       id: 1,
       auctionNumber: '250806-001',
-      part: '윗등심(좌)',
+      listingNo: '250806-001-0001',
+      part: '등심(좌)',
       breed: '한우거세',
       gender: '거세',
       grade: '1++(9)',
-      weight: 8.5,
+      weight: 15.2,
       bidPrice: 83000,
       topBidPrice: 84000,
       isTopBid: false,
@@ -57,11 +58,12 @@ function MainPageContent() {
     {
       id: 2,
       auctionNumber: '250806-002',
-      part: '안심(우)',
+      listingNo: '250806-002-0023',
+      part: '안심',
       breed: '한우거세',
       gender: '거세',
       grade: '1++(8)',
-      weight: 3.2,
+      weight: 4.5,
       bidPrice: 111000,
       topBidPrice: 113000,
       isTopBid: false,
@@ -71,11 +73,12 @@ function MainPageContent() {
     {
       id: 3,
       auctionNumber: '250806-003',
-      part: '채끝(좌)',
+      listingNo: '250806-003-0044',
+      part: '채끝',
       breed: '한우암소',
       gender: '암',
       grade: '1++(7)',
-      weight: 4.2,
+      weight: 8.2,
       bidPrice: 75000,
       topBidPrice: 75000,
       isTopBid: true,
@@ -538,7 +541,7 @@ function MainPageContent() {
                             {/* 헤더 영역 */}
                             <div className="flex items-center justify-between px-3 py-2.5 bg-gray-50 border-b border-gray-200">
                               <div className="flex items-center gap-2">
-                                <span className="text-xs font-bold text-gray-900">{bid.auctionNumber}</span>
+                                <span className="text-xs font-bold text-gray-900">{bid.listingNo || bid.auctionNumber}</span>
                                 <Link href={`/auction/${bid.id}?from=myBids&bidId=${bid.id}`}>
                                   <button className="px-2 py-1 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50 transition-colors">
                                     개체보기
@@ -711,7 +714,7 @@ function MainPageContent() {
                   <h3 className="text-lg font-bold mb-4">재입찰 확인</h3>
                   
                   <div className="mb-4 p-3 bg-gray-50 rounded-lg">
-                    <div className="text-sm text-gray-600 mb-2">경매번호: {selectedBid.auctionNumber}</div>
+                    <div className="text-sm text-gray-600 mb-2">상장번호: {selectedBid.listingNo || selectedBid.auctionNumber}</div>
                     <div className="text-sm text-gray-600 mb-2">부위: {selectedBid.part}</div>
                     <div className="text-sm text-gray-600 mb-2">중량: {selectedBid.weight}kg</div>
                     <div className="text-sm text-gray-600 mb-2">현재 최고가: {selectedBid.topBidPrice.toLocaleString()}원/kg</div>
