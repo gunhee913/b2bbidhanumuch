@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -24,7 +24,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { useBidStore } from '@/stores/bidStore';
 
-export default function AuctionPage() {
+function AuctionPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   
@@ -1833,5 +1833,13 @@ export default function AuctionPage() {
           </div>
         </div>
     </div>
+  );
+}
+
+export default function AuctionPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="text-gray-500">로딩 중...</div></div>}>
+      <AuctionPageContent />
+    </Suspense>
   );
 }
