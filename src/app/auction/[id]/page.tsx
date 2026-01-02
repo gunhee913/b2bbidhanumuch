@@ -936,19 +936,14 @@ export default function AuctionDetailPage({ params }: PageProps) {
                       return (
                         <div 
                           key={`sell-${index}`}
-                          className={`grid px-2 py-3 border-b border-gray-100 cursor-pointer transition-colors ${
+                          className={`grid px-2 py-3 border-b border-gray-100 transition-colors ${
                             hasBid 
                               ? bidInfo.status === 'highest'
-                                ? 'bg-blue-50/50 hover:bg-blue-50' 
-                                : 'bg-red-50/50 hover:bg-red-50'
-                              : 'bg-white hover:bg-gray-50'
+                                ? 'bg-blue-50/50' 
+                                : 'bg-red-50/50'
+                              : 'bg-white'
                           }`}
                           style={{gridTemplateColumns: '0.9fr 0.7fr 0.9fr 1fr 1fr 0.7fr'}}
-                          onClick={() => {
-                            setSelectedPart(item.part);
-                            setSelectedWeight(item.weight);
-                            setShowBidSheet(true);
-                          }}
                         >
                           <div className="text-center text-xs font-semibold text-gray-900 flex items-center justify-center">
                             {item.part}
@@ -964,10 +959,23 @@ export default function AuctionDetailPage({ params }: PageProps) {
                           }`}>
                             {hasBid ? `${bidInfo.highestBid.toLocaleString()}` : '-'}
                           </div>
-                          <div className={`text-center text-xs font-bold flex items-center justify-center ${
-                            hasBid ? 'text-red-600' : 'text-gray-400'
-                          }`}>
-                            {hasBid ? `${bidInfo.myBid.toLocaleString()}` : '-'}
+                          <div className="flex items-center justify-center">
+                            {hasBid ? (
+                              <span className="text-xs font-bold text-red-600">
+                                {bidInfo.myBid.toLocaleString()}
+                              </span>
+                            ) : (
+                              <button
+                                onClick={() => {
+                                  setSelectedPart(item.part);
+                                  setSelectedWeight(item.weight);
+                                  setShowBidSheet(true);
+                                }}
+                                className="px-2 py-1 text-[10px] font-bold text-white bg-red-600 rounded hover:bg-red-700 transition-colors"
+                              >
+                                입찰하기
+                              </button>
+                            )}
                           </div>
                           <div className="flex items-center justify-center">
                             {hasBid ? (

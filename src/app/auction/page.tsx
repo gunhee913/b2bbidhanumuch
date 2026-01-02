@@ -582,16 +582,18 @@ function AuctionPageContent() {
 
             {/* 메인 콘텐츠 */}
             <div className="flex-1 min-h-0 overflow-y-auto">
-              {/* 섹션 제목 */}
-              <div className="px-4 pt-4 pb-2 bg-white flex items-center justify-between">
-                <h2 className="text-base font-bold text-gray-900">25.08.06.(수) 경매</h2>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-xs text-gray-500">마감까지</span>
-                  <span className={`text-sm font-bold ${remainingTime <= 300 ? 'text-red-600' : 'text-gray-900'}`}>
-                    {formatTime(remainingTime)}
-                  </span>
+              {/* 섹션 제목 - 부위별 상세에서는 숨김 */}
+              {!(activeTab === 'part' && selectedPartId) && (
+                <div className="px-4 pt-4 pb-2 bg-white flex items-center justify-between">
+                  <h2 className="text-base font-bold text-gray-900">25.08.06.(수) 경매</h2>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs text-gray-500">마감까지</span>
+                    <span className={`text-sm font-bold ${remainingTime <= 300 ? 'text-red-600' : 'text-gray-900'}`}>
+                      {formatTime(remainingTime)}
+                    </span>
+                  </div>
                 </div>
-              </div>
+              )}
               
               {activeTab === 'individual' ? (
                 <>
@@ -831,6 +833,15 @@ function AuctionPageContent() {
                       >
                         <ChevronRight className="h-5 w-5" />
                       </button>
+                    </div>
+                    {/* 마감시간 */}
+                    <div className="flex justify-end mt-1">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] text-gray-500">마감까지</span>
+                        <span className={`text-xs font-bold ${remainingTime <= 300 ? 'text-red-600' : 'text-gray-900'}`}>
+                          {formatTime(remainingTime)}
+                        </span>
+                      </div>
                     </div>
                   </div>
 
