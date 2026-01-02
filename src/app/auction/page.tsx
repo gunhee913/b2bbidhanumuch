@@ -259,19 +259,19 @@ function AuctionPageContent() {
   // 경매 상품 데이터
   const products = [
     { id: 1, image: '/등심1.png', type: '한우거세', grade: '1++A', no: 'No.9', auctionNo: '250806-001', historyNo: '002-1486-7293-5', company: '송정가공', date: '2025.08.05.(화)' },
-    { id: 2, image: '/등심2.png', type: '한우암소', grade: '1++B', no: 'No.8', auctionNo: '250806-002', historyNo: '002-1486-7293-6', company: '송정가공', date: '2025.08.05.(화)' },
+    { id: 2, image: '/등심2.png', type: '한우암', grade: '1++B', no: 'No.8', auctionNo: '250806-002', historyNo: '002-1486-7293-6', company: '송정가공', date: '2025.08.05.(화)' },
     { id: 3, image: '/등심3.png', type: '한우거세', grade: '1+A', no: 'No.6', auctionNo: '250806-003', historyNo: '002-1486-7293-7', company: '송정가공', date: '2025.08.05.(화)' },
-    { id: 4, image: '/등심4.png', type: '한우암소', grade: '1+C', no: 'No.5', auctionNo: '250806-004', historyNo: '002-1486-7293-8', company: '송정가공', date: '2025.08.05.(화)' },
-    { id: 5, image: '/등심1.png', type: '한우암소', grade: '1C', no: 'No.7', auctionNo: '250806-005', historyNo: '002-1486-7293-9', company: '송정가공', date: '2025.08.05.(화)' },
+    { id: 4, image: '/등심4.png', type: '한우암', grade: '1+C', no: 'No.5', auctionNo: '250806-004', historyNo: '002-1486-7293-8', company: '송정가공', date: '2025.08.05.(화)' },
+    { id: 5, image: '/등심1.png', type: '한우암', grade: '1C', no: 'No.7', auctionNo: '250806-005', historyNo: '002-1486-7293-9', company: '송정가공', date: '2025.08.05.(화)' },
   ];
 
   // 5두 개체 정보
   // 근내지방도: 7,8,9 = 1++등급 / 6 = 1+등급 / 4,5 = 1등급 / 2,3 = 2등급 / 1 = 3등급
   const auctionEntities = [
     { id: 1, type: '한우거세', grade: '1++A(9)', historyNo: '002-1486-7293-5', company: '송정가공', image: '/등심1.png' },
-    { id: 2, type: '한우암소', grade: '1++B(8)', historyNo: '002-1486-7293-6', company: '송정가공', image: '/등심2.png' },
+    { id: 2, type: '한우암', grade: '1++B(8)', historyNo: '002-1486-7293-6', company: '송정가공', image: '/등심2.png' },
     { id: 3, type: '한우거세', grade: '1+A(6)', historyNo: '002-1486-7293-7', company: '송정가공', image: '/등심3.png' },
-    { id: 4, type: '한우암소', grade: '1A(5)', historyNo: '002-1486-7293-8', company: '송정가공', image: '/등심4.png' },
+    { id: 4, type: '한우암', grade: '1A(5)', historyNo: '002-1486-7293-8', company: '송정가공', image: '/등심4.png' },
     { id: 5, type: '한우거세', grade: '1++C(7)', historyNo: '002-1486-7293-9', company: '송정가공', image: '/등심1.png' },
   ];
 
@@ -529,42 +529,44 @@ function AuctionPageContent() {
                 </div>
               </div>
               
-              {/* 서브 메뉴 */}
-              <div className="px-2 md:px-4 pb-1">
-                <div className="flex items-center ml-2 space-x-8">
-                  <div className="relative">
-                    <Button 
-                      variant="ghost" 
-                      onClick={() => setActiveTab('individual')}
-                      className={`text-base font-medium px-0 h-auto pb-2 hover:bg-transparent ${
-                        activeTab === 'individual' ? 'text-black hover:text-black' : 'text-gray-500 hover:text-gray-700'
-                      }`}
-                    >
-                      개체별
-                    </Button>
-                    {activeTab === 'individual' && (
-                      <div className="absolute bottom-0 left-0 right-0 h-1 bg-red-600"></div>
-                    )}
-                  </div>
-                  <div className="relative">
-                    <Button 
-                      variant="ghost" 
-                      onClick={() => setActiveTab('part')}
-                      className={`text-base font-medium px-0 h-auto pb-2 hover:bg-transparent ${
-                        activeTab === 'part' ? 'text-black hover:text-black' : 'text-gray-500 hover:text-gray-700'
-                      }`}
-                    >
-                      부위별
-                    </Button>
-                    {activeTab === 'part' && (
-                      <div className="absolute bottom-0 left-0 right-0 h-1 bg-red-600"></div>
-                    )}
+              {/* 서브 메뉴 - 부위별 상세에서는 숨김 */}
+              {!(activeTab === 'part' && selectedPartId) && (
+                <div className="px-2 md:px-4 pb-1">
+                  <div className="flex items-center ml-2 space-x-8">
+                    <div className="relative">
+                      <Button 
+                        variant="ghost" 
+                        onClick={() => setActiveTab('individual')}
+                        className={`text-base font-medium px-0 h-auto pb-2 hover:bg-transparent ${
+                          activeTab === 'individual' ? 'text-black hover:text-black' : 'text-gray-500 hover:text-gray-700'
+                        }`}
+                      >
+                        개체별
+                      </Button>
+                      {activeTab === 'individual' && (
+                        <div className="absolute bottom-0 left-0 right-0 h-1 bg-red-600"></div>
+                      )}
+                    </div>
+                    <div className="relative">
+                      <Button 
+                        variant="ghost" 
+                        onClick={() => setActiveTab('part')}
+                        className={`text-base font-medium px-0 h-auto pb-2 hover:bg-transparent ${
+                          activeTab === 'part' ? 'text-black hover:text-black' : 'text-gray-500 hover:text-gray-700'
+                        }`}
+                      >
+                        부위별
+                      </Button>
+                      {activeTab === 'part' && (
+                        <div className="absolute bottom-0 left-0 right-0 h-1 bg-red-600"></div>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
               
-              {/* 안내 문구 박스 */}
-              {showNotice && (
+              {/* 안내 문구 박스 - 부위별 상세에서는 숨김 */}
+              {showNotice && !(activeTab === 'part' && selectedPartId) && (
                 <div className="px-4 py-1 bg-gray-100 border-b border-gray-200 relative">
                   <p className="text-xs text-gray-600 text-center pr-6">
                     경매는 오전 10시에 일괄 종료되며, 최고입찰가가 낙찰됩니다.
@@ -624,7 +626,7 @@ function AuctionPageContent() {
                               transition={{ duration: 0.2 }}
                               className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden z-50"
                             >
-                              {['전체', '한우거세', '한우암소'].map((option) => (
+                              {['전체', '한우거세', '한우암'].map((option) => (
                                 <motion.button
                                   key={option}
                                   onClick={() => {
@@ -834,11 +836,14 @@ function AuctionPageContent() {
                         <ChevronRight className="h-5 w-5" />
                       </button>
                     </div>
-                    {/* 마감시간 */}
-                    <div className="flex justify-end mt-1">
+                  </div>
+                  
+                  {/* 마감시간 - 고정되지 않음 */}
+                  <div className="px-4 py-2 bg-white border-b border-gray-100">
+                    <div className="flex justify-end">
                       <div className="flex items-center gap-1.5">
-                        <span className="text-[10px] text-gray-500">마감까지</span>
-                        <span className={`text-xs font-bold ${remainingTime <= 300 ? 'text-red-600' : 'text-gray-900'}`}>
+                        <span className="text-xs text-gray-500">마감까지</span>
+                        <span className={`text-sm font-bold ${remainingTime <= 300 ? 'text-red-600' : 'text-gray-900'}`}>
                           {formatTime(remainingTime)}
                         </span>
                       </div>
@@ -872,7 +877,7 @@ function AuctionPageContent() {
                               transition={{ duration: 0.2 }}
                               className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden z-50"
                             >
-                              {['전체', '한우거세', '한우암소'].map((option) => (
+                              {['전체', '한우거세', '한우암'].map((option) => (
                                 <motion.button
                                   key={option}
                                   onClick={() => {
@@ -985,7 +990,7 @@ function AuctionPageContent() {
 
 
                   {/* 부위별 상품 테이블 */}
-                  <div className="flex-1 overflow-y-auto pb-24">
+                  <div className="flex-1 overflow-y-auto pb-24" data-scroll-container>
                     {/* 테이블 헤더 */}
                     <div className="bg-gray-100 border-b border-gray-300 h-10 flex items-center sticky top-0 z-10">
                       <div className="grid px-3 text-xs font-bold text-gray-600 w-full" style={{gridTemplateColumns: '1fr 0.8fr 1fr 1.1fr 1.1fr 0.9fr 0.4fr'}}>
@@ -1195,7 +1200,7 @@ function AuctionPageContent() {
                                             </div>
                                             <div className="flex justify-between">
                                               <span className="text-gray-500">성별</span>
-                                              <span className="text-gray-900 font-medium">{product.type.includes('거세') ? '거세' : '암소'}</span>
+                                              <span className="text-gray-900 font-medium">{product.type.includes('거세') ? '거세' : '암'}</span>
                                             </div>
                                             <div className="flex justify-between">
                                               <span className="text-gray-500">등급</span>
@@ -1292,14 +1297,14 @@ function AuctionPageContent() {
                                     <button
                                       onClick={(e) => {
                                         e.stopPropagation();
+                                        const rowElement = document.getElementById(`product-row-${product.id}`);
                                         setExpandedProductId(null);
-                                        // 해당 행으로 스크롤 (테이블 헤더 바로 아래로)
-                                        setTimeout(() => {
-                                          const element = document.getElementById(`product-row-${product.id}`);
-                                          if (element) {
-                                            element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                                          }
-                                        }, 100);
+                                        // 해당 행으로 스크롤 (고정 헤더 아래로)
+                                        if (rowElement) {
+                                          setTimeout(() => {
+                                            rowElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                          }, 300);
+                                        }
                                       }}
                                       className="px-3 py-1.5 text-xs font-bold rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 transition-colors"
                                     >
@@ -1403,7 +1408,7 @@ function AuctionPageContent() {
                                     <tbody>
                                       <tr className="border-b border-gray-100">
                                         <td className="px-3 py-2 text-gray-600 bg-gray-50 w-24">성별</td>
-                                        <td className="px-3 py-2 text-gray-900 font-medium">{product.type === '한우거세' ? '거세' : '암소'}</td>
+                                        <td className="px-3 py-2 text-gray-900 font-medium">{product.type === '한우거세' ? '거세' : '암'}</td>
                                         <td className="px-3 py-2 text-gray-600 bg-gray-50 w-24">등급</td>
                                         <td className="px-3 py-2 text-gray-900 font-medium" style={{ letterSpacing: '-0.05em' }}>{product.grade}</td>
                                       </tr>

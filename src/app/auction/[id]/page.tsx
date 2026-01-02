@@ -369,7 +369,7 @@ export default function AuctionDetailPage({ params }: PageProps) {
   // 개체별 정보 생성
   const getAuctionInfo = (auctionId: string) => {
     const id = parseInt(auctionId);
-    const breeds = ['한우거세', '한우암소', '한우거세', '한우거세', '한우암소'];
+    const breeds = ['한우거세', '한우암', '한우거세', '한우거세', '한우암'];
     const qualityGrades = ['1++', '1++', '1+', '1++', '1+']; // 육질 등급
     const yieldGrades = ['A', 'B', 'A', 'A', 'C']; // 육량 지수
     const marbling = ['9', '8', '7', '9', '8']; // 근내지방도
@@ -849,7 +849,7 @@ export default function AuctionDetailPage({ params }: PageProps) {
                           </div>
                           <div className="flex justify-between">
                             <span className="text-gray-500">성별</span>
-                            <span className="text-gray-900 font-medium">{currentAuctionInfo.breed.includes('거세') ? '거세' : '암소'}</span>
+                            <span className="text-gray-900 font-medium">{currentAuctionInfo.breed.includes('거세') ? '거세' : '암'}</span>
                           </div>
                           <div className="flex justify-between">
                             <span className="text-gray-500">등급</span>
@@ -1090,7 +1090,7 @@ export default function AuctionDetailPage({ params }: PageProps) {
                             <tbody>
                               <tr className="border-b border-gray-100">
                                 <td className="px-3 py-2 text-gray-600 bg-gray-50 w-24">성별</td>
-                                <td className="px-3 py-2 text-gray-900 font-medium">{productInfo.type.includes('거세') ? '거세' : '암소'}</td>
+                                <td className="px-3 py-2 text-gray-900 font-medium">{productInfo.type.includes('거세') ? '거세' : '암'}</td>
                                 <td className="px-3 py-2 text-gray-600 bg-gray-50 w-24">등급</td>
                                 <td className="px-3 py-2 text-gray-900 font-medium" style={{ letterSpacing: '-0.05em' }}>{productInfo.grade}</td>
                               </tr>

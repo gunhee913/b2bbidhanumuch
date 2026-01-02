@@ -391,7 +391,7 @@ function MainPageContent() {
                               <td className="py-3 px-3 text-right font-bold text-gray-600">17두</td>
                             </tr>
                             <tr className="border-b border-gray-200">
-                              <td className="py-3 px-3 font-bold text-gray-900">한우 암소</td>
+                              <td className="py-3 px-3 font-bold text-gray-900">한우 암</td>
                               <td className="py-3 px-3 text-center font-bold text-gray-900">3두</td>
                               <td className="py-3 px-3 text-center font-bold text-gray-900">3두</td>
                               <td className="py-3 px-3 text-center font-bold text-gray-900">2두</td>
@@ -511,7 +511,7 @@ function MainPageContent() {
                                 <tbody>
                                   <tr className="border-b border-gray-100">
                                     <td className="px-3 py-2 text-gray-600 bg-gray-50 w-24">성별</td>
-                                    <td className="px-3 py-2 text-gray-900 font-medium">{productInfo.type.includes('거세') ? '거세' : '암소'}</td>
+                                    <td className="px-3 py-2 text-gray-900 font-medium">{productInfo.type.includes('거세') ? '거세' : '암'}</td>
                                     <td className="px-3 py-2 text-gray-600 bg-gray-50 w-24">등급</td>
                                     <td className="px-3 py-2 text-gray-900 font-medium" style={{ letterSpacing: '-0.05em' }}>{productInfo.grade}</td>
                                   </tr>

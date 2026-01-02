@@ -144,7 +144,7 @@ export default function TradePage() {
         bidTime: '25.08.05. 13:45',
         traceNo: '002-1865-4312-7',
         grade: '1+B(8)',
-        gender: '암소',
+        gender: '암',
         monthAge: 28,
         processingCompany: '한우촌가공',
         slaughterDate: '2025.08.03.',
