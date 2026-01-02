@@ -680,6 +680,9 @@ export default function AuctionDetailPage({ params }: PageProps) {
                 
                 <div className="text-center">
                   <p className="text-base font-bold text-gray-900">250806-{String(resolvedParams.id).padStart(3, '0')}</p>
+                  <p className="text-[11px] text-gray-500">
+                    {currentAuctionInfo.breed.includes('거세') ? '거세' : '암'} / {currentAuctionInfo.grade} / 30개월
+                  </p>
                 </div>
                 
                 <button

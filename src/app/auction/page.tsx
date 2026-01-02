@@ -989,7 +989,7 @@ function AuctionPageContent() {
                     {/* 테이블 헤더 */}
                     <div className="bg-gray-100 border-b border-gray-300 h-10 flex items-center sticky top-0 z-10">
                       <div className="grid px-3 text-xs font-bold text-gray-600 w-full" style={{gridTemplateColumns: '1fr 0.8fr 1fr 1.1fr 1.1fr 0.9fr 0.4fr'}}>
-                        <div className="text-center">부위</div>
+                        <div className="text-center">구분</div>
                         <div className="text-center">중량</div>
                         <div className="text-center">최저단가</div>
                         <div className="text-center">최고입찰가</div>
@@ -1027,8 +1027,9 @@ function AuctionPageContent() {
                                 setExpandedProductId(isExpanded ? null : product.id);
                               }}
                             >
-                              <div className="text-center text-sm font-semibold text-gray-900">
-                                {product.partName}
+                              <div className="text-center">
+                                <div className="text-sm font-semibold text-gray-900">{product.partName}</div>
+                                <div className="text-[10px] text-gray-500">{product.type.includes('거세') ? '거세' : '암'} / {product.grade}</div>
                               </div>
                               <div className="text-center text-sm font-medium text-gray-600">
                                 {product.weight}
