@@ -836,14 +836,6 @@ export default function AuctionDetailPage({ params }: PageProps) {
                         <h4 className="text-xs font-bold text-gray-700 mb-2">개체 기본정보</h4>
                         <div className="space-y-1.5 text-xs">
                           <div className="flex justify-between">
-                            <span className="text-gray-500">접수번호</span>
-                            <span className="text-gray-900 font-medium">{currentAuctionInfo.auctionNumber}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-gray-500">이력번호</span>
-                            <span className="text-gray-900 font-medium">002-1894-3853-9</span>
-                          </div>
-                          <div className="flex justify-between">
                             <span className="text-gray-500">품종</span>
                             <span className="text-gray-900 font-medium">한우</span>
                           </div>
@@ -858,6 +850,14 @@ export default function AuctionDetailPage({ params }: PageProps) {
                           <div className="flex justify-between">
                             <span className="text-gray-500">개월령</span>
                             <span className="text-gray-900 font-medium">{currentAuctionInfo.months}개월</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-500">접수번호</span>
+                            <span className="text-gray-900 font-medium">{currentAuctionInfo.auctionNumber}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-500">이력번호</span>
+                            <span className="text-gray-900 font-medium">002-1894-3853-9</span>
                           </div>
                         </div>
                       </div>

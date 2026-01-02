@@ -1211,12 +1211,12 @@ function AuctionPageContent() {
                                               <span className="text-gray-900 font-medium">30개월</span>
                                             </div>
                                             <div className="flex justify-between">
-                                              <span className="text-gray-500">이력번호</span>
-                                              <span className="text-gray-900 font-medium">002-1894-3853-9</span>
-                                            </div>
-                                            <div className="flex justify-between">
                                               <span className="text-gray-500">접수번호</span>
                                               <span className="text-gray-900 font-medium">{product.auctionNo}</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                              <span className="text-gray-500">이력번호</span>
+                                              <span className="text-gray-900 font-medium">002-1894-3853-9</span>
                                             </div>
                                           </div>
                                         </div>

@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Home as HomeIcon,
   ShoppingCart,
@@ -16,7 +16,10 @@ import {
   Eye,
   EyeOff,
   AlertCircle,
-  Edit2
+  Edit2,
+  X,
+  Copy,
+  Check
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useBidStore } from '@/stores/bidStore';
@@ -47,6 +50,42 @@ function MainPageContent() {
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const tooltipRef = useRef<HTMLDivElement>(null);
+  
+  // 입금신청 모달 상태
+  const [showBalanceModal, setShowBalanceModal] = useState(false);
+  const [balanceAmount, setBalanceAmount] = useState('');
+  const [isCopied, setIsCopied] = useState(false);
+  const currentBalance = 20000000; // 현재 잔고 (추후 Zustand로 관리)
+  const depositAccountNumber = '351-0123-4567-23';
+
+  // 계좌번호 복사
+  const copyAccountNumber = async () => {
+    try {
+      await navigator.clipboard.writeText(depositAccountNumber);
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2000);
+    } catch (err) {
+      console.error('복사 실패:', err);
+    }
+  };
+
+  // 금액 입력 핸들러 (숫자만, 쉼표 포맷팅)
+  const handleBalanceAmountChange = (value: string) => {
+    const numericValue = value.replace(/[^0-9]/g, '');
+    if (numericValue === '') {
+      setBalanceAmount('');
+      return;
+    }
+    const formatted = Number(numericValue).toLocaleString();
+    setBalanceAmount(formatted);
+  };
+
+  // 빠른 금액 추가
+  const addQuickAmount = (amount: number) => {
+    const currentValue = Number(balanceAmount.replace(/,/g, '')) || 0;
+    const newValue = currentValue + amount;
+    setBalanceAmount(newValue.toLocaleString());
+  };
 
   // 내 입찰 내역은 zustand 스토어(globalBids)에서 관리
 
@@ -287,16 +326,21 @@ function MainPageContent() {
                     </div>
                   </div>
                   <p className="text-black text-2xl font-bold mb-3" style={{ letterSpacing: '-0.02em' }}>
-                    {isBalanceVisible ? '₩20,000,000원' : '₩••••••••'}
+                    {isBalanceVisible ? '₩20,000,000원' : '₩********원'}
                   </p>
                   <div className="flex gap-2">
-                    <button className="flex-1 bg-red-600 text-white px-3 py-2 rounded-lg font-bold text-xs hover:bg-red-700 active:bg-red-800 transition-colors flex items-center justify-center gap-1.5 active:scale-[0.98]">
+                    <button 
+                      onClick={() => {
+                        setShowBalanceModal(true);
+                        setBalanceAmount('');
+                      }}
+                      className="flex-1 bg-red-600 text-white px-3 py-2 rounded-lg font-bold text-xs hover:bg-red-700 active:bg-red-800 transition-colors flex items-center justify-center gap-1.5 active:scale-[0.98]"
+                    >
                       <span className="text-white text-base">↓</span>
-                      입금
+                      입금신청
                     </button>
-                    <button className="flex-1 bg-white text-red-600 border-2 border-red-600 px-3 py-2 rounded-lg font-bold text-xs hover:bg-red-50 active:bg-red-100 transition-colors flex items-center justify-center gap-1.5 active:scale-[0.98]">
-                      <span className="text-red-600 text-base">↑</span>
-                      출금
+                    <button className="flex-1 bg-white text-red-600 border-2 border-red-600 px-3 py-2 rounded-lg font-bold text-xs hover:bg-red-50 active:bg-red-100 transition-colors flex items-center justify-center active:scale-[0.98]">
+                      내역
                     </button>
                   </div>
                 </div>
@@ -752,6 +796,146 @@ function MainPageContent() {
                 </div>
               </div>
             )}
+
+            {/* 입금신청 모달 */}
+            <AnimatePresence>
+              {showBalanceModal && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="absolute inset-0 z-50 flex items-center justify-center p-4"
+                >
+                  {/* 배경 오버레이 */}
+                  <div 
+                    className="absolute inset-0 bg-black/60"
+                    onClick={() => setShowBalanceModal(false)}
+                  />
+                  
+                  {/* 모달 콘텐츠 */}
+                  <motion.div
+                    initial={{ scale: 0.95, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    exit={{ scale: 0.95, opacity: 0 }}
+                    className="relative bg-white rounded-xl shadow-xl w-full max-w-sm overflow-hidden"
+                  >
+                    {/* 헤더 */}
+                    <div className="flex items-center justify-between px-4 py-3 border-b">
+                      <h3 className="text-base font-bold">입금신청</h3>
+                      <button 
+                        onClick={() => setShowBalanceModal(false)}
+                        className="p-1 hover:bg-gray-100 rounded"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                    </div>
+
+                    {/* 내용 */}
+                    <div className="p-4">
+                      {/* 입금 계좌 안내 */}
+                      <div className="mb-4 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                        <div className="flex items-center justify-between mb-1">
+                          <div className="text-xs text-gray-600 font-medium">입금 계좌</div>
+                          <button
+                            onClick={copyAccountNumber}
+                            className="flex items-center gap-1 text-[10px] text-red-600 hover:text-red-700 transition-colors"
+                          >
+                            {isCopied ? (
+                              <>
+                                <Check className="w-3 h-3" />
+                                복사됨
+                              </>
+                            ) : (
+                              <>
+                                <Copy className="w-3 h-3" />
+                                복사
+                              </>
+                            )}
+                          </button>
+                        </div>
+                        <div className="text-sm font-bold text-gray-900">농협은행 {depositAccountNumber}</div>
+                        <div className="text-xs text-gray-500">예금주: 농협 중부미트센터</div>
+                        <div className="mt-2 pt-2 border-t border-gray-200">
+                          <p className="text-[11px] text-gray-600">계좌이체 후, 입금신청을 해주세요.</p>
+                        </div>
+                      </div>
+
+                      {/* 현재 잔고 */}
+                      <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+                        <div className="text-xs text-gray-500 mb-1">현재 잔고</div>
+                        <div className="text-lg font-bold text-gray-900">
+                          ₩{currentBalance.toLocaleString()}
+                        </div>
+                      </div>
+
+                      {/* 금액 입력 */}
+                      <div className="mb-4">
+                        <label className="block text-xs text-gray-500 mb-1.5">
+                          입금 신청 금액
+                        </label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-bold">₩</span>
+                          <input
+                            type="text"
+                            value={balanceAmount}
+                            onChange={(e) => handleBalanceAmountChange(e.target.value)}
+                            placeholder="0"
+                            className="w-full pl-8 pr-4 py-3 border border-gray-300 rounded-lg text-right text-lg font-bold focus:outline-none focus:border-red-500 bg-white"
+                          />
+                        </div>
+                      </div>
+
+                      {/* 빠른 금액 버튼 */}
+                      <div className="flex gap-1.5 mb-4">
+                        <button
+                          onClick={() => addQuickAmount(100000)}
+                          className="flex-1 py-2 text-[10px] font-medium bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                        >
+                          +10만
+                        </button>
+                        <button
+                          onClick={() => addQuickAmount(500000)}
+                          className="flex-1 py-2 text-[10px] font-medium bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                        >
+                          +50만
+                        </button>
+                        <button
+                          onClick={() => addQuickAmount(1000000)}
+                          className="flex-1 py-2 text-[10px] font-medium bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                        >
+                          +100만
+                        </button>
+                        <button
+                          onClick={() => addQuickAmount(10000000)}
+                          className="flex-1 py-2 text-[10px] font-medium bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                        >
+                          +1,000만
+                        </button>
+                        <button
+                          onClick={() => setBalanceAmount('')}
+                          className="px-2.5 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                          title="초기화"
+                        >
+                          <RefreshCw className="w-3.5 h-3.5 text-gray-500" />
+                        </button>
+                      </div>
+
+                      {/* 확인 버튼 */}
+                      <button
+                        disabled={!balanceAmount || balanceAmount === '0'}
+                        className={`w-full py-3 rounded-lg font-bold text-sm transition-colors ${
+                          balanceAmount && balanceAmount !== '0'
+                            ? 'bg-red-600 text-white hover:bg-red-700'
+                            : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                        }`}
+                      >
+                        입금신청
+                      </button>
+                    </div>
+                  </motion.div>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             {/* 하단 네비게이션 */}
             <div className="flex-shrink-0 bg-white border-t border-gray-200 px-2 md:px-4 py-2 safe-area-pb">
