@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { 
@@ -50,6 +50,14 @@ type TypeFilter = 'all' | 'deposit' | 'auction' | 'withdraw';
 type PeriodFilter = 'all' | 'today' | 'week' | 'month' | 'custom';
 
 export default function BalanceHistoryPage() {
+  return (
+    <Suspense fallback={<div className="fixed inset-0 bg-white flex items-center justify-center"><span className="text-gray-500">로딩중...</span></div>}>
+      <BalanceHistoryContent />
+    </Suspense>
+  );
+}
+
+function BalanceHistoryContent() {
   const searchParams = useSearchParams();
   const from = searchParams.get('from');
   const backUrl = from === 'main' ? '/' : '/profile';
