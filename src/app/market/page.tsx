@@ -645,41 +645,87 @@ export default function MarketPage() {
                 )}
               </div>
 
-              {/* 기간 직접 선택 시 달력 버튼 */}
+              {/* 기간 직접 선택 시 시작일/마감일 버튼 */}
               {selectedAverageType.id === 'custom' && (
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <button
-                      className="flex items-center gap-1.5 px-3 py-2 bg-gray-100 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-200 transition-colors"
-                    >
-                      <CalendarIcon className="h-4 w-4" />
-                      <span>
-                        {customDateRange.from && customDateRange.to
-                          ? `${format(customDateRange.from, 'yy.M.d', { locale: ko })} ~ ${format(customDateRange.to, 'yy.M.d', { locale: ko })}`
-                          : '기간 선택'
-                        }
-                      </span>
-                    </button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0 z-[10000]" align="start">
-                    <div className="p-3 bg-white rounded-lg">
-                      <Calendar
-                        mode="range"
-                        selected={{ from: customDateRange.from, to: customDateRange.to }}
-                        onSelect={(range) => {
-                          setCustomDateRange({ from: range?.from, to: range?.to });
-                        }}
-                        numberOfMonths={1}
-                        disabled={(date) => date > new Date()}
-                        weekStartsOn={0}
-                        formatters={{
-                          formatCaption: (date) => format(date, 'yyyy년 M월', { locale: ko }),
-                          formatWeekdayName: (date) => format(date, 'EEE', { locale: ko }),
-                        }}
-                      />
-                    </div>
-                  </PopoverContent>
-                </Popover>
+                <div className="flex items-center gap-1">
+                  {/* 시작일 */}
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <button
+                        className="flex items-center gap-1 px-2.5 py-2 bg-gray-100 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-200 transition-colors"
+                      >
+                        <CalendarIcon className="h-3.5 w-3.5" />
+                        <span>
+                          {customDateRange.from
+                            ? format(customDateRange.from, 'yy.M.d', { locale: ko })
+                            : '시작일'
+                          }
+                        </span>
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0 z-[10000]" align="start">
+                      <div className="p-3 bg-white rounded-lg">
+                        <Calendar
+                          mode="single"
+                          selected={customDateRange.from}
+                          onSelect={(date) => {
+                            setCustomDateRange(prev => ({ ...prev, from: date }));
+                          }}
+                          disabled={(date) => {
+                            if (date > new Date()) return true;
+                            if (customDateRange.to && date > customDateRange.to) return true;
+                            return false;
+                          }}
+                          weekStartsOn={0}
+                          formatters={{
+                            formatCaption: (date) => format(date, 'yyyy년 M월', { locale: ko }),
+                            formatWeekdayName: (date) => format(date, 'EEE', { locale: ko }),
+                          }}
+                        />
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+
+                  <span className="text-sm text-gray-400">~</span>
+
+                  {/* 마감일 */}
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <button
+                        className="flex items-center gap-1 px-2.5 py-2 bg-gray-100 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-200 transition-colors"
+                      >
+                        <CalendarIcon className="h-3.5 w-3.5" />
+                        <span>
+                          {customDateRange.to
+                            ? format(customDateRange.to, 'yy.M.d', { locale: ko })
+                            : '마감일'
+                          }
+                        </span>
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0 z-[10000]" align="start">
+                      <div className="p-3 bg-white rounded-lg">
+                        <Calendar
+                          mode="single"
+                          selected={customDateRange.to}
+                          onSelect={(date) => {
+                            setCustomDateRange(prev => ({ ...prev, to: date }));
+                          }}
+                          disabled={(date) => {
+                            if (date > new Date()) return true;
+                            if (customDateRange.from && date < customDateRange.from) return true;
+                            return false;
+                          }}
+                          weekStartsOn={0}
+                          formatters={{
+                            formatCaption: (date) => format(date, 'yyyy년 M월', { locale: ko }),
+                            formatWeekdayName: (date) => format(date, 'EEE', { locale: ko }),
+                          }}
+                        />
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                </div>
               )}
             </div>
             </div>

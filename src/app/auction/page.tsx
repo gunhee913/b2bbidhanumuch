@@ -73,6 +73,17 @@ function AuctionPageContent() {
   const swipeIsDragging = useRef(false);
   const swipeProductId = useRef<string | null>(null);
   
+  // 오늘 날짜 포맷팅
+  const getTodayFormatted = () => {
+    const today = new Date();
+    const year = String(today.getFullYear()).slice(2);
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
+    const dayName = dayNames[today.getDay()];
+    return `${year}.${month}.${day}.(${dayName})`;
+  };
+  
   // 마감시간 카운터
   const [remainingTime, setRemainingTime] = useState(60 * 60); // 60분 = 3600초
   
@@ -587,7 +598,7 @@ function AuctionPageContent() {
               {/* 섹션 제목 - 부위별 상세에서는 숨김 */}
               {!(activeTab === 'part' && selectedPartId) && (
                 <div className="px-4 pt-4 pb-2 bg-white flex items-center justify-between">
-                  <h2 className="text-base font-bold text-gray-900">25.08.06.(수) 경매</h2>
+                  <h2 className="text-base font-bold text-gray-900">{getTodayFormatted()} 경매</h2>
                   <div className="flex items-center gap-1.5">
                     <span className="text-xs text-gray-500">마감까지</span>
                     <span className={`text-sm font-bold ${remainingTime <= 300 ? 'text-red-600' : 'text-gray-900'}`}>

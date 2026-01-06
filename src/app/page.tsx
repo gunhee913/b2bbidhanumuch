@@ -58,6 +58,17 @@ function MainPageContent() {
   const currentBalance = 20000000; // 현재 잔고 (추후 Zustand로 관리)
   const depositAccountNumber = '351-0123-4567-23';
 
+  // 오늘 날짜 포맷팅
+  const getTodayFormatted = () => {
+    const today = new Date();
+    const year = String(today.getFullYear()).slice(2);
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
+    const dayName = dayNames[today.getDay()];
+    return `${year}.${month}.${day}.${dayName}`;
+  };
+
   // 계좌번호 복사
   const copyAccountNumber = async () => {
     try {
@@ -339,9 +350,9 @@ function MainPageContent() {
                       <span className="text-white text-base">↓</span>
                       입금신청
                     </button>
-                    <button className="flex-1 bg-white text-red-600 border-2 border-red-600 px-3 py-2 rounded-lg font-bold text-xs hover:bg-red-50 active:bg-red-100 transition-colors flex items-center justify-center active:scale-[0.98]">
-                      내역
-                    </button>
+                    <Link href="/profile/balance?from=main" className="flex-1 bg-white text-red-600 border-2 border-red-600 px-3 py-2 rounded-lg font-bold text-xs hover:bg-red-50 active:bg-red-100 transition-colors flex items-center justify-center active:scale-[0.98]">
+                      잔고 내역
+                    </Link>
                   </div>
                 </div>
               </div>
@@ -381,7 +392,7 @@ function MainPageContent() {
                     <div className="mb-4">
                       <div className="flex items-center justify-between mb-3 relative">
                         <div className="flex items-center gap-2">
-                          <h3 className="text-base font-bold text-gray-900">오늘의 경매 리스트 (25.08.06.수)</h3>
+                          <h3 className="text-base font-bold text-gray-900">오늘의 경매 리스트 ({getTodayFormatted()})</h3>
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
@@ -462,6 +473,7 @@ function MainPageContent() {
                         </button>
                       </Link>
                     </div>
+
                   </div>
                 ) : (
                   <div className="px-4 pt-4">
@@ -856,7 +868,7 @@ function MainPageContent() {
                         <div className="text-sm font-bold text-gray-900">농협은행 {depositAccountNumber}</div>
                         <div className="text-xs text-gray-500">예금주: 농협 중부미트센터</div>
                         <div className="mt-2 pt-2 border-t border-gray-200">
-                          <p className="text-[11px] text-gray-600">계좌이체 후, 입금신청을 해주세요.</p>
+                          <p className="text-[11px] text-gray-600">계좌이체 후, 입금신청 부탁드립니다.</p>
                         </div>
                       </div>
 

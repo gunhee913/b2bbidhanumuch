@@ -13,9 +13,11 @@ import {
   ExternalLink,
   Search,
   X,
-  Calendar as CalendarIcon
+  Calendar as CalendarIcon,
+  Plus
 } from 'lucide-react';
 import { useBidStore } from '@/stores/bidStore';
+import { useDealerStore } from '@/features/dealers/store';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -67,6 +69,76 @@ export default function TradePage() {
   const { bids: globalBids } = useBidStore();
   const [selectedItem, setSelectedItem] = useState<TradeItem | null>(null);
   
+  // 거래처 등록 모달
+  const [showDealerModal, setShowDealerModal] = useState(false);
+  const [showDealerConfirmModal, setShowDealerConfirmModal] = useState(false);
+  const [selectedTradeForDealer, setSelectedTradeForDealer] = useState<TradeItem | null>(null);
+  const [selectedDealerInfo, setSelectedDealerInfo] = useState<{
+    name: string;
+    contact: string;
+    address: string;
+    businessNo: string;
+  } | null>(null);
+  const [dealerSearchQuery, setDealerSearchQuery] = useState('');
+  
+  // 거래처 목록 (Zustand 스토어에서 승인된 거래처만 가져옴)
+  const { getApprovedDealers } = useDealerStore();
+  const dealersList = getApprovedDealers().map(dealer => ({
+    name: dealer.name,
+    contact: dealer.contact,
+    address: dealer.address,
+    businessNo: dealer.businessNo || '',
+  }));
+
+  // 검색된 거래처 목록
+  const filteredDealersList = useMemo(() => {
+    if (!dealerSearchQuery.trim()) return dealersList;
+    const query = dealerSearchQuery.toLowerCase().replace(/-/g, '');
+    return dealersList.filter(dealer => 
+      dealer.name.toLowerCase().includes(query) ||
+      dealer.address.toLowerCase().includes(query) ||
+      dealer.businessNo.replace(/-/g, '').includes(query)
+    );
+  }, [dealerSearchQuery]);
+
+  // 거래 데이터 상태 (dealer 업데이트 위해)
+  const [dealerMap, setDealerMap] = useState<Record<string, string>>({});
+
+  // 거래처 등록 모달 열기
+  const openDealerModal = (item: TradeItem, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedTradeForDealer(item);
+    setSelectedDealerInfo(null);
+    setDealerSearchQuery('');
+    setShowDealerModal(true);
+  };
+
+  // 거래처 선택 후 확인 모달 열기
+  const openDealerConfirmModal = () => {
+    if (!selectedDealerInfo) return;
+    setShowDealerModal(false);
+    setShowDealerConfirmModal(true);
+  };
+
+  // 거래처 등록 확정
+  const handleDealerRegister = () => {
+    if (!selectedTradeForDealer || !selectedDealerInfo) return;
+    setDealerMap(prev => ({
+      ...prev,
+      [selectedTradeForDealer.id]: selectedDealerInfo.name
+    }));
+    setShowDealerConfirmModal(false);
+    setSelectedTradeForDealer(null);
+    setSelectedDealerInfo(null);
+    setDealerSearchQuery('');
+  };
+
+  // 확인 모달에서 뒤로가기
+  const goBackToSelect = () => {
+    setShowDealerConfirmModal(false);
+    setShowDealerModal(true);
+  };
+  
   // 테이블 스크롤 드래그
   const tableScrollRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -107,7 +179,6 @@ export default function TradePage() {
     from: undefined,
     to: undefined,
   });
-  const [showCalendar, setShowCalendar] = useState(false);
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
   const [showPeriodDropdown, setShowPeriodDropdown] = useState(false);
   
@@ -136,7 +207,8 @@ export default function TradePage() {
   
   // 페이지네이션 상태
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const itemsPerPageOptions = [10, 20, 50, 100];
   
   // 검색 디바운싱
   useEffect(() => {
@@ -280,14 +352,129 @@ export default function TradePage() {
         processingDate: '2025.08.02.',
         carcassWeight: 478,
       },
+      {
+        id: 'completed-5',
+        status: 'won',
+        listingNo: '250806-001-0007',
+        partName: '채끝',
+        weight: '6.2kg',
+        weightKg: 6.2,
+        myBid: 145000,
+        highestBid: 145000,
+        bidTime: '25.08.06.(수) 10:15',
+        traceNo: '002-1901-4532-1',
+        grade: '1++A(9)',
+        gender: '거세',
+        monthAge: 31,
+        processingCompany: '송정가공',
+        slaughterDate: '2025.08.04.',
+        processingDate: '2025.08.05.',
+        carcassWeight: 492,
+        // dealer 없음 - 거래처 미등록 상태
+      },
+      {
+        id: 'completed-6',
+        status: 'won',
+        listingNo: '250802-002-0004',
+        partName: '목심',
+        weight: '14.3kg',
+        weightKg: 14.3,
+        myBid: 125000,
+        highestBid: 125000,
+        bidTime: '25.08.02.(토) 09:30',
+        traceNo: '002-1832-1234-7',
+        grade: '1+A(8)',
+        gender: '거세',
+        monthAge: 30,
+        processingCompany: '한우촌가공',
+        slaughterDate: '2025.07.31.',
+        processingDate: '2025.08.01.',
+        carcassWeight: 465,
+        dealer: '경기미트',
+      },
+      {
+        id: 'completed-7',
+        status: 'won',
+        listingNo: '250801-001-0008',
+        partName: '우둔',
+        weight: '21.0kg',
+        weightKg: 21.0,
+        myBid: 88000,
+        highestBid: 88000,
+        bidTime: '25.08.01.(금) 16:45',
+        traceNo: '002-1821-5678-2',
+        grade: '1A(7)',
+        gender: '암',
+        monthAge: 28,
+        processingCompany: '송정가공',
+        slaughterDate: '2025.07.30.',
+        processingDate: '2025.07.31.',
+        carcassWeight: 442,
+        dealer: '부산정육',
+      },
+      {
+        id: 'completed-8',
+        status: 'won',
+        listingNo: '250731-003-0002',
+        partName: '양지(좌)',
+        weight: '12.2kg',
+        weightKg: 12.2,
+        myBid: 78000,
+        highestBid: 78000,
+        bidTime: '25.07.31.(목) 11:20',
+        traceNo: '002-1810-9012-4',
+        grade: '1A(7)',
+        gender: '거세',
+        monthAge: 32,
+        processingCompany: '한우촌가공',
+        slaughterDate: '2025.07.29.',
+        processingDate: '2025.07.30.',
+        carcassWeight: 458,
+        dealer: '대전한우',
+      },
+      {
+        id: 'completed-9',
+        status: 'won',
+        listingNo: '250730-001-0005',
+        partName: '사태',
+        weight: '15.0kg',
+        weightKg: 15.0,
+        myBid: 72000,
+        highestBid: 72000,
+        bidTime: '25.07.30.(수) 14:10',
+        traceNo: '002-1799-3456-8',
+        grade: '1+A(8)',
+        gender: '거세',
+        monthAge: 31,
+        processingCompany: '송정가공',
+        slaughterDate: '2025.07.28.',
+        processingDate: '2025.07.29.',
+        carcassWeight: 471,
+        // dealer 없음 - 거래처 미등록 상태
+      },
     ];
 
     return [...items, ...dummyCompleted];
   }, [globalBids]);
 
+  // bidTime을 Date로 파싱하는 헬퍼 함수
+  const parseBidTime = (bidTime: string): Date => {
+    // 25.08.06.(수) 14:01 형식
+    const dateMatch = bidTime.match(/(\d{2})\.(\d{2})\.(\d{2}).*?(\d{2}):(\d{2})/);
+    if (dateMatch) {
+      const year = 2000 + parseInt(dateMatch[1]);
+      const month = parseInt(dateMatch[2]) - 1;
+      const day = parseInt(dateMatch[3]);
+      const hour = parseInt(dateMatch[4]);
+      const minute = parseInt(dateMatch[5]);
+      return new Date(year, month, day, hour, minute);
+    }
+    return new Date(0);
+  };
+
   // 필터링된 거래 내역
   const filteredItems = useMemo(() => {
-    return tradeItems.filter(item => {
+    const filtered = tradeItems.filter(item => {
       // 상태 필터
       if (statusFilter !== 'all' && item.status !== statusFilter) {
         return false;
@@ -341,6 +528,13 @@ export default function TradePage() {
       }
       
       return true;
+    });
+    
+    // 최신순 정렬 (bidTime 기준)
+    return filtered.sort((a, b) => {
+      const dateA = parseBidTime(a.bidTime);
+      const dateB = parseBidTime(b.bidTime);
+      return dateB.getTime() - dateA.getTime();
     });
   }, [tradeItems, statusFilter, periodFilter, partFilter, debouncedSearchQuery, customDateRange]);
 
@@ -472,8 +666,17 @@ export default function TradePage() {
 
           {/* 페이지 제목 */}
           <div className="flex-shrink-0 px-4 py-3 bg-white border-b border-gray-200">
-            <h1 className="text-lg font-bold text-gray-900">거래 내역</h1>
-            <p className="text-xs text-gray-500 mt-0.5">총 {filteredItems.length}건</p>
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-lg font-bold text-gray-900">거래 내역</h1>
+                <p className="text-xs text-gray-500 mt-0.5">총 {filteredItems.length}건</p>
+              </div>
+              <Link href="/trade/dealers">
+                <button className="px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">
+                  거래처 관리
+                </button>
+              </Link>
+            </div>
           </div>
 
           {/* 필터 영역 */}
@@ -553,16 +756,13 @@ export default function TradePage() {
                     setShowPeriodDropdown(!showPeriodDropdown);
                     setShowStatusDropdown(false);
                     setShowPartDropdown(false);
-                    setShowCalendar(false);
                   }}
                   className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors"
                 >
                   {periodFilter === 'all' ? '기간' : 
                    periodFilter === 'today' ? '오늘' :
                    periodFilter === 'week' ? '1주일' : 
-                   periodFilter === 'month' ? '1개월' :
-                   customDateRange.from && customDateRange.to ? 
-                     `${format(customDateRange.from, 'MM.dd')} ~ ${format(customDateRange.to, 'MM.dd')}` : '기간 선택'}
+                   periodFilter === 'month' ? '1개월' : '기간 직접 선택'}
                   <ChevronDown className={`h-3 w-3 transition-transform ${showPeriodDropdown ? 'rotate-180' : ''}`} />
                 </button>
                 
@@ -584,13 +784,9 @@ export default function TradePage() {
                         <button
                           key={option.value}
                           onClick={() => {
-                            if (option.value === 'custom') {
-                              setPeriodFilter('custom');
-                              setShowPeriodDropdown(false);
-                              setShowCalendar(true);
-                            } else {
-                              setPeriodFilter(option.value as PeriodFilter);
-                              setShowPeriodDropdown(false);
+                            setPeriodFilter(option.value as PeriodFilter);
+                            setShowPeriodDropdown(false);
+                            if (option.value !== 'custom') {
                               setCustomDateRange({ from: undefined, to: undefined });
                             }
                           }}
@@ -604,28 +800,82 @@ export default function TradePage() {
                     </motion.div>
                   )}
                 </AnimatePresence>
-                
-                {/* 캘린더 팝오버 */}
-                <Popover open={showCalendar} onOpenChange={setShowCalendar}>
-                  <PopoverTrigger asChild>
-                    <span />
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0 z-[10000]" align="start">
-                    <Calendar
-                      mode="range"
-                      selected={{ from: customDateRange.from, to: customDateRange.to }}
-                      onSelect={(range) => {
-                        setCustomDateRange({ from: range?.from, to: range?.to });
-                        if (range?.from && range?.to) {
-                          setShowCalendar(false);
-                        }
-                      }}
-                      locale={ko}
-                      numberOfMonths={1}
-                    />
-                  </PopoverContent>
-                </Popover>
               </div>
+
+              {/* 기간 직접 선택 시 시작일/마감일 버튼 */}
+              {periodFilter === 'custom' && (
+                <div className="flex items-center gap-1">
+                  {/* 시작일 */}
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <button
+                        className="flex items-center gap-1 px-2.5 py-1.5 bg-gray-100 rounded-lg text-xs font-medium text-gray-700 hover:bg-gray-200 transition-colors"
+                      >
+                        <CalendarIcon className="h-3 w-3" />
+                        <span>
+                          {customDateRange.from
+                            ? format(customDateRange.from, 'yy.M.d', { locale: ko })
+                            : '시작일'
+                          }
+                        </span>
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0 z-[10000]" align="start">
+                      <div className="p-3 bg-white rounded-lg">
+                        <Calendar
+                          mode="single"
+                          selected={customDateRange.from}
+                          onSelect={(date) => {
+                            setCustomDateRange(prev => ({ ...prev, from: date }));
+                          }}
+                          disabled={(date) => {
+                            if (date > new Date()) return true;
+                            if (customDateRange.to && date > customDateRange.to) return true;
+                            return false;
+                          }}
+                          locale={ko}
+                        />
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+
+                  <span className="text-xs text-gray-400">~</span>
+
+                  {/* 마감일 */}
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <button
+                        className="flex items-center gap-1 px-2.5 py-1.5 bg-gray-100 rounded-lg text-xs font-medium text-gray-700 hover:bg-gray-200 transition-colors"
+                      >
+                        <CalendarIcon className="h-3 w-3" />
+                        <span>
+                          {customDateRange.to
+                            ? format(customDateRange.to, 'yy.M.d', { locale: ko })
+                            : '마감일'
+                          }
+                        </span>
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0 z-[10000]" align="start">
+                      <div className="p-3 bg-white rounded-lg">
+                        <Calendar
+                          mode="single"
+                          selected={customDateRange.to}
+                          onSelect={(date) => {
+                            setCustomDateRange(prev => ({ ...prev, to: date }));
+                          }}
+                          disabled={(date) => {
+                            if (date > new Date()) return true;
+                            if (customDateRange.from && date < customDateRange.from) return true;
+                            return false;
+                          }}
+                          locale={ko}
+                        />
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              )}
               
               {/* 부위 필터 드롭다운 (다중 선택) */}
               <div className="relative" ref={partDropdownRef}>
@@ -756,7 +1006,7 @@ export default function TradePage() {
                 )}
               </div>
             ) : (
-              <div className="pb-24">
+              <div>
                 {/* 테이블 컨테이너 - 가로 스크롤 */}
                 <div 
                   ref={tableScrollRef}
@@ -768,8 +1018,9 @@ export default function TradePage() {
                 >
                   {/* 테이블 헤더 */}
                   <div className="bg-gray-100 border-b border-gray-300 sticky top-0 z-10 w-max min-w-full">
-                    <div className="flex items-center px-2 py-2.5 text-[10px] font-bold text-gray-600">
+                    <div className="flex items-center px-2 py-2.5 text-[11px] font-semibold text-gray-500">
                       <div className="w-14 text-center flex-shrink-0">상태</div>
+                      <div className="w-28 text-center flex-shrink-0">일자</div>
                       <div className="w-36 text-center flex-shrink-0">상장번호</div>
                       <div className="w-16 text-center flex-shrink-0">부위</div>
                       <div className="w-20 text-center flex-shrink-0">등급</div>
@@ -796,6 +1047,13 @@ export default function TradePage() {
                             </span>
                           </div>
                           
+                          {/* 일자 */}
+                          <div className="w-28 text-center flex-shrink-0">
+                            <div className="text-[11px] text-gray-500">
+                              {item.bidTime.split(' ')[0]} {item.bidTime.split(' ')[1]}
+                            </div>
+                          </div>
+                          
                           {/* 상장번호 */}
                           <div className="w-36 text-center flex-shrink-0">
                             <button
@@ -803,7 +1061,7 @@ export default function TradePage() {
                                 e.stopPropagation();
                                 setSelectedItem(item);
                               }}
-                              className="inline-flex items-center gap-0.5 text-[11px] font-medium text-gray-900 hover:text-gray-600 hover:underline"
+                              className="inline-flex items-center gap-0.5 text-[11px] font-medium text-gray-700 hover:text-red-600 hover:underline"
                             >
                               {item.listingNo}
                               <ExternalLink className="w-3 h-3" />
@@ -812,38 +1070,52 @@ export default function TradePage() {
                           
                           {/* 부위 */}
                           <div className="w-16 text-center flex-shrink-0">
-                            <div className="text-[11px] font-medium text-gray-900">{item.partName}</div>
+                            <div className="text-[11px] text-gray-700">{item.partName}</div>
                           </div>
                           
                           {/* 등급 */}
                           <div className="w-20 text-center flex-shrink-0">
-                            <div className="text-[11px] font-medium text-gray-900">{item.grade}</div>
+                            <div className="text-[11px] text-gray-700">{item.grade}</div>
                           </div>
                           
                           {/* 중량 */}
                           <div className="w-14 text-center flex-shrink-0">
-                            <div className="text-[11px] text-gray-900">{item.weight}</div>
+                            <div className="text-[11px] text-gray-700">{item.weight}</div>
                           </div>
                           
                           {/* 입찰가 */}
                           <div className="w-20 text-center flex-shrink-0">
-                            <div className="text-[11px] font-bold text-gray-900">
+                            <div className="text-[11px] font-semibold text-gray-900">
                               {item.myBid.toLocaleString()}
                             </div>
                           </div>
                           
                           {/* 경락대금 */}
                           <div className="w-24 text-center flex-shrink-0">
-                            <div className="text-[11px] font-bold text-gray-900">
+                            <div className="text-[11px] font-semibold text-gray-900">
                               {totalPrice.toLocaleString()}
                             </div>
                           </div>
                           
                           {/* 거래처 (낙찰 시에만) */}
                           <div className="w-20 text-center flex-shrink-0">
-                            <div className="text-[10px] text-gray-700 truncate">
-                              {item.status === 'won' && item.dealer ? item.dealer : '-'}
-                            </div>
+                            {item.status === 'won' ? (
+                              (dealerMap[item.id] || item.dealer) ? (
+                                <div className="text-[11px] text-gray-700 truncate">
+                                  {dealerMap[item.id] || item.dealer}
+                                </div>
+                              ) : (
+                                <button
+                                  onClick={(e) => openDealerModal(item, e)}
+                                  className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded transition-colors"
+                                >
+                                  <Plus className="w-2.5 h-2.5" />
+                                  등록
+                                </button>
+                              )
+                            ) : (
+                              <div className="text-[11px] text-gray-400">-</div>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -851,74 +1123,248 @@ export default function TradePage() {
                   })}
                 </div>
                 
-                {/* 페이지네이션 */}
-                {totalPages > 1 && (
-                  <div className="flex items-center justify-center gap-2 py-4 bg-white border-t border-gray-200">
-                    {/* 이전 페이지 */}
-                    <button
-                      onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                      disabled={currentPage === 1}
-                      className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
-                        currentPage === 1
-                          ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                      }`}
+              </div>
+            )}
+          </div>
+
+          {/* 페이지네이션 - 고정 위치 */}
+          {filteredItems.length > 0 && (
+            <div className="flex-shrink-0 flex items-center justify-between px-4 py-2 bg-white border-t border-gray-200">
+              {/* 페이지당 개수 선택 */}
+              <div className="flex items-center gap-1.5">
+                <select
+                  value={itemsPerPage}
+                  onChange={(e) => {
+                    setItemsPerPage(Number(e.target.value));
+                    setCurrentPage(1);
+                  }}
+                  className="text-xs bg-white border border-gray-300 rounded px-2 py-1 focus:outline-none focus:border-gray-400"
+                >
+                  {itemsPerPageOptions.map(option => (
+                    <option key={option} value={option}>{option}개</option>
+                  ))}
+                </select>
+                <span className="text-xs text-gray-400">/ 총 {filteredItems.length}건</span>
+              </div>
+
+              {/* 페이지 이동 */}
+              {totalPages > 1 && (
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    disabled={currentPage === 1}
+                    className={`text-xs transition-colors ${
+                      currentPage === 1
+                        ? 'text-gray-300 cursor-not-allowed'
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    ← 이전
+                  </button>
+                  
+                  <span className="text-xs text-gray-900 font-medium">
+                    {currentPage} / {totalPages}
+                  </span>
+                  
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                    disabled={currentPage === totalPages}
+                    className={`text-xs transition-colors ${
+                      currentPage === totalPages
+                        ? 'text-gray-300 cursor-not-allowed'
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    다음 →
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* 거래처 선택 모달 */}
+          <AnimatePresence>
+            {showDealerModal && selectedTradeForDealer && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="absolute inset-0 z-50 flex items-center justify-center p-4"
+              >
+                <div 
+                  className="absolute inset-0 bg-black/60"
+                  onClick={() => setShowDealerModal(false)}
+                />
+                <motion.div
+                  initial={{ scale: 0.95, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.95, opacity: 0 }}
+                  className="relative bg-white rounded-xl shadow-xl w-full max-w-sm overflow-hidden"
+                >
+                  <div className="flex items-center justify-between px-4 py-3 border-b">
+                    <h3 className="text-base font-bold">거래처 선택</h3>
+                    <button 
+                      onClick={() => setShowDealerModal(false)}
+                      className="p-1 hover:bg-gray-100 rounded"
                     >
-                      이전
+                      <X className="w-5 h-5" />
                     </button>
-                    
-                    {/* 페이지 번호 */}
-                    <div className="flex items-center gap-1">
-                      {Array.from({ length: totalPages }, (_, i) => i + 1)
-                        .filter(page => {
-                          // 현재 페이지 주변 2개씩만 표시
-                          if (totalPages <= 5) return true;
-                          if (page === 1 || page === totalPages) return true;
-                          if (Math.abs(page - currentPage) <= 1) return true;
-                          return false;
-                        })
-                        .map((page, index, arr) => (
-                          <div key={page} className="flex items-center">
-                            {/* 생략 표시 */}
-                            {index > 0 && arr[index - 1] !== page - 1 && (
-                              <span className="px-1 text-gray-400">...</span>
-                            )}
-                            <button
-                              onClick={() => setCurrentPage(page)}
-                              className={`w-8 h-8 text-xs font-medium rounded-lg transition-colors ${
-                                currentPage === page
-                                  ? 'bg-red-600 text-white'
-                                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                              }`}
-                            >
-                              {page}
-                            </button>
-                          </div>
-                        ))}
+                  </div>
+                  <div className="p-4">
+                    <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+                      <div className="text-xs text-gray-500 mb-1">상장번호</div>
+                      <div className="text-sm font-bold text-gray-900">{selectedTradeForDealer.listingNo}</div>
+                      <div className="text-xs text-gray-500 mt-1">
+                        {selectedTradeForDealer.partName} · {selectedTradeForDealer.weight} · {selectedTradeForDealer.gender} · {selectedTradeForDealer.grade}
+                      </div>
                     </div>
                     
-                    {/* 다음 페이지 */}
+                    {/* 검색창 */}
+                    <div className="relative mb-3">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <input
+                        type="text"
+                        value={dealerSearchQuery}
+                        onChange={(e) => setDealerSearchQuery(e.target.value)}
+                        placeholder="거래처명, 주소, 사업자번호 검색"
+                        className="w-full pl-9 pr-3 py-2 text-sm bg-white border border-gray-300 rounded-lg focus:outline-none focus:border-gray-400"
+                      />
+                    </div>
+                    
+                    <div className="space-y-2 max-h-48 overflow-y-auto hide-scrollbar">
+                      {filteredDealersList.length > 0 ? (
+                        filteredDealersList.map((dealer) => (
+                          <button
+                            key={dealer.name}
+                            onClick={() => setSelectedDealerInfo(dealer)}
+                            className={`w-full text-left px-3 py-2.5 rounded-lg border transition-colors ${
+                              selectedDealerInfo?.name === dealer.name
+                                ? 'border-gray-900 bg-gray-100'
+                                : 'border-gray-200 hover:bg-gray-50'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className={`text-sm font-medium ${selectedDealerInfo?.name === dealer.name ? 'text-gray-900' : 'text-gray-900'}`}>
+                                {dealer.name}
+                              </div>
+                              <div className="text-[10px] text-gray-400">{dealer.businessNo}</div>
+                            </div>
+                            <div className="text-[10px] text-gray-500 mt-0.5">{dealer.address}</div>
+                          </button>
+                        ))
+                      ) : (
+                        <div className="text-center text-sm text-gray-400 py-4">
+                          검색 결과가 없습니다
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className="flex items-center justify-between mt-4 pt-3 border-t">
+                      <Link href="/trade/dealers">
+                        <button className="text-xs text-gray-500 hover:text-gray-700 underline">
+                          새 거래처 등록 신청
+                        </button>
+                      </Link>
+                    </div>
+                    
                     <button
-                      onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                      disabled={currentPage === totalPages}
-                      className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
-                        currentPage === totalPages
-                          ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      onClick={openDealerConfirmModal}
+                      disabled={!selectedDealerInfo}
+                      className={`w-full py-3 rounded-lg font-bold text-sm transition-colors mt-4 ${
+                        selectedDealerInfo
+                          ? 'bg-red-600 text-white hover:bg-red-700'
+                          : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                       }`}
                     >
                       다음
                     </button>
                   </div>
-                )}
-                
-                {/* 페이지 정보 */}
-                <div className="text-center py-2 text-xs text-gray-500">
-                  총 {filteredItems.length}건 중 {(currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, filteredItems.length)}건 표시
-                </div>
-              </div>
+                </motion.div>
+              </motion.div>
             )}
-          </div>
+          </AnimatePresence>
+
+          {/* 거래처 확인 모달 */}
+          <AnimatePresence>
+            {showDealerConfirmModal && selectedTradeForDealer && selectedDealerInfo && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="absolute inset-0 z-50 flex items-center justify-center p-4"
+              >
+                <div 
+                  className="absolute inset-0 bg-black/60"
+                  onClick={() => setShowDealerConfirmModal(false)}
+                />
+                <motion.div
+                  initial={{ scale: 0.95, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.95, opacity: 0 }}
+                  className="relative bg-white rounded-xl shadow-xl w-full max-w-sm overflow-hidden"
+                >
+                  <div className="flex items-center justify-between px-4 py-3 border-b">
+                    <h3 className="text-base font-bold">거래처 확인</h3>
+                    <button 
+                      onClick={() => setShowDealerConfirmModal(false)}
+                      className="p-1 hover:bg-gray-100 rounded"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+                  <div className="p-4">
+                    {/* 거래 정보 */}
+                    <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+                      <div className="text-xs text-gray-500 mb-1">상장번호</div>
+                      <div className="text-sm font-bold text-gray-900">{selectedTradeForDealer.listingNo}</div>
+                      <div className="text-xs text-gray-500 mt-1">
+                        {selectedTradeForDealer.partName} · {selectedTradeForDealer.weight} · {selectedTradeForDealer.gender} · {selectedTradeForDealer.grade}
+                      </div>
+                    </div>
+                    
+                    {/* 선택된 거래처 정보 */}
+                    <div className="text-xs text-gray-500 mb-2">선택된 거래처</div>
+                    <div className="p-3 border border-gray-300 bg-gray-50 rounded-lg">
+                      <div className="text-base font-bold text-gray-900 mb-2">{selectedDealerInfo.name}</div>
+                      <div className="space-y-1.5">
+                        <div className="flex justify-between text-xs">
+                          <span className="text-gray-500">연락처</span>
+                          <span className="text-gray-900 font-medium">{selectedDealerInfo.contact}</span>
+                        </div>
+                        <div className="flex justify-between text-xs">
+                          <span className="text-gray-500">사업자번호</span>
+                          <span className="text-gray-900 font-medium">{selectedDealerInfo.businessNo}</span>
+                        </div>
+                        <div className="flex justify-between text-xs">
+                          <span className="text-gray-500">주소</span>
+                          <span className="text-gray-900 font-medium text-right max-w-[160px]">{selectedDealerInfo.address}</span>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <p className="text-center text-[11px] text-gray-500 mt-4">
+                      위 거래처로 등록하시겠습니까?
+                    </p>
+                    
+                    <div className="flex gap-2 mt-4">
+                      <button
+                        onClick={goBackToSelect}
+                        className="flex-1 py-3 rounded-lg font-bold text-sm text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors"
+                      >
+                        이전
+                      </button>
+                      <button
+                        onClick={handleDealerRegister}
+                        className="flex-1 py-3 rounded-lg font-bold text-sm text-white bg-red-600 hover:bg-red-700 transition-colors"
+                      >
+                        등록하기
+                      </button>
+                    </div>
+                  </div>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* 하단 네비게이션 */}
           <div className="flex-shrink-0 bg-white border-t border-gray-200 px-2 md:px-4 py-2 safe-area-pb">
