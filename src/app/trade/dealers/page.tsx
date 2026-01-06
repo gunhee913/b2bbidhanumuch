@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { 
@@ -36,6 +36,14 @@ interface AttachedFile {
 }
 
 export default function DealersPage() {
+  return (
+    <Suspense fallback={<div className="fixed inset-0 bg-white flex items-center justify-center"><span className="text-gray-500">로딩중...</span></div>}>
+      <DealersContent />
+    </Suspense>
+  );
+}
+
+function DealersContent() {
   const searchParams = useSearchParams();
   const fromPage = searchParams.get('from');
   const backLink = fromPage === 'profile' ? '/profile' : '/trade';
