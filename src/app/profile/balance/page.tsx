@@ -95,7 +95,7 @@ function BalanceHistoryContent() {
 
   // 페이지네이션
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   // 더미 데이터
   const [balanceHistory] = useState<BalanceHistory[]>([
@@ -504,25 +504,49 @@ function BalanceHistoryContent() {
             {filteredHistory.length > 0 && (
               <div className="flex-shrink-0 bg-white border-t border-gray-200 px-4 py-2.5">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs text-gray-500">
-                    총 {filteredHistory.length}건
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <select
+                      value={itemsPerPage}
+                      onChange={(e) => {
+                        setItemsPerPage(Number(e.target.value));
+                        setCurrentPage(1);
+                      }}
+                      className="text-xs bg-white border border-gray-300 rounded px-2 py-1 focus:outline-none focus:border-gray-400"
+                    >
+                      {[10, 20, 50, 100].map(option => (
+                        <option key={option} value={option}>{option}개</option>
+                      ))}
+                    </select>
+                    <span className="text-xs text-gray-400">/ 총 {filteredHistory.length}건</span>
+                  </div>
+
+                  {/* 페이지 이동 */}
                   {totalPages > 1 && (
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-3">
                       <button
-                        onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                        onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                         disabled={currentPage === 1}
-                        className="px-2 py-1 text-xs text-gray-600 hover:bg-gray-100 rounded disabled:opacity-40 disabled:hover:bg-transparent"
+                        className={`text-xs transition-colors ${
+                          currentPage === 1
+                            ? 'text-gray-300 cursor-not-allowed'
+                            : 'text-gray-600 hover:text-gray-900'
+                        }`}
                       >
                         ← 이전
                       </button>
-                      <span className="text-xs text-gray-600">
+                      
+                      <span className="text-xs text-gray-900 font-medium">
                         {currentPage} / {totalPages}
                       </span>
+                      
                       <button
-                        onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                        onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                         disabled={currentPage === totalPages}
-                        className="px-2 py-1 text-xs text-gray-600 hover:bg-gray-100 rounded disabled:opacity-40 disabled:hover:bg-transparent"
+                        className={`text-xs transition-colors ${
+                          currentPage === totalPages
+                            ? 'text-gray-300 cursor-not-allowed'
+                            : 'text-gray-600 hover:text-gray-900'
+                        }`}
                       >
                         다음 →
                       </button>
