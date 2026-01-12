@@ -1044,7 +1044,7 @@ export default function AuctionDetailPage({ params }: PageProps) {
                                     if (bidInfo.status !== 'highest') {
                                       setSelectedPart(item.part);
                                       setSelectedWeight(item.weight);
-                                      setBidPrice((bidInfo.highestBid + quickReBidAmount).toString());
+                                      setBidPrice(formatNumber((bidInfo.highestBid + quickReBidAmount).toString()));
                                       setShowBidSheet(true);
                                     }
                                   }}
@@ -1057,7 +1057,7 @@ export default function AuctionDetailPage({ params }: PageProps) {
                                     onClick={() => {
                                       setSelectedPart(item.part);
                                       setSelectedWeight(item.weight);
-                                      setBidPrice((bidInfo.highestBid + quickReBidAmount).toString());
+                                      setBidPrice(formatNumber((bidInfo.highestBid + quickReBidAmount).toString()));
                                       setShowBidSheet(true);
                                     }}
                                     className="mt-1 px-2 py-0.5 text-[10px] font-bold text-white bg-red-600 rounded hover:bg-red-700 transition-colors"
@@ -1072,7 +1072,7 @@ export default function AuctionDetailPage({ params }: PageProps) {
                                   setSelectedPart(item.part);
                                   setSelectedWeight(item.weight);
                                   if (item.marketHighestBid) {
-                                    setBidPrice((item.marketHighestBid + quickReBidAmount).toString());
+                                    setBidPrice(formatNumber((item.marketHighestBid + quickReBidAmount).toString()));
                                   }
                                   setShowBidSheet(true);
                                 }}
@@ -1275,7 +1275,7 @@ export default function AuctionDetailPage({ params }: PageProps) {
                                         if (productInfo) {
                                           setSelectedPart(productInfo.partName);
                                           setSelectedWeight(productInfo.weight);
-                                          setBidPrice((bid.highestBid + quickReBidAmount).toString());
+                                          setBidPrice(formatNumber((bid.highestBid + quickReBidAmount).toString()));
                                           setShowBidSheet(true);
                                         }
                                       }}

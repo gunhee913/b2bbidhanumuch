@@ -1061,7 +1061,32 @@ function AuctionPageContent() {
                                 onClick={(e) => e.stopPropagation()}
                               >
                                 {bid?.myBid ? (
-                                  <span className="text-sm font-bold text-red-600">{bid.myBid.toLocaleString()}</span>
+                                  <div className="flex flex-col items-center">
+                                    <span 
+                                      onClick={() => {
+                                        if (bid.status !== 'highest') {
+                                          setSelectedProduct(product);
+                                          setPartBidPrice(bid.highestBid + quickReBidAmount);
+                                          setShowPartBidSheet(true);
+                                        }
+                                      }}
+                                      className={`text-xs font-bold text-red-600 leading-none ${bid.status !== 'highest' ? 'cursor-pointer' : ''}`}
+                                    >
+                                      {bid.myBid.toLocaleString()}
+                                    </span>
+                                    {bid.status !== 'highest' && (
+                                      <button
+                                        onClick={() => {
+                                          setSelectedProduct(product);
+                                          setPartBidPrice(bid.highestBid + quickReBidAmount);
+                                          setShowPartBidSheet(true);
+                                        }}
+                                        className="mt-1 px-2 py-0.5 text-[10px] font-bold text-white bg-red-600 rounded hover:bg-red-700 transition-colors"
+                                      >
+                                        재입찰
+                                      </button>
+                                    )}
+                                  </div>
                                 ) : (
                                   <button
                                     onClick={() => {
@@ -1298,7 +1323,7 @@ function AuctionPageContent() {
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         setSelectedProduct(product);
-                                        setPartBidPrice(product.price.toLocaleString());
+                                        setPartBidPrice(product.price);
                                         setShowPartBidSheet(true);
                                       }}
                                       className="px-3 py-1.5 text-xs font-bold rounded-lg border bg-red-600 text-white border-red-600 hover:bg-red-700 transition-colors"
@@ -1581,59 +1606,69 @@ function AuctionPageContent() {
             </div>
 
             {/* 빠른 재입찰 금액 수정 모달 */}
-            <AnimatePresence>
-              {showQuickReBidEdit && (
-                <>
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    onClick={() => setShowQuickReBidEdit(false)}
-                    className="absolute inset-0 bg-black/50 z-50"
-                  />
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.95 }}
-                    className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white rounded-xl p-4 w-[280px] z-50 shadow-xl"
-                  >
-                    <h3 className="text-sm font-bold text-gray-900 mb-3">빠른 재입찰 금액 설정</h3>
-                    <div className="flex items-center border border-gray-300 rounded-lg px-3 py-2 mb-3">
-                      <span className="text-gray-500 mr-1">+</span>
+            {showQuickReBidEdit && (
+              <div className="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-[10000] p-4">
+                <div className="bg-white rounded-lg max-w-sm w-full p-5">
+                  <h3 className="text-lg font-bold mb-4">빠른 재입찰 금액 설정</h3>
+                  
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">증액 금액</label>
+                    <div className="relative">
                       <input
-                        type="text"
+                        type="tel"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
                         value={tempQuickReBidAmount}
                         onChange={(e) => {
-                          const value = e.target.value.replace(/,/g, '').replace(/[^0-9]/g, '');
+                          const value = e.target.value.replace(/[^0-9]/g, '');
                           setTempQuickReBidAmount(value ? parseInt(value).toLocaleString() : '');
                         }}
-                        className="flex-1 text-right text-lg font-bold outline-none bg-transparent"
-                        placeholder="1,000"
-                      />
-                      <span className="ml-1 text-gray-500">원</span>
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => setShowQuickReBidEdit(false)}
-                        className="flex-1 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg"
-                      >
-                        취소
-                      </button>
-                      <button
-                        onClick={() => {
-                          const value = parseInt(tempQuickReBidAmount.replace(/,/g, '')) || 1000;
-                          setQuickReBidAmount(value);
-                          setShowQuickReBidEdit(false);
+                        onFocus={() => {
+                          setTempQuickReBidAmount('');
                         }}
-                        className="flex-1 py-2 text-sm font-medium text-white bg-red-600 rounded-lg"
-                      >
-                        확인
-                      </button>
+                        placeholder="증액할 금액을 입력하세요 (100원 단위)"
+                        className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 bg-white text-gray-900"
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">원</span>
                     </div>
-                  </motion.div>
-                </>
-              )}
-            </AnimatePresence>
+                    <p className="text-xs text-gray-500 mt-2">
+                      현재 최고가에 이 금액을 더해 빠른 재입찰합니다.
+                    </p>
+                    {tempQuickReBidAmount && parseInt(tempQuickReBidAmount.replace(/,/g, '')) % 100 !== 0 && (
+                      <p className="text-xs text-red-600 mt-1">
+                        ⚠️ 100원 단위로 입력해주세요
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        setShowQuickReBidEdit(false);
+                        setTempQuickReBidAmount(quickReBidAmount.toLocaleString());
+                      }}
+                      className="flex-1 bg-white text-gray-700 border-2 border-gray-300 py-2 rounded-lg font-bold hover:bg-gray-50"
+                    >
+                      취소
+                    </button>
+                    <button
+                      onClick={() => {
+                        const value = parseInt(tempQuickReBidAmount.replace(/,/g, '')) || 1000;
+                        if (value % 100 !== 0) {
+                          return;
+                        }
+                        setQuickReBidAmount(value);
+                        setShowQuickReBidEdit(false);
+                      }}
+                      disabled={!tempQuickReBidAmount || parseInt(tempQuickReBidAmount.replace(/,/g, '')) <= 0 || parseInt(tempQuickReBidAmount.replace(/,/g, '')) % 100 !== 0}
+                      className="flex-1 bg-red-600 text-white py-2 rounded-lg font-bold hover:bg-red-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                    >
+                      저장
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* 부위별 입찰 바텀시트 */}
             <AnimatePresence>
@@ -1714,12 +1749,12 @@ function AuctionPageContent() {
                       <div className="flex items-center border border-gray-300 rounded-lg px-3 py-2.5 bg-white">
                         <input
                           type="text"
-                          value={partBidPrice > 0 ? partBidPrice.toLocaleString() : ''}
+                          value={partBidPrice > 0 ? partBidPrice.toLocaleString('ko-KR') : ''}
                           onChange={(e) => {
                             const value = e.target.value.replace(/,/g, '').replace(/[^0-9]/g, '');
                             setPartBidPrice(value ? parseInt(value) : 0);
                           }}
-                          className="flex-1 text-right text-xl font-bold outline-none bg-transparent"
+                          className="flex-1 text-right text-xl font-bold outline-none bg-transparent text-gray-900"
                           placeholder="0"
                         />
                         <span className="ml-2 text-gray-500">원</span>
