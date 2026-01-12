@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect, Suspense } from 'react';
+import { useState, useMemo, useEffect, Suspense, useRef } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { 
@@ -80,6 +80,35 @@ function DealersContent() {
   // 첨부파일 상태
   const [businessLicenseFile, setBusinessLicenseFile] = useState<AttachedFile | null>(null);
   const [reportCertificateFile, setReportCertificateFile] = useState<AttachedFile | null>(null);
+
+  // 드래그 스크롤 관련
+  const listRef = useRef<HTMLDivElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [startY, setStartY] = useState(0);
+  const [scrollTop, setScrollTop] = useState(0);
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (!listRef.current) return;
+    setIsDragging(true);
+    setStartY(e.pageY - listRef.current.offsetTop);
+    setScrollTop(listRef.current.scrollTop);
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging || !listRef.current) return;
+    e.preventDefault();
+    const y = e.pageY - listRef.current.offsetTop;
+    const walk = (startY - y) * 1.5;
+    listRef.current.scrollTop = scrollTop + walk;
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  const handleMouseLeave = () => {
+    setIsDragging(false);
+  };
 
   // 동적 viewport 높이 설정
   useEffect(() => {
@@ -219,6 +248,23 @@ function DealersContent() {
               -ms-overflow-style: none;
               scrollbar-width: none;
             }
+            .custom-scrollbar::-webkit-scrollbar {
+              width: 4px;
+            }
+            .custom-scrollbar::-webkit-scrollbar-track {
+              background: transparent;
+            }
+            .custom-scrollbar::-webkit-scrollbar-thumb {
+              background: #e5e7eb;
+              border-radius: 4px;
+            }
+            .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+              background: #d1d5db;
+            }
+            .custom-scrollbar {
+              scrollbar-width: thin;
+              scrollbar-color: #e5e7eb transparent;
+            }
           `}</style>
         
           {/* 모바일 메인 헤더 */}
@@ -293,7 +339,14 @@ function DealersContent() {
         </div>
 
         {/* 거래처 목록 */}
-        <div className="flex-1 min-h-0 overflow-y-auto bg-gray-50">
+        <div 
+          ref={listRef}
+          className={`flex-1 min-h-0 overflow-y-auto bg-gray-50 custom-scrollbar ${isDragging ? 'cursor-grabbing select-none' : 'cursor-grab'}`}
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseLeave}
+        >
           {filteredDealers.length === 0 ? (
             <div className="text-center py-20">
               <Building2 className="h-16 w-16 text-gray-300 mx-auto mb-4" />
