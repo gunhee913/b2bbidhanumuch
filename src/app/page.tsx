@@ -23,22 +23,10 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useBidStore } from '@/stores/bidStore';
+import { GRADES, getCompanyAuctionSummary, calcTotal } from '@/constants/auction';
 
-// 등급 상수
-const GRADES = ['1++', '1+', '1', '2'] as const;
-type Grade = typeof GRADES[number];
-type GradeCount = Record<Grade, number>;
-
-// 업체별 경매 두수 데이터
-const COMPANY_AUCTION_DATA = [
-  { name: '건화', steer: { '1++': 2, '1+': 2, '1': 0, '2': 0 }, cow: { '1++': 0, '1+': 1, '1': 0, '2': 0 } },
-  { name: '대진엠에스', steer: { '1++': 2, '1+': 3, '1': 0, '2': 0 }, cow: { '1++': 1, '1+': 2, '1': 0, '2': 0 } },
-  { name: '안심엘피씨', steer: { '1++': 1, '1+': 1, '1': 2, '2': 0 }, cow: { '1++': 1, '1+': 1, '1': 1, '2': 0 } },
-  { name: '정직한고기', steer: { '1++': 1, '1+': 0, '1': 1, '2': 2 }, cow: { '1++': 0, '1+': 0, '1': 1, '2': 1 } },
-] as const;
-
-// 등급별 두수 합계 계산
-const calcTotal = (grades: GradeCount) => Object.values(grades).reduce((sum, count) => sum + count, 0);
+// 업체별 경매 두수 데이터 (공통 상수에서 계산)
+const COMPANY_AUCTION_DATA = getCompanyAuctionSummary();
 
 function MainPageContent() {
   const searchParams = useSearchParams();
@@ -445,37 +433,42 @@ function MainPageContent() {
                           <thead>
                             <tr className="bg-gray-50 border-b border-gray-200">
                               <th className="py-2.5 px-3 text-left font-bold text-gray-700">구분</th>
-                              <th className="py-2.5 px-3 text-center font-bold text-gray-700">1++</th>
-                              <th className="py-2.5 px-3 text-center font-bold text-gray-700">1+</th>
-                              <th className="py-2.5 px-3 text-center font-bold text-gray-700">1</th>
-                              <th className="py-2.5 px-3 text-center font-bold text-gray-700">2</th>
+                              {GRADES.map((grade) => (
+                                <th key={grade} className="py-2.5 px-3 text-center font-bold text-gray-700">{grade}</th>
+                              ))}
                               <th className="py-2.5 px-3 text-right font-bold text-gray-700">합계</th>
                             </tr>
                           </thead>
                           <tbody>
                             <tr className="border-b border-gray-200">
                               <td className="py-3 px-3 font-bold text-gray-900">한우 거세</td>
-                              <td className="py-3 px-3 text-center font-bold text-gray-900">5두</td>
-                              <td className="py-3 px-3 text-center font-bold text-gray-900">7두</td>
-                              <td className="py-3 px-3 text-center font-bold text-gray-900">3두</td>
-                              <td className="py-3 px-3 text-center font-bold text-gray-900">2두</td>
-                              <td className="py-3 px-3 text-right font-bold text-gray-600">17두</td>
+                              {GRADES.map((grade) => {
+                                const count = COMPANY_AUCTION_DATA.reduce((sum, company) => sum + company.steer[grade], 0);
+                                return <td key={grade} className="py-3 px-3 text-center font-bold text-gray-900">{count}두</td>;
+                              })}
+                              <td className="py-3 px-3 text-right font-bold text-gray-600">
+                                {COMPANY_AUCTION_DATA.reduce((sum, company) => sum + calcTotal(company.steer), 0)}두
+                              </td>
                             </tr>
                             <tr className="border-b border-gray-200">
                               <td className="py-3 px-3 font-bold text-gray-900">한우 암</td>
-                              <td className="py-3 px-3 text-center font-bold text-gray-900">3두</td>
-                              <td className="py-3 px-3 text-center font-bold text-gray-900">3두</td>
-                              <td className="py-3 px-3 text-center font-bold text-gray-900">2두</td>
-                              <td className="py-3 px-3 text-center font-bold text-gray-900">1두</td>
-                              <td className="py-3 px-3 text-right font-bold text-gray-600">9두</td>
+                              {GRADES.map((grade) => {
+                                const count = COMPANY_AUCTION_DATA.reduce((sum, company) => sum + company.cow[grade], 0);
+                                return <td key={grade} className="py-3 px-3 text-center font-bold text-gray-900">{count}두</td>;
+                              })}
+                              <td className="py-3 px-3 text-right font-bold text-gray-600">
+                                {COMPANY_AUCTION_DATA.reduce((sum, company) => sum + calcTotal(company.cow), 0)}두
+                              </td>
                             </tr>
                             <tr className="bg-gray-50">
                               <td className="py-3 px-3 font-bold text-gray-900">합계</td>
-                              <td className="py-3 px-3 text-center font-bold text-gray-900">8두</td>
-                              <td className="py-3 px-3 text-center font-bold text-gray-900">10두</td>
-                              <td className="py-3 px-3 text-center font-bold text-gray-900">5두</td>
-                              <td className="py-3 px-3 text-center font-bold text-gray-900">3두</td>
-                              <td className="py-3 px-3 text-right font-bold text-gray-600">26두</td>
+                              {GRADES.map((grade) => {
+                                const count = COMPANY_AUCTION_DATA.reduce((sum, company) => sum + company.steer[grade] + company.cow[grade], 0);
+                                return <td key={grade} className="py-3 px-3 text-center font-bold text-gray-900">{count}두</td>;
+                              })}
+                              <td className="py-3 px-3 text-right font-bold text-gray-600">
+                                {COMPANY_AUCTION_DATA.reduce((sum, company) => sum + calcTotal(company.steer) + calcTotal(company.cow), 0)}두
+                              </td>
                             </tr>
                           </tbody>
                         </table>

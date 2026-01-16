@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useBidStore } from '@/stores/bidStore';
+import { AUCTION_PRODUCTS } from '@/constants/auction';
 
 function AuctionPageContent() {
   const router = useRouter();
@@ -53,6 +54,7 @@ function AuctionPageContent() {
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
   
   // 부위별 필터 상태
+  const [partFilterCompany, setPartFilterCompany] = useState<string>('업체명');
   const [partFilterType, setPartFilterType] = useState<string>('성별');
   const [partFilterGrade, setPartFilterGrade] = useState<string>('등급');
   const [partFilterMarbling, setPartFilterMarbling] = useState<string>('근내지방도');
@@ -95,6 +97,7 @@ function AuctionPageContent() {
   const [selectedType, setSelectedType] = useState<string>('성별');
   const [selectedGrade, setSelectedGrade] = useState<string>('등급');
   const [selectedNo, setSelectedNo] = useState<string>('근내지방도');
+  const [selectedCompany, setSelectedCompany] = useState<string>('업체명');
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
 
   // 배너 데이터 (빈 상태)
@@ -108,12 +111,18 @@ function AuctionPageContent() {
   useEffect(() => {
     const tab = searchParams.get('tab');
     const part = searchParams.get('part');
+    const company = searchParams.get('company');
     
     if (tab === 'part') {
       setActiveTab('part');
       if (part) {
         setSelectedPartId(part);
       }
+    }
+    
+    // 업체명 필터 적용
+    if (company) {
+      setSelectedCompany(company);
     }
   }, [searchParams]);
 
@@ -248,43 +257,39 @@ function AuctionPageContent() {
     setIsPlaying(!isPlaying);
   };
 
-  // 부위별 데이터 (좌/우 합침, 총 15개 부위) - 5두 기준
+  // 부위별 데이터 (좌/우 합침, 총 15개 부위) - 14두 기준
   const partsData = [
-    { id: 'sirloin', name: '등심', image: '/등심1.png', count: 10 },  // 5두 × (좌+우)
-    { id: 'tenderloin', name: '안심', image: '/등심2.png', count: 5 },   // 5두 × 1
-    { id: 'striploin', name: '채끝', image: '/등심3.png', count: 5 },
-    { id: 'ribs', name: '갈비', image: '/등심4.png', count: 10 },     // 5두 × (좌+우)
-    { id: 'special', name: '특수부위', image: '/등심1.png', count: 5 },
-    { id: 'foreleg', name: '앞다리', image: '/등심2.png', count: 5 },
-    { id: 'rump', name: '우둔', image: '/등심3.png', count: 5 },
-    { id: 'chuck', name: '목심', image: '/등심4.png', count: 5 },
-    { id: 'brisket', name: '양지', image: '/등심1.png', count: 10 },  // 5두 × (좌+우)
-    { id: 'round', name: '설도', image: '/등심2.png', count: 10 },    // 5두 × (좌+우)
-    { id: 'shank', name: '사태', image: '/등심3.png', count: 5 },
-    { id: 'tail', name: '꼬리', image: '/등심4.png', count: 5 },
-    { id: 'feet', name: '족', image: '/등심1.png', count: 5 },
-    { id: 'bone', name: '사골', image: '/등심2.png', count: 5 },
-    { id: 'misc', name: '잡뼈', image: '/등심3.png', count: 5 },
+    { id: 'sirloin', name: '등심', image: '/등심1.png', count: 28 },  // 14두 × (좌+우)
+    { id: 'tenderloin', name: '안심', image: '/등심2.png', count: 14 },   // 14두 × 1
+    { id: 'striploin', name: '채끝', image: '/등심3.png', count: 14 },
+    { id: 'ribs', name: '갈비', image: '/등심4.png', count: 28 },     // 14두 × (좌+우)
+    { id: 'special', name: '특수부위', image: '/등심1.png', count: 14 },
+    { id: 'foreleg', name: '앞다리', image: '/등심2.png', count: 14 },
+    { id: 'rump', name: '우둔', image: '/등심3.png', count: 14 },
+    { id: 'chuck', name: '목심', image: '/등심4.png', count: 14 },
+    { id: 'brisket', name: '양지', image: '/등심1.png', count: 28 },  // 14두 × (좌+우)
+    { id: 'round', name: '설도', image: '/등심2.png', count: 28 },    // 14두 × (좌+우)
+    { id: 'shank', name: '사태', image: '/등심3.png', count: 14 },
+    { id: 'tail', name: '꼬리', image: '/등심4.png', count: 14 },
+    { id: 'feet', name: '족', image: '/등심1.png', count: 14 },
+    { id: 'bone', name: '사골', image: '/등심2.png', count: 14 },
+    { id: 'misc', name: '잡뼈', image: '/등심3.png', count: 14 },
   ];
 
-  // 경매 상품 데이터
-  const products = [
-    { id: 1, image: '/등심1.png', type: '한우거세', grade: '1++A', no: 'No.9', auctionNo: '250806-001', historyNo: '002-1486-7293-5', company: '송정가공', date: '2025.08.05.(화)' },
-    { id: 2, image: '/등심2.png', type: '한우암', grade: '1++B', no: 'No.8', auctionNo: '250806-002', historyNo: '002-1486-7293-6', company: '송정가공', date: '2025.08.05.(화)' },
-    { id: 3, image: '/등심3.png', type: '한우거세', grade: '1+A', no: 'No.6', auctionNo: '250806-003', historyNo: '002-1486-7293-7', company: '송정가공', date: '2025.08.05.(화)' },
-    { id: 4, image: '/등심4.png', type: '한우암', grade: '1+C', no: 'No.5', auctionNo: '250806-004', historyNo: '002-1486-7293-8', company: '송정가공', date: '2025.08.05.(화)' },
-    { id: 5, image: '/등심1.png', type: '한우암', grade: '1C', no: 'No.7', auctionNo: '250806-005', historyNo: '002-1486-7293-9', company: '송정가공', date: '2025.08.05.(화)' },
-  ];
+  // 경매 상품 데이터 (공통 상수에서 가져옴)
+  const products = AUCTION_PRODUCTS;
 
-  // 5두 개체 정보
-  // 근내지방도: 7,8,9 = 1++등급 / 6 = 1+등급 / 4,5 = 1등급 / 2,3 = 2등급 / 1 = 3등급
-  const auctionEntities = [
-    { id: 1, type: '한우거세', grade: '1++A(9)', historyNo: '002-1486-7293-5', company: '송정가공', image: '/등심1.png' },
-    { id: 2, type: '한우암', grade: '1++B(8)', historyNo: '002-1486-7293-6', company: '송정가공', image: '/등심2.png' },
-    { id: 3, type: '한우거세', grade: '1+A(6)', historyNo: '002-1486-7293-7', company: '송정가공', image: '/등심3.png' },
-    { id: 4, type: '한우암', grade: '1A(5)', historyNo: '002-1486-7293-8', company: '송정가공', image: '/등심4.png' },
-    { id: 5, type: '한우거세', grade: '1++C(7)', historyNo: '002-1486-7293-9', company: '송정가공', image: '/등심1.png' },
-  ];
+  // 개체 정보 (공통 상수 기반, 부위별 데이터 생성용)
+  // 근내지방도는 1++ 등급에만 표시됨 (AUCTION_PRODUCTS의 grade에 이미 포함)
+  const auctionEntities = AUCTION_PRODUCTS.map(product => ({
+    id: product.id,
+    type: product.type,
+    grade: product.grade,
+    gradeCategory: product.gradeCategory,
+    historyNo: product.historyNo,
+    company: product.company,
+    image: product.image,
+  }));
 
   // 부위별 세부 부위 매핑 (좌/우 포함)
   const partSubParts: Record<string, string[]> = {
@@ -361,29 +366,21 @@ function AuctionPageContent() {
           const basePrice = partMinPrices[subPart] || 50000;
           let gradeMultiplier = 1.0;
           
-          // 근내지방도 추출
-          const marblingMatch = entity.grade.match(/\((\d+)\)/);
-          const marblingNo = marblingMatch ? parseInt(marblingMatch[1]) : 5;
-          
-          // 근내지방도별 가격 배수
-          if (marblingNo === 9) {
-            gradeMultiplier = 1.20; // No.9: +20%
-          } else if (marblingNo === 8) {
-            gradeMultiplier = 1.15; // No.8: +15%
-          } else if (marblingNo === 7) {
-            gradeMultiplier = 1.10; // No.7: +10%
-          } else if (marblingNo === 6) {
-            gradeMultiplier = 1.05; // No.6 (1+등급): +5%
-          } else if (marblingNo === 5) {
-            gradeMultiplier = 1.00; // No.5 (1등급): 기준
-          } else if (marblingNo === 4) {
-            gradeMultiplier = 0.95; // No.4 (1등급): -5%
-          } else if (marblingNo === 3) {
-            gradeMultiplier = 0.90; // No.3 (2등급): -10%
-          } else if (marblingNo === 2) {
-            gradeMultiplier = 0.85; // No.2 (2등급): -15%
+          // 등급 카테고리별 가격 배수 (1++ 등급의 경우 근내지방도로 세분화)
+          if (entity.gradeCategory === '1++') {
+            const marblingMatch = entity.grade.match(/\((\d+)\)/);
+            const marblingNo = marblingMatch ? parseInt(marblingMatch[1]) : 8;
+            if (marblingNo === 9) gradeMultiplier = 1.20;
+            else if (marblingNo === 8) gradeMultiplier = 1.15;
+            else gradeMultiplier = 1.10;
+          } else if (entity.gradeCategory === '1+') {
+            gradeMultiplier = 1.05;
+          } else if (entity.gradeCategory === '1') {
+            gradeMultiplier = 1.00;
+          } else if (entity.gradeCategory === '2') {
+            gradeMultiplier = 0.90;
           } else {
-            gradeMultiplier = 0.80; // No.1 (3등급): -20%
+            gradeMultiplier = 0.80;
           }
           
           // 최종 가격 계산 (1000원 단위로 반올림)
@@ -426,6 +423,11 @@ function AuctionPageContent() {
     
     let filtered = [...partProducts[selectedPartId]];
     
+    // 업체명 필터
+    if (partFilterCompany !== '업체명' && partFilterCompany !== '전체') {
+      filtered = filtered.filter(p => p.company === partFilterCompany);
+    }
+    
     // 성별 필터
     if (partFilterType !== '성별' && partFilterType !== '전체') {
       filtered = filtered.filter(p => p.type === partFilterType);
@@ -438,7 +440,9 @@ function AuctionPageContent() {
       } else if (partFilterGrade === '1+등급') {
         filtered = filtered.filter(p => p.grade.startsWith('1+') && !p.grade.startsWith('1++'));
       } else if (partFilterGrade === '1등급') {
-        filtered = filtered.filter(p => !p.grade.startsWith('1++') && !p.grade.startsWith('1+'));
+        filtered = filtered.filter(p => p.grade.startsWith('1') && !p.grade.startsWith('1++') && !p.grade.startsWith('1+'));
+      } else if (partFilterGrade === '2등급') {
+        filtered = filtered.filter(p => p.grade.startsWith('2'));
       }
     }
     
@@ -449,7 +453,7 @@ function AuctionPageContent() {
     }
     
     return filtered;
-  }, [selectedPartId, partProducts, partFilterType, partFilterGrade, partFilterMarbling]);
+  }, [selectedPartId, partProducts, partFilterCompany, partFilterType, partFilterGrade, partFilterMarbling]);
 
   // 부위 목록으로 돌아가기
   const handleBackToPartList = () => {
@@ -462,15 +466,23 @@ function AuctionPageContent() {
     // 성별 필터
     if (selectedType !== '성별' && selectedType !== '전체' && product.type !== selectedType) return false;
     
-    // 등급 필터 - 범주로 매칭
+    // 등급 필터 - gradeCategory로 매칭
     if (selectedGrade !== '등급' && selectedGrade !== '전체') {
-      if (selectedGrade === '1++등급' && !product.grade.startsWith('1++')) return false;
-      if (selectedGrade === '1+등급' && (!product.grade.startsWith('1+') || product.grade.startsWith('1++'))) return false;
-      if (selectedGrade === '1등급' && (product.grade.startsWith('1++') || product.grade.startsWith('1+'))) return false;
+      if (selectedGrade === '1++등급' && product.gradeCategory !== '1++') return false;
+      if (selectedGrade === '1+등급' && product.gradeCategory !== '1+') return false;
+      if (selectedGrade === '1등급' && product.gradeCategory !== '1') return false;
+      if (selectedGrade === '2등급' && product.gradeCategory !== '2') return false;
     }
     
-    // 근내지방도 필터
-    if (selectedNo !== '근내지방도' && selectedNo !== '전체' && product.no !== selectedNo) return false;
+    // 업체명 필터
+    if (selectedCompany !== '업체명' && selectedCompany !== '전체' && product.company !== selectedCompany) return false;
+    
+    // 근내지방도 필터 (grade에서 추출: 예 "1++A(9)" -> "No.9")
+    if (selectedNo !== '근내지방도' && selectedNo !== '전체') {
+      const marblingMatch = product.grade.match(/\((\d+)\)/);
+      const productNo = marblingMatch ? `No.${marblingMatch[1]}` : '';
+      if (productNo !== selectedNo) return false;
+    }
     
     return true;
   });
@@ -613,6 +625,49 @@ function AuctionPageContent() {
                   {/* 필터 섹션 */}
                   <div className="px-3 py-2 bg-white">
                     <div className="flex gap-1.5 relative filter-dropdown max-w-sm">
+                      {/* 업체명 필터 */}
+                      <div className="flex-1 relative">
+                        <button
+                          onClick={() => setOpenDropdown(openDropdown === 'company' ? null : 'company')}
+                          className="w-full h-8 px-2 text-[11px] border border-gray-300 rounded-lg bg-white transition-colors flex items-center justify-between"
+                        >
+                          <span className="text-gray-700 truncate">{selectedCompany}</span>
+                          <motion.div
+                            animate={{ rotate: openDropdown === 'company' ? 180 : 0 }}
+                            transition={{ duration: 0.2 }}
+                          >
+                            <ChevronDown className="h-3.5 w-3.5 text-gray-500 flex-shrink-0" />
+                          </motion.div>
+                        </button>
+                        <AnimatePresence>
+                          {openDropdown === 'company' && (
+                            <motion.div
+                              initial={{ opacity: 0, y: -10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              exit={{ opacity: 0, y: -10 }}
+                              transition={{ duration: 0.2 }}
+                              className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden z-50 max-h-40 overflow-y-auto"
+                            >
+                              {['전체', '건화', '대진엠에스', '안심엘피씨', '정직한고기'].map((option) => (
+                                <motion.button
+                                  key={option}
+                                  onClick={() => {
+                                    setSelectedCompany(option);
+                                    setOpenDropdown(null);
+                                  }}
+                                  whileHover={{ backgroundColor: '#fef2f2' }}
+                                  className={`w-full px-2.5 py-1.5 text-[11px] text-left transition-colors ${
+                                    selectedCompany === option ? 'bg-red-50 text-red-600 font-medium' : 'text-gray-700'
+                                  }`}
+                                >
+                                  {option}
+                                </motion.button>
+                              ))}
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+                      
                       {/* 한우 타입 필터 */}
                       <div className="flex-1 relative">
                         <button
@@ -681,7 +736,7 @@ function AuctionPageContent() {
                               transition={{ duration: 0.2 }}
                               className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden z-50 max-h-40 overflow-y-auto"
                             >
-                              {['전체', '1++등급', '1+등급', '1등급'].map((option) => (
+                              {['전체', '1++등급', '1+등급', '1등급', '2등급'].map((option) => (
                                 <motion.button
                                   key={option}
                                   onClick={() => {
@@ -779,9 +834,6 @@ function AuctionPageContent() {
                                     <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-white border border-gray-300 text-gray-700">
                                       {product.grade}
                                     </span>
-                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-white border border-gray-300 text-gray-700">
-                                      {product.no}
-                                    </span>
                                   </div>
                                 </div>
                                 
@@ -864,6 +916,50 @@ function AuctionPageContent() {
                   {/* 부위별 필터 및 정렬 */}
                   <div className="px-3 py-2 bg-white">
                     <div className="flex gap-1.5 relative filter-dropdown">
+                      {/* 업체명 필터 */}
+                      <div className="flex-1 relative">
+                        <button
+                          onClick={() => setOpenDropdown(openDropdown === 'partCompany' ? null : 'partCompany')}
+                          className="w-full h-8 px-2 text-[11px] border border-gray-300 rounded-lg bg-white transition-colors flex items-center justify-between"
+                        >
+                          <span className="text-gray-700 truncate">{partFilterCompany}</span>
+                          <motion.div
+                            animate={{ rotate: openDropdown === 'partCompany' ? 180 : 0 }}
+                            transition={{ duration: 0.2 }}
+                          >
+                            <ChevronDown className="h-3.5 w-3.5 text-gray-500 flex-shrink-0" />
+                          </motion.div>
+                        </button>
+                        
+                        <AnimatePresence>
+                          {openDropdown === 'partCompany' && (
+                            <motion.div
+                              initial={{ opacity: 0, y: -10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              exit={{ opacity: 0, y: -10 }}
+                              transition={{ duration: 0.2 }}
+                              className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden z-50 max-h-40 overflow-y-auto"
+                            >
+                              {['전체', '건화', '대진엠에스', '안심엘피씨', '정직한고기'].map((option) => (
+                                <motion.button
+                                  key={option}
+                                  onClick={() => {
+                                    setPartFilterCompany(option);
+                                    setOpenDropdown(null);
+                                  }}
+                                  whileHover={{ backgroundColor: '#fef2f2' }}
+                                  className={`w-full px-2.5 py-1.5 text-[11px] text-left transition-colors ${
+                                    partFilterCompany === option ? 'bg-red-50 text-red-600 font-medium' : 'text-gray-700'
+                                  }`}
+                                >
+                                  {option}
+                                </motion.button>
+                              ))}
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+                      
                       {/* 성별 필터 */}
                       <div className="flex-1 relative">
                         <button
@@ -932,7 +1028,7 @@ function AuctionPageContent() {
                               transition={{ duration: 0.2 }}
                               className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden z-50"
                             >
-                              {['전체', '1++등급', '1+등급', '1등급'].map((option) => (
+                              {['전체', '1++등급', '1+등급', '1등급', '2등급'].map((option) => (
                                 <motion.button
                                   key={option}
                                   onClick={() => {
@@ -1045,7 +1141,7 @@ function AuctionPageContent() {
                             >
                               <div className="text-center">
                                 <div className="text-sm font-semibold text-gray-900">{product.partName}</div>
-                                <div className="text-[10px] text-gray-500">{product.type.includes('거세') ? '거세' : '암'} / {product.grade}</div>
+                                <div className="text-[10px] text-gray-500 whitespace-nowrap">{product.type.includes('거세') ? '거세' : '암'} / {product.grade}</div>
                               </div>
                               <div className="text-center text-sm font-medium text-gray-600">
                                 {product.weight}
