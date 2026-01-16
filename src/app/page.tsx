@@ -24,6 +24,22 @@ import {
 import { Button } from '@/components/ui/button';
 import { useBidStore } from '@/stores/bidStore';
 
+// 등급 상수
+const GRADES = ['1++', '1+', '1', '2'] as const;
+type Grade = typeof GRADES[number];
+type GradeCount = Record<Grade, number>;
+
+// 업체별 경매 두수 데이터
+const COMPANY_AUCTION_DATA = [
+  { name: '건화', steer: { '1++': 2, '1+': 2, '1': 0, '2': 0 }, cow: { '1++': 0, '1+': 1, '1': 0, '2': 0 } },
+  { name: '대진엠에스', steer: { '1++': 2, '1+': 3, '1': 0, '2': 0 }, cow: { '1++': 1, '1+': 2, '1': 0, '2': 0 } },
+  { name: '안심엘피씨', steer: { '1++': 1, '1+': 1, '1': 2, '2': 0 }, cow: { '1++': 1, '1+': 1, '1': 1, '2': 0 } },
+  { name: '정직한고기', steer: { '1++': 1, '1+': 0, '1': 1, '2': 2 }, cow: { '1++': 0, '1+': 0, '1': 1, '2': 1 } },
+] as const;
+
+// 등급별 두수 합계 계산
+const calcTotal = (grades: GradeCount) => Object.values(grades).reduce((sum, count) => sum + count, 0);
+
 function MainPageContent() {
   const searchParams = useSearchParams();
   
@@ -403,6 +419,12 @@ function MainPageContent() {
                             <AlertCircle className="h-4 w-4" />
                           </button>
                         </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs font-medium text-gray-600">마감까지</span>
+                          <span className="text-xs font-bold text-gray-900" style={{ letterSpacing: '-0.02em' }}>
+                            {formatTime(countdown)}
+                          </span>
+                        </div>
                         {showAuctionInfo && (
                           <div 
                             ref={tooltipRef}
@@ -416,14 +438,8 @@ function MainPageContent() {
                         )}
                       </div>
                       
-                      <div className="flex items-center gap-2 mb-3">
-                        <span className="text-xs font-medium text-gray-600">마감까지</span>
-                        <span className="text-xs font-bold text-gray-900" style={{ letterSpacing: '-0.02em' }}>
-                          {formatTime(countdown)}
-                        </span>
-                      </div>
-
-                      {/* 경매 정보 테이블 */}
+                      {/* 등급별 경매 두수 현황 */}
+                      <h3 className="text-base font-bold text-gray-900 mb-3">등급별 경매 두수 현황</h3>
                       <div className="mb-3 overflow-hidden border border-gray-200">
                         <table className="w-full text-xs">
                           <thead>
@@ -472,6 +488,81 @@ function MainPageContent() {
                           <ArrowRight className="h-4 w-4" />
                         </button>
                       </Link>
+                    </div>
+
+                    {/* 업체별 경매 두수 현황 */}
+                    <div className="mt-6 mb-4">
+                      <div className="mb-3">
+                        <h3 className="text-base font-bold text-gray-900">업체별 경매 두수 현황</h3>
+                      </div>
+                      
+                      <div className="overflow-hidden border border-gray-200">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="bg-gray-50 border-b border-gray-200">
+                              <th className="py-2 px-1.5 text-center font-bold text-gray-700 w-16">업체명</th>
+                              <th className="py-2 px-1.5 text-center font-bold text-gray-700 w-10">성별</th>
+                              {GRADES.map((grade) => (
+                                <th key={grade} className="py-2 px-2 text-center font-bold text-gray-700 w-10">{grade}</th>
+                              ))}
+                              <th className="py-2 px-2 text-center font-bold text-gray-700 w-10">소계</th>
+                              <th className="py-2 px-2 text-center font-bold text-gray-700 w-10">합계</th>
+                            </tr>
+                          </thead>
+                          {COMPANY_AUCTION_DATA.map((company, idx) => {
+                            const companyTotal = calcTotal(company.steer) + calcTotal(company.cow);
+                            return (
+                              <tbody key={company.name} className="group cursor-pointer hover:bg-gray-50" onClick={() => window.location.href = `/auction?company=${company.name}`}>
+                                <tr className={`border-b border-gray-100 ${idx > 0 ? 'border-t border-gray-200' : ''}`}>
+                                  <td rowSpan={2} className="py-2 px-1.5 text-center font-bold text-gray-900 align-middle border-r border-gray-100">
+                                    {company.name}
+                                  </td>
+                                  <td className="py-1.5 px-1.5 text-center text-gray-600">거세</td>
+                                  {GRADES.map((grade) => (
+                                    <td key={grade} className={`py-1.5 px-2 text-center font-bold ${company.steer[grade] > 0 ? 'text-gray-900' : 'text-gray-300'}`}>
+                                      {company.steer[grade]}
+                                    </td>
+                                  ))}
+                                  <td className="py-1.5 px-2 text-center font-bold text-gray-600">{calcTotal(company.steer)}</td>
+                                  <td rowSpan={2} className="py-1.5 px-2 text-center font-bold text-gray-900 align-middle border-l border-gray-100 bg-gray-50 group-hover:bg-gray-100">
+                                    {companyTotal}
+                                  </td>
+                                </tr>
+                                <tr className="border-b border-gray-200">
+                                  <td className="py-1.5 px-1.5 text-center text-gray-600">암</td>
+                                  {GRADES.map((grade) => (
+                                    <td key={grade} className={`py-1.5 px-2 text-center font-bold ${company.cow[grade] > 0 ? 'text-gray-900' : 'text-gray-300'}`}>
+                                      {company.cow[grade]}
+                                    </td>
+                                  ))}
+                                  <td className="py-1.5 px-2 text-center font-bold text-gray-600">{calcTotal(company.cow)}</td>
+                                </tr>
+                              </tbody>
+                            );
+                          })}
+                          <tfoot>
+                            <tr className="bg-gray-100 border-t-2 border-gray-300">
+                              <td colSpan={2} className="py-2 px-1.5 text-center font-bold text-gray-900">총합계</td>
+                              {GRADES.map((grade) => {
+                                const gradeTotal = COMPANY_AUCTION_DATA.reduce(
+                                  (sum, company) => sum + company.steer[grade] + company.cow[grade], 0
+                                );
+                                return (
+                                  <td key={grade} className="py-2 px-2 text-center font-bold text-gray-900">
+                                    {gradeTotal}
+                                  </td>
+                                );
+                              })}
+                              <td className="py-2 px-2 text-center font-bold text-gray-600">
+                                {COMPANY_AUCTION_DATA.reduce((sum, company) => sum + calcTotal(company.steer) + calcTotal(company.cow), 0)}
+                              </td>
+                              <td className="py-2 px-2 text-center font-bold text-gray-900">
+                                {COMPANY_AUCTION_DATA.reduce((sum, company) => sum + calcTotal(company.steer) + calcTotal(company.cow), 0)}두
+                              </td>
+                            </tr>
+                          </tfoot>
+                        </table>
+                      </div>
                     </div>
 
                   </div>
