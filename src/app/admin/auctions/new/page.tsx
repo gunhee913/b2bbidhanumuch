@@ -1,27 +1,76 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import AdminLayout from '@/components/admin/AdminLayout';
-import { 
-  ArrowLeft, 
-  Save, 
-  Plus,
-  Trash2,
-  Upload,
-  Calendar,
-  Clock,
-  Info
-} from 'lucide-react';
-import Link from 'next/link';
+import { Save, Upload, X, Calendar } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
-// 부위 타입
-interface PartItem {
-  id: string;
-  part: string;
-  weight: string;
-  minPrice: string;
-}
+// number input 스피너, date input 달력 아이콘 숨기기 스타일
+const hideSpinnerStyle = `
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type="number"] {
+    -moz-appearance: textfield;
+  }
+  input[type="date"]::-webkit-calendar-picker-indicator {
+    display: none !important;
+    -webkit-appearance: none;
+    width: 0;
+    height: 0;
+    margin: 0;
+    padding: 0;
+  }
+  input[type="date"]::-webkit-inner-spin-button {
+    display: none;
+  }
+  input[type="date"]::-webkit-clear-button {
+    display: none;
+  }
+`;
+
+// 부위 데이터 (기본 19개 부위)
+const DEFAULT_PARTS = [
+  { id: 1, name: '등심(좌)', weight: '', minPrice: '' },
+  { id: 2, name: '등심(우)', weight: '', minPrice: '' },
+  { id: 3, name: '안심', weight: '', minPrice: '' },
+  { id: 4, name: '채끝', weight: '', minPrice: '' },
+  { id: 5, name: '갈비(좌)', weight: '', minPrice: '' },
+  { id: 6, name: '갈비(우)', weight: '', minPrice: '' },
+  { id: 7, name: '특수부위', weight: '', minPrice: '' },
+  { id: 8, name: '설도(좌)', weight: '', minPrice: '' },
+  { id: 9, name: '설도(우)', weight: '', minPrice: '' },
+  { id: 10, name: '앞다리', weight: '', minPrice: '' },
+  { id: 11, name: '우둔', weight: '', minPrice: '' },
+  { id: 12, name: '목심', weight: '', minPrice: '' },
+  { id: 13, name: '양지(좌)', weight: '', minPrice: '' },
+  { id: 14, name: '양지(우)', weight: '', minPrice: '' },
+  { id: 15, name: '사태', weight: '', minPrice: '' },
+  { id: 16, name: '꼬리', weight: '', minPrice: '' },
+  { id: 17, name: '족', weight: '', minPrice: '' },
+  { id: 18, name: '사골', weight: '', minPrice: '' },
+  { id: 19, name: '잡뼈', weight: '', minPrice: '' },
+];
+
+// 가공업체별 접수번호 prefix
+const COMPANY_PREFIX: Record<string, string> = {
+  '건화': '100',
+  '대진엠에스': '200',
+  '안심엘피씨': '300',
+  '정직한고기': '400',
+};
+
+// 내일 날짜 코드 생성 (YYMMDD)
+const getTomorrowDateCode = () => {
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const year = String(tomorrow.getFullYear()).slice(-2);
+  const month = String(tomorrow.getMonth() + 1).padStart(2, '0');
+  const day = String(tomorrow.getDate()).padStart(2, '0');
+  return `${year}${month}${day}`;
+};
 
 export default function NewAuctionPage() {
   const router = useRouter();
@@ -29,404 +78,405 @@ export default function NewAuctionPage() {
   
   // 기본 정보
   const [company, setCompany] = useState('');
-  const [auctionDate, setAuctionDate] = useState('');
-  const [startTime, setStartTime] = useState('09:00');
-  const [endTime, setEndTime] = useState('15:00');
+  const [seqNo, setSeqNo] = useState('1');
   
   // 개체 정보
-  const [traceNo, setTraceNo] = useState('');
-  const [type, setType] = useState('');
+  const [breed, setBreed] = useState('한우');
+  const [gender, setGender] = useState('');
   const [grade, setGrade] = useState('');
   const [marbling, setMarbling] = useState('');
-  const [weight, setWeight] = useState('');
   const [monthAge, setMonthAge] = useState('');
+  const [carcassWeight, setCarcassWeight] = useState('');
+  const [traceNo, setTraceNo] = useState('');
+  
+  // 등급 판정 정보
+  const [backFat, setBackFat] = useState('');
+  const [eyeMuscle, setEyeMuscle] = useState('');
+  const [fatMarbling, setFatMarbling] = useState(''); // 근내지방도
+  const [meatColor, setMeatColor] = useState('');
+  const [fatColor, setFatColor] = useState('');
+  const [texture, setTexture] = useState('');
+  const [maturity, setMaturity] = useState('');
+  
+  // 도축/가공 정보
+  const [slaughterHouse, setSlaughterHouse] = useState('음성');
   const [slaughterDate, setSlaughterDate] = useState('');
+  const [slaughterNo, setSlaughterNo] = useState('');
+  const [processDate, setProcessDate] = useState('');
+  const [processWeight, setProcessWeight] = useState('');
+  
+  // 날짜 입력 ref
+  const slaughterDateRef = useRef<HTMLInputElement>(null);
+  const processDateRef = useRef<HTMLInputElement>(null);
   
   // 부위별 정보
-  const [parts, setParts] = useState<PartItem[]>([
-    { id: '1', part: '등심(좌)', weight: '', minPrice: '' },
-    { id: '2', part: '등심(우)', weight: '', minPrice: '' },
-  ]);
+  const [parts, setParts] = useState(DEFAULT_PARTS);
+  
+  // 이미지
+  const [images, setImages] = useState<string[]>([]);
 
-  // 부위 추가
-  const addPart = () => {
-    setParts([...parts, { 
-      id: Date.now().toString(), 
-      part: '', 
-      weight: '', 
-      minPrice: '' 
-    }]);
+  // 접수번호 자동 생성
+  const getAuctionNo = () => {
+    if (!company) return '-';
+    const dateCode = getTomorrowDateCode();
+    const basePrefix = COMPANY_PREFIX[company] || '100';
+    const prefixBase = basePrefix.charAt(0);
+    const seq = String(seqNo || '1').padStart(2, '0');
+    return `${dateCode}-${prefixBase}${seq}`;
   };
 
-  // 부위 삭제
-  const removePart = (id: string) => {
-    if (parts.length > 1) {
-      setParts(parts.filter(p => p.id !== id));
+  // 등급 표시 형식
+  const getGradeDisplay = () => {
+    if (!grade) return '-';
+    if (grade.startsWith('1++') && marbling) {
+      return `${grade}(${marbling})`;
     }
+    return grade;
+  };
+
+  // 이력번호 포맷팅 (0000-0000-0)
+  const formatTraceNo = (value: string) => {
+    const numbers = value.replace(/[^0-9]/g, '');
+    if (numbers.length <= 4) return numbers;
+    if (numbers.length <= 8) return `${numbers.slice(0, 4)}-${numbers.slice(4)}`;
+    return `${numbers.slice(0, 4)}-${numbers.slice(4, 8)}-${numbers.slice(8, 9)}`;
+  };
+
+  const handleTraceNoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setTraceNo(formatTraceNo(e.target.value));
   };
 
   // 부위 정보 수정
-  const updatePart = (id: string, field: keyof PartItem, value: string) => {
-    setParts(parts.map(p => 
-      p.id === id ? { ...p, [field]: value } : p
-    ));
+  const updatePart = (id: number, field: 'weight' | 'minPrice', value: string) => {
+    setParts(parts.map(p => p.id === id ? { ...p, [field]: value } : p));
+  };
+
+  // 상장번호 생성
+  const getListingNo = (partIndex: number) => {
+    if (!company) return '-';
+    const dateCode = getTomorrowDateCode();
+    const basePrefix = COMPANY_PREFIX[company] || '100';
+    const prefixBase = basePrefix.charAt(0);
+    const seq = String(seqNo || '1').padStart(2, '0');
+    return `${dateCode}-${prefixBase}${seq}-${String(partIndex + 1).padStart(4, '0')}`;
   };
 
   // 폼 제출
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    
-    // 실제로는 API 호출
     await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    alert('경매가 등록되었습니다.');
+    alert('상장 등록이 완료되었습니다.');
     router.push('/admin/auctions');
   };
 
-  // 부위 옵션
-  const partOptions = [
-    '등심(좌)', '등심(우)', '안심', '채끝', 
-    '갈비(좌)', '갈비(우)', '특수부위',
-    '앞다리(좌)', '앞다리(우)', '우둔(좌)', '우둔(우)',
-    '설도(좌)', '설도(우)', '양지', '사태', '목심'
-  ];
+  // 이미지 업로드 핸들러 (임시)
+  const handleImageUpload = () => {
+    setImages([...images, `/등심${images.length + 1}.png`]);
+  };
+
+  const removeImage = (index: number) => {
+    setImages(images.filter((_, i) => i !== index));
+  };
+
+  // 공통 스타일
+  const thClass = "px-2 py-2 text-xs font-medium text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50 text-center";
+  const tdClass = "px-2 py-2 text-xs border border-gray-200 text-center";
+  const inputClass = "w-full px-2 py-1 border border-gray-200 rounded text-xs text-center focus:ring-1 focus:ring-red-500 focus:border-red-500 outline-none bg-white";
+  const selectClass = "w-full px-2 py-1 border border-gray-200 rounded text-xs text-center focus:ring-1 focus:ring-red-500 focus:border-red-500 outline-none bg-white";
 
   return (
     <AdminLayout>
-      {/* 페이지 헤더 */}
-      <div className="mb-6">
+      <style dangerouslySetInnerHTML={{ __html: hideSpinnerStyle }} />
+      
+      <div className="mb-4">
         <h1 className="text-2xl font-bold text-gray-900">부분육상장등록</h1>
       </div>
 
       <form onSubmit={handleSubmit}>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* 메인 폼 (2/3) */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* 기본 정보 */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">기본 정보</h2>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                    가공업체 <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    value={company}
-                    onChange={(e) => setCompany(e.target.value)}
-                    required
-                    className="w-full px-3 py-2.5 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
-                  >
-                    <option value="">선택하세요</option>
-                    <option value="건화">건화</option>
-                    <option value="대진엠에스">대진엠에스</option>
-                    <option value="안심엘피씨">안심엘피씨</option>
-                    <option value="정직한고기">정직한고기</option>
-                  </select>
-                </div>
+        {/* 개체 정보 테이블 (한 줄 테이블) */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-100 mb-4 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs border-collapse">
+              <thead>
+                <tr>
+                  <th className={thClass}>상장업체</th>
+                  <th className={thClass}>순번</th>
+                  <th className={thClass}>접수번호</th>
+                  <th className={thClass}>축종</th>
+                  <th className={thClass}>성별</th>
+                  <th className={thClass}>등급</th>
+                  <th className={thClass}>근내지방</th>
+                  <th className={thClass}>개월령</th>
+                  <th className={thClass}>도체중</th>
+                  <th className={thClass}>이력번호</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td className={tdClass}>
+                    <select value={company} onChange={(e) => setCompany(e.target.value)} required className={selectClass}>
+                      <option value="">선택</option>
+                      <option value="건화">건화</option>
+                      <option value="대진엠에스">대진엠에스</option>
+                      <option value="안심엘피씨">안심엘피씨</option>
+                      <option value="정직한고기">정직한고기</option>
+                    </select>
+                  </td>
+                  <td className={tdClass}>
+                    <input type="number" value={seqNo} onChange={(e) => setSeqNo(e.target.value)} min="1" max="99" required className="w-12 px-2 py-1 border border-gray-200 rounded text-xs text-center outline-none bg-white" />
+                  </td>
+                  <td className={`${tdClass} font-medium text-gray-900 bg-blue-50`}>{getAuctionNo()}</td>
+                  <td className={tdClass}>
+                    <select value={breed} onChange={(e) => setBreed(e.target.value)} className={selectClass}>
+                      <option value="한우">한우</option>
+                    </select>
+                  </td>
+                  <td className={tdClass}>
+                    <select value={gender} onChange={(e) => setGender(e.target.value)} required className={selectClass}>
+                      <option value="">선택</option>
+                      <option value="거세">거세</option>
+                      <option value="암">암</option>
+                    </select>
+                  </td>
+                  <td className={tdClass}>
+                    <select value={grade} onChange={(e) => { setGrade(e.target.value); if(!e.target.value.startsWith('1++')) setMarbling(''); }} required className={selectClass}>
+                      <option value="">선택</option>
+                      <option value="1++A">1++A</option>
+                      <option value="1++B">1++B</option>
+                      <option value="1+A">1+A</option>
+                      <option value="1+B">1+B</option>
+                      <option value="1A">1A</option>
+                      <option value="1B">1B</option>
+                      <option value="2">2</option>
+                    </select>
+                  </td>
+                  <td className={tdClass}>
+                    <select value={marbling} onChange={(e) => setMarbling(e.target.value)} disabled={!grade.startsWith('1++')} className={`${selectClass} disabled:bg-gray-100`}>
+                      <option value="">-</option>
+                      <option value="9">9</option>
+                      <option value="8">8</option>
+                      <option value="7">7</option>
+                    </select>
+                  </td>
+                  <td className={tdClass}>
+                    <input type="number" value={monthAge} onChange={(e) => setMonthAge(e.target.value)} placeholder="32" required className="w-14 px-2 py-1 border border-gray-200 rounded text-xs text-center outline-none bg-white" />
+                  </td>
+                  <td className={tdClass}>
+                    <input type="number" value={carcassWeight} onChange={(e) => setCarcassWeight(e.target.value)} placeholder="520" required className="w-14 px-2 py-1 border border-gray-200 rounded text-xs text-center outline-none bg-white" />
+                  </td>
+                  <td className={tdClass}>
+                    <input type="text" value={traceNo} onChange={handleTraceNoChange} placeholder="0000-0000-0" maxLength={11} required className="w-28 px-2 py-1 border border-gray-200 rounded text-xs text-center outline-none bg-white" />
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                    경매일 <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <input
-                      type="date"
-                      value={auctionDate}
-                      onChange={(e) => setAuctionDate(e.target.value)}
-                      required
-                      className="w-full pl-10 pr-3 py-2.5 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
-                    />
-                  </div>
-                </div>
+        {/* 등급 판정 + 도축/가공 정보 (한 줄 테이블) */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-100 mb-4 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs border-collapse">
+              <thead>
+                <tr>
+                  <th className={thClass}>등지방</th>
+                  <th className={thClass}>등심면적</th>
+                  <th className={thClass}>근내지방</th>
+                  <th className={thClass}>육색</th>
+                  <th className={thClass}>지방색</th>
+                  <th className={thClass}>조직감</th>
+                  <th className={thClass}>성숙도</th>
+                  <th className={thClass}>도축장</th>
+                  <th className={thClass}>도축일</th>
+                  <th className={thClass}>도축번호</th>
+                  <th className={thClass}>가공일</th>
+                  <th className={thClass}>가공중량</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td className={tdClass}>
+                    <input type="number" value={backFat} onChange={(e) => setBackFat(e.target.value)} placeholder="15" required className="w-12 px-2 py-1 border border-gray-200 rounded text-xs text-center outline-none bg-white" />
+                  </td>
+                  <td className={tdClass}>
+                    <input type="number" value={eyeMuscle} onChange={(e) => setEyeMuscle(e.target.value)} placeholder="98" required className="w-12 px-2 py-1 border border-gray-200 rounded text-xs text-center outline-none bg-white" />
+                  </td>
+                  <td className={tdClass}>
+                    <input type="number" value={fatMarbling} onChange={(e) => setFatMarbling(e.target.value)} placeholder="9" required className="w-12 px-2 py-1 border border-gray-200 rounded text-xs text-center outline-none bg-white" />
+                  </td>
+                  <td className={tdClass}>
+                    <input type="number" value={meatColor} onChange={(e) => setMeatColor(e.target.value)} placeholder="5" required className="w-12 px-2 py-1 border border-gray-200 rounded text-xs text-center outline-none bg-white" />
+                  </td>
+                  <td className={tdClass}>
+                    <input type="number" value={fatColor} onChange={(e) => setFatColor(e.target.value)} placeholder="3" required className="w-12 px-2 py-1 border border-gray-200 rounded text-xs text-center outline-none bg-white" />
+                  </td>
+                  <td className={tdClass}>
+                    <input type="number" value={texture} onChange={(e) => setTexture(e.target.value)} placeholder="1" required className="w-12 px-2 py-1 border border-gray-200 rounded text-xs text-center outline-none bg-white" />
+                  </td>
+                  <td className={tdClass}>
+                    <input type="number" value={maturity} onChange={(e) => setMaturity(e.target.value)} placeholder="2" required className="w-12 px-2 py-1 border border-gray-200 rounded text-xs text-center outline-none bg-white" />
+                  </td>
+                  <td className={tdClass}>
+                    <select value={slaughterHouse} onChange={(e) => setSlaughterHouse(e.target.value)} className="w-14 px-1 py-1 border border-gray-200 rounded text-xs text-center outline-none bg-white">
+                      <option value="음성">음성</option>
+                    </select>
+                  </td>
+                  <td className={tdClass}>
+                    <div className="relative inline-flex items-center">
+                      <input 
+                        ref={slaughterDateRef}
+                        type="date" 
+                        value={slaughterDate} 
+                        onChange={(e) => setSlaughterDate(e.target.value)} 
+                        required 
+                        className="w-36 pl-8 pr-2 py-1 border border-gray-200 rounded text-xs outline-none bg-white cursor-pointer" 
+                      />
+                      <Calendar 
+                        className="absolute left-2 w-4 h-4 text-gray-400 cursor-pointer hover:text-gray-600" 
+                        onClick={() => slaughterDateRef.current?.showPicker()}
+                      />
+                    </div>
+                  </td>
+                  <td className={tdClass}>
+                    <input type="text" value={slaughterNo} onChange={(e) => setSlaughterNo(e.target.value)} placeholder="201" required className="w-14 px-2 py-1 border border-gray-200 rounded text-xs text-center outline-none bg-white" />
+                  </td>
+                  <td className={tdClass}>
+                    <div className="relative inline-flex items-center">
+                      <input 
+                        ref={processDateRef}
+                        type="date" 
+                        value={processDate} 
+                        onChange={(e) => setProcessDate(e.target.value)} 
+                        required 
+                        className="w-36 pl-8 pr-2 py-1 border border-gray-200 rounded text-xs outline-none bg-white cursor-pointer" 
+                      />
+                      <Calendar 
+                        className="absolute left-2 w-4 h-4 text-gray-400 cursor-pointer hover:text-gray-600" 
+                        onClick={() => processDateRef.current?.showPicker()}
+                      />
+                    </div>
+                  </td>
+                  <td className={tdClass}>
+                    <input type="number" value={processWeight} onChange={(e) => setProcessWeight(e.target.value)} placeholder="312" required className="w-14 px-2 py-1 border border-gray-200 rounded text-xs text-center outline-none bg-white" />
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                    시작 시간 <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <input
-                      type="time"
-                      value={startTime}
-                      onChange={(e) => setStartTime(e.target.value)}
-                      required
-                      className="w-full pl-10 pr-3 py-2.5 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
-                    />
-                  </div>
-                </div>
+        {/* 부위별 정보 테이블 (3열 7행) */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-100 mb-4 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs border-collapse">
+              <thead>
+                <tr>
+                  {[0, 1, 2].map(col => (
+                    <React.Fragment key={col}>
+                      <th className={thClass}>상장번호</th>
+                      <th className={thClass}>부위</th>
+                      <th className={thClass}>중량</th>
+                      <th className={thClass}>최저가격</th>
+                    </React.Fragment>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {[0, 1, 2, 3, 4, 5, 6].map((rowIndex) => (
+                  <tr key={rowIndex}>
+                    {[0, 1, 2].map((colIndex) => {
+                      const partIndex = rowIndex + colIndex * 7;
+                      const part = parts[partIndex];
+                      
+                      if (!part) {
+                        return (
+                          <React.Fragment key={colIndex}>
+                            <td className={`${tdClass} text-gray-400`}>-</td>
+                            <td className={`${tdClass} text-gray-400`}>-</td>
+                            <td className={`${tdClass} text-gray-400`}>-</td>
+                            <td className={`${tdClass} text-gray-400`}>-</td>
+                          </React.Fragment>
+                        );
+                      }
+                      
+                      // 탭 순서: 세로로 이동 (같은 열 내에서 아래로)
+                      const localIndex = partIndex % 7;
+                      const colGroup = Math.floor(partIndex / 7);
+                      const weightTabIndex = colGroup * 14 + localIndex * 2 + 1;
+                      const priceTabIndex = colGroup * 14 + localIndex * 2 + 2;
+                      
+                      return (
+                        <React.Fragment key={colIndex}>
+                          <td className={`${tdClass} text-gray-600 whitespace-nowrap`}>{getListingNo(partIndex)}</td>
+                          <td className={`${tdClass} font-medium text-gray-900 bg-gray-50 whitespace-nowrap`}>{part.name}</td>
+                          <td className={tdClass}>
+                            <input
+                              type="number"
+                              value={part.weight}
+                              onChange={(e) => updatePart(part.id, 'weight', e.target.value)}
+                              placeholder="0.0"
+                              required
+                              step="0.1"
+                              tabIndex={weightTabIndex}
+                              className="w-16 px-1 py-1 border border-gray-200 rounded text-xs text-center outline-none bg-white"
+                            />
+                          </td>
+                          <td className={tdClass}>
+                            <input
+                              type="number"
+                              value={part.minPrice}
+                              onChange={(e) => updatePart(part.id, 'minPrice', e.target.value)}
+                              placeholder="0"
+                              required
+                              step="1000"
+                              tabIndex={priceTabIndex}
+                              className="w-20 px-1 py-1 border border-gray-200 rounded text-xs text-center outline-none bg-white"
+                            />
+                          </td>
+                        </React.Fragment>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                    종료 시간 <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <input
-                      type="time"
-                      value={endTime}
-                      onChange={(e) => setEndTime(e.target.value)}
-                      required
-                      className="w-full pl-10 pr-3 py-2.5 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* 개체 정보 */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">개체 정보</h2>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                    이력번호 <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={traceNo}
-                    onChange={(e) => setTraceNo(e.target.value)}
-                    placeholder="002-1486-7293-1"
-                    required
-                    className="w-full px-3 py-2.5 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                    품종 <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    value={type}
-                    onChange={(e) => setType(e.target.value)}
-                    required
-                    className="w-full px-3 py-2.5 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
-                  >
-                    <option value="">선택하세요</option>
-                    <option value="한우거세">한우거세</option>
-                    <option value="한우암">한우암</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                    등급 <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    value={grade}
-                    onChange={(e) => setGrade(e.target.value)}
-                    required
-                    className="w-full px-3 py-2.5 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
-                  >
-                    <option value="">선택하세요</option>
-                    <option value="1++A">1++A</option>
-                    <option value="1++B">1++B</option>
-                    <option value="1+A">1+A</option>
-                    <option value="1+B">1+B</option>
-                    <option value="1A">1A</option>
-                    <option value="1B">1B</option>
-                    <option value="2">2</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                    근내지방도 {grade.startsWith('1++') && <span className="text-red-500">*</span>}
-                  </label>
-                  <select
-                    value={marbling}
-                    onChange={(e) => setMarbling(e.target.value)}
-                    disabled={!grade.startsWith('1++')}
-                    className="w-full px-3 py-2.5 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white disabled:bg-gray-100 disabled:text-gray-400"
-                  >
-                    <option value="">선택하세요</option>
-                    <option value="9">9</option>
-                    <option value="8">8</option>
-                    <option value="7">7</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                    도체중량 <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="number"
-                      value={weight}
-                      onChange={(e) => setWeight(e.target.value)}
-                      placeholder="520"
-                      required
-                      className="w-full px-3 py-2.5 pr-12 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
-                    />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">kg</span>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                    월령 <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="number"
-                      value={monthAge}
-                      onChange={(e) => setMonthAge(e.target.value)}
-                      placeholder="30"
-                      required
-                      className="w-full px-3 py-2.5 pr-12 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
-                    />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">개월</span>
-                  </div>
-                </div>
-
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                    도축일 <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <input
-                      type="date"
-                      value={slaughterDate}
-                      onChange={(e) => setSlaughterDate(e.target.value)}
-                      required
-                      className="w-full pl-10 pr-3 py-2.5 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* 부위별 정보 */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-gray-900">부위별 정보</h2>
-                <button
-                  type="button"
-                  onClick={addPart}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                >
-                  <Plus className="w-4 h-4" />
-                  부위 추가
+        {/* 사진 업로드 + 버튼 */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            {images.map((img, index) => (
+              <div key={index} className="relative w-16 h-16 rounded border border-gray-200 overflow-hidden">
+                <img src={img} alt={`상품 ${index + 1}`} className="w-full h-full object-cover" />
+                <button type="button" onClick={() => removeImage(index)} className="absolute top-0.5 right-0.5 p-0.5 bg-black/50 rounded-full text-white hover:bg-black/70">
+                  <X className="w-3 h-3" />
                 </button>
               </div>
-
-              <div className="space-y-3">
-                {parts.map((part, index) => (
-                  <div key={part.id} className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg">
-                    <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-3">
-                      <select
-                        value={part.part}
-                        onChange={(e) => updatePart(part.id, 'part', e.target.value)}
-                        required
-                        className="px-3 py-2 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white bg-white"
-                      >
-                        <option value="">부위 선택</option>
-                        {partOptions.map(opt => (
-                          <option key={opt} value={opt}>{opt}</option>
-                        ))}
-                      </select>
-                      <div className="relative">
-                        <input
-                          type="number"
-                          value={part.weight}
-                          onChange={(e) => updatePart(part.id, 'weight', e.target.value)}
-                          placeholder="중량"
-                          required
-                          step="0.1"
-                          className="w-full px-3 py-2 pr-10 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
-                        />
-                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">kg</span>
-                      </div>
-                      <div className="relative">
-                        <input
-                          type="number"
-                          value={part.minPrice}
-                          onChange={(e) => updatePart(part.id, 'minPrice', e.target.value)}
-                          placeholder="최저단가"
-                          required
-                          className="w-full px-3 py-2 pr-10 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
-                        />
-                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">원</span>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => removePart(part.id)}
-                      disabled={parts.length === 1}
-                      className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
+            ))}
+            {images.length < 4 && (
+              <button type="button" onClick={handleImageUpload} className="w-16 h-16 rounded border-2 border-dashed border-gray-200 flex flex-col items-center justify-center text-gray-400 hover:border-red-400 hover:text-red-500 transition-colors">
+                <Upload className="w-4 h-4" />
+                <span className="text-[10px] mt-0.5">사진</span>
+              </button>
+            )}
           </div>
 
-          {/* 사이드바 (1/3) */}
-          <div className="space-y-6">
-            {/* 이미지 업로드 */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">상품 이미지</h2>
-              <div className="border-2 border-dashed border-gray-100 rounded-lg p-8 text-center">
-                <Upload className="w-10 h-10 text-gray-400 mx-auto mb-3" />
-                <p className="text-sm text-gray-500 mb-2">이미지를 드래그하거나</p>
-                <button
-                  type="button"
-                  className="text-sm text-red-600 hover:text-red-700 font-medium"
-                >
-                  파일 선택
-                </button>
-                <p className="text-xs text-gray-400 mt-2">PNG, JPG (최대 5MB)</p>
-              </div>
-            </div>
-
-            {/* 안내 */}
-            <div className="bg-blue-50 rounded-xl p-4">
-              <div className="flex gap-3">
-                <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                <div>
-                  <h3 className="text-sm font-medium text-blue-900">등록 안내</h3>
-                  <ul className="mt-2 text-sm text-blue-700 space-y-1">
-                    <li>• 이력번호는 축산물품질평가원에서 확인 가능합니다.</li>
-                    <li>• 1++등급은 근내지방도를 필수로 입력해주세요.</li>
-                    <li>• 부위별 최저단가는 원/kg 단위로 입력합니다.</li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-
-            {/* 액션 버튼 */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isSubmitting ? (
-                  <>
-                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    등록 중...
-                  </>
-                ) : (
-                  <>
-                    <Save className="w-5 h-5" />
-                    경매 등록
-                  </>
-                )}
-              </button>
-              <Link
-                href="/admin/auctions"
-                className="w-full mt-3 inline-flex items-center justify-center gap-2 px-4 py-3 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
-              >
-                취소
-              </Link>
-            </div>
+          <div className="flex items-center gap-3">
+            <button type="submit" disabled={isSubmitting} className="inline-flex items-center gap-2 px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium disabled:opacity-50">
+              {isSubmitting ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  등록 중...
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4" />
+                  상장 등록
+                </>
+              )}
+            </button>
           </div>
         </div>
       </form>

@@ -45,10 +45,10 @@ const menuItems = [
     href: '/admin/auctions',
     icon: Gavel,
     subItems: [
-      { title: '부분육상장조회', href: '/admin/auctions' },
-      { title: '부분육상장등록', href: '/admin/auctions/new' },
-      { title: '부분육경락내역', href: '/admin/auctions/bids' },
-      { title: '부분육낙찰현황', href: '/admin/auctions/results' },
+      { title: '부분육 상장 조회', href: '/admin/auctions' },
+      { title: '부분육 상장 등록', href: '/admin/auctions/new' },
+      { title: '부분육 경락 내역', href: '/admin/auctions/bids' },
+      { title: '부분육 낙찰율 조회', href: '/admin/auctions/results' },
     ],
   },
   {
