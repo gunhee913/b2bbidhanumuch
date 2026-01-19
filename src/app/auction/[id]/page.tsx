@@ -1190,12 +1190,17 @@ export default function AuctionDetailPage({ params }: PageProps) {
                           <th className="px-2 py-2.5 text-center font-bold text-gray-700">중량</th>
                           <th className="px-2 py-2.5 text-right font-bold text-gray-700">최고가</th>
                           <th className="px-2 py-2.5 text-right font-bold text-gray-700">나의 입찰가</th>
-                          <th className="px-2 py-2.5 text-center font-bold text-gray-700">순위</th>
                           <th className="px-2 py-2.5 text-center font-bold text-gray-700">액션</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {Object.entries(globalBids).map(([listingNo, bid]) => {
+                        {Object.entries(globalBids)
+                          .filter(([listingNo]) => {
+                            // 오늘 날짜의 경매분만 필터링 (상장번호 앞 6자리가 날짜)
+                            const todayDate = currentAuctionInfo.auctionNumber.split('-')[0]; // "250806"
+                            return listingNo.startsWith(todayDate);
+                          })
+                          .map(([listingNo, bid]) => {
                           const productInfo = bid.productInfo;
                           if (!productInfo) return null;
                           
@@ -1203,9 +1208,15 @@ export default function AuctionDetailPage({ params }: PageProps) {
                             <tr key={listingNo} className="border-b border-gray-100 hover:bg-gray-50">
                               {/* 상태 */}
                               <td className="px-2 py-2.5 text-center">
-                                <span className="inline-flex px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-bold rounded">
-                                  진행중
-                                </span>
+                                {bid.status === 'highest' ? (
+                                  <span className="inline-flex px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-bold rounded">
+                                    최고가격
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex px-1.5 py-0.5 bg-red-100 text-red-700 text-[10px] font-bold rounded">
+                                    차순위
+                                  </span>
+                                )}
                               </td>
                               {/* 일자 */}
                               <td className="px-2 py-2.5 text-center text-gray-600 text-[11px]">
@@ -1213,11 +1224,37 @@ export default function AuctionDetailPage({ params }: PageProps) {
                               </td>
                               {/* 상장번호 */}
                               <td className="px-2 py-2.5 text-left font-medium text-gray-900">
-                                {listingNo}
+                                <Link 
+                                  href={`/auction/${parseInt(listingNo.split('-')[1])}`}
+                                  className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
+                                >
+                                  {listingNo}
+                                </Link>
                               </td>
                               {/* 부위 */}
                               <td className="px-2 py-2.5 text-center text-gray-900">
-                                {productInfo.partName}
+                                <Link 
+                                  href={`/auction?tab=part&part=${
+                                    productInfo.partName.includes('등심') ? 'sirloin' :
+                                    productInfo.partName.includes('채끝') ? 'striploin' :
+                                    productInfo.partName.includes('목심') ? 'chuck' :
+                                    productInfo.partName.includes('앞다리') ? 'foreleg' :
+                                    productInfo.partName.includes('갈비') ? 'ribs' :
+                                    productInfo.partName.includes('설도') ? 'round' :
+                                    productInfo.partName.includes('양지') ? 'brisket' :
+                                    productInfo.partName.includes('우둔') ? 'rump' :
+                                    productInfo.partName.includes('사태') ? 'shank' :
+                                    productInfo.partName.includes('안심') ? 'tenderloin' :
+                                    productInfo.partName.includes('특수') ? 'special' :
+                                    productInfo.partName.includes('꼬리') ? 'tail' :
+                                    productInfo.partName.includes('족') ? 'feet' :
+                                    productInfo.partName.includes('사골') ? 'bone' :
+                                    productInfo.partName.includes('잡뼈') ? 'misc' : 'sirloin'
+                                  }`}
+                                  className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
+                                >
+                                  {productInfo.partName}
+                                </Link>
                               </td>
                               {/* 등급 */}
                               <td className="px-2 py-2.5 text-center text-gray-900" style={{ letterSpacing: '-0.05em' }}>
@@ -1234,18 +1271,6 @@ export default function AuctionDetailPage({ params }: PageProps) {
                               {/* 나의 입찰가 */}
                               <td className="px-2 py-2.5 text-right font-medium text-gray-900">
                                 {bid.myBid.toLocaleString()}원
-                              </td>
-                              {/* 순위 */}
-                              <td className="px-2 py-2.5 text-center">
-                                {bid.status === 'highest' ? (
-                                  <span className="inline-flex px-1.5 py-0.5 bg-blue-50 text-blue-700 text-[10px] font-bold rounded">
-                                    최고순위
-                                  </span>
-                                ) : (
-                                  <span className="inline-flex px-1.5 py-0.5 bg-red-50 text-red-700 text-[10px] font-bold rounded">
-                                    차순위
-                                  </span>
-                                )}
                               </td>
                               {/* 액션 */}
                               <td className="px-2 py-2.5 text-center">
