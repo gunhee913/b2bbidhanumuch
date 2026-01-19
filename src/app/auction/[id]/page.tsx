@@ -185,7 +185,8 @@ export default function AuctionDetailPage({ params }: PageProps) {
     }
 
     const now = new Date();
-    const timeString = `25.08.06.(수) ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+    const days = ['일', '월', '화', '수', '목', '금', '토'];
+    const timeString = `${String(now.getFullYear()).slice(2)}.${String(now.getMonth() + 1).padStart(2, '0')}.${String(now.getDate()).padStart(2, '0')}.(${days[now.getDay()]}) ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
     
     // 선택된 부위의 상장번호 가져오기
     const selectedPartData = partsData.find(p => p.part === selectedPart);
@@ -284,7 +285,8 @@ export default function AuctionDetailPage({ params }: PageProps) {
       prevBids.map(bid => {
         if (bid.id === selectedBid.id) {
           const now = new Date();
-          const timeString = `25.08.06.(수) ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+          const days = ['일', '월', '화', '수', '목', '금', '토'];
+          const timeString = `${String(now.getFullYear()).slice(2)}.${String(now.getMonth() + 1).padStart(2, '0')}.${String(now.getDate()).padStart(2, '0')}.(${days[now.getDay()]}) ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
           return {
             ...bid,
             price: finalPrice.toString(),
@@ -427,7 +429,7 @@ export default function AuctionDetailPage({ params }: PageProps) {
         weight: parts[0].weight,
         price: '83000',
         topBidPrice: 84000,
-        time: '25.08.06.(수) 09:23',
+        time: getTodayTimeFormatted(0, 30),
         status: 'active',
         breed: auctionInfo.breed,
         gender: auctionInfo.breed.includes('거세') ? '거세' : '암',
@@ -445,7 +447,7 @@ export default function AuctionDetailPage({ params }: PageProps) {
           weight: parts[4].weight,
           price: '111000',
           topBidPrice: 113000,
-          time: '25.08.06.(수) 09:45',
+          time: getTodayTimeFormatted(0, 20),
           status: 'active',
           breed: auctionInfo.breed,
           gender: auctionInfo.breed.includes('거세') ? '거세' : '암',
@@ -593,8 +595,11 @@ export default function AuctionDetailPage({ params }: PageProps) {
   // 테스트용 입찰 데이터 (차순위 포함)
   useEffect(() => {
     const dateCode = getTodayDateCode();
-    // 최고순위 데이터
-    if (!globalBids[`${dateCode}-001-0001`]) {
+    const todayPrefix = `${dateCode.slice(0, 2)}.${dateCode.slice(2, 4)}.${dateCode.slice(4, 6)}`; // "26.01.19"
+    
+    // 기존 데이터가 없거나 time이 오늘 날짜가 아니면 업데이트
+    const existingBid1 = globalBids[`${dateCode}-001-0001`];
+    if (!existingBid1 || !existingBid1.time.startsWith(todayPrefix)) {
       setBid(`${dateCode}-001-0001`, {
         myBid: 150000,
         highestBid: 150000,
@@ -610,8 +615,10 @@ export default function AuctionDetailPage({ params }: PageProps) {
         }
       });
     }
+    
     // 차순위 데이터
-    if (!globalBids[`${dateCode}-001-0002`]) {
+    const existingBid2 = globalBids[`${dateCode}-001-0002`];
+    if (!existingBid2 || !existingBid2.time.startsWith(todayPrefix)) {
       setBid(`${dateCode}-001-0002`, {
         myBid: 143000,
         highestBid: 148000,
@@ -627,7 +634,7 @@ export default function AuctionDetailPage({ params }: PageProps) {
         }
       });
     }
-  }, []);
+  }, [globalBids, setBid]);
 
   // 시간 포맷팅 함수
   const formatTime = (seconds: number) => {
