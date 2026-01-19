@@ -268,21 +268,21 @@ function DealersContent() {
           `}</style>
         
           {/* 모바일 메인 헤더 */}
-        <div className="flex-shrink-0 bg-white border-b border-gray-200 pt-1 md:pt-0">
-          <div className="px-2 md:px-4 py-2">
+        <div className="flex-shrink-0 bg-white border-b border-gray-200">
+          <div className="px-4 py-3">
             <div className="flex items-center justify-between">
               <Link href="/" className="flex items-center">
                 <img 
                   src="/Mainlogo.png" 
                   alt="HanuMuch" 
-                  className="h-8 w-auto"
+                  className="h-7 w-auto"
                 />
               </Link>
-              <div className="flex items-center space-x-3">
+              <div className="flex items-center">
                 <img 
                   src="/음성축산물공판장.png" 
                   alt="음성축산물공판장" 
-                  className="h-5 w-auto border border-gray-300 rounded px-1 py-0.5"
+                  className="h-5 w-auto border border-gray-300 rounded px-1.5 py-0.5 bg-gradient-to-br from-white to-gray-50 shadow-sm"
                 />
               </div>
             </div>

@@ -66,6 +66,7 @@ const GRADES: Grade[] = [
   { id: '1++', name: '1++' },
   { id: '1+', name: '1+' },
   { id: '1', name: '1' },
+  { id: '2', name: '2' },
 ];
 
 // 평균 유형 목록
@@ -117,6 +118,7 @@ const GRADE_MULTIPLIER: Record<string, number> = {
   '1++': 1.15,
   '1+': 1,
   '1': 0.85,
+  '2': 0.7,
 };
 
 // 일별 가격 생성 (내부 함수)
@@ -137,11 +139,12 @@ const generatePriceData = (
 ): PriceData[] => {
   const data: PriceData[] = [];
   const today = new Date();
+  const yesterday = subDays(today, 1); // 전일부터 시작 (오늘 제외)
   
   if (averageType === 'daily') {
-    // 일간 평균: 최근 30일 (평일만)
+    // 일간 평균: 최근 30일 (평일만, 전일부터)
     let dayCount = 0;
-    let daysBack = 0;
+    let daysBack = 1; // 전일부터 시작
     
     while (dayCount < 30) {
       const date = subDays(today, daysBack);
@@ -162,10 +165,10 @@ const generatePriceData = (
       dayCount++;
     }
   } else if (averageType === 'weekly') {
-    // 주간 평균: 최근 12주
+    // 주간 평균: 최근 12주 (전일까지)
     for (let i = 11; i >= 0; i--) {
-      const weekStart = startOfWeek(subWeeks(today, i), { weekStartsOn: 1 });
-      const weekEnd = endOfWeek(subWeeks(today, i), { weekStartsOn: 1 });
+      const weekStart = startOfWeek(subWeeks(yesterday, i), { weekStartsOn: 1 });
+      const weekEnd = endOfWeek(subWeeks(yesterday, i), { weekStartsOn: 1 });
       
       // 해당 주의 평일 가격들 평균
       let totalPrice = 0;
@@ -173,7 +176,7 @@ const generatePriceData = (
       
       for (let d = 0; d < 7; d++) {
         const date = subDays(weekEnd, d);
-        if (!isWeekend(date) && date <= today) {
+        if (!isWeekend(date) && date <= yesterday) {
           totalPrice += getDailyPrice(date, partId, gradeId);
           count++;
         }
@@ -192,17 +195,17 @@ const generatePriceData = (
       }
     }
   } else if (averageType === 'monthly') {
-    // 월간 평균: 최근 12개월
+    // 월간 평균: 최근 12개월 (전일까지)
     for (let i = 11; i >= 0; i--) {
-      const monthStart = startOfMonth(subMonths(today, i));
-      const monthEnd = endOfMonth(subMonths(today, i));
+      const monthStart = startOfMonth(subMonths(yesterday, i));
+      const monthEnd = endOfMonth(subMonths(yesterday, i));
       
       // 해당 월의 평일 가격들 평균
       let totalPrice = 0;
       let count = 0;
       let currentDate = monthStart;
       
-      while (currentDate <= monthEnd && currentDate <= today) {
+      while (currentDate <= monthEnd && currentDate <= yesterday) {
         if (!isWeekend(currentDate)) {
           totalPrice += getDailyPrice(currentDate, partId, gradeId);
           count++;
@@ -334,16 +337,22 @@ export default function MarketPage() {
 
   // 통계 계산
   const stats = useMemo(() => {
-    if (priceData.length < 2) return { today: 0, change: 0, changePercent: 0 };
-    
-    const today = priceData[priceData.length - 1].price;
-    const yesterday = priceData[priceData.length - 2].price;
-    const change = today - yesterday;
-    const changePercent = ((change / yesterday) * 100).toFixed(1);
+    if (priceData.length < 2) return { today: 0, change: 0, changePercent: 0, latestDate: '', latestFullDate: '' };
     
     const max = Math.max(...priceData.map(d => d.price));
     const min = Math.min(...priceData.map(d => d.price));
     const avg = Math.round(priceData.reduce((sum, d) => sum + d.price, 0) / priceData.length);
+    
+    // 차트의 마지막 데이터 (가장 최근 평일)
+    const latestData = priceData[priceData.length - 1];
+    const latestPrice = latestData.price;
+    const latestDate = latestData.displayDate;
+    const latestFullDate = latestData.fullDate;
+    
+    // 전일 대비 변동 계산
+    const previousPrice = priceData[priceData.length - 2].price;
+    const change = latestPrice - previousPrice;
+    const changePercent = ((change / previousPrice) * 100).toFixed(1);
     
     // Y축 ticks 계산 (1000원 단위, 동일 간격)
     const yMin = Math.floor(min / 1000) * 1000 - 1000;
@@ -353,7 +362,8 @@ export default function MarketPage() {
       yTicks.push(v);
     }
     
-    return { today, change, changePercent: parseFloat(changePercent), max, min, avg, yTicks, yMin, yMax };
+    // 상단에 표시되는 가격을 차트 마지막 데이터 가격과 동일하게, 날짜도 차트 마지막 데이터와 동일
+    return { today: latestPrice, change, changePercent: parseFloat(changePercent), max, min, avg: latestPrice, yTicks, yMin, yMax, latestDate, latestFullDate };
   }, [priceData]);
 
   // 차트 드래그 함수들
@@ -739,11 +749,7 @@ export default function MarketPage() {
                   {selectedPart.name} / {selectedGrade.name} / {
                     selectedAverageType.id === 'custom' && customDateRange.from && customDateRange.to
                       ? `${format(customDateRange.from, 'yy.M.d.', { locale: ko })} ~ ${format(customDateRange.to, 'yy.M.d.', { locale: ko })}`
-                      : selectedAverageType.unit === 'daily' 
-                        ? format(new Date(), 'yyyy.M.d.(EEE)', { locale: ko })
-                        : selectedAverageType.unit === 'weekly'
-                          ? `${format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yy.M.d.', { locale: ko })} ~ ${format(endOfWeek(new Date(), { weekStartsOn: 1 }), 'yy.M.d.', { locale: ko })}`
-                          : format(new Date(), 'yyyy년 M월', { locale: ko })
+                      : stats.latestFullDate || ''
                   }
                 </span>
               </div>
