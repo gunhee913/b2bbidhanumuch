@@ -936,6 +936,7 @@ function MainPageContent() {
                         <div className="relative mb-2">
                           <input
                             type="text"
+                            inputMode="numeric"
                             value={customBidPrice}
                             onChange={(e) => {
                               const value = e.target.value.replace(/[^0-9]/g, '');

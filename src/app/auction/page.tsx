@@ -1883,6 +1883,7 @@ function AuctionPageContent() {
                       <div className="flex items-center border border-gray-300 rounded-lg px-3 py-2.5 bg-white">
                         <input
                           type="text"
+                          inputMode="numeric"
                           value={partBidPrice > 0 ? partBidPrice.toLocaleString('ko-KR') : ''}
                           onChange={(e) => {
                             const value = e.target.value.replace(/,/g, '').replace(/[^0-9]/g, '');

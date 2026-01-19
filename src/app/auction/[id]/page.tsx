@@ -1416,6 +1416,7 @@ export default function AuctionDetailPage({ params }: PageProps) {
                       <div className="relative mb-2">
                         <input
                           type="text"
+                          inputMode="numeric"
                           value={bidPrice}
                           onChange={(e) => {
                             const formattedValue = formatNumber(e.target.value);
