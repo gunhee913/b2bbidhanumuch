@@ -1486,10 +1486,10 @@ function AuctionPageContent() {
                       
                       {/* 전체내역 버튼 */}
                       <div className="flex justify-end mb-2">
-                        <button className="flex items-center gap-0.5 text-xs font-medium text-gray-700 hover:text-gray-900 transition-colors">
+                        <Link href="/trade" className="flex items-center gap-0.5 text-xs font-medium text-gray-700 hover:text-gray-900 transition-colors">
                           전체내역
                           <ArrowRight className="h-3.5 w-3.5" />
-                        </button>
+                        </Link>
                       </div>
 
                       {/* 차순위 알림 & 빠른 재입찰 설정 */}
@@ -1561,18 +1561,29 @@ function AuctionPageContent() {
                               <tr className="bg-gray-50 border-b border-gray-200">
                                 <th className="px-2 py-2.5 text-center font-bold text-gray-700">상태</th>
                                 <th className="px-2 py-2.5 text-center font-bold text-gray-700">일자</th>
-                                <th className="px-2 py-2.5 text-left font-bold text-gray-700">상장번호</th>
+                                <th className="px-2 py-2.5 text-center font-bold text-gray-700">상장번호</th>
                                 <th className="px-2 py-2.5 text-center font-bold text-gray-700">부위</th>
                                 <th className="px-2 py-2.5 text-center font-bold text-gray-700">등급</th>
                                 <th className="px-2 py-2.5 text-center font-bold text-gray-700">중량</th>
-                                <th className="px-2 py-2.5 text-right font-bold text-gray-700">최고가</th>
-                                <th className="px-2 py-2.5 text-right font-bold text-gray-700">나의 입찰가</th>
+                                <th className="px-2 py-2.5 text-center font-bold text-gray-700">최고가</th>
+                                <th className="px-2 py-2.5 text-center font-bold text-gray-700">나의 입찰가</th>
                                 <th className="px-2 py-2.5 text-center font-bold text-gray-700">액션</th>
                               </tr>
                             </thead>
                             <tbody>
                               {Object.entries(globalBids)
                                 .filter(([listingNo]) => listingNo.startsWith(getTodayDateCode()))
+                                .sort(([, a], [, b]) => {
+                                  // 일자 기준 내림차순 정렬
+                                  const parseTime = (time: string) => {
+                                    const match = time.match(/(\d{2})\.(\d{2})\.(\d{2}).*?(\d{2}):(\d{2})/);
+                                    if (match) {
+                                      return new Date(2000 + parseInt(match[1]), parseInt(match[2]) - 1, parseInt(match[3]), parseInt(match[4]), parseInt(match[5])).getTime();
+                                    }
+                                    return 0;
+                                  };
+                                  return parseTime(b.time) - parseTime(a.time);
+                                })
                                 .map(([listingNo, bid]) => {
                                 const productInfo = bid.productInfo;
                                 if (!productInfo) return null;
@@ -1596,7 +1607,7 @@ function AuctionPageContent() {
                                       {bid.time}
                                     </td>
                                     {/* 상장번호 */}
-                                    <td className="px-2 py-2.5 text-left font-medium text-gray-900">
+                                    <td className="px-2 py-2.5 text-center font-medium text-gray-900">
                                       <Link 
                                         href={`/auction/${parseInt(listingNo.split('-')[1])}`}
                                         className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
@@ -1641,11 +1652,11 @@ function AuctionPageContent() {
                                       {productInfo.weight}
                                     </td>
                                     {/* 최고가 */}
-                                    <td className="px-2 py-2.5 text-right font-medium text-gray-900">
+                                    <td className="px-2 py-2.5 text-center font-medium text-gray-900">
                                       {bid.highestBid.toLocaleString()}원
                                     </td>
                                     {/* 나의 입찰가 */}
-                                    <td className="px-2 py-2.5 text-right font-medium text-gray-900">
+                                    <td className="px-2 py-2.5 text-center font-medium text-gray-900">
                                       {bid.myBid.toLocaleString()}원
                                     </td>
                                     {/* 액션 */}
@@ -1654,23 +1665,6 @@ function AuctionPageContent() {
                                         <span className="text-gray-400 text-[10px]">-</span>
                                       ) : (
                                         <div className="flex items-center justify-center gap-1">
-                                          <button
-                                            onClick={() => {
-                                              const newBidPrice = bid.highestBid + quickReBidAmount;
-                                              const now = new Date();
-                                              const timeStr = `${now.getFullYear().toString().slice(2)}.${String(now.getMonth() + 1).padStart(2, '0')}.${String(now.getDate()).padStart(2, '0')}.(${['일','월','화','수','목','금','토'][now.getDay()]}) ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-                                              setBid(listingNo, {
-                                                ...bid,
-                                                myBid: newBidPrice,
-                                                highestBid: newBidPrice,
-                                                status: 'highest',
-                                                time: timeStr
-                                              });
-                                            }}
-                                            className="px-2 py-1 bg-red-600 text-white text-[10px] font-bold rounded hover:bg-red-700 transition-colors"
-                                          >
-                                            +{quickReBidAmount >= 1000 ? `${(quickReBidAmount / 1000).toFixed(0)}천` : `${quickReBidAmount}원`}
-                                          </button>
                                           <button
                                             onClick={() => {
                                               if (productInfo) {
@@ -1682,9 +1676,9 @@ function AuctionPageContent() {
                                                 }
                                               }
                                             }}
-                                            className="px-2 py-1 bg-white text-red-600 text-[10px] font-bold rounded border border-red-600 hover:bg-red-50 transition-colors"
+                                            className="px-2 py-1 bg-red-600 text-white text-[10px] font-bold rounded hover:bg-red-700 transition-colors"
                                           >
-                                            직접
+                                            재입찰
                                           </button>
                                         </div>
                                       )}
@@ -1772,7 +1766,7 @@ function AuctionPageContent() {
                         onFocus={() => {
                           setTempQuickReBidAmount('');
                         }}
-                        placeholder="증액할 금액을 입력하세요 (100원 단위)"
+                        placeholder="증액할 금액을 입력하세요"
                         className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 bg-white text-gray-900"
                       />
                       <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">원</span>
@@ -1780,11 +1774,6 @@ function AuctionPageContent() {
                     <p className="text-xs text-gray-500 mt-2">
                       현재 최고가에 이 금액을 더해 빠른 재입찰합니다.
                     </p>
-                    {tempQuickReBidAmount && parseInt(tempQuickReBidAmount.replace(/,/g, '')) % 100 !== 0 && (
-                      <p className="text-xs text-red-600 mt-1">
-                        ⚠️ 100원 단위로 입력해주세요
-                      </p>
-                    )}
                   </div>
 
                   <div className="flex gap-2">
@@ -1890,7 +1879,6 @@ function AuctionPageContent() {
                     <div className="px-4 pb-4">
                       <div className="flex items-center justify-between mb-2">
                         <p className="text-sm text-gray-700">입찰가격 (원/kg)</p>
-                        <p className="text-xs text-gray-500">100원 단위</p>
                       </div>
                       <div className="flex items-center border border-gray-300 rounded-lg px-3 py-2.5 bg-white">
                         <input
@@ -1900,8 +1888,8 @@ function AuctionPageContent() {
                             const value = e.target.value.replace(/,/g, '').replace(/[^0-9]/g, '');
                             setPartBidPrice(value ? parseInt(value) : 0);
                           }}
-                          className="flex-1 text-right text-xl font-bold outline-none bg-transparent text-gray-900"
-                          placeholder="0"
+                          className="flex-1 text-right text-xl font-bold outline-none bg-transparent text-gray-900 placeholder:text-gray-400"
+                          placeholder={selectedProduct?.price ? `최저단가 ${selectedProduct.price.toLocaleString()}` : '0'}
                         />
                         <span className="ml-2 text-gray-500">원</span>
                       </div>

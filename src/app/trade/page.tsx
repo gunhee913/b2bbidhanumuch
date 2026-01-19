@@ -265,24 +265,33 @@ export default function TradePage() {
   const tradeItems: TradeItem[] = useMemo(() => {
     const items: TradeItem[] = [];
     
-    // 현재 진행 중인 입찰 내역
+    // 현재 진행 중인 입찰 내역 (globalBids에서 productInfo 사용)
     Object.entries(globalBids).forEach(([listingNo, bid]) => {
+      const productInfo = bid.productInfo;
       const partCode = listingNo.split('-')[2] || '0001';
-      const partInfo = partInfoMap[partCode] || { name: '등심(좌)', weight: 15.0 };
+      const fallbackPartInfo = partInfoMap[partCode] || { name: '등심(좌)', weight: 15.0 };
+      
+      // productInfo에서 weight 파싱 (예: "15.2kg" -> 15.2)
+      const weightStr = productInfo?.weight || `${fallbackPartInfo.weight}kg`;
+      const weightKg = parseFloat(weightStr.replace('kg', '')) || fallbackPartInfo.weight;
+      
+      // grade에서 성별 추출 (예: "한우거세" -> "거세", "한우암" -> "암")
+      const typeStr = productInfo?.type || '한우거세';
+      const gender = typeStr.includes('암') ? '암' : '거세';
       
       items.push({
         id: listingNo,
         status: 'ongoing',
         listingNo,
-        partName: partInfo.name,
-        weight: `${partInfo.weight}kg`,
-        weightKg: partInfo.weight,
+        partName: productInfo?.partName || fallbackPartInfo.name,
+        weight: weightStr,
+        weightKg: weightKg,
         myBid: bid.myBid,
         highestBid: bid.highestBid,
         bidTime: bid.time,
         traceNo: '002-1894-3853-9',
-        grade: '1++A(9)',
-        gender: '거세',
+        grade: productInfo?.grade || '1++A(9)',
+        gender: gender,
         monthAge: 30,
         processingCompany: '송정가공',
         slaughterDate: '2025.08.04.',
@@ -603,11 +612,21 @@ export default function TradePage() {
       return true;
     });
     
-    // 최신순 정렬 (bidTime 기준)
+    // 최신순 정렬 (listingNo 날짜 -> bidTime 순)
     return filtered.sort((a, b) => {
-      const dateA = parseBidTime(a.bidTime);
-      const dateB = parseBidTime(b.bidTime);
-      return dateB.getTime() - dateA.getTime();
+      // listingNo에서 날짜 추출 (YYMMDD-XXX-XXXX 형식)
+      const dateCodeA = a.listingNo.split('-')[0] || '000000';
+      const dateCodeB = b.listingNo.split('-')[0] || '000000';
+      
+      // 날짜 코드가 다르면 날짜로 정렬 (내림차순)
+      if (dateCodeA !== dateCodeB) {
+        return dateCodeB.localeCompare(dateCodeA);
+      }
+      
+      // 같은 날짜면 bidTime으로 정렬 (내림차순)
+      const timeA = parseBidTime(a.bidTime);
+      const timeB = parseBidTime(b.bidTime);
+      return timeB.getTime() - timeA.getTime();
     });
   }, [tradeItems, statusFilter, periodFilter, partFilter, debouncedSearchQuery, customDateRange]);
 
@@ -1113,7 +1132,7 @@ export default function TradePage() {
                       <div className="w-14 text-center flex-shrink-0">중량</div>
                       <div className="w-20 text-center flex-shrink-0">최고가격</div>
                       <div className="w-20 text-center flex-shrink-0">입찰가</div>
-                      <div className="w-24 text-center flex-shrink-0">경락대금</div>
+                      <div className="w-24 text-center flex-shrink-0">경락(입찰)대금</div>
                       <div className="w-20 text-center flex-shrink-0">거래처</div>
                     </div>
                   </div>
@@ -1184,7 +1203,7 @@ export default function TradePage() {
                             </div>
                           </div>
                           
-                          {/* 경락대금 */}
+                          {/* 경락(입찰)대금 */}
                           <div className="w-24 text-center flex-shrink-0">
                             <div className="text-[11px] font-semibold text-gray-900">
                               {totalPrice.toLocaleString()}
@@ -1561,12 +1580,18 @@ export default function TradePage() {
                         <div className="font-bold text-red-600">{selectedItem.myBid.toLocaleString()}원</div>
                       </div>
                     </div>
-                    {selectedItem.status === 'won' && (
-                      <div className="mt-2 pt-2 border-t border-gray-200">
-                        <div className="text-gray-500 text-[10px]">경락대금</div>
-                        <div className="font-bold text-base">{calculateTotalPrice(selectedItem).toLocaleString()}원</div>
-                      </div>
-                    )}
+                    {(() => {
+                      const todayCode = getTodayDateCode();
+                      const isToday = selectedItem.listingNo.startsWith(todayCode);
+                      const isWon = !isToday && selectedItem.myBid >= selectedItem.highestBid;
+                      
+                      return isWon ? (
+                        <div className="mt-2 pt-2 border-t border-gray-200">
+                          <div className="text-gray-500 text-[10px]">경락대금</div>
+                          <div className="font-bold text-base">{calculateTotalPrice(selectedItem).toLocaleString()}원</div>
+                        </div>
+                      ) : null;
+                    })()}
                   </div>
 
                   {/* 품질정보 */}

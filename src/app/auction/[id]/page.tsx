@@ -55,7 +55,7 @@ export default function AuctionDetailPage({ params }: PageProps) {
   const [remainingTime, setRemainingTime] = useState(60 * 60); // 60분 = 3600초
   const [selectedPart, setSelectedPart] = useState('');
   const [selectedWeight, setSelectedWeight] = useState('');
-  const [bidPrice, setBidPrice] = useState('0');
+  const [bidPrice, setBidPrice] = useState('');
   const [showBidDialog, setShowBidDialog] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
@@ -156,7 +156,7 @@ export default function AuctionDetailPage({ params }: PageProps) {
       showToastMessage('중량을 선택해주세요.');
       return;
     }
-    if (!bidPrice || bidPrice === '0') {
+    if (!bidPrice) {
       showToastMessage('입찰가격을 입력해주세요.');
       return;
     }
@@ -167,11 +167,6 @@ export default function AuctionDetailPage({ params }: PageProps) {
       return;
     }
     
-    // 100원 단위 체크
-    if (priceValue % 100 !== 0) {
-      showToastMessage('입찰가격은 100원 단위로 입력해주세요.');
-      return;
-    }
     
     // 최저단가 체크
     const minPrice = baseMinPrices[selectedPart] || 50000;
@@ -185,7 +180,7 @@ export default function AuctionDetailPage({ params }: PageProps) {
 
   // 입찰 추가 함수
   const addNewBid = () => {
-    if (!selectedPart || !selectedWeight || !bidPrice || bidPrice === '0') {
+    if (!selectedPart || !selectedWeight || !bidPrice) {
       return;
     }
 
@@ -283,10 +278,6 @@ export default function AuctionDetailPage({ params }: PageProps) {
       return;
     }
     
-    if (finalPrice % 100 !== 0) {
-      showToastMessage('입찰가격은 100원 단위로 입력해주세요.');
-      return;
-    }
     
     // 입찰 내역 업데이트
     setMyBids(prevBids => 
@@ -1075,6 +1066,8 @@ export default function AuctionDetailPage({ params }: PageProps) {
                                   setSelectedWeight(item.weight);
                                   if (item.marketHighestBid) {
                                     setBidPrice(formatNumber((item.marketHighestBid + quickReBidAmount).toString()));
+                                  } else {
+                                    setBidPrice('');
                                   }
                                   setShowBidSheet(true);
                                 }}
@@ -1111,10 +1104,10 @@ export default function AuctionDetailPage({ params }: PageProps) {
                 
                 {/* 전체내역 버튼 */}
                 <div className="flex justify-end mb-2">
-                  <button className="flex items-center gap-0.5 text-xs font-medium text-gray-700 hover:text-gray-900 transition-colors">
+                  <Link href="/trade" className="flex items-center gap-0.5 text-xs font-medium text-gray-700 hover:text-gray-900 transition-colors">
                     전체내역
                     <ArrowRight className="h-3.5 w-3.5" />
-                  </button>
+                  </Link>
                 </div>
 
                 {/* 차순위 알림 & 빠른 재입찰 설정 */}
@@ -1186,12 +1179,12 @@ export default function AuctionDetailPage({ params }: PageProps) {
                         <tr className="bg-gray-50 border-b border-gray-200">
                           <th className="px-2 py-2.5 text-center font-bold text-gray-700">상태</th>
                           <th className="px-2 py-2.5 text-center font-bold text-gray-700">일자</th>
-                          <th className="px-2 py-2.5 text-left font-bold text-gray-700">상장번호</th>
+                          <th className="px-2 py-2.5 text-center font-bold text-gray-700">상장번호</th>
                           <th className="px-2 py-2.5 text-center font-bold text-gray-700">부위</th>
                           <th className="px-2 py-2.5 text-center font-bold text-gray-700">등급</th>
                           <th className="px-2 py-2.5 text-center font-bold text-gray-700">중량</th>
-                          <th className="px-2 py-2.5 text-right font-bold text-gray-700">최고가</th>
-                          <th className="px-2 py-2.5 text-right font-bold text-gray-700">나의 입찰가</th>
+                          <th className="px-2 py-2.5 text-center font-bold text-gray-700">최고가</th>
+                          <th className="px-2 py-2.5 text-center font-bold text-gray-700">나의 입찰가</th>
                           <th className="px-2 py-2.5 text-center font-bold text-gray-700">액션</th>
                         </tr>
                       </thead>
@@ -1201,6 +1194,17 @@ export default function AuctionDetailPage({ params }: PageProps) {
                             // 오늘 날짜의 경매분만 필터링 (상장번호 앞 6자리가 날짜)
                             const todayDate = currentAuctionInfo.auctionNumber.split('-')[0]; // "250806"
                             return listingNo.startsWith(todayDate);
+                          })
+                          .sort(([, a], [, b]) => {
+                            // 일자 기준 내림차순 정렬
+                            const parseTime = (time: string) => {
+                              const match = time.match(/(\d{2})\.(\d{2})\.(\d{2}).*?(\d{2}):(\d{2})/);
+                              if (match) {
+                                return new Date(2000 + parseInt(match[1]), parseInt(match[2]) - 1, parseInt(match[3]), parseInt(match[4]), parseInt(match[5])).getTime();
+                              }
+                              return 0;
+                            };
+                            return parseTime(b.time) - parseTime(a.time);
                           })
                           .map(([listingNo, bid]) => {
                           const productInfo = bid.productInfo;
@@ -1225,7 +1229,7 @@ export default function AuctionDetailPage({ params }: PageProps) {
                                 {bid.time}
                               </td>
                               {/* 상장번호 */}
-                              <td className="px-2 py-2.5 text-left font-medium text-gray-900">
+                              <td className="px-2 py-2.5 text-center font-medium text-gray-900">
                                 <Link 
                                   href={`/auction/${parseInt(listingNo.split('-')[1])}`}
                                   className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
@@ -1267,11 +1271,11 @@ export default function AuctionDetailPage({ params }: PageProps) {
                                 {productInfo.weight}
                               </td>
                               {/* 최고가 */}
-                              <td className="px-2 py-2.5 text-right font-medium text-gray-900">
+                              <td className="px-2 py-2.5 text-center font-medium text-gray-900">
                                 {bid.highestBid.toLocaleString()}원
                               </td>
                               {/* 나의 입찰가 */}
-                              <td className="px-2 py-2.5 text-right font-medium text-gray-900">
+                              <td className="px-2 py-2.5 text-center font-medium text-gray-900">
                                 {bid.myBid.toLocaleString()}원
                               </td>
                               {/* 액션 */}
@@ -1279,38 +1283,19 @@ export default function AuctionDetailPage({ params }: PageProps) {
                                 {bid.status === 'highest' ? (
                                   <span className="text-gray-400 text-[10px]">-</span>
                                 ) : (
-                                  <div className="flex items-center justify-center gap-1">
-                                    <button
-                                      onClick={() => {
-                                        const newBidPrice = bid.highestBid + quickReBidAmount;
-                                        const now = new Date();
-                                        const timeStr = `${now.getFullYear().toString().slice(2)}.${String(now.getMonth() + 1).padStart(2, '0')}.${String(now.getDate()).padStart(2, '0')}.(${['일','월','화','수','목','금','토'][now.getDay()]}) ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-                                        setBid(listingNo, {
-                                          ...bid,
-                                          myBid: newBidPrice,
-                                          highestBid: newBidPrice,
-                                          status: 'highest',
-                                          time: timeStr
-                                        });
-                                      }}
-                                      className="px-2 py-1 bg-red-600 text-white text-[10px] font-bold rounded hover:bg-red-700 transition-colors"
-                                    >
-                                      +{quickReBidAmount >= 1000 ? `${(quickReBidAmount / 1000).toFixed(0)}천` : `${quickReBidAmount}원`}
-                                    </button>
-                                    <button
-                                      onClick={() => {
-                                        if (productInfo) {
-                                          setSelectedPart(productInfo.partName);
-                                          setSelectedWeight(productInfo.weight);
-                                          setBidPrice(formatNumber((bid.highestBid + quickReBidAmount).toString()));
-                                          setShowBidSheet(true);
-                                        }
-                                      }}
-                                      className="px-2 py-1 bg-white text-red-600 text-[10px] font-bold rounded border border-red-600 hover:bg-red-50 transition-colors"
-                                    >
-                                      직접
-                                    </button>
-                                  </div>
+                                  <button
+                                    onClick={() => {
+                                      if (productInfo) {
+                                        setSelectedPart(productInfo.partName);
+                                        setSelectedWeight(productInfo.weight);
+                                        setBidPrice(formatNumber((bid.highestBid + quickReBidAmount).toString()));
+                                        setShowBidSheet(true);
+                                      }
+                                    }}
+                                    className="px-2 py-1 bg-red-600 text-white text-[10px] font-bold rounded hover:bg-red-700 transition-colors"
+                                  >
+                                    재입찰
+                                  </button>
                                 )}
                               </td>
                             </tr>
@@ -1427,7 +1412,6 @@ export default function AuctionDetailPage({ params }: PageProps) {
                     <div>
                       <div className="flex items-center justify-between mb-1">
                         <div className="text-xs text-gray-500">입찰가격 (원/kg)</div>
-                        <div className="text-[10px] text-gray-400">100원 단위</div>
                       </div>
                       <div className="relative mb-2">
                         <input
@@ -1437,18 +1421,8 @@ export default function AuctionDetailPage({ params }: PageProps) {
                             const formattedValue = formatNumber(e.target.value);
                             setBidPrice(formattedValue);
                           }}
-                          onFocus={(e) => {
-                            if (e.target.value === '0') {
-                              setBidPrice('');
-                            }
-                          }}
-                          onBlur={(e) => {
-                            if (e.target.value === '') {
-                              setBidPrice('0');
-                            }
-                          }}
-                          placeholder="0"
-                          className="w-full px-3 py-3 pr-10 text-right text-xl font-bold border border-gray-200 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-white text-black placeholder:text-gray-300"
+                          placeholder={selectedPart ? `최저단가 ${(baseMinPrices[selectedPart] || 50000).toLocaleString()}` : '0'}
+                          className="w-full px-3 py-3 pr-10 text-right text-xl font-bold border border-gray-200 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-white text-black placeholder:text-gray-400"
                         />
                         <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-sm text-gray-400">
                           원
@@ -1460,7 +1434,7 @@ export default function AuctionDetailPage({ params }: PageProps) {
                           <button
                             key={amount}
                             onClick={() => {
-                              const currentPrice = bidPrice === '0' ? 0 : parseFloat(removeCommas(bidPrice));
+                              const currentPrice = bidPrice === '' ? 0 : parseFloat(removeCommas(bidPrice));
                               const newPrice = currentPrice + amount;
                               setBidPrice(formatNumber(newPrice.toString()));
                             }}
@@ -1470,7 +1444,7 @@ export default function AuctionDetailPage({ params }: PageProps) {
                           </button>
                         ))}
                         <button
-                          onClick={() => setBidPrice('0')}
+                          onClick={() => setBidPrice('')}
                           className="py-2.5 text-xs bg-gray-100 border border-gray-200 rounded-lg hover:bg-gray-200 text-gray-600 font-medium"
                         >
                           초기화
@@ -1484,7 +1458,7 @@ export default function AuctionDetailPage({ params }: PageProps) {
                         <span className="text-sm font-bold text-gray-700">총 입찰금액</span>
                         <span className="text-xl font-bold text-red-600">
                           {(() => {
-                            if (!bidPrice || !selectedWeight || bidPrice === '0') return '-';
+                            if (!bidPrice || !selectedWeight) return '-';
                             const price = parseFloat(removeCommas(bidPrice));
                             const weight = parseFloat(selectedWeight);
                             const total = Math.round(price * weight);
@@ -1500,7 +1474,7 @@ export default function AuctionDetailPage({ params }: PageProps) {
                         handleBidClick();
                         setShowBidSheet(false);
                       }}
-                      disabled={!bidPrice || bidPrice === '0' || !selectedPart}
+                      disabled={!bidPrice || !selectedPart}
                       className="w-full py-3.5 bg-red-600 hover:bg-red-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-bold text-base rounded-lg"
                     >
                       입찰하기
@@ -1552,7 +1526,7 @@ export default function AuctionDetailPage({ params }: PageProps) {
                           <span className="text-sm font-bold text-gray-900">총 입찰금액</span>
                           <span className="text-base font-bold text-red-600">
                             {(() => {
-                              if (!bidPrice || !selectedWeight || bidPrice === '0') return '-';
+                              if (!bidPrice || !selectedWeight) return '-';
                               const price = parseFloat(removeCommas(bidPrice));
                               const weight = parseFloat(selectedWeight);
                               const total = Math.round(price * weight);
@@ -1606,7 +1580,7 @@ export default function AuctionDetailPage({ params }: PageProps) {
                     onFocus={(e) => {
                       setTempQuickReBidAmount('');
                     }}
-                    placeholder="증액할 금액을 입력하세요 (100원 단위)"
+                    placeholder="증액할 금액을 입력하세요"
                     className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 bg-white text-gray-900"
                   />
                   <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">원</span>
@@ -1614,11 +1588,6 @@ export default function AuctionDetailPage({ params }: PageProps) {
                 <p className="text-xs text-gray-500 mt-2">
                   현재 최고가에 이 금액을 더해 빠른 재입찰합니다.
                 </p>
-                {tempQuickReBidAmount && parseInt(tempQuickReBidAmount.replace(/,/g, '')) % 100 !== 0 && (
-                  <p className="text-xs text-red-600 mt-1">
-                    ⚠️ 100원 단위로 입력해주세요
-                  </p>
-                )}
               </div>
 
               <div className="flex gap-2">
@@ -1668,7 +1637,7 @@ export default function AuctionDetailPage({ params }: PageProps) {
                 </div>
               ) : (
                 <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">재입찰가격 입력 (100원 단위)</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">재입찰가격 입력</label>
                   <div className="relative">
                     <input
                       type="tel"
@@ -1691,11 +1660,6 @@ export default function AuctionDetailPage({ params }: PageProps) {
                     <div className="text-sm text-gray-500 mt-2">
                       총 {(parseInt(customBidPrice.replace(/,/g, '')) * parseFloat(selectedBid.weight)).toLocaleString()}원
                     </div>
-                  )}
-                  {customBidPrice && parseInt(customBidPrice.replace(/,/g, '')) % 100 !== 0 && (
-                    <p className="text-xs text-red-600 mt-1">
-                      ⚠️ 100원 단위로 입력해주세요
-                    </p>
                   )}
                 </div>
               )}
