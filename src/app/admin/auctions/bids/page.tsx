@@ -93,7 +93,6 @@ export default function BidsHistoryPage() {
       {/* 페이지 헤더 */}
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">입찰 내역</h1>
-        <p className="text-gray-500 mt-1">전체 입찰 내역을 조회합니다.</p>
       </div>
 
       {/* 통계 카드 */}
@@ -128,7 +127,7 @@ export default function BidsHistoryPage() {
                 placeholder="입찰자, 상장번호, 입찰자ID로 검색..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none"
+                className="w-full pl-10 pr-4 py-2.5 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
               />
             </div>
           </div>
@@ -142,7 +141,7 @@ export default function BidsHistoryPage() {
                 type="date"
                 value={dateFilter}
                 onChange={(e) => setDateFilter(e.target.value)}
-                className="pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none text-sm"
+                className="pl-10 pr-4 py-2.5 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-sm"
               />
             </div>
 
@@ -150,7 +149,7 @@ export default function BidsHistoryPage() {
             <select
               value={companyFilter}
               onChange={(e) => setCompanyFilter(e.target.value)}
-              className="px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none text-sm"
+              className="px-4 py-2.5 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-sm"
             >
               <option value="all">전체 업체</option>
               {companies.map(company => (
@@ -162,7 +161,7 @@ export default function BidsHistoryPage() {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none text-sm"
+              className="px-4 py-2.5 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-sm"
             >
               <option value="all">전체 상태</option>
               <option value="highest">최고가</option>
@@ -170,7 +169,7 @@ export default function BidsHistoryPage() {
             </select>
 
             {/* 내보내기 */}
-            <button className="inline-flex items-center gap-2 px-4 py-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 text-sm font-medium text-gray-700">
+            <button className="inline-flex items-center gap-2 px-4 py-2.5 border border-gray-100 rounded-lg hover:bg-gray-50 text-sm font-medium text-gray-700 bg-white">
               <Download className="w-4 h-4" />
               내보내기
             </button>
@@ -269,7 +268,7 @@ export default function BidsHistoryPage() {
             <button
               onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
               disabled={currentPage === 1}
-              className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="p-2 border border-gray-100 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed bg-white"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
@@ -289,7 +288,7 @@ export default function BidsHistoryPage() {
             <button
               onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
               disabled={currentPage === totalPages}
-              className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="p-2 border border-gray-100 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed bg-white"
             >
               <ChevronRight className="w-4 h-4" />
             </button>

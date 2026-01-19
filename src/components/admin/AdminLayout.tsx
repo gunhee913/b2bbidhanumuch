@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -29,9 +29,15 @@ const menuItems = [
     title: '대시보드',
     href: '/admin',
     icon: LayoutDashboard,
+  },
+  {
+    title: '회원 관리',
+    href: '/admin/users',
+    icon: Users,
     subItems: [
-      { title: '관리자 대시보드', href: '/admin' },
-      { title: '상장사 대시보드', href: '/admin/company' },
+      { title: '중도매인 관리', href: '/admin/users/dealers' },
+      { title: '상장업체 관리', href: '/admin/users/companies' },
+      { title: '관리자 관리', href: '/admin/users/admins' },
     ],
   },
   {
@@ -39,28 +45,16 @@ const menuItems = [
     href: '/admin/auctions',
     icon: Gavel,
     subItems: [
-      { title: '경매 목록', href: '/admin/auctions' },
-      { title: '경매 등록', href: '/admin/auctions/new' },
-      { title: '입찰 내역', href: '/admin/auctions/bids' },
+      { title: '부분육상장조회', href: '/admin/auctions' },
+      { title: '부분육상장등록', href: '/admin/auctions/new' },
+      { title: '부분육경락내역', href: '/admin/auctions/bids' },
+      { title: '부분육낙찰현황', href: '/admin/auctions/results' },
     ],
   },
   {
-    title: '회원 관리',
-    href: '/admin/users',
-    icon: Users,
-    subItems: [
-      { title: '회원 목록', href: '/admin/users' },
-      { title: '중도매인', href: '/admin/users/dealers' },
-    ],
-  },
-  {
-    title: '업체 관리',
-    href: '/admin/companies',
+    title: '거래처 관리',
+    href: '/admin/partners',
     icon: Building2,
-    subItems: [
-      { title: '가공업체', href: '/admin/companies' },
-      { title: '거래처', href: '/admin/companies/partners' },
-    ],
   },
   {
     title: '시세 관리',
@@ -90,6 +84,25 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
+
+  // 현재 경로에 해당하는 메뉴를 자동으로 열기
+  useEffect(() => {
+    const openMenus: string[] = [];
+    menuItems.forEach(item => {
+      if (item.subItems) {
+        const isSubItemActive = item.subItems.some(subItem => pathname.startsWith(subItem.href));
+        if (isSubItemActive || pathname.startsWith(item.href)) {
+          openMenus.push(item.href);
+        }
+      }
+    });
+    if (openMenus.length > 0) {
+      setExpandedMenus(prev => {
+        const newMenus = [...new Set([...prev, ...openMenus])];
+        return newMenus;
+      });
+    }
+  }, [pathname]);
 
   const toggleMenu = (href: string) => {
     setExpandedMenus(prev =>
@@ -220,7 +233,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                 <Menu className="w-5 h-5" />
               </button>
               <div className="hidden md:block">
-                <h1 className="text-lg font-semibold text-gray-800">관리자 대시보드</h1>
+                <h1 className="text-lg font-semibold text-gray-800">관리자 페이지</h1>
               </div>
             </div>
 

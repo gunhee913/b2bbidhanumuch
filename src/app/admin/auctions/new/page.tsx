@@ -96,15 +96,7 @@ export default function NewAuctionPage() {
     <AdminLayout>
       {/* 페이지 헤더 */}
       <div className="mb-6">
-        <Link 
-          href="/admin/auctions" 
-          className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-3"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          경매 목록으로
-        </Link>
-        <h1 className="text-2xl font-bold text-gray-900">경매 등록</h1>
-        <p className="text-gray-500 mt-1">새로운 경매를 등록합니다.</p>
+        <h1 className="text-2xl font-bold text-gray-900">부분육상장등록</h1>
       </div>
 
       <form onSubmit={handleSubmit}>
@@ -124,7 +116,7 @@ export default function NewAuctionPage() {
                     value={company}
                     onChange={(e) => setCompany(e.target.value)}
                     required
-                    className="w-full px-3 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none"
+                    className="w-full px-3 py-2.5 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
                   >
                     <option value="">선택하세요</option>
                     <option value="건화">건화</option>
@@ -145,7 +137,7 @@ export default function NewAuctionPage() {
                       value={auctionDate}
                       onChange={(e) => setAuctionDate(e.target.value)}
                       required
-                      className="w-full pl-10 pr-3 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none"
+                      className="w-full pl-10 pr-3 py-2.5 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
                     />
                   </div>
                 </div>
@@ -161,7 +153,7 @@ export default function NewAuctionPage() {
                       value={startTime}
                       onChange={(e) => setStartTime(e.target.value)}
                       required
-                      className="w-full pl-10 pr-3 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none"
+                      className="w-full pl-10 pr-3 py-2.5 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
                     />
                   </div>
                 </div>
@@ -177,7 +169,7 @@ export default function NewAuctionPage() {
                       value={endTime}
                       onChange={(e) => setEndTime(e.target.value)}
                       required
-                      className="w-full pl-10 pr-3 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none"
+                      className="w-full pl-10 pr-3 py-2.5 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
                     />
                   </div>
                 </div>
@@ -199,7 +191,7 @@ export default function NewAuctionPage() {
                     onChange={(e) => setTraceNo(e.target.value)}
                     placeholder="002-1486-7293-1"
                     required
-                    className="w-full px-3 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none"
+                    className="w-full px-3 py-2.5 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
                   />
                 </div>
 
@@ -211,7 +203,7 @@ export default function NewAuctionPage() {
                     value={type}
                     onChange={(e) => setType(e.target.value)}
                     required
-                    className="w-full px-3 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none"
+                    className="w-full px-3 py-2.5 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
                   >
                     <option value="">선택하세요</option>
                     <option value="한우거세">한우거세</option>
@@ -227,7 +219,7 @@ export default function NewAuctionPage() {
                     value={grade}
                     onChange={(e) => setGrade(e.target.value)}
                     required
-                    className="w-full px-3 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none"
+                    className="w-full px-3 py-2.5 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
                   >
                     <option value="">선택하세요</option>
                     <option value="1++A">1++A</option>
@@ -248,7 +240,7 @@ export default function NewAuctionPage() {
                     value={marbling}
                     onChange={(e) => setMarbling(e.target.value)}
                     disabled={!grade.startsWith('1++')}
-                    className="w-full px-3 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none disabled:bg-gray-100 disabled:text-gray-400"
+                    className="w-full px-3 py-2.5 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white disabled:bg-gray-100 disabled:text-gray-400"
                   >
                     <option value="">선택하세요</option>
                     <option value="9">9</option>
@@ -268,7 +260,7 @@ export default function NewAuctionPage() {
                       onChange={(e) => setWeight(e.target.value)}
                       placeholder="520"
                       required
-                      className="w-full px-3 py-2.5 pr-12 border border-gray-200 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none"
+                      className="w-full px-3 py-2.5 pr-12 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
                     />
                     <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">kg</span>
                   </div>
@@ -285,7 +277,7 @@ export default function NewAuctionPage() {
                       onChange={(e) => setMonthAge(e.target.value)}
                       placeholder="30"
                       required
-                      className="w-full px-3 py-2.5 pr-12 border border-gray-200 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none"
+                      className="w-full px-3 py-2.5 pr-12 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
                     />
                     <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">개월</span>
                   </div>
@@ -302,7 +294,7 @@ export default function NewAuctionPage() {
                       value={slaughterDate}
                       onChange={(e) => setSlaughterDate(e.target.value)}
                       required
-                      className="w-full pl-10 pr-3 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none"
+                      className="w-full pl-10 pr-3 py-2.5 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
                     />
                   </div>
                 </div>
@@ -331,7 +323,7 @@ export default function NewAuctionPage() {
                         value={part.part}
                         onChange={(e) => updatePart(part.id, 'part', e.target.value)}
                         required
-                        className="px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
+                        className="px-3 py-2 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white bg-white"
                       >
                         <option value="">부위 선택</option>
                         {partOptions.map(opt => (
@@ -346,7 +338,7 @@ export default function NewAuctionPage() {
                           placeholder="중량"
                           required
                           step="0.1"
-                          className="w-full px-3 py-2 pr-10 border border-gray-200 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none"
+                          className="w-full px-3 py-2 pr-10 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
                         />
                         <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">kg</span>
                       </div>
@@ -357,7 +349,7 @@ export default function NewAuctionPage() {
                           onChange={(e) => updatePart(part.id, 'minPrice', e.target.value)}
                           placeholder="최저단가"
                           required
-                          className="w-full px-3 py-2 pr-10 border border-gray-200 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none"
+                          className="w-full px-3 py-2 pr-10 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
                         />
                         <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">원</span>
                       </div>
@@ -381,7 +373,7 @@ export default function NewAuctionPage() {
             {/* 이미지 업로드 */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">상품 이미지</h2>
-              <div className="border-2 border-dashed border-gray-200 rounded-lg p-8 text-center">
+              <div className="border-2 border-dashed border-gray-100 rounded-lg p-8 text-center">
                 <Upload className="w-10 h-10 text-gray-400 mx-auto mb-3" />
                 <p className="text-sm text-gray-500 mb-2">이미지를 드래그하거나</p>
                 <button

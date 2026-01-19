@@ -4,75 +4,171 @@ import React, { useState } from 'react';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { 
   Search, 
-  Filter, 
-  Plus, 
-  MoreHorizontal, 
-  Eye, 
-  Edit, 
-  Trash2,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
   Download,
   Calendar,
-  CheckCircle,
-  Clock,
-  XCircle,
-  AlertCircle
 } from 'lucide-react';
-import Link from 'next/link';
+
+// 부위 데이터
+const PARTS_DATA = [
+  { id: 1, name: '등심(좌)', weight: '15.2kg', minPrice: 85000, bidPrice: 92000 },
+  { id: 2, name: '등심(우)', weight: '15.3kg', minPrice: 85000, bidPrice: 89000 },
+  { id: 3, name: '안심', weight: '4.5kg', minPrice: 95000, bidPrice: 125000 },
+  { id: 4, name: '채끝', weight: '8.2kg', minPrice: 82000, bidPrice: null },
+  { id: 5, name: '갈비(좌)', weight: '12.8kg', minPrice: 78000, bidPrice: 85000 },
+  { id: 6, name: '갈비(우)', weight: '12.0kg', minPrice: 78000, bidPrice: null },
+  { id: 7, name: '특수부위', weight: '3.2kg', minPrice: 72000, bidPrice: 78000 },
+  { id: 8, name: '설도(좌)', weight: '16.5kg', minPrice: 56000, bidPrice: 62000 },
+  { id: 9, name: '설도(우)', weight: '16.8kg', minPrice: 56000, bidPrice: null },
+  { id: 10, name: '앞다리', weight: '25.4kg', minPrice: 55000, bidPrice: 58000 },
+  { id: 11, name: '우둔', weight: '21.7kg', minPrice: 58000, bidPrice: 65000 },
+  { id: 12, name: '목심', weight: '14.0kg', minPrice: 62000, bidPrice: null },
+  { id: 13, name: '양지(좌)', weight: '12.2kg', minPrice: 52000, bidPrice: 56000 },
+  { id: 14, name: '양지(우)', weight: '12.4kg', minPrice: 52000, bidPrice: 55000 },
+  { id: 15, name: '사태', weight: '15.1kg', minPrice: 48000, bidPrice: null },
+  { id: 16, name: '꼬리', weight: '16.2kg', minPrice: 35000, bidPrice: 42000 },
+  { id: 17, name: '족', weight: '10.9kg', minPrice: 25000, bidPrice: 28000 },
+  { id: 18, name: '사골', weight: '3.1kg', minPrice: 20000, bidPrice: null },
+  { id: 19, name: '잡뼈', weight: '21.5kg', minPrice: 15000, bidPrice: 18000 },
+];
 
 // 경매 데이터 타입
 interface Auction {
   id: string;
   auctionNo: string;
-  listingNo: string;
-  company: string;
+  breed: string;
+  gender: string;
   grade: string;
-  type: string;
-  weight: string;
-  minPrice: number;
-  currentBid: number;
-  bidCount: number;
-  status: 'pending' | 'active' | 'completed' | 'cancelled';
-  createdAt: string;
-  endTime: string;
+  monthAge: number;
+  backFat: number;
+  eyeMuscle: number;
+  meatColor: number;
+  fatColor: number;
+  texture: number;
+  maturity: number;
+  traceNo: string;
+  slaughterHouse: string;
+  slaughterDate: string;
+  slaughterNo: string;
+  carcassWeight: number;
+  company: string;
+  processDate: string;
+  processWeight: number;
 }
 
 // 더미 데이터
 const dummyAuctions: Auction[] = [
-  { id: '1', auctionNo: '260119-001', listingNo: '260119-001-0001', company: '건화', grade: '1++A(9)', type: '한우거세', weight: '520kg', minPrice: 85000, currentBid: 152000, bidCount: 5, status: 'active', createdAt: '2026-01-19 09:00', endTime: '2026-01-19 15:00' },
-  { id: '2', auctionNo: '260119-001', listingNo: '260119-001-0002', company: '건화', grade: '1+A', type: '한우거세', weight: '498kg', minPrice: 80000, currentBid: 138000, bidCount: 3, status: 'active', createdAt: '2026-01-19 09:00', endTime: '2026-01-19 15:00' },
-  { id: '3', auctionNo: '260119-001', listingNo: '260119-001-0003', company: '건화', grade: '1+B', type: '한우암', weight: '465kg', minPrice: 78000, currentBid: 0, bidCount: 0, status: 'pending', createdAt: '2026-01-19 09:00', endTime: '2026-01-19 15:00' },
-  { id: '4', auctionNo: '260119-002', listingNo: '260119-002-0001', company: '대진엠에스', grade: '1++B(8)', type: '한우거세', weight: '512kg', minPrice: 83000, currentBid: 148000, bidCount: 7, status: 'active', createdAt: '2026-01-19 09:00', endTime: '2026-01-19 15:00' },
-  { id: '5', auctionNo: '260119-002', listingNo: '260119-002-0002', company: '대진엠에스', grade: '1+A', type: '한우거세', weight: '488kg', minPrice: 80000, currentBid: 142000, bidCount: 4, status: 'completed', createdAt: '2026-01-19 09:00', endTime: '2026-01-19 15:00' },
-  { id: '6', auctionNo: '260119-002', listingNo: '260119-002-0003', company: '대진엠에스', grade: '1++A(7)', type: '한우암', weight: '478kg', minPrice: 82000, currentBid: 145000, bidCount: 6, status: 'active', createdAt: '2026-01-19 09:00', endTime: '2026-01-19 15:00' },
-  { id: '7', auctionNo: '260119-002', listingNo: '260119-002-0004', company: '대진엠에스', grade: '1+B', type: '한우암', weight: '455kg', minPrice: 76000, currentBid: 0, bidCount: 0, status: 'pending', createdAt: '2026-01-19 09:00', endTime: '2026-01-19 15:00' },
-  { id: '8', auctionNo: '260119-003', listingNo: '260119-003-0001', company: '안심엘피씨', grade: '1+A', type: '한우거세', weight: '502kg', minPrice: 80000, currentBid: 140000, bidCount: 5, status: 'active', createdAt: '2026-01-19 09:00', endTime: '2026-01-19 15:00' },
-  { id: '9', auctionNo: '260118-001', listingNo: '260118-001-0001', company: '건화', grade: '1++A(9)', type: '한우거세', weight: '515kg', minPrice: 85000, currentBid: 155000, bidCount: 8, status: 'completed', createdAt: '2026-01-18 09:00', endTime: '2026-01-18 15:00' },
-  { id: '10', auctionNo: '260118-001', listingNo: '260118-001-0002', company: '건화', grade: '1+A', type: '한우암', weight: '462kg', minPrice: 78000, currentBid: 0, bidCount: 0, status: 'cancelled', createdAt: '2026-01-18 09:00', endTime: '2026-01-18 15:00' },
+  { 
+    id: '1', 
+    auctionNo: '260119-101', 
+    breed: '한우', 
+    gender: '거세', 
+    grade: '1++A(9)', 
+    monthAge: 32,
+    backFat: 15, 
+    eyeMuscle: 98, 
+    meatColor: 5, 
+    fatColor: 3, 
+    texture: 1, 
+    maturity: 2, 
+    traceNo: '1486-7293-1',
+    slaughterHouse: '음성',
+    slaughterDate: '2026.01.16',
+    slaughterNo: '201',
+    carcassWeight: 520, 
+    company: '건화',
+    processDate: '2026.01.17',
+    processWeight: 312,
+  },
+  { 
+    id: '2', 
+    auctionNo: '260119-201', 
+    breed: '한우', 
+    gender: '암', 
+    grade: '1+A', 
+    monthAge: 30,
+    backFat: 12, 
+    eyeMuscle: 92, 
+    meatColor: 5, 
+    fatColor: 3, 
+    texture: 1, 
+    maturity: 2, 
+    traceNo: '1523-8842-3',
+    slaughterHouse: '음성',
+    slaughterDate: '2026.01.16',
+    slaughterNo: '202',
+    carcassWeight: 485, 
+    company: '대진엠에스',
+    processDate: '2026.01.17',
+    processWeight: 291,
+  },
+  { 
+    id: '3', 
+    auctionNo: '260119-301', 
+    breed: '한우', 
+    gender: '거세', 
+    grade: '1++B(8)', 
+    monthAge: 34,
+    backFat: 14, 
+    eyeMuscle: 95, 
+    meatColor: 5, 
+    fatColor: 3, 
+    texture: 1, 
+    maturity: 2, 
+    traceNo: '1498-6521-7',
+    slaughterHouse: '음성',
+    slaughterDate: '2026.01.16',
+    slaughterNo: '203',
+    carcassWeight: 512, 
+    company: '안심엘피씨',
+    processDate: '2026.01.17',
+    processWeight: 307,
+  },
+  { 
+    id: '4', 
+    auctionNo: '260119-401', 
+    breed: '한우', 
+    gender: '암', 
+    grade: '1+B', 
+    monthAge: 28,
+    backFat: 11, 
+    eyeMuscle: 88, 
+    meatColor: 5, 
+    fatColor: 3, 
+    texture: 1, 
+    maturity: 2, 
+    traceNo: '1512-9934-2',
+    slaughterHouse: '음성',
+    slaughterDate: '2026.01.16',
+    slaughterNo: '204',
+    carcassWeight: 468, 
+    company: '정직한고기',
+    processDate: '2026.01.17',
+    processWeight: 281,
+  },
 ];
 
 export default function AuctionsListPage() {
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
   const [companyFilter, setCompanyFilter] = useState<string>('all');
   const [dateFilter, setDateFilter] = useState<string>('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [selectedAuctions, setSelectedAuctions] = useState<string[]>([]);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const itemsPerPage = 10;
 
   // 필터링된 데이터
   const filteredAuctions = dummyAuctions.filter(auction => {
     const matchesSearch = 
-      auction.listingNo.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      auction.auctionNo.toLowerCase().includes(searchQuery.toLowerCase()) ||
       auction.company.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      auction.grade.toLowerCase().includes(searchQuery.toLowerCase());
+      auction.traceNo.toLowerCase().includes(searchQuery.toLowerCase());
     
-    const matchesStatus = statusFilter === 'all' || auction.status === statusFilter;
     const matchesCompany = companyFilter === 'all' || auction.company === companyFilter;
-    const matchesDate = !dateFilter || auction.createdAt.startsWith(dateFilter);
     
-    return matchesSearch && matchesStatus && matchesCompany && matchesDate;
+    return matchesSearch && matchesCompany;
   });
 
   // 페이지네이션
@@ -82,58 +178,24 @@ export default function AuctionsListPage() {
     currentPage * itemsPerPage
   );
 
-  // 상태 배지
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'active':
-        return <span className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-700"><Clock className="w-3 h-3" />진행중</span>;
-      case 'completed':
-        return <span className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-full bg-green-100 text-green-700"><CheckCircle className="w-3 h-3" />완료</span>;
-      case 'pending':
-        return <span className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-full bg-yellow-100 text-yellow-700"><AlertCircle className="w-3 h-3" />대기</span>;
-      case 'cancelled':
-        return <span className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-full bg-red-100 text-red-700"><XCircle className="w-3 h-3" />취소</span>;
-      default:
-        return null;
-    }
-  };
-
-  // 전체 선택
-  const handleSelectAll = () => {
-    if (selectedAuctions.length === paginatedAuctions.length) {
-      setSelectedAuctions([]);
-    } else {
-      setSelectedAuctions(paginatedAuctions.map(a => a.id));
-    }
-  };
-
-  // 개별 선택
-  const handleSelectOne = (id: string) => {
-    if (selectedAuctions.includes(id)) {
-      setSelectedAuctions(selectedAuctions.filter(a => a !== id));
-    } else {
-      setSelectedAuctions([...selectedAuctions, id]);
-    }
-  };
-
   // 고유 업체 목록
   const companies = [...new Set(dummyAuctions.map(a => a.company))];
+
+  // 행 확장/축소
+  const toggleExpand = (id: string) => {
+    setExpandedId(expandedId === id ? null : id);
+  };
+
+  // 상장번호 생성
+  const generateListingNo = (auctionNo: string, partIndex: number) => {
+    return `${auctionNo.replace('-', '')}-${String(partIndex + 1).padStart(4, '0')}`;
+  };
 
   return (
     <AdminLayout>
       {/* 페이지 헤더 */}
       <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">경매 목록</h1>
-          <p className="text-gray-500 mt-1">등록된 경매를 관리합니다.</p>
-        </div>
-        <Link
-          href="/admin/auctions/new"
-          className="inline-flex items-center gap-2 px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
-        >
-          <Plus className="w-5 h-5" />
-          경매 등록
-        </Link>
+        <h1 className="text-2xl font-bold text-gray-900">오늘의 경매 상장 내역</h1>
       </div>
 
       {/* 필터 및 검색 */}
@@ -145,10 +207,10 @@ export default function AuctionsListPage() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
                 type="text"
-                placeholder="상장번호, 업체명, 등급으로 검색..."
+                placeholder="접수번호, 업체명, 이력번호로 검색..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none"
+                className="w-full pl-10 pr-4 py-2.5 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
               />
             </div>
           </div>
@@ -162,28 +224,15 @@ export default function AuctionsListPage() {
                 type="date"
                 value={dateFilter}
                 onChange={(e) => setDateFilter(e.target.value)}
-                className="pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none text-sm"
+                className="pl-10 pr-4 py-2.5 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-sm"
               />
             </div>
-
-            {/* 상태 필터 */}
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none text-sm"
-            >
-              <option value="all">전체 상태</option>
-              <option value="pending">대기</option>
-              <option value="active">진행중</option>
-              <option value="completed">완료</option>
-              <option value="cancelled">취소</option>
-            </select>
 
             {/* 업체 필터 */}
             <select
               value={companyFilter}
               onChange={(e) => setCompanyFilter(e.target.value)}
-              className="px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none text-sm"
+              className="px-4 py-2.5 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-sm"
             >
               <option value="all">전체 업체</option>
               {companies.map(company => (
@@ -192,21 +241,12 @@ export default function AuctionsListPage() {
             </select>
 
             {/* 내보내기 */}
-            <button className="inline-flex items-center gap-2 px-4 py-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 text-sm font-medium text-gray-700">
+            <button className="inline-flex items-center gap-2 px-4 py-2.5 border border-gray-100 rounded-lg hover:bg-gray-50 text-sm font-medium text-gray-700 bg-white">
               <Download className="w-4 h-4" />
               내보내기
             </button>
           </div>
         </div>
-
-        {/* 선택된 항목 액션 */}
-        {selectedAuctions.length > 0 && (
-          <div className="mt-4 pt-4 border-t border-gray-100 flex items-center gap-4">
-            <span className="text-sm text-gray-600">{selectedAuctions.length}개 선택됨</span>
-            <button className="text-sm text-red-600 hover:text-red-700 font-medium">일괄 삭제</button>
-            <button className="text-sm text-blue-600 hover:text-blue-700 font-medium">상태 변경</button>
-          </div>
-        )}
       </div>
 
       {/* 테이블 */}
@@ -215,75 +255,120 @@ export default function AuctionsListPage() {
           <table className="w-full">
             <thead className="bg-gray-50 border-b border-gray-100">
               <tr>
-                <th className="px-4 py-3 text-left">
-                  <input
-                    type="checkbox"
-                    checked={selectedAuctions.length === paginatedAuctions.length && paginatedAuctions.length > 0}
-                    onChange={handleSelectAll}
-                    className="w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500"
-                  />
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">상장번호</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">업체</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">등급</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">품종</th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">최저가</th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">현재가</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">입찰수</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">상태</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">액션</th>
+                <th className="w-10 px-2 py-3"></th>
+                <th className="px-3 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">접수번호</th>
+                <th className="px-3 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">축종</th>
+                <th className="px-3 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">성별</th>
+                <th className="px-3 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">등급</th>
+                <th className="px-3 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">개월령</th>
+                <th className="px-3 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">등지방</th>
+                <th className="px-3 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">등심면적</th>
+                <th className="px-3 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">육색</th>
+                <th className="px-3 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">지방색</th>
+                <th className="px-3 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">조직감</th>
+                <th className="px-3 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">성숙도</th>
+                <th className="px-3 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">이력번호</th>
+                <th className="px-3 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">도축장</th>
+                <th className="px-3 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">도축일</th>
+                <th className="px-3 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">도축번호</th>
+                <th className="px-3 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">도체중</th>
+                <th className="px-3 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">가공업체</th>
+                <th className="px-3 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">가공일</th>
+                <th className="px-3 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">가공중량</th>
+                <th className="px-3 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">사진</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {paginatedAuctions.map((auction) => (
-                <tr key={auction.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-4 py-4">
-                    <input
-                      type="checkbox"
-                      checked={selectedAuctions.includes(auction.id)}
-                      onChange={() => handleSelectOne(auction.id)}
-                      className="w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500"
-                    />
-                  </td>
-                  <td className="px-4 py-4">
-                    <Link href={`/admin/auctions/${auction.id}`} className="text-sm font-medium text-blue-600 hover:text-blue-700">
-                      {auction.listingNo}
-                    </Link>
-                  </td>
-                  <td className="px-4 py-4 text-sm text-gray-600">{auction.company}</td>
-                  <td className="px-4 py-4 text-sm font-medium text-gray-900">{auction.grade}</td>
-                  <td className="px-4 py-4 text-sm text-gray-600">{auction.type}</td>
-                  <td className="px-4 py-4 text-sm text-gray-600 text-right">{auction.minPrice.toLocaleString()}원</td>
-                  <td className="px-4 py-4 text-sm font-medium text-gray-900 text-right">
-                    {auction.currentBid > 0 ? `${auction.currentBid.toLocaleString()}원` : '-'}
-                  </td>
-                  <td className="px-4 py-4 text-sm text-gray-900 text-center">{auction.bidCount}건</td>
-                  <td className="px-4 py-4 text-center">{getStatusBadge(auction.status)}</td>
-                  <td className="px-4 py-4">
-                    <div className="flex items-center justify-center gap-1">
-                      <Link
-                        href={`/admin/auctions/${auction.id}`}
-                        className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                        title="상세보기"
+                <React.Fragment key={auction.id}>
+                  <tr 
+                    className="hover:bg-gray-50 transition-colors cursor-pointer"
+                    onClick={() => toggleExpand(auction.id)}
+                  >
+                    <td className="px-2 py-4 text-center">
+                      {expandedId === auction.id ? (
+                        <ChevronUp className="w-4 h-4 text-gray-400 mx-auto" />
+                      ) : (
+                        <ChevronDown className="w-4 h-4 text-gray-400 mx-auto" />
+                      )}
+                    </td>
+                    <td className="px-3 py-4 text-sm font-medium text-gray-900 text-center">{auction.auctionNo}</td>
+                    <td className="px-3 py-4 text-sm text-gray-600 text-center">{auction.breed}</td>
+                    <td className="px-3 py-4 text-sm text-gray-600 text-center">{auction.gender}</td>
+                    <td className="px-3 py-4 text-sm font-medium text-gray-900 text-center">{auction.grade}</td>
+                    <td className="px-3 py-4 text-sm text-gray-600 text-center">{auction.monthAge}</td>
+                    <td className="px-3 py-4 text-sm text-gray-600 text-center">{auction.backFat}</td>
+                    <td className="px-3 py-4 text-sm text-gray-600 text-center">{auction.eyeMuscle}</td>
+                    <td className="px-3 py-4 text-sm text-gray-600 text-center">{auction.meatColor}</td>
+                    <td className="px-3 py-4 text-sm text-gray-600 text-center">{auction.fatColor}</td>
+                    <td className="px-3 py-4 text-sm text-gray-600 text-center">{auction.texture}</td>
+                    <td className="px-3 py-4 text-sm text-gray-600 text-center">{auction.maturity}</td>
+                    <td className="px-3 py-4 text-sm text-gray-600 text-center">{auction.traceNo}</td>
+                    <td className="px-3 py-4 text-sm text-gray-600 text-center">{auction.slaughterHouse}</td>
+                    <td className="px-3 py-4 text-sm text-gray-600 text-center">{auction.slaughterDate}</td>
+                    <td className="px-3 py-4 text-sm text-gray-600 text-center">{auction.slaughterNo}</td>
+                    <td className="px-3 py-4 text-sm text-gray-600 text-center">{auction.carcassWeight}</td>
+                    <td className="px-3 py-4 text-sm text-gray-600 text-center">{auction.company}</td>
+                    <td className="px-3 py-4 text-sm text-gray-600 text-center">{auction.processDate}</td>
+                    <td className="px-3 py-4 text-sm text-gray-600 text-center">{auction.processWeight}</td>
+                    <td className="px-3 py-4 text-center">
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); }}
+                        className="px-3 py-1 text-xs font-medium text-white bg-blue-500 rounded hover:bg-blue-600 transition-colors"
                       >
-                        <Eye className="w-4 h-4" />
-                      </Link>
-                      <Link
-                        href={`/admin/auctions/${auction.id}/edit`}
-                        className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
-                        title="수정"
-                      >
-                        <Edit className="w-4 h-4" />
-                      </Link>
-                      <button
-                        className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
-                        title="삭제"
-                      >
-                        <Trash2 className="w-4 h-4" />
+                        보기
                       </button>
-                    </div>
-                  </td>
-                </tr>
+                    </td>
+                  </tr>
+                  {/* 확장된 부위 테이블 */}
+                  {expandedId === auction.id && (
+                    <tr>
+                      <td colSpan={21} className="px-4 py-4 bg-gray-50">
+                        <div className="grid grid-cols-3 gap-4">
+                          {/* 3열로 부위 데이터 표시 */}
+                          {[0, 1, 2].map((colIndex) => (
+                            <table key={colIndex} className="w-full bg-white border border-gray-200">
+                              <thead className="bg-gray-100">
+                                <tr>
+                                  <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 border-r border-gray-200">상장번호</th>
+                                  <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 border-r border-gray-200">부위</th>
+                                  <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 border-r border-gray-200">중량</th>
+                                  <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 border-r border-gray-200">최저가격</th>
+                                  <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600">낙찰가격</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {PARTS_DATA.slice(colIndex * 7, colIndex * 7 + 7).map((part, idx) => {
+                                  const globalIdx = colIndex * 7 + idx;
+                                  if (globalIdx >= 19) return null;
+                                  return (
+                                    <tr key={part.id} className="border-t border-gray-100">
+                                      <td className="px-2 py-2 text-xs text-gray-600 text-center border-r border-gray-200">
+                                        {generateListingNo(auction.auctionNo, globalIdx)}
+                                      </td>
+                                      <td className="px-2 py-2 text-xs text-gray-900 text-center border-r border-gray-200">{part.name}</td>
+                                      <td className="px-2 py-2 text-xs text-gray-600 text-center border-r border-gray-200">{part.weight}</td>
+                                      <td className="px-2 py-2 text-xs text-gray-600 text-center border-r border-gray-200">
+                                        {part.minPrice.toLocaleString()}
+                                      </td>
+                                      <td className="px-2 py-2 text-xs text-center">
+                                        {part.bidPrice ? (
+                                          <span className="text-red-600 font-medium">{part.bidPrice.toLocaleString()}</span>
+                                        ) : (
+                                          <span className="text-gray-400">유찰</span>
+                                        )}
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          ))}
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
               ))}
             </tbody>
           </table>
@@ -292,13 +377,13 @@ export default function AuctionsListPage() {
         {/* 페이지네이션 */}
         <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
           <div className="text-sm text-gray-500">
-            총 {filteredAuctions.length}개 중 {(currentPage - 1) * itemsPerPage + 1}-{Math.min(currentPage * itemsPerPage, filteredAuctions.length)}개 표시
+            총 {filteredAuctions.length}개
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
               disabled={currentPage === 1}
-              className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="p-2 border border-gray-100 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed bg-white"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
@@ -318,7 +403,7 @@ export default function AuctionsListPage() {
             <button
               onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
               disabled={currentPage === totalPages}
-              className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="p-2 border border-gray-100 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed bg-white"
             >
               <ChevronRight className="w-4 h-4" />
             </button>
