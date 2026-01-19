@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useBidStore } from '@/stores/bidStore';
+import { getTodayDateCode, getTodayTimeFormatted } from '@/constants/auction';
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -339,7 +340,7 @@ export default function AuctionDetailPage({ params }: PageProps) {
     
     return pattern.map(imageIndex => ({
       ...allImages[imageIndex],
-      auctionNo: `250806-${String(id).padStart(3, '0')}`
+      auctionNo: `${getTodayDateCode()}-${String(id).padStart(3, '0')}`
     }));
   };
 
@@ -351,7 +352,7 @@ export default function AuctionDetailPage({ params }: PageProps) {
     const id = parseInt(auctionId);
     const baseOffset = (id - 1) * 20; // 개체별 기본 오프셋
     const listingSeq = baseOffset + partIndex + 1; // 1부터 시작
-    return `250806-${String(id).padStart(3, '0')}-${String(listingSeq).padStart(4, '0')}`;
+    return `${getTodayDateCode()}-${String(id).padStart(3, '0')}-${String(listingSeq).padStart(4, '0')}`;
   };
 
   // 개체별 부위 중량 데이터 생성
@@ -408,7 +409,7 @@ export default function AuctionDetailPage({ params }: PageProps) {
     const months = ['30', '28', '32', '29', '31'];
     
     return {
-      auctionNumber: `250806-${String(id).padStart(3, '0')}`,
+      auctionNumber: `${getTodayDateCode()}-${String(id).padStart(3, '0')}`,
       breed: breeds[(id - 1) % breeds.length],
       grade: `${qualityGrades[(id - 1) % qualityGrades.length]}${yieldGrades[(id - 1) % yieldGrades.length]}(${marbling[(id - 1) % marbling.length]})`,
       months: months[(id - 1) % months.length]
@@ -600,15 +601,16 @@ export default function AuctionDetailPage({ params }: PageProps) {
 
   // 테스트용 입찰 데이터 (차순위 포함)
   useEffect(() => {
+    const dateCode = getTodayDateCode();
     // 최고순위 데이터
-    if (!globalBids['250806-001-0001']) {
-      setBid('250806-001-0001', {
+    if (!globalBids[`${dateCode}-001-0001`]) {
+      setBid(`${dateCode}-001-0001`, {
         myBid: 150000,
         highestBid: 150000,
         status: 'highest',
-        time: '26.01.09.(목) 14:32',
+        time: getTodayTimeFormatted(0, 5), // 5분 전
         productInfo: {
-          listingNo: '250806-001-0001',
+          listingNo: `${dateCode}-001-0001`,
           partName: '등심(좌)',
           weight: '9kg',
           type: '한우 거세',
@@ -618,14 +620,14 @@ export default function AuctionDetailPage({ params }: PageProps) {
       });
     }
     // 차순위 데이터
-    if (!globalBids['250806-001-0002']) {
-      setBid('250806-001-0002', {
+    if (!globalBids[`${dateCode}-001-0002`]) {
+      setBid(`${dateCode}-001-0002`, {
         myBid: 143000,
         highestBid: 148000,
         status: 'secondHighest',
-        time: '26.01.09.(목) 14:28',
+        time: getTodayTimeFormatted(0, 10), // 10분 전
         productInfo: {
-          listingNo: '250806-001-0002',
+          listingNo: `${dateCode}-001-0002`,
           partName: '등심(우)',
           weight: '9kg',
           type: '한우 거세',
@@ -749,7 +751,7 @@ export default function AuctionDetailPage({ params }: PageProps) {
                 </button>
                 
                 <div className="text-center">
-                  <p className="text-base font-bold text-gray-900">250806-{String(resolvedParams.id).padStart(3, '0')}</p>
+                  <p className="text-base font-bold text-gray-900">{getTodayDateCode()}-{String(resolvedParams.id).padStart(3, '0')}</p>
                   <p className="text-[11px] text-gray-500">
                     {currentAuctionInfo.breed.includes('거세') ? '거세' : '암'} / {currentAuctionInfo.grade} / 30개월
                   </p>
@@ -1103,9 +1105,9 @@ export default function AuctionDetailPage({ params }: PageProps) {
                 </div>
               </div>
 
-              {/* 내 입찰내역 */}
+              {/* 내 입찰내역(진행중) */}
               <div className="px-4 pt-4 pb-24 border-t border-gray-200 bg-white">
-                <h3 className="text-sm font-bold text-gray-900 mb-3">내 입찰내역</h3>
+                <h3 className="text-sm font-bold text-gray-900 mb-3">내 입찰내역(진행중)</h3>
                 
                 {/* 전체내역 버튼 */}
                 <div className="flex justify-end mb-2">

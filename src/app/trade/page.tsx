@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { useBidStore } from '@/stores/bidStore';
 import { useDealerStore } from '@/features/dealers/store';
+import { getTodayDateCode } from '@/constants/auction';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -27,7 +28,7 @@ import { ko } from 'date-fns/locale';
 // 거래 내역 타입
 interface TradeItem {
   id: string;
-  status: 'ongoing' | 'won';
+  status: 'ongoing' | 'won' | 'lost';
   listingNo: string;
   partName: string;
   weight: string;
@@ -49,7 +50,7 @@ interface TradeItem {
 }
 
 // 필터 옵션 타입
-type StatusFilter = 'all' | 'ongoing' | 'won';
+type StatusFilter = 'all' | 'ongoing' | 'won' | 'lost';
 type PeriodFilter = 'all' | 'today' | 'week' | 'month' | 'custom';
 
 // 부위 목록 (필터용 - 좌/우 통합)
@@ -452,6 +453,64 @@ export default function TradePage() {
         carcassWeight: 471,
         // dealer 없음 - 거래처 미등록 상태
       },
+      // 미낙찰 데이터
+      {
+        id: 'lost-1',
+        status: 'lost',
+        listingNo: '250805-001-0004',
+        partName: '채끝',
+        weight: '7.5kg',
+        weightKg: 7.5,
+        myBid: 138000,
+        highestBid: 145000,
+        bidTime: '25.08.05.(화) 11:20',
+        traceNo: '002-1872-4521-6',
+        grade: '1++A(9)',
+        gender: '거세',
+        monthAge: 31,
+        processingCompany: '송정가공',
+        slaughterDate: '2025.08.03.',
+        processingDate: '2025.08.04.',
+        carcassWeight: 472,
+      },
+      {
+        id: 'lost-2',
+        status: 'lost',
+        listingNo: '250804-002-0001',
+        partName: '등심(좌)',
+        weight: '15.8kg',
+        weightKg: 15.8,
+        myBid: 152000,
+        highestBid: 158000,
+        bidTime: '25.08.04.(월) 09:45',
+        traceNo: '002-1861-3218-4',
+        grade: '1++A(9)',
+        gender: '거세',
+        monthAge: 32,
+        processingCompany: '한우촌가공',
+        slaughterDate: '2025.08.02.',
+        processingDate: '2025.08.03.',
+        carcassWeight: 481,
+      },
+      {
+        id: 'lost-3',
+        status: 'lost',
+        listingNo: '250803-003-0006',
+        partName: '갈비(우)',
+        weight: '13.2kg',
+        weightKg: 13.2,
+        myBid: 92000,
+        highestBid: 98000,
+        bidTime: '25.08.03.(일) 15:30',
+        traceNo: '002-1849-2198-7',
+        grade: '1+A(8)',
+        gender: '암',
+        monthAge: 29,
+        processingCompany: '송정가공',
+        slaughterDate: '2025.08.01.',
+        processingDate: '2025.08.02.',
+        carcassWeight: 435,
+      },
     ];
 
     return [...items, ...dummyCompleted];
@@ -474,10 +533,24 @@ export default function TradePage() {
 
   // 필터링된 거래 내역
   const filteredItems = useMemo(() => {
+    const todayCode = getTodayDateCode();
+    
     const filtered = tradeItems.filter(item => {
-      // 상태 필터
-      if (statusFilter !== 'all' && item.status !== statusFilter) {
-        return false;
+      const isToday = item.listingNo.startsWith(todayCode);
+      const isWon = item.myBid >= item.highestBid;
+      
+      // 상태 필터 (오늘 날짜 기준 + 입찰가 비교로 동적 처리)
+      if (statusFilter !== 'all') {
+        if (statusFilter === 'ongoing') {
+          // '진행중' 필터: 오늘 날짜만
+          if (!isToday) return false;
+        } else if (statusFilter === 'won') {
+          // '낙찰' 필터: 과거 날짜 + myBid >= highestBid
+          if (isToday || !isWon) return false;
+        } else if (statusFilter === 'lost') {
+          // '미낙찰' 필터: 과거 날짜 + myBid < highestBid
+          if (isToday || isWon) return false;
+        }
       }
       
       // 기간 필터
@@ -550,19 +623,30 @@ export default function TradePage() {
     setCurrentPage(1);
   }, [statusFilter, periodFilter, partFilter, customDateRange]);
 
-  // 상태별 배지 스타일
-  const getStatusBadge = (status: TradeItem['status']) => {
-    switch (status) {
-      case 'ongoing':
-        return {
-          text: '진행중',
-          className: 'bg-blue-100 text-blue-700',
-        };
-      case 'won':
-        return {
-          text: '낙찰',
-          className: 'bg-green-100 text-green-700',
-        };
+  // 상태별 배지 스타일 (오늘 날짜 기준)
+  const getStatusBadge = (listingNo: string, myBid: number, highestBid: number) => {
+    const todayCode = getTodayDateCode();
+    const isToday = listingNo.startsWith(todayCode);
+    
+    // 오늘 날짜인 경우: 진행중
+    if (isToday) {
+      return {
+        text: '진행중',
+        className: 'bg-blue-100 text-blue-700',
+      };
+    }
+    
+    // 과거 날짜인 경우: myBid와 highestBid 비교로 낙찰/미낙찰 판단
+    if (myBid >= highestBid) {
+      return {
+        text: '낙찰',
+        className: 'bg-green-100 text-green-700',
+      };
+    } else {
+      return {
+        text: '미낙찰',
+        className: 'bg-gray-100 text-gray-700',
+      };
     }
   };
 
@@ -713,8 +797,9 @@ export default function TradePage() {
                   }}
                   className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors"
                 >
-                  {statusFilter === 'all' ? '상태' : 
-                   statusFilter === 'ongoing' ? '진행중' : '낙찰'}
+                                  {statusFilter === 'all' ? '상태' : 
+                                   statusFilter === 'ongoing' ? '진행중' : 
+                                   statusFilter === 'won' ? '낙찰' : '미낙찰'}
                   <ChevronDown className={`h-3 w-3 transition-transform ${showStatusDropdown ? 'rotate-180' : ''}`} />
                 </button>
                 
@@ -730,6 +815,7 @@ export default function TradePage() {
                         { value: 'all', label: '전체' },
                         { value: 'ongoing', label: '진행중' },
                         { value: 'won', label: '낙찰' },
+                        { value: 'lost', label: '미낙찰' },
                       ].map((option) => (
                         <button
                           key={option.value}
@@ -1025,6 +1111,7 @@ export default function TradePage() {
                       <div className="w-16 text-center flex-shrink-0">부위</div>
                       <div className="w-20 text-center flex-shrink-0">등급</div>
                       <div className="w-14 text-center flex-shrink-0">중량</div>
+                      <div className="w-20 text-center flex-shrink-0">최고가격</div>
                       <div className="w-20 text-center flex-shrink-0">입찰가</div>
                       <div className="w-24 text-center flex-shrink-0">경락대금</div>
                       <div className="w-20 text-center flex-shrink-0">거래처</div>
@@ -1033,7 +1120,7 @@ export default function TradePage() {
 
                   {/* 테이블 데이터 */}
                   {paginatedItems.map((item) => {
-                    const statusBadge = getStatusBadge(item.status);
+                    const statusBadge = getStatusBadge(item.listingNo, item.myBid, item.highestBid);
                     const totalPrice = calculateTotalPrice(item);
                     
                     return (
@@ -1083,9 +1170,16 @@ export default function TradePage() {
                             <div className="text-[11px] text-gray-700">{item.weight}</div>
                           </div>
                           
-                          {/* 입찰가 */}
+                          {/* 최고가격 */}
                           <div className="w-20 text-center flex-shrink-0">
                             <div className="text-[11px] font-semibold text-gray-900">
+                              {item.highestBid.toLocaleString()}
+                            </div>
+                          </div>
+                          
+                          {/* 입찰가 */}
+                          <div className="w-20 text-center flex-shrink-0">
+                            <div className={`text-[11px] font-semibold ${item.myBid >= item.highestBid ? 'text-blue-600' : 'text-red-600'}`}>
                               {item.myBid.toLocaleString()}
                             </div>
                           </div>
@@ -1097,25 +1191,30 @@ export default function TradePage() {
                             </div>
                           </div>
                           
-                          {/* 거래처 (낙찰 시에만) */}
+                          {/* 거래처 (낙찰 시에만 - 과거 날짜 + 내 입찰가 >= 최고가격) */}
                           <div className="w-20 text-center flex-shrink-0">
-                            {item.status === 'won' ? (
-                              (dealerMap[item.id] || item.dealer) ? (
-                                <div className="text-[11px] text-gray-700 truncate">
-                                  {dealerMap[item.id] || item.dealer}
-                                </div>
-                              ) : (
-                                <button
-                                  onClick={(e) => openDealerModal(item, e)}
-                                  className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded transition-colors"
-                                >
-                                  <Plus className="w-2.5 h-2.5" />
-                                  등록
-                                </button>
-                              )
-                            ) : (
-                              <div className="text-[11px] text-gray-400">-</div>
-                            )}
+                            {(() => {
+                              const todayCode = getTodayDateCode();
+                              const isToday = item.listingNo.startsWith(todayCode);
+                              const isWon = !isToday && item.myBid >= item.highestBid;
+                              
+                              if (isWon) {
+                                return (dealerMap[item.id] || item.dealer) ? (
+                                  <div className="text-[11px] text-gray-700 truncate">
+                                    {dealerMap[item.id] || item.dealer}
+                                  </div>
+                                ) : (
+                                  <button
+                                    onClick={(e) => openDealerModal(item, e)}
+                                    className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded transition-colors"
+                                  >
+                                    <Plus className="w-2.5 h-2.5" />
+                                    등록
+                                  </button>
+                                );
+                              }
+                              return <div className="text-[11px] text-gray-400">-</div>;
+                            })()}
                           </div>
                         </div>
                       </div>
@@ -1436,8 +1535,8 @@ export default function TradePage() {
                   
                   {/* 상태 및 기본 정보 */}
                   <div className="flex items-center justify-between pb-2 mb-2 border-b">
-                    <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-bold ${getStatusBadge(selectedItem.status).className}`}>
-                      {getStatusBadge(selectedItem.status).text}
+                    <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-bold ${getStatusBadge(selectedItem.listingNo, selectedItem.myBid, selectedItem.highestBid).className}`}>
+                      {getStatusBadge(selectedItem.listingNo, selectedItem.myBid, selectedItem.highestBid).text}
                     </span>
                     <span className="text-xs font-bold text-gray-900">{selectedItem.listingNo}</span>
                   </div>
@@ -1593,13 +1692,12 @@ export default function TradePage() {
                       축산물 이력정보
                       <ExternalLink className="w-3 h-3" />
                     </a>
-                    <Link 
-                      href={`/auction/1?from=myBids`}
-                      className="flex-1 flex items-center justify-center gap-1 px-2 py-2 text-[10px] font-bold rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors"
+                    <button 
+                      onClick={() => setSelectedItem(null)}
+                      className="flex-1 flex items-center justify-center gap-1 px-2 py-2 text-[10px] font-bold rounded-lg bg-gray-600 text-white hover:bg-gray-700 transition-colors"
                     >
-                      개체 상세보기
-                      <ChevronRight className="w-3 h-3" />
-                    </Link>
+                      닫기
+                    </button>
                   </div>
                 </motion.div>
               </motion.div>

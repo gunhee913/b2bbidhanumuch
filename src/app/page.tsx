@@ -23,7 +23,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useBidStore } from '@/stores/bidStore';
-import { GRADES, getCompanyAuctionSummary, calcTotal } from '@/constants/auction';
+import { GRADES, getCompanyAuctionSummary, calcTotal, getTodayDateCode } from '@/constants/auction';
 
 // 업체별 경매 두수 데이터 (공통 상수에서 계산)
 const COMPANY_AUCTION_DATA = getCompanyAuctionSummary();
@@ -131,7 +131,7 @@ function MainPageContent() {
     setBalanceAmount(newValue.toLocaleString());
   };
 
-  // 내 입찰 내역은 zustand 스토어(globalBids)에서 관리
+  // 내 입찰내역(진행중)은 zustand 스토어(globalBids)에서 관리
 
   // URL 파라미터로 탭 설정 및 스크롤
   useEffect(() => {
@@ -139,7 +139,7 @@ function MainPageContent() {
     const bidId = searchParams.get('bidId');
     
     if (tab === 'myBids') {
-      setActiveTab('내 입찰 내역');
+      setActiveTab('내 입찰내역(진행중)');
       
       // 탭 전환 후 스크롤 실행
       if (bidId) {
@@ -404,15 +404,15 @@ function MainPageContent() {
                     경매 정보
                   </button>
                   <button
-                    onClick={() => setActiveTab('내 입찰 내역')}
+                    onClick={() => setActiveTab('내 입찰내역(진행중)')}
                     className={`flex-1 py-3 text-sm font-bold transition-colors ${
-                      activeTab === '내 입찰 내역'
+                      activeTab === '내 입찰내역(진행중)'
                       
                         ? 'text-red-600 border-b-2 border-red-600'
                         : 'text-gray-500'
                     }`}
                   >
-                    내 입찰 내역
+                    내 입찰내역(진행중)
                   </button>
                 </div>
               </div>
@@ -677,7 +677,9 @@ function MainPageContent() {
                             </tr>
                           </thead>
                           <tbody>
-                            {Object.entries(globalBids).map(([listingNo, bid]) => {
+                            {Object.entries(globalBids)
+                              .filter(([listingNo]) => listingNo.startsWith(getTodayDateCode()))
+                              .map(([listingNo, bid]) => {
                               const productInfo = bid.productInfo;
                               if (!productInfo) return null;
                               

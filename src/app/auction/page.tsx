@@ -24,7 +24,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useBidStore } from '@/stores/bidStore';
-import { AUCTION_PRODUCTS } from '@/constants/auction';
+import { AUCTION_PRODUCTS, getTodayDateCode, getYesterdayDateFormatted } from '@/constants/auction';
 
 function AuctionPageContent() {
   const router = useRouter();
@@ -424,8 +424,8 @@ function AuctionPageContent() {
             grade: entity.grade,
             weight: `${weight}kg`,
             price: adjustedPrice,
-            auctionNo: `250806-${String(entity.id).padStart(3, '0')}`,
-            listingNo: `250806-${String(entity.id).padStart(3, '0')}-${String(listingNumber).padStart(4, '0')}`,
+            auctionNo: `${getTodayDateCode()}-${String(entity.id).padStart(3, '0')}`,
+            listingNo: `${getTodayDateCode()}-${String(entity.id).padStart(3, '0')}-${String(listingNumber).padStart(4, '0')}`,
             historyNo: entity.historyNo,
             company: entity.company,
             date: '2025.08.05.(화)',
@@ -1480,9 +1480,9 @@ function AuctionPageContent() {
                       })
                     )}
                     
-                    {/* 내 입찰내역 */}
+                    {/* 내 입찰내역(진행중) */}
                     <div className="px-4 pt-4 pb-24 border-t border-gray-200 bg-white">
-                      <h3 className="text-sm font-bold text-gray-900 mb-3">내 입찰내역</h3>
+                      <h3 className="text-sm font-bold text-gray-900 mb-3">내 입찰내역(진행중)</h3>
                       
                       {/* 전체내역 버튼 */}
                       <div className="flex justify-end mb-2">
@@ -1571,7 +1571,9 @@ function AuctionPageContent() {
                               </tr>
                             </thead>
                             <tbody>
-                              {Object.entries(globalBids).map(([listingNo, bid]) => {
+                              {Object.entries(globalBids)
+                                .filter(([listingNo]) => listingNo.startsWith(getTodayDateCode()))
+                                .map(([listingNo, bid]) => {
                                 const productInfo = bid.productInfo;
                                 if (!productInfo) return null;
                                 
