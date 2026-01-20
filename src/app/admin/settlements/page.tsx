@@ -107,16 +107,20 @@ const generateDummyData = (): SettlementData[] => {
       const cattleNo = parseInt(company.no) + i + 1;
       
       // 부위별 내역 생성 (고정값 사용으로 hydration 오류 방지)
+      // 두당 1개씩 유찰분 생성 (각 개체마다 다른 부위가 유찰됨)
+      const failedPartIdx = (companyIdx + i) % 19; // 유찰될 부위 인덱스
+      
       const parts: PartDetail[] = PARTS_CONFIG.map((config, partIdx) => {
         // 인덱스 기반으로 약간의 변화를 줌 (Math.random 대신)
         const weightVariation = ((companyIdx * 7 + i * 3 + partIdx) % 20 - 10) / 10; // -1.0 ~ 0.9
         const weight = config.baseWeight > 0 
           ? Number((config.baseWeight + weightVariation).toFixed(1))
           : 0;
-        const unitPrice = config.basePrice > 0 
-          ? Math.round(config.basePrice * gradeMultiplier)
-          : 0;
-        const amount = Math.round(weight * unitPrice);
+        
+        // 유찰분은 단가와 금액을 0으로 설정
+        const isFailedBid = partIdx === failedPartIdx;
+        const unitPrice = isFailedBid ? 0 : Math.round(config.basePrice * gradeMultiplier);
+        const amount = isFailedBid ? 0 : Math.round(weight * unitPrice);
         const partNo = partIdx + 1; // 부위 순번 01~19
         
         return {
@@ -509,7 +513,7 @@ export default function SettlementsPage() {
       </div>
 
       {/* 정산서 테이블 */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+      <div className="bg-white shadow-sm border border-gray-200 overflow-hidden">
         <table className="w-full border-collapse table-fixed">
           <thead className="sticky top-0">
             <tr>
@@ -569,6 +573,7 @@ export default function SettlementsPage() {
                                   <th className={thClass}>중량</th>
                                   <th className={thClass}>단가</th>
                                   <th className={thClass}>금액</th>
+                                  <th className={thClass}>비고</th>
                                 </tr>
                               </thead>
                               <tbody>
@@ -579,6 +584,7 @@ export default function SettlementsPage() {
                                     <td className={`${tdClass} text-right`}>{part.weight > 0 ? part.weight.toFixed(1) : '-'}</td>
                                     <td className={`${tdClass} text-right`}>{part.unitPrice > 0 ? part.unitPrice.toLocaleString() : '-'}</td>
                                     <td className={`${tdClass} text-right`}>{part.amount > 0 ? part.amount.toLocaleString() : '-'}</td>
+                                    <td className={`${tdClass} text-orange-600`}>{part.amount === 0 ? '반출' : ''}</td>
                                   </tr>
                                 ))}
                               </tbody>
@@ -591,6 +597,7 @@ export default function SettlementsPage() {
                                   <th className={thClass}>중량</th>
                                   <th className={thClass}>단가</th>
                                   <th className={thClass}>금액</th>
+                                  <th className={thClass}>비고</th>
                                 </tr>
                               </thead>
                               <tbody>
@@ -601,10 +608,12 @@ export default function SettlementsPage() {
                                     <td className={`${tdClass} text-right`}>{part.weight > 0 ? part.weight.toFixed(1) : '-'}</td>
                                     <td className={`${tdClass} text-right`}>{part.unitPrice > 0 ? part.unitPrice.toLocaleString() : '-'}</td>
                                     <td className={`${tdClass} text-right`}>{part.amount > 0 ? part.amount.toLocaleString() : '-'}</td>
+                                    <td className={`${tdClass} text-orange-600`}>{part.amount === 0 ? '반출' : ''}</td>
                                   </tr>
                                 ))}
                                 {Array(11 - cattle.parts.slice(11).length).fill(0).map((_, idx) => (
                                   <tr key={`empty-${idx}`}>
+                                    <td className={tdClass}>&nbsp;</td>
                                     <td className={tdClass}>&nbsp;</td>
                                     <td className={tdClass}>&nbsp;</td>
                                     <td className={tdClass}>&nbsp;</td>
