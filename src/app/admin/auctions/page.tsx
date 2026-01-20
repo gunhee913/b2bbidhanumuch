@@ -53,6 +53,7 @@ interface Auction {
   monthAge: number;
   backFat: number;
   eyeMuscle: number;
+  fatMarbling: number; // 근내지방
   meatColor: number;
   fatColor: number;
   texture: number;
@@ -102,6 +103,7 @@ const dummyAuctions: Auction[] = [
     monthAge: 32,
     backFat: 15, 
     eyeMuscle: 98, 
+    fatMarbling: 9,
     meatColor: 5, 
     fatColor: 3, 
     texture: 1, 
@@ -125,6 +127,7 @@ const dummyAuctions: Auction[] = [
     monthAge: 30,
     backFat: 12, 
     eyeMuscle: 92, 
+    fatMarbling: 6,
     meatColor: 5, 
     fatColor: 3, 
     texture: 1, 
@@ -148,6 +151,7 @@ const dummyAuctions: Auction[] = [
     monthAge: 34,
     backFat: 14, 
     eyeMuscle: 95, 
+    fatMarbling: 8,
     meatColor: 5, 
     fatColor: 3, 
     texture: 1, 
@@ -171,6 +175,7 @@ const dummyAuctions: Auction[] = [
     monthAge: 28,
     backFat: 11, 
     eyeMuscle: 88, 
+    fatMarbling: 5,
     meatColor: 5, 
     fatColor: 3, 
     texture: 1, 
@@ -383,6 +388,7 @@ export default function AuctionsListPage() {
                 <th className="px-2 py-2 text-center text-xs font-semibold text-gray-500 whitespace-nowrap">개월령</th>
                 <th className="px-2 py-2 text-center text-xs font-semibold text-gray-500 whitespace-nowrap">등지방</th>
                 <th className="px-2 py-2 text-center text-xs font-semibold text-gray-500 whitespace-nowrap">등심면적</th>
+                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-500 whitespace-nowrap">근내지방</th>
                 <th className="px-2 py-2 text-center text-xs font-semibold text-gray-500 whitespace-nowrap">육색</th>
                 <th className="px-2 py-2 text-center text-xs font-semibold text-gray-500 whitespace-nowrap">지방색</th>
                 <th className="px-2 py-2 text-center text-xs font-semibold text-gray-500 whitespace-nowrap">조직감</th>
@@ -420,6 +426,7 @@ export default function AuctionsListPage() {
                     <td className="px-2 py-3 text-xs text-gray-600 text-center whitespace-nowrap">{auction.monthAge}</td>
                     <td className="px-2 py-3 text-xs text-gray-600 text-center whitespace-nowrap">{auction.backFat}</td>
                     <td className="px-2 py-3 text-xs text-gray-600 text-center whitespace-nowrap">{auction.eyeMuscle}</td>
+                    <td className="px-2 py-3 text-xs text-gray-600 text-center whitespace-nowrap">{auction.fatMarbling}</td>
                     <td className="px-2 py-3 text-xs text-gray-600 text-center whitespace-nowrap">{auction.meatColor}</td>
                     <td className="px-2 py-3 text-xs text-gray-600 text-center whitespace-nowrap">{auction.fatColor}</td>
                     <td className="px-2 py-3 text-xs text-gray-600 text-center whitespace-nowrap">{auction.texture}</td>
@@ -461,7 +468,7 @@ export default function AuctionsListPage() {
                   {/* 확장된 부위 테이블 */}
                   {expandedId === auction.id && (
                     <tr>
-                      <td colSpan={22} className="px-4 py-4 bg-gray-50">
+                      <td colSpan={23} className="px-4 py-4 bg-gray-50">
                         <div className="grid grid-cols-3 gap-4">
                           {/* 3열로 부위 데이터 표시 */}
                           {[0, 1, 2].map((colIndex) => (
