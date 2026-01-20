@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import AdminLayout from '@/components/admin/AdminLayout';
-import { ChevronDown, ChevronUp, Edit2, Trash2, X } from 'lucide-react';
+import { ChevronDown, ChevronUp, X } from 'lucide-react';
 
 // 입찰 내역 타입
 interface BidRecord {
@@ -78,10 +78,9 @@ const COMPANIES = [
   { no: '400', name: '정직한고기' },
 ];
 
-// 더미 데이터 생성
-const generateDummyData = (): AuctionItem[] => {
-  const today = new Date();
-  const dateCode = `${String(today.getFullYear()).slice(2)}${String(today.getMonth() + 1).padStart(2, '0')}${String(today.getDate()).padStart(2, '0')}`;
+// 더미 데이터 생성 (날짜 파라미터 추가)
+const generateDummyData = (targetDate: Date): AuctionItem[] => {
+  const dateCode = `${String(targetDate.getFullYear()).slice(2)}${String(targetDate.getMonth() + 1).padStart(2, '0')}${String(targetDate.getDate()).padStart(2, '0')}`;
   const grades = ['1++A', '1++B', '1+A', '1+B', '1A', '1B'];
   
   const items: AuctionItem[] = [];
@@ -134,7 +133,7 @@ const generateDummyData = (): AuctionItem[] => {
             const seconds = reverseIdx * 15 % 60;
             
             // 날짜 포함한 입찰시간
-            const dateStr = `${String(today.getFullYear()).slice(2)}.${String(today.getMonth() + 1).padStart(2, '0')}.${String(today.getDate()).padStart(2, '0')}`;
+            const dateStr = `${String(targetDate.getFullYear()).slice(2)}.${String(targetDate.getMonth() + 1).padStart(2, '0')}.${String(targetDate.getDate()).padStart(2, '0')}`;
             const timeStr = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
             
             bids.push({
@@ -179,7 +178,12 @@ const getCattleNo = (listingNo: string): string => {
 const SECONDARY_PASSWORD = '1234';
 
 export default function AuctionLivePage() {
-  const [auctionItems, setAuctionItems] = useState<AuctionItem[]>(generateDummyData());
+  const today = new Date();
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  
+  // 조회 날짜 상태
+  const [selectedDate, setSelectedDate] = useState(todayStr);
+  const [auctionItems, setAuctionItems] = useState<AuctionItem[]>(generateDummyData(today));
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
   const [companyFilter, setCompanyFilter] = useState('all');
   const [bidFilter, setBidFilter] = useState('all'); // all, withBids, withoutBids
@@ -191,6 +195,36 @@ export default function AuctionLivePage() {
   const [passwordError, setPasswordError] = useState('');
   const [newBidPrice, setNewBidPrice] = useState('');
   const [newDealerNo, setNewDealerNo] = useState('');
+
+  // 마감 관리 상태
+  const [isAuctionClosed, setIsAuctionClosed] = useState(false);
+  const [showCloseModal, setShowCloseModal] = useState(false);
+  const [closePassword, setClosePassword] = useState('');
+  const [closePasswordError, setClosePasswordError] = useState('');
+
+  // 오늘 날짜인지 확인
+  const isToday = selectedDate === todayStr;
+
+  // 날짜 변경 시 데이터 재생성
+  useEffect(() => {
+    const date = new Date(selectedDate);
+    setAuctionItems(generateDummyData(date));
+    setExpandedItems([]);
+    // 과거 날짜면 마감 완료 상태로
+    setIsAuctionClosed(!isToday);
+  }, [selectedDate, isToday]);
+
+  // 마감 처리
+  const handleCloseAuction = () => {
+    if (closePassword !== SECONDARY_PASSWORD) {
+      setClosePasswordError('2차 비밀번호가 일치하지 않습니다.');
+      return;
+    }
+    setIsAuctionClosed(true);
+    setShowCloseModal(false);
+    setClosePassword('');
+    setClosePasswordError('');
+  };
 
   const toggleItem = (itemId: string) => {
     setExpandedItems(prev =>
@@ -236,7 +270,7 @@ export default function AuctionLivePage() {
       if (action === 'edit') {
         // 입찰가 수정
         updatedBids = updatedBids.map(b => 
-          b.id === bid.id ? { ...b, bidPrice: parseInt(newBidPrice) } : b
+          b.id === bid.id ? { ...b, bidPrice: parseInt(newBidPrice.replace(/,/g, '')) } : b
         );
         // 가격순으로 재정렬 및 순위 재산정
         updatedBids.sort((a, b) => b.bidPrice - a.bidPrice);
@@ -301,8 +335,28 @@ export default function AuctionLivePage() {
 
   return (
     <AdminLayout>
-      <div className="mb-6">
+      <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">부분육 경매 현황(실시간)</h1>
+        
+        {/* 마감 관리 */}
+        <div className="flex items-center gap-4">
+          {/* 마감 상태 */}
+          {isAuctionClosed && (
+            <div className="px-4 py-2 rounded bg-gray-100 text-gray-700 text-sm">
+              마감 완료
+            </div>
+          )}
+          
+          {/* 마감 버튼 (오늘 날짜이고 마감 전일 때만) */}
+          {isToday && !isAuctionClosed && (
+            <button
+              onClick={() => setShowCloseModal(true)}
+              className="px-4 py-2 bg-gray-800 text-white rounded text-sm hover:bg-gray-900"
+            >
+              마감
+            </button>
+          )}
+        </div>
       </div>
 
       {/* 통계 요약 */}
@@ -328,6 +382,20 @@ export default function AuctionLivePage() {
       {/* 필터 */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4 mb-4">
         <div className="flex flex-wrap items-center gap-4">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-gray-600">조회일자</span>
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              max={todayStr}
+              className="px-3 py-1.5 border border-gray-200 rounded text-xs outline-none bg-white"
+            />
+            {!isToday && (
+              <span className="text-xs text-gray-500">(과거 데이터)</span>
+            )}
+          </div>
+
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium text-gray-600">상장업체</span>
             <select
@@ -372,6 +440,7 @@ export default function AuctionLivePage() {
             <button
               type="button"
               onClick={() => {
+                setSelectedDate(todayStr);
                 setCompanyFilter('all');
                 setBidFilter('all');
               }}
@@ -607,15 +676,18 @@ export default function AuctionLivePage() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">새 입찰가</label>
                   <input
-                    type="number"
-                    value={newBidPrice}
-                    onChange={(e) => setNewBidPrice(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-200 rounded text-sm outline-none focus:border-blue-500"
+                    type="text"
+                    value={newBidPrice ? parseInt(newBidPrice.replace(/,/g, '')).toLocaleString() : ''}
+                    onChange={(e) => {
+                      const rawValue = e.target.value.replace(/,/g, '').replace(/[^0-9]/g, '');
+                      setNewBidPrice(rawValue);
+                    }}
+                    className="w-full px-3 py-2 border border-gray-200 rounded text-sm outline-none focus:border-blue-500 bg-white"
                     placeholder="새 입찰가 입력"
                   />
                   {newBidPrice && (
                     <div className="text-xs text-gray-500 mt-1">
-                      총 입찰금액: {Math.round(parseInt(newBidPrice) * editModal.weight).toLocaleString()}원
+                      총 입찰금액: {Math.round(parseInt(newBidPrice.replace(/,/g, '')) * editModal.weight).toLocaleString()}원
                     </div>
                   )}
                 </div>
@@ -658,7 +730,7 @@ export default function AuctionLivePage() {
                     setSecondaryPassword(e.target.value);
                     setPasswordError('');
                   }}
-                  className="w-full px-3 py-2 border border-gray-200 rounded text-sm outline-none focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-200 rounded text-sm outline-none focus:border-blue-500 bg-white"
                   placeholder="2차 비밀번호 입력"
                 />
                 {passwordError && (
@@ -686,6 +758,97 @@ export default function AuctionLivePage() {
                 {editModal.action === 'edit' && '수정'}
                 {editModal.action === 'delete' && '삭제'}
                 {editModal.action === 'changeBidder' && '변경'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 마감 모달 */}
+      {showCloseModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl w-[400px]">
+            {/* 모달 헤더 */}
+            <div className="flex items-center justify-between px-4 py-3 border-b">
+              <h3 className="text-lg font-semibold text-gray-900">경매 마감</h3>
+              <button onClick={() => {
+                setShowCloseModal(false);
+                setClosePassword('');
+                setClosePasswordError('');
+              }} className="text-gray-400 hover:text-gray-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* 모달 본문 */}
+            <div className="p-4 space-y-4">
+              {/* 마감 현황 요약 */}
+              <div className="border border-gray-200 rounded p-3">
+                <div className="text-sm font-medium text-gray-700 mb-2">마감 현황</div>
+                <div className="space-y-1 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">총 상장</span>
+                    <span>{auctionItems.length}건</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">낙찰</span>
+                    <span>{auctionItems.filter(item => item.bidCount > 0).length}건</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">유찰</span>
+                    <span>{auctionItems.filter(item => item.bidCount === 0).length}건</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">낙찰률</span>
+                    <span>{((auctionItems.filter(item => item.bidCount > 0).length / auctionItems.length) * 100).toFixed(1)}%</span>
+                  </div>
+                  <div className="flex justify-between border-t pt-1 mt-1">
+                    <span className="text-gray-500">총 낙찰금액</span>
+                    <span className="font-semibold">
+                      {Math.round(auctionItems.reduce((sum, item) => sum + (item.currentHighestBid * item.weight), 0)).toLocaleString()}원
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* 2차 비밀번호 입력 */}
+              <div>
+                <label className="block text-sm text-gray-700 mb-1">
+                  2차 비밀번호
+                </label>
+                <input
+                  type="password"
+                  value={closePassword}
+                  onChange={(e) => {
+                    setClosePassword(e.target.value);
+                    setClosePasswordError('');
+                  }}
+                  className="w-full px-3 py-2 border border-gray-200 rounded text-sm outline-none focus:border-gray-400 bg-white"
+                  placeholder="2차 비밀번호 입력"
+                />
+                {closePasswordError && (
+                  <div className="text-xs text-red-500 mt-1">{closePasswordError}</div>
+                )}
+              </div>
+            </div>
+
+            {/* 모달 푸터 */}
+            <div className="flex justify-end gap-2 px-4 py-3 border-t">
+              <button
+                onClick={() => {
+                  setShowCloseModal(false);
+                  setClosePassword('');
+                  setClosePasswordError('');
+                }}
+                className="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded hover:bg-gray-50"
+              >
+                취소
+              </button>
+              <button
+                onClick={handleCloseAuction}
+                className="px-4 py-2 text-sm text-white bg-gray-800 rounded hover:bg-gray-900"
+              >
+                마감
               </button>
             </div>
           </div>
