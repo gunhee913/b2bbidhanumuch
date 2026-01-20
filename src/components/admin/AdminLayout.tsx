@@ -65,6 +65,9 @@ const menuItems = [
     title: '정산 관리',
     href: '/admin/settlements',
     icon: ClipboardList,
+    subItems: [
+      { title: '정산서(상장업체별)', href: '/admin/settlements' },
+    ],
   },
   {
     title: '배송 관리',
@@ -85,6 +88,9 @@ const menuItems = [
     title: '설정',
     href: '/admin/settings',
     icon: Settings,
+    subItems: [
+      { title: '정산 설정', href: '/admin/settlements/settings' },
+    ],
   },
 ];
 
