@@ -3,7 +3,6 @@
 import React, { useState } from 'react';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { 
-  Search, 
   Download,
   ChevronDown,
   ChevronUp,
@@ -430,7 +429,6 @@ export default function SettlementsPage() {
     <AdminLayout>
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">정산서(상장업체별)</h1>
-        <p className="text-sm text-gray-500 mt-1">상장업체별 정산서를 조회합니다.</p>
       </div>
 
       {/* 필터 */}
@@ -484,13 +482,6 @@ export default function SettlementsPage() {
               className="px-4 py-1.5 border border-gray-200 text-gray-600 rounded text-xs hover:bg-gray-50"
             >
               초기화
-            </button>
-            <button
-              type="button"
-              className="flex items-center gap-1.5 px-4 py-1.5 border border-gray-200 text-gray-600 rounded text-xs hover:bg-gray-50"
-            >
-              <Search className="w-3.5 h-3.5" />
-              검색
             </button>
             <button
               type="button"

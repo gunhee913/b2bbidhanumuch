@@ -48,7 +48,8 @@ const menuItems = [
     subItems: [
       { title: '부분육 상장 조회', href: '/admin/auctions' },
       { title: '부분육 상장 등록', href: '/admin/auctions/new' },
-      { title: '부분육 경락 내역', href: '/admin/auctions/bids' },
+      { title: '부분육 경매 현황(실시간)', href: '/admin/auctions/live' },
+        { title: '부분육 경락 내역', href: '/admin/auctions/bids' },
       { title: '부분육 낙찰률 조회', href: '/admin/auctions/results' },
     ],
   },
@@ -67,6 +68,7 @@ const menuItems = [
     icon: ClipboardList,
     subItems: [
       { title: '정산서(상장업체별)', href: '/admin/settlements' },
+      { title: '낙찰서(중도매인별)', href: '/admin/settlements/dealers' },
     ],
   },
   {
