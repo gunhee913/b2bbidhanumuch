@@ -16,7 +16,8 @@ import {
   LogOut,
   Gavel,
   TrendingUp,
-  ClipboardList
+  ClipboardList,
+  Truck
 } from 'lucide-react';
 
 interface AdminLayoutProps {
@@ -55,16 +56,25 @@ const menuItems = [
     title: '거래처 관리',
     href: '/admin/partners',
     icon: Building2,
-  },
-  {
-    title: '시세 관리',
-    href: '/admin/market',
-    icon: TrendingUp,
+    subItems: [
+      { title: '거래처 등록', href: '/admin/partners' },
+      { title: '거래처 조회(중도매인별)', href: '/admin/partners/dealers' },
+    ],
   },
   {
     title: '정산 관리',
     href: '/admin/settlements',
     icon: ClipboardList,
+  },
+  {
+    title: '배송 관리',
+    href: '/admin/delivery',
+    icon: Truck,
+  },
+  {
+    title: '시세 관리',
+    href: '/admin/market',
+    icon: TrendingUp,
   },
   {
     title: '리포트',

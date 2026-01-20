@@ -42,9 +42,10 @@ interface BidRecord {
   gender: string;         // 성별
   dealerNo: string | null;  // 중도매인번호 - 유찰시 null
   dealerName: string | null; // 중도매인명 - 유찰시 null
+  partnerNo: string | null;   // 거래처번호 - 유찰시 null
+  partnerName: string | null; // 거래처명 - 유찰시 null
   companyNo: string;      // 상장업체번호
   companyName: string;    // 상장업체명
-  representative: string; // 대표자명
   traceNo: string;        // 이력번호
   isFailed: boolean;      // 유찰 여부
 }
@@ -80,24 +81,36 @@ interface CattleInfo {
   gender: string;
   companyNo: string;
   companyName: string;
-  representative: string;
   traceNo: string;
 }
 
 // 4개 개체 정보 (중도매인 관리, 상장업체 관리와 연동)
 const cattleList: CattleInfo[] = [
-  { auctionNo: '101', grade: '1++A(9)', breed: '한우', gender: '거세', companyNo: '100', companyName: '건화', representative: '김건화', traceNo: '1486-7293-1' },
-  { auctionNo: '201', grade: '1+A', breed: '한우', gender: '암', companyNo: '200', companyName: '대진엠에스', representative: '이대진', traceNo: '1523-8842-3' },
-  { auctionNo: '301', grade: '1++B(8)', breed: '한우', gender: '거세', companyNo: '300', companyName: '안심엘피씨', representative: '박안심', traceNo: '1498-6521-7' },
-  { auctionNo: '401', grade: '1+B', breed: '한우', gender: '암', companyNo: '400', companyName: '정직한고기', representative: '최정직', traceNo: '1512-9934-2' },
+  { auctionNo: '101', grade: '1++A(9)', breed: '한우', gender: '거세', companyNo: '100', companyName: '건화', traceNo: '1486-7293-1' },
+  { auctionNo: '201', grade: '1+A', breed: '한우', gender: '암', companyNo: '200', companyName: '대진엠에스', traceNo: '1523-8842-3' },
+  { auctionNo: '301', grade: '1++B(8)', breed: '한우', gender: '거세', companyNo: '300', companyName: '안심엘피씨', traceNo: '1498-6521-7' },
+  { auctionNo: '401', grade: '1+B', breed: '한우', gender: '암', companyNo: '400', companyName: '정직한고기', traceNo: '1512-9934-2' },
 ];
 
-// 중도매인 정보
+// 중도매인 정보 (거래처 포함 - 번호, 명)
 const dealers = [
-  { dealerNo: '7000001', dealerName: '김철수' },
-  { dealerNo: '7000002', dealerName: '이영희' },
-  { dealerNo: '7000003', dealerName: '박민수' },
-  { dealerNo: '7000004', dealerName: '최지현' },
+  { dealerNo: '7000001', dealerName: '김철수', partners: [
+    { no: '10001', name: '맛있는정육점' },
+    { no: '10002', name: '소고기천국' },
+    { no: '10003', name: '신선마트' },
+  ]},
+  { dealerNo: '7000002', dealerName: '이영희', partners: [
+    { no: '10004', name: '한우명가' },
+    { no: '10005', name: '프리미엄정육' },
+  ]},
+  { dealerNo: '7000003', dealerName: '박민수', partners: [
+    { no: '10006', name: '고기굽는마을' },
+  ]},
+  { dealerNo: '7000004', dealerName: '최지현', partners: [
+    { no: '10007', name: '육미정' },
+    { no: '10008', name: '한우촌' },
+    { no: '10009', name: '신선정육' },
+  ]},
 ];
 
 // 유찰 부위 인덱스 (랜덤하게 일부 유찰 처리)
@@ -130,6 +143,10 @@ const generateBidRecords = (): BidRecord[] => {
       // 유찰이 아닌 경우 결정론적으로 중도매인 배정 (cattleIdx + partIdx 기반)
       const dealerIdx = (cattleIdx + partIdx) % dealers.length;
       const dealer = isFailed ? null : dealers[dealerIdx];
+      // 거래처도 결정론적으로 배정
+      const partner = dealer && dealer.partners.length > 0 
+        ? dealer.partners[partIdx % dealer.partners.length] 
+        : null;
       
       records.push({
         id: String(id++),
@@ -146,9 +163,10 @@ const generateBidRecords = (): BidRecord[] => {
         gender: cattle.gender,
         dealerNo: dealer?.dealerNo || null,
         dealerName: dealer?.dealerName || null,
+        partnerNo: partner?.no || null,
+        partnerName: partner?.name || null,
         companyNo: cattle.companyNo,
         companyName: cattle.companyName,
-        representative: cattle.representative,
         traceNo: cattle.traceNo,
         isFailed,
       });
@@ -182,8 +200,8 @@ export default function AuctionBidsPage() {
   const totalAmount = successRecords.reduce((sum, r) => sum + (r.totalPrice || 0), 0);
   const totalCommission = successRecords.reduce((sum, r) => sum + (r.commission || 0), 0);
 
-  const thClass = "px-2 py-2 text-center text-xs font-semibold text-gray-500 whitespace-nowrap border-b border-gray-200";
-  const tdClass = "px-2 py-2 text-xs text-gray-600 text-center whitespace-nowrap";
+  const thClass = "px-2 py-2 text-center text-xs font-semibold text-gray-500 whitespace-nowrap border-b border-gray-200 border-x border-x-gray-100";
+  const tdClass = "px-2 py-2 text-xs text-gray-600 text-center whitespace-nowrap border-x border-x-gray-100";
 
   // 엑셀 다운로드 함수
   const handleExcelDownload = () => {
@@ -205,8 +223,9 @@ export default function AuctionBidsPage() {
       '중도매인명': record.dealerName || '-',
       '상장업체번호': record.companyNo,
       '상장업체명': record.companyName,
-      '대표자명': record.representative,
       '이력번호': record.traceNo,
+      '거래처번호': record.partnerNo || '-',
+      '거래처명': record.partnerName || '-',
     }));
 
     // 워크시트 생성
@@ -228,10 +247,11 @@ export default function AuctionBidsPage() {
       { wch: 8 },  // 성별
       { wch: 12 }, // 중도매인번호
       { wch: 12 }, // 중도매인명
-      { wch: 14 }, // 상장업체번호
+      { wch: 12 }, // 상장업체번호
       { wch: 14 }, // 상장업체명
-      { wch: 10 }, // 대표자명
       { wch: 14 }, // 이력번호
+      { wch: 10 }, // 거래처번호
+      { wch: 14 }, // 거래처명
     ];
 
     // 워크북 생성
@@ -403,10 +423,9 @@ export default function AuctionBidsPage() {
                 <th className={thClass}>성별</th>
                 <th className={thClass}>중도매인번호</th>
                 <th className={thClass}>중도매인명</th>
-                <th className={thClass}>상장업체번호</th>
-                <th className={thClass}>상장업체명</th>
-                <th className={thClass}>대표자명</th>
+                <th className={thClass} colSpan={2}>상장업체</th>
                 <th className={thClass}>이력번호</th>
+                <th className={thClass} colSpan={2}>거래처</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -429,8 +448,9 @@ export default function AuctionBidsPage() {
                   <td className={tdClass}>{record.dealerName || '-'}</td>
                   <td className={tdClass}>{record.companyNo}</td>
                   <td className={tdClass}>{record.companyName}</td>
-                  <td className={tdClass}>{record.representative}</td>
                   <td className={tdClass}>{record.traceNo}</td>
+                  <td className={tdClass}>{record.partnerNo || '-'}</td>
+                  <td className={tdClass}>{record.partnerName || '-'}</td>
                 </tr>
               ))}
             </tbody>
