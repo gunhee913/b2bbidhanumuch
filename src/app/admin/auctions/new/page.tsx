@@ -2,8 +2,9 @@
 
 import React, { useState, useRef } from 'react';
 import AdminLayout from '@/components/admin/AdminLayout';
-import { Save, Upload, X, Calendar, Plus, ChevronDown, ChevronUp, Trash2, Copy } from 'lucide-react';
+import { Save, Upload, X, Calendar, Plus, ChevronDown, ChevronUp, Trash2, Download, FileSpreadsheet } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import * as XLSX from 'xlsx';
 
 // number input 스피너, date input 달력 아이콘 숨기기 스타일
 const hideSpinnerStyle = `
@@ -245,35 +246,6 @@ export default function NewAuctionPage() {
     ));
   };
 
-  // 이전 개체 복사
-  const copyFromPrevious = (id: number) => {
-    const currentIndex = cattleList.findIndex(c => c.id === id);
-    if (currentIndex <= 0) return;
-    
-    const prev = cattleList[currentIndex - 1];
-    setCattleList(cattleList.map(c => {
-      if (c.id !== id) return c;
-      return {
-        ...c,
-        breed: prev.breed,
-        gender: prev.gender,
-        grade: prev.grade,
-        marbling: prev.marbling,
-        backFat: prev.backFat,
-        eyeMuscle: prev.eyeMuscle,
-        fatMarbling: prev.fatMarbling,
-        meatColor: prev.meatColor,
-        fatColor: prev.fatColor,
-        texture: prev.texture,
-        maturity: prev.maturity,
-        slaughterHouse: prev.slaughterHouse,
-        slaughterDate: prev.slaughterDate,
-        processDate: prev.processDate,
-        parts: prev.parts.map((p, i) => ({ ...c.parts[i], minPrice: p.minPrice })),
-      };
-    }));
-  };
-
   // 이미지 업로드
   const handleImageUpload = (cattleId: number) => {
     setCattleList(cattleList.map(c => {
@@ -300,6 +272,145 @@ export default function NewAuctionPage() {
     router.push('/admin/auctions');
   };
 
+  // 엑셀 템플릿 다운로드
+  const downloadExcelTemplate = () => {
+    // 개체 정보 시트
+    const cattleHeaders = [
+      '순번', '축종', '성별', '등급', '근내지방등급', '개월령', '도체중', '이력번호',
+      '등지방', '등심면적', '근내지방', '육색', '지방색', '조직감', '성숙도',
+      '도축장', '도축일', '도축번호', '가공일', '가공중량'
+    ];
+    
+    const sampleCattleData = [
+      ['1', '한우', '거세', '1++A', '9', '32', '520', '0023-4567-8', '15', '98', '9', '5', '3', '1', '2', '음성', '2026-01-15', '201', '2026-01-16', '312'],
+      ['2', '한우', '암', '1+A', '', '30', '480', '0023-4567-9', '12', '92', '6', '4', '3', '1', '2', '음성', '2026-01-15', '202', '2026-01-16', '290'],
+    ];
+    
+    const cattleSheet = XLSX.utils.aoa_to_sheet([cattleHeaders, ...sampleCattleData]);
+    cattleSheet['!cols'] = cattleHeaders.map(() => ({ wch: 12 }));
+
+    // 부위별 정보 시트
+    const partHeaders = ['순번', '부위명', '중량(kg)', '최저가격(원)'];
+    const partNames = createDefaultParts().map(p => p.name);
+    
+    const samplePartData = [
+      // 1번 개체
+      ...partNames.map((name, idx) => ['1', name, (10 + idx * 0.5).toFixed(1), String((100000 + idx * 5000))]),
+      // 2번 개체
+      ...partNames.map((name, idx) => ['2', name, (9 + idx * 0.4).toFixed(1), String((95000 + idx * 4500))]),
+    ];
+    
+    const partsSheet = XLSX.utils.aoa_to_sheet([partHeaders, ...samplePartData]);
+    partsSheet['!cols'] = [{ wch: 8 }, { wch: 12 }, { wch: 12 }, { wch: 14 }];
+
+    // 워크북 생성
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, cattleSheet, '개체정보');
+    XLSX.utils.book_append_sheet(workbook, partsSheet, '부위별정보');
+
+    // 다운로드
+    XLSX.writeFile(workbook, '부분육_상장등록_템플릿.xlsx');
+  };
+
+  // 엑셀 파일 업로드 ref
+  const excelInputRef = useRef<HTMLInputElement>(null);
+
+  // 엑셀 파일 업로드 처리
+  const handleExcelUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const data = new Uint8Array(event.target?.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: 'array' });
+
+        // 개체정보 시트 파싱
+        const cattleSheet = workbook.Sheets['개체정보'];
+        if (!cattleSheet) {
+          alert('개체정보 시트를 찾을 수 없습니다.');
+          return;
+        }
+        const cattleData = XLSX.utils.sheet_to_json<Record<string, string>>(cattleSheet);
+
+        // 부위별정보 시트 파싱
+        const partsSheet = workbook.Sheets['부위별정보'];
+        if (!partsSheet) {
+          alert('부위별정보 시트를 찾을 수 없습니다.');
+          return;
+        }
+        const partsData = XLSX.utils.sheet_to_json<Record<string, string>>(partsSheet);
+
+        // 개체별로 그룹핑
+        const newCattleList: CattleData[] = cattleData.map((row, index) => {
+          const seqNo = String(row['순번'] || index + 1);
+          const cattle = createNewCattle(Date.now() + index, seqNo);
+          
+          // 개체 정보 매핑
+          cattle.breed = row['축종'] || '한우';
+          cattle.gender = row['성별'] || '';
+          cattle.grade = row['등급'] || '';
+          cattle.marbling = row['근내지방등급'] || '';
+          cattle.monthAge = row['개월령'] || '';
+          cattle.carcassWeight = row['도체중'] || '';
+          cattle.traceNo = formatTraceNo(row['이력번호'] || '');
+          cattle.backFat = row['등지방'] || '';
+          cattle.eyeMuscle = row['등심면적'] || '';
+          cattle.fatMarbling = row['근내지방'] || '';
+          cattle.meatColor = row['육색'] || '';
+          cattle.fatColor = row['지방색'] || '';
+          cattle.texture = row['조직감'] || '';
+          cattle.maturity = row['성숙도'] || '';
+          cattle.slaughterHouse = row['도축장'] || '음성';
+          cattle.slaughterDate = row['도축일'] || '';
+          cattle.slaughterNo = row['도축번호'] || '';
+          cattle.processDate = row['가공일'] || '';
+          cattle.processWeight = row['가공중량'] || '';
+
+          // 해당 개체의 부위 정보 찾기
+          const cattleParts = partsData.filter(p => String(p['순번']) === seqNo);
+          if (cattleParts.length > 0) {
+            cattle.parts = cattle.parts.map(part => {
+              const partData = cattleParts.find(p => p['부위명'] === part.name);
+              if (partData) {
+                return {
+                  ...part,
+                  weight: String(partData['중량(kg)'] || ''),
+                  minPrice: String(partData['최저가격(원)'] || ''),
+                };
+              }
+              return part;
+            });
+          }
+
+          return cattle;
+        });
+
+        if (newCattleList.length === 0) {
+          alert('업로드할 개체 데이터가 없습니다.');
+          return;
+        }
+
+        if (newCattleList.length > 10) {
+          alert('최대 10두까지만 등록할 수 있습니다. 처음 10두만 등록됩니다.');
+          setCattleList(newCattleList.slice(0, 10));
+        } else {
+          setCattleList(newCattleList);
+        }
+
+        alert(`${Math.min(newCattleList.length, 10)}두의 데이터를 불러왔습니다.`);
+      } catch (error) {
+        console.error('엑셀 파싱 오류:', error);
+        alert('엑셀 파일을 읽는 중 오류가 발생했습니다. 템플릿 형식을 확인해주세요.');
+      }
+    };
+
+    reader.readAsArrayBuffer(file);
+    // 같은 파일 다시 선택 가능하도록 초기화
+    e.target.value = '';
+  };
+
   // 공통 스타일
   const thClass = "px-2 py-2 text-xs font-medium text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50 text-center";
   const tdClass = "px-2 py-2 text-xs border border-gray-200 text-center";
@@ -312,7 +423,7 @@ export default function NewAuctionPage() {
       <div className="mb-4 flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">부분육상장등록</h1>
         <div className="flex items-center gap-2 text-sm text-gray-600">
-          <span className="px-2 py-1 bg-red-100 text-red-700 rounded font-medium">{cattleList.length}두</span>
+          <span className="text-red-600 font-medium">{cattleList.length}두</span>
           <span>/ 최대 10두</span>
         </div>
       </div>
@@ -320,38 +431,67 @@ export default function NewAuctionPage() {
       <form onSubmit={handleSubmit}>
         {/* 공통 정보 */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4 mb-4">
-          <div className="flex flex-wrap items-center gap-4">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-gray-600">상장일자</span>
-              <div className="relative">
-                <input
-                  ref={listingDateRef}
-                  type="date"
-                  value={listingDate}
-                  onChange={(e) => setListingDate(e.target.value)}
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-gray-600">상장일자</span>
+                <div className="relative">
+                  <input
+                    ref={listingDateRef}
+                    type="date"
+                    value={listingDate}
+                    onChange={(e) => setListingDate(e.target.value)}
+                    required
+                    className="w-36 pl-3 pr-8 py-1.5 border border-gray-200 rounded text-xs outline-none bg-white"
+                  />
+                  <Calendar 
+                    className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 cursor-pointer hover:text-gray-600" 
+                    onClick={() => listingDateRef.current?.showPicker()}
+                  />
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-gray-600">상장업체</span>
+                <select
+                  value={company}
+                  onChange={(e) => setCompany(e.target.value)}
                   required
-                  className="w-36 pl-3 pr-8 py-1.5 border border-gray-200 rounded text-xs outline-none bg-white"
-                />
-                <Calendar 
-                  className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 cursor-pointer hover:text-gray-600" 
-                  onClick={() => listingDateRef.current?.showPicker()}
-                />
+                  className="px-3 py-1.5 border border-gray-200 rounded text-xs outline-none bg-white min-w-[120px]"
+                >
+                  <option value="">선택</option>
+                  <option value="건화">건화</option>
+                  <option value="대진엠에스">대진엠에스</option>
+                  <option value="안심엘피씨">안심엘피씨</option>
+                  <option value="정직한고기">정직한고기</option>
+                </select>
               </div>
             </div>
+            
+            {/* 엑셀 업로드/다운로드 버튼 */}
             <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-gray-600">상장업체</span>
-              <select
-                value={company}
-                onChange={(e) => setCompany(e.target.value)}
-                required
-                className="px-3 py-1.5 border border-gray-200 rounded text-xs outline-none bg-white min-w-[120px]"
+              <button
+                type="button"
+                onClick={downloadExcelTemplate}
+                className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 text-gray-600 rounded text-xs hover:bg-gray-50"
               >
-                <option value="">선택</option>
-                <option value="건화">건화</option>
-                <option value="대진엠에스">대진엠에스</option>
-                <option value="안심엘피씨">안심엘피씨</option>
-                <option value="정직한고기">정직한고기</option>
-              </select>
+                <Download className="w-3.5 h-3.5" />
+                템플릿 다운로드
+              </button>
+              <button
+                type="button"
+                onClick={() => excelInputRef.current?.click()}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 text-white rounded text-xs hover:bg-green-700"
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5" />
+                엑셀 업로드
+              </button>
+              <input
+                ref={excelInputRef}
+                type="file"
+                accept=".xlsx,.xls"
+                onChange={handleExcelUpload}
+                className="hidden"
+              />
             </div>
           </div>
         </div>
@@ -376,22 +516,11 @@ export default function NewAuctionPage() {
                 </span>
               </div>
               <div className="flex items-center gap-2">
-                {cattleIndex > 0 && (
-                  <button
-                    type="button"
-                    onClick={(e) => { e.stopPropagation(); copyFromPrevious(cattle.id); }}
-                    className="flex items-center gap-1 px-2 py-1 text-xs text-blue-600 hover:bg-blue-50 rounded"
-                    title="이전 개체 정보 복사"
-                  >
-                    <Copy className="w-3.5 h-3.5" />
-                    이전복사
-                  </button>
-                )}
                 {cattleList.length > 1 && (
                   <button
                     type="button"
                     onClick={(e) => { e.stopPropagation(); removeCattle(cattle.id); }}
-                    className="flex items-center gap-1 px-2 py-1 text-xs text-red-600 hover:bg-red-50 rounded"
+                    className="flex items-center gap-1 px-2 py-1 text-xs text-red-600 hover:text-red-700"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                     삭제
