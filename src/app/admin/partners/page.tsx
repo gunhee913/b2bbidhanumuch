@@ -7,7 +7,6 @@ import {
   Plus, 
   Edit, 
   Download,
-  X,
   Trash2,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
@@ -69,9 +68,9 @@ export default function PartnersPage() {
   const [businessTypeFilter, setBusinessTypeFilter] = useState('전체');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
   
-  // 모달 상태
-  const [showModal, setShowModal] = useState(false);
-  const [editingPartner, setEditingPartner] = useState<Partner | null>(null);
+  // 인라인 추가/수정 상태
+  const [isAdding, setIsAdding] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   
   // 폼 상태
   const [formData, setFormData] = useState({
@@ -86,6 +85,40 @@ export default function PartnersPage() {
     dealer2: '',
     dealer3: '',
   });
+
+  // 연락처 포맷팅
+  const formatPhoneNumber = (value: string) => {
+    if (!value) return '';
+    const numbers = value.replace(/[^0-9]/g, '');
+    if (numbers.length <= 2) return numbers;
+    if (numbers.length <= 6) return `${numbers.slice(0, 2)}-${numbers.slice(2)}`;
+    if (numbers.length <= 10) return `${numbers.slice(0, 2)}-${numbers.slice(2, 6)}-${numbers.slice(6)}`;
+    // 휴대폰 번호 형식
+    if (numbers.startsWith('010')) {
+      if (numbers.length <= 3) return numbers;
+      if (numbers.length <= 7) return `${numbers.slice(0, 3)}-${numbers.slice(3)}`;
+      return `${numbers.slice(0, 3)}-${numbers.slice(3, 7)}-${numbers.slice(7, 11)}`;
+    }
+    // 지역번호 형식 (02, 031 등)
+    if (numbers.startsWith('02')) {
+      if (numbers.length <= 2) return numbers;
+      if (numbers.length <= 6) return `${numbers.slice(0, 2)}-${numbers.slice(2)}`;
+      return `${numbers.slice(0, 2)}-${numbers.slice(2, 6)}-${numbers.slice(6, 10)}`;
+    }
+    // 그 외 3자리 지역번호
+    if (numbers.length <= 3) return numbers;
+    if (numbers.length <= 7) return `${numbers.slice(0, 3)}-${numbers.slice(3)}`;
+    return `${numbers.slice(0, 3)}-${numbers.slice(3, 7)}-${numbers.slice(7, 11)}`;
+  };
+
+  // 사업자번호 포맷팅
+  const formatBusinessNo = (value: string) => {
+    if (!value) return '';
+    const numbers = value.replace(/[^0-9]/g, '');
+    if (numbers.length <= 3) return numbers;
+    if (numbers.length <= 5) return `${numbers.slice(0, 3)}-${numbers.slice(3)}`;
+    return `${numbers.slice(0, 3)}-${numbers.slice(3, 5)}-${numbers.slice(5, 10)}`;
+  };
 
   // 중도매인 이름 가져오기
   const getDealerName = (dealerId: string) => {
@@ -105,67 +138,104 @@ export default function PartnersPage() {
     return matchSearch && matchType && matchStatus;
   });
 
-  // 모달 열기
-  const openModal = (partner?: Partner) => {
-    if (partner) {
-      setEditingPartner(partner);
-      setFormData({
-        name: partner.name,
-        businessNo: partner.businessNo,
-        representative: partner.representative,
-        phone: partner.phone,
-        address: partner.address,
-        businessType: partner.businessType,
-        status: partner.status,
-        dealer1: partner.dealer1,
-        dealer2: partner.dealer2,
-        dealer3: partner.dealer3,
-      });
-    } else {
-      setEditingPartner(null);
-      setFormData({
-        name: '',
-        businessNo: '',
-        representative: '',
-        phone: '',
-        address: '',
-        businessType: '음식점',
-        status: 'active',
-        dealer1: '',
-        dealer2: '',
-        dealer3: '',
-      });
-    }
-    setShowModal(true);
+  // 등록 시작
+  const handleAddStart = () => {
+    setIsAdding(true);
+    setEditingId(null);
+    setFormData({
+      name: '',
+      businessNo: '',
+      representative: '',
+      phone: '',
+      address: '',
+      businessType: '음식점',
+      status: 'active',
+      dealer1: '',
+      dealer2: '',
+      dealer3: '',
+    });
   };
 
-  // 모달 닫기
-  const closeModal = () => {
-    setShowModal(false);
-    setEditingPartner(null);
+  // 등록 취소
+  const handleAddCancel = () => {
+    setIsAdding(false);
+    setFormData({
+      name: '',
+      businessNo: '',
+      representative: '',
+      phone: '',
+      address: '',
+      businessType: '음식점',
+      status: 'active',
+      dealer1: '',
+      dealer2: '',
+      dealer3: '',
+    });
   };
 
-  // 거래처 저장
-  const handleSave = () => {
+  // 등록 저장
+  const handleAddSave = () => {
     if (!formData.name || !formData.businessNo || !formData.representative || !formData.phone) {
       alert('필수 항목을 입력해주세요.');
       return;
     }
 
-    if (editingPartner) {
-      setPartners(prev => prev.map(p =>
-        p.id === editingPartner.id ? { ...p, ...formData } : p
-      ));
-    } else {
-      const newPartner: Partner = {
-        id: `p${Date.now()}`,
-        partnerNo: String(10001 + partners.length),
-        ...formData,
-        createdAt: new Date().toISOString().split('T')[0],
-      };
-      setPartners(prev => [...prev, newPartner]);
+    const newPartner: Partner = {
+      id: `p${Date.now()}`,
+      partnerNo: String(10001 + partners.length),
+      ...formData,
+      createdAt: new Date().toISOString().split('T')[0],
+    };
+    setPartners(prev => [...prev, newPartner]);
+    setIsAdding(false);
+    setFormData({
+      name: '',
+      businessNo: '',
+      representative: '',
+      phone: '',
+      address: '',
+      businessType: '음식점',
+      status: 'active',
+      dealer1: '',
+      dealer2: '',
+      dealer3: '',
+    });
+  };
+
+  // 수정 시작
+  const handleEditStart = (partner: Partner) => {
+    setEditingId(partner.id);
+    setIsAdding(false);
+    setFormData({
+      name: partner.name,
+      businessNo: partner.businessNo,
+      representative: partner.representative,
+      phone: partner.phone,
+      address: partner.address,
+      businessType: partner.businessType,
+      status: partner.status,
+      dealer1: partner.dealer1,
+      dealer2: partner.dealer2,
+      dealer3: partner.dealer3,
+    });
+  };
+
+  // 수정 취소
+  const handleEditCancel = () => {
+    setEditingId(null);
+  };
+
+  // 수정 저장
+  const handleEditSave = () => {
+    if (!formData.name || !formData.businessNo || !formData.representative || !formData.phone) {
+      alert('필수 항목을 입력해주세요.');
+      return;
     }
-    closeModal();
+
+    setPartners(prev => prev.map(p =>
+      p.id === editingId ? { ...p, ...formData } : p
+    ));
+    setEditingId(null);
   };
 
   // 거래처 삭제
@@ -207,8 +277,9 @@ export default function PartnersPage() {
   };
 
   // 스타일
-  const thClass = "px-3 py-2 text-xs font-medium text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50 text-center";
-  const tdClass = "px-3 py-2 text-xs border border-gray-200 text-center whitespace-nowrap";
+  const thClass = "px-2 py-2 text-xs font-medium text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50 text-center";
+  const tdClass = "px-2 py-2 text-xs border border-gray-200 text-center whitespace-nowrap";
+  const inputClass = "w-full px-2 py-1.5 text-xs border border-gray-200 focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white";
 
   return (
     <AdminLayout>
@@ -218,7 +289,7 @@ export default function PartnersPage() {
       </div>
 
       {/* 필터 및 검색 */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4 mb-4">
+      <div className="bg-white shadow-sm border border-gray-100 p-4 mb-4">
         <div className="flex flex-wrap items-center gap-4">
           {/* 거래처구분 필터 */}
           <div className="flex items-center gap-2">
@@ -226,7 +297,7 @@ export default function PartnersPage() {
             <select
               value={businessTypeFilter}
               onChange={(e) => setBusinessTypeFilter(e.target.value)}
-              className="px-3 py-1.5 border border-gray-200 rounded text-xs outline-none bg-white"
+              className="px-3 py-1.5 border border-gray-200 text-xs outline-none bg-white"
             >
               {BUSINESS_TYPES.map(type => (
                 <option key={type} value={type}>{type}</option>
@@ -240,7 +311,7 @@ export default function PartnersPage() {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value as 'all' | 'active' | 'inactive')}
-              className="px-3 py-1.5 border border-gray-200 rounded text-xs outline-none bg-white"
+              className="px-3 py-1.5 border border-gray-200 text-xs outline-none bg-white"
             >
               <option value="all">전체</option>
               <option value="active">활성</option>
@@ -257,7 +328,7 @@ export default function PartnersPage() {
                 placeholder="거래처명, 대표자, 번호 검색"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-8 pr-3 py-1.5 border border-gray-200 rounded text-xs outline-none bg-white w-52"
+                className="pl-8 pr-3 py-1.5 border border-gray-200 text-xs outline-none bg-white w-52"
               />
             </div>
           </div>
@@ -271,22 +342,23 @@ export default function PartnersPage() {
                 setBusinessTypeFilter('전체');
                 setStatusFilter('all');
               }}
-              className="px-4 py-1.5 border border-gray-200 text-gray-600 rounded text-xs hover:bg-gray-50"
+              className="px-4 py-1.5 border border-gray-200 text-gray-600 text-xs hover:bg-gray-50"
             >
               초기화
             </button>
             <button
               type="button"
               onClick={handleExcelDownload}
-              className="flex items-center gap-1.5 px-4 py-1.5 bg-green-600 text-white rounded text-xs hover:bg-green-700"
+              className="flex items-center gap-1.5 px-4 py-1.5 bg-green-600 text-white text-xs hover:bg-green-700"
             >
               <Download className="w-3.5 h-3.5" />
               엑셀
             </button>
             <button
               type="button"
-              onClick={() => openModal()}
-              className="flex items-center gap-1.5 px-4 py-1.5 bg-red-600 text-white rounded text-xs hover:bg-red-700"
+              onClick={handleAddStart}
+              disabled={isAdding || editingId !== null}
+              className="flex items-center gap-1.5 px-4 py-1.5 bg-red-600 text-white text-xs hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Plus className="w-3.5 h-3.5" />
               거래처 등록
@@ -296,7 +368,7 @@ export default function PartnersPage() {
       </div>
 
       {/* 요약 정보 */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4 mb-4">
+      <div className="bg-white shadow-sm border border-gray-100 p-4 mb-4">
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-2">
             <span className="text-sm text-gray-500">총 거래처</span>
@@ -314,64 +386,324 @@ export default function PartnersPage() {
       </div>
 
       {/* 테이블 */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
+      <div className="bg-white shadow-sm border border-gray-100 overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-xs border-collapse">
+          <table className="w-full text-xs border-collapse table-fixed">
             <thead>
               <tr>
-                <th className={thClass}>거래처번호</th>
-                <th className={thClass}>거래처명</th>
-                <th className={thClass}>사업자번호</th>
-                <th className={thClass}>대표자</th>
-                <th className={thClass}>연락처</th>
-                <th className={thClass}>주소</th>
-                <th className={thClass}>거래처구분</th>
-                <th className={thClass}>등록일</th>
-                <th className={thClass}>중도매인1</th>
-                <th className={thClass}>중도매인2</th>
-                <th className={thClass}>중도매인3</th>
-                <th className={thClass}>상태</th>
-                <th className={thClass}>액션</th>
+                <th className={`${thClass} w-[70px]`}>거래처번호</th>
+                <th className={`${thClass} w-[100px]`}>거래처명</th>
+                <th className={`${thClass} w-[100px]`}>사업자번호</th>
+                <th className={`${thClass} w-[70px]`}>대표자</th>
+                <th className={`${thClass} w-[100px]`}>연락처</th>
+                <th className={`${thClass} w-[180px]`}>주소</th>
+                <th className={`${thClass} w-[80px]`}>거래처구분</th>
+                <th className={`${thClass} w-[80px]`}>등록일</th>
+                <th className={`${thClass} w-[70px]`}>중도매인1</th>
+                <th className={`${thClass} w-[70px]`}>중도매인2</th>
+                <th className={`${thClass} w-[70px]`}>중도매인3</th>
+                <th className={`${thClass} w-[60px]`}>상태</th>
+                <th className={`${thClass} w-[80px]`}>액션</th>
               </tr>
             </thead>
             <tbody>
-              {filteredPartners.map((partner) => (
-                <tr key={partner.id} className="hover:bg-gray-50">
-                  <td className={tdClass}>{partner.partnerNo}</td>
-                  <td className={`${tdClass} font-medium text-gray-900`}>{partner.name}</td>
-                  <td className={tdClass}>{partner.businessNo}</td>
-                  <td className={tdClass}>{partner.representative}</td>
-                  <td className={tdClass}>{partner.phone}</td>
-                  <td className={`${tdClass} text-left max-w-[200px] truncate`} title={partner.address}>
-                    {partner.address}
+              {/* 추가 행 */}
+              {isAdding && (
+                <tr className="bg-gray-50">
+                  <td className={`${tdClass} text-gray-400`}>자동생성</td>
+                  <td className={tdClass}>
+                    <input
+                      type="text"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      placeholder="거래처명 *"
+                      className={inputClass}
+                    />
                   </td>
-                  <td className={tdClass}>{partner.businessType}</td>
-                  <td className={tdClass}>{partner.createdAt}</td>
-                  <td className={tdClass}>{getDealerName(partner.dealer1)}</td>
-                  <td className={tdClass}>{getDealerName(partner.dealer2)}</td>
-                  <td className={tdClass}>{getDealerName(partner.dealer3)}</td>
-                  <td className={tdClass}>{partner.status === 'active' ? '활성' : '비활성'}</td>
+                  <td className={tdClass}>
+                    <input
+                      type="text"
+                      value={formData.businessNo}
+                      onChange={(e) => setFormData({ ...formData, businessNo: formatBusinessNo(e.target.value) })}
+                      placeholder="000-00-00000 *"
+                      className={inputClass}
+                    />
+                  </td>
+                  <td className={tdClass}>
+                    <input
+                      type="text"
+                      value={formData.representative}
+                      onChange={(e) => setFormData({ ...formData, representative: e.target.value })}
+                      placeholder="대표자 *"
+                      className={inputClass}
+                    />
+                  </td>
+                  <td className={tdClass}>
+                    <input
+                      type="text"
+                      value={formData.phone}
+                      onChange={(e) => setFormData({ ...formData, phone: formatPhoneNumber(e.target.value) })}
+                      placeholder="연락처 *"
+                      className={inputClass}
+                    />
+                  </td>
+                  <td className={tdClass}>
+                    <input
+                      type="text"
+                      value={formData.address}
+                      onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                      placeholder="주소"
+                      className={inputClass}
+                    />
+                  </td>
+                  <td className={tdClass}>
+                    <select
+                      value={formData.businessType}
+                      onChange={(e) => setFormData({ ...formData, businessType: e.target.value })}
+                      className={inputClass}
+                    >
+                      <option value="음식점">음식점</option>
+                      <option value="일반정육점">일반정육점</option>
+                      <option value="마트">마트</option>
+                      <option value="육가공장">육가공장</option>
+                      <option value="기타">기타</option>
+                    </select>
+                  </td>
+                  <td className={`${tdClass} text-gray-400`}>자동</td>
+                  <td className={tdClass}>
+                    <select
+                      value={formData.dealer1}
+                      onChange={(e) => setFormData({ ...formData, dealer1: e.target.value })}
+                      className={inputClass}
+                    >
+                      <option value="">선택</option>
+                      {dealers.map(d => (
+                        <option key={d.id} value={d.id}>{d.name}</option>
+                      ))}
+                    </select>
+                  </td>
+                  <td className={tdClass}>
+                    <select
+                      value={formData.dealer2}
+                      onChange={(e) => setFormData({ ...formData, dealer2: e.target.value })}
+                      className={inputClass}
+                    >
+                      <option value="">선택</option>
+                      {dealers.map(d => (
+                        <option key={d.id} value={d.id}>{d.name}</option>
+                      ))}
+                    </select>
+                  </td>
+                  <td className={tdClass}>
+                    <select
+                      value={formData.dealer3}
+                      onChange={(e) => setFormData({ ...formData, dealer3: e.target.value })}
+                      className={inputClass}
+                    >
+                      <option value="">선택</option>
+                      {dealers.map(d => (
+                        <option key={d.id} value={d.id}>{d.name}</option>
+                      ))}
+                    </select>
+                  </td>
+                  <td className={tdClass}>
+                    <select
+                      value={formData.status}
+                      onChange={(e) => setFormData({ ...formData, status: e.target.value as 'active' | 'inactive' })}
+                      className={inputClass}
+                    >
+                      <option value="active">활성</option>
+                      <option value="inactive">비활성</option>
+                    </select>
+                  </td>
                   <td className={tdClass}>
                     <div className="flex items-center justify-center gap-1">
                       <button
-                        onClick={() => openModal(partner)}
-                        className="p-1 text-gray-500 hover:text-gray-700"
-                        title="수정"
+                        onClick={handleAddSave}
+                        disabled={!formData.name || !formData.businessNo || !formData.representative || !formData.phone}
+                        className="px-2 py-1 text-xs bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        <Edit className="w-3.5 h-3.5" />
+                        저장
                       </button>
                       <button
-                        onClick={() => handleDelete(partner.id)}
-                        className="p-1 text-red-500 hover:text-red-700"
-                        title="삭제"
+                        onClick={handleAddCancel}
+                        className="px-2 py-1 text-xs border border-gray-300 text-gray-600 hover:bg-gray-100"
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
+                        취소
                       </button>
                     </div>
                   </td>
                 </tr>
+              )}
+              {filteredPartners.map((partner) => (
+                editingId === partner.id ? (
+                  // 수정 행
+                  <tr key={partner.id} className="bg-gray-50">
+                    <td className={tdClass}>{partner.partnerNo}</td>
+                    <td className={tdClass}>
+                      <input
+                        type="text"
+                        value={formData.name}
+                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                        placeholder="거래처명 *"
+                        className={inputClass}
+                      />
+                    </td>
+                    <td className={tdClass}>
+                      <input
+                        type="text"
+                        value={formData.businessNo}
+                        onChange={(e) => setFormData({ ...formData, businessNo: formatBusinessNo(e.target.value) })}
+                        placeholder="000-00-00000 *"
+                        className={inputClass}
+                      />
+                    </td>
+                    <td className={tdClass}>
+                      <input
+                        type="text"
+                        value={formData.representative}
+                        onChange={(e) => setFormData({ ...formData, representative: e.target.value })}
+                        placeholder="대표자 *"
+                        className={inputClass}
+                      />
+                    </td>
+                    <td className={tdClass}>
+                      <input
+                        type="text"
+                        value={formData.phone}
+                        onChange={(e) => setFormData({ ...formData, phone: formatPhoneNumber(e.target.value) })}
+                        placeholder="연락처 *"
+                        className={inputClass}
+                      />
+                    </td>
+                    <td className={tdClass}>
+                      <input
+                        type="text"
+                        value={formData.address}
+                        onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                        placeholder="주소"
+                        className={inputClass}
+                      />
+                    </td>
+                    <td className={tdClass}>
+                      <select
+                        value={formData.businessType}
+                        onChange={(e) => setFormData({ ...formData, businessType: e.target.value })}
+                        className={inputClass}
+                      >
+                        <option value="음식점">음식점</option>
+                        <option value="일반정육점">일반정육점</option>
+                        <option value="마트">마트</option>
+                        <option value="육가공장">육가공장</option>
+                        <option value="기타">기타</option>
+                      </select>
+                    </td>
+                    <td className={tdClass}>{partner.createdAt}</td>
+                    <td className={tdClass}>
+                      <select
+                        value={formData.dealer1}
+                        onChange={(e) => setFormData({ ...formData, dealer1: e.target.value })}
+                        className={inputClass}
+                      >
+                        <option value="">선택</option>
+                        {dealers.map(d => (
+                          <option key={d.id} value={d.id}>{d.name}</option>
+                        ))}
+                      </select>
+                    </td>
+                    <td className={tdClass}>
+                      <select
+                        value={formData.dealer2}
+                        onChange={(e) => setFormData({ ...formData, dealer2: e.target.value })}
+                        className={inputClass}
+                      >
+                        <option value="">선택</option>
+                        {dealers.map(d => (
+                          <option key={d.id} value={d.id}>{d.name}</option>
+                        ))}
+                      </select>
+                    </td>
+                    <td className={tdClass}>
+                      <select
+                        value={formData.dealer3}
+                        onChange={(e) => setFormData({ ...formData, dealer3: e.target.value })}
+                        className={inputClass}
+                      >
+                        <option value="">선택</option>
+                        {dealers.map(d => (
+                          <option key={d.id} value={d.id}>{d.name}</option>
+                        ))}
+                      </select>
+                    </td>
+                    <td className={tdClass}>
+                      <select
+                        value={formData.status}
+                        onChange={(e) => setFormData({ ...formData, status: e.target.value as 'active' | 'inactive' })}
+                        className={inputClass}
+                      >
+                        <option value="active">활성</option>
+                        <option value="inactive">비활성</option>
+                      </select>
+                    </td>
+                    <td className={tdClass}>
+                      <div className="flex items-center justify-center gap-1">
+                        <button
+                          onClick={handleEditSave}
+                          disabled={!formData.name || !formData.businessNo || !formData.representative || !formData.phone}
+                          className="px-2 py-1 text-xs bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          저장
+                        </button>
+                        <button
+                          onClick={handleEditCancel}
+                          className="px-2 py-1 text-xs border border-gray-300 text-gray-600 hover:bg-gray-100"
+                        >
+                          취소
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  // 일반 행
+                  <tr key={partner.id} className="hover:bg-gray-50">
+                    <td className={tdClass}>{partner.partnerNo}</td>
+                    <td className={`${tdClass} font-medium text-gray-900`}>{partner.name}</td>
+                    <td className={tdClass}>{partner.businessNo}</td>
+                    <td className={tdClass}>{partner.representative}</td>
+                    <td className={tdClass}>{partner.phone}</td>
+                    <td className={`${tdClass} text-left truncate`} title={partner.address}>
+                      {partner.address}
+                    </td>
+                    <td className={tdClass}>{partner.businessType}</td>
+                    <td className={tdClass}>{partner.createdAt}</td>
+                    <td className={tdClass}>{getDealerName(partner.dealer1)}</td>
+                    <td className={tdClass}>{getDealerName(partner.dealer2)}</td>
+                    <td className={tdClass}>{getDealerName(partner.dealer3)}</td>
+                    <td className={tdClass}>{partner.status === 'active' ? '활성' : '비활성'}</td>
+                    <td className={tdClass}>
+                      <div className="flex items-center justify-center gap-1">
+                        <button
+                          onClick={() => handleEditStart(partner)}
+                          disabled={isAdding || editingId !== null}
+                          className="p-1 text-gray-500 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                          title="수정"
+                        >
+                          <Edit className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(partner.id)}
+                          disabled={isAdding || editingId !== null}
+                          className="p-1 text-red-500 hover:text-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                          title="삭제"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                )
               ))}
-              {filteredPartners.length === 0 && (
+              {filteredPartners.length === 0 && !isAdding && (
                 <tr>
                   <td colSpan={13} className="px-4 py-8 text-center text-gray-500">
                     검색 결과가 없습니다.
@@ -382,172 +714,6 @@ export default function PartnersPage() {
           </table>
         </div>
       </div>
-
-      {/* 등록/수정 모달 */}
-      {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/50" onClick={closeModal} />
-          <div className="relative bg-white rounded-lg shadow-xl w-full max-w-lg mx-4">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
-              <h3 className="font-semibold text-gray-900">
-                {editingPartner ? '거래처 수정' : '거래처 등록'}
-              </h3>
-              <button onClick={closeModal} className="p-1 text-gray-400 hover:text-gray-600">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            
-            <div className="p-4 space-y-4 max-h-[70vh] overflow-y-auto">
-              {/* 거래처명 */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">거래처명 (상호) *</label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="예: 맛있는정육점"
-                  className="w-full px-3 py-2 border border-gray-200 rounded text-sm outline-none bg-white"
-                />
-              </div>
-
-              {/* 사업자번호 */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">사업자번호 *</label>
-                <input
-                  type="text"
-                  value={formData.businessNo}
-                  onChange={(e) => setFormData({ ...formData, businessNo: e.target.value })}
-                  placeholder="예: 123-45-67890"
-                  className="w-full px-3 py-2 border border-gray-200 rounded text-sm outline-none bg-white"
-                />
-              </div>
-
-              {/* 대표자 */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">대표자 *</label>
-                <input
-                  type="text"
-                  value={formData.representative}
-                  onChange={(e) => setFormData({ ...formData, representative: e.target.value })}
-                  placeholder="예: 홍길동"
-                  className="w-full px-3 py-2 border border-gray-200 rounded text-sm outline-none bg-white"
-                />
-              </div>
-
-              {/* 연락처 */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">연락처 *</label>
-                <input
-                  type="text"
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  placeholder="예: 02-1234-5678"
-                  className="w-full px-3 py-2 border border-gray-200 rounded text-sm outline-none bg-white"
-                />
-              </div>
-
-              {/* 주소 */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">주소</label>
-                <input
-                  type="text"
-                  value={formData.address}
-                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                  placeholder="예: 서울시 강남구 역삼동 123-45"
-                  className="w-full px-3 py-2 border border-gray-200 rounded text-sm outline-none bg-white"
-                />
-              </div>
-
-              {/* 거래처구분 */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">거래처구분</label>
-                <select
-                  value={formData.businessType}
-                  onChange={(e) => setFormData({ ...formData, businessType: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-200 rounded text-sm outline-none bg-white"
-                >
-                  <option value="음식점">음식점</option>
-                  <option value="일반정육점">일반정육점</option>
-                  <option value="마트">마트</option>
-                  <option value="육가공장">육가공장</option>
-                  <option value="기타">기타</option>
-                </select>
-              </div>
-
-              {/* 상태 */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">상태</label>
-                <select
-                  value={formData.status}
-                  onChange={(e) => setFormData({ ...formData, status: e.target.value as 'active' | 'inactive' })}
-                  className="w-full px-3 py-2 border border-gray-200 rounded text-sm outline-none bg-white"
-                >
-                  <option value="active">활성</option>
-                  <option value="inactive">비활성</option>
-                </select>
-              </div>
-
-              {/* 중도매인 설정 */}
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">중도매인1</label>
-                  <select
-                    value={formData.dealer1}
-                    onChange={(e) => setFormData({ ...formData, dealer1: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-200 rounded text-sm outline-none bg-white"
-                  >
-                    <option value="">선택</option>
-                    {dealers.map(d => (
-                      <option key={d.id} value={d.id}>{d.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">중도매인2</label>
-                  <select
-                    value={formData.dealer2}
-                    onChange={(e) => setFormData({ ...formData, dealer2: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-200 rounded text-sm outline-none bg-white"
-                  >
-                    <option value="">선택</option>
-                    {dealers.map(d => (
-                      <option key={d.id} value={d.id}>{d.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">중도매인3</label>
-                  <select
-                    value={formData.dealer3}
-                    onChange={(e) => setFormData({ ...formData, dealer3: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-200 rounded text-sm outline-none bg-white"
-                  >
-                    <option value="">선택</option>
-                    {dealers.map(d => (
-                      <option key={d.id} value={d.id}>{d.name}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-end gap-2 px-4 py-3 border-t border-gray-200 bg-gray-50">
-              <button
-                onClick={closeModal}
-                className="px-4 py-2 border border-gray-200 text-gray-600 rounded text-sm hover:bg-gray-100"
-              >
-                취소
-              </button>
-              <button
-                onClick={handleSave}
-                className="px-4 py-2 bg-red-600 text-white rounded text-sm hover:bg-red-700"
-              >
-                {editingPartner ? '수정' : '등록'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </AdminLayout>
   );
 }

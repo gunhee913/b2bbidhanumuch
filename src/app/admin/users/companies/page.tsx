@@ -17,7 +17,7 @@ import {
 
 interface Employee {
   id: string;
-  role: 'ceo' | 'staff';
+  role: string; // 구분 (자유 입력)
   name: string;
   phone: string;
   password: string;
@@ -52,8 +52,8 @@ const initialCompanies: Company[] = [
     createdAt: '2024-01-10', 
     lastLogin: '2026-01-19 09:00',
     employees: [
-      { id: '1-1', role: 'ceo', name: '김건화', phone: '010-1234-5678', password: '1234', address: '서울시 강남구 테헤란로 123', createdAt: '2024-01-10', lastLogin: '2026-01-19 09:00', status: 'active' },
-      { id: '1-2', role: 'staff', name: '이직원', phone: '010-2345-6789', password: '1234', address: '서울시 서초구 서초대로 456', createdAt: '2024-03-15', lastLogin: '2026-01-18 17:30', status: 'active' },
+      { id: '1-1', role: '대표', name: '김건화', phone: '010-1234-5678', password: '1234', address: '서울시 강남구 테헤란로 123', createdAt: '2024-01-10', lastLogin: '2026-01-19 09:00', status: 'active' },
+      { id: '1-2', role: '직원', name: '이직원', phone: '010-2345-6789', password: '1234', address: '서울시 서초구 서초대로 456', createdAt: '2024-03-15', lastLogin: '2026-01-18 17:30', status: 'active' },
     ]
   },
   { 
@@ -67,7 +67,7 @@ const initialCompanies: Company[] = [
     createdAt: '2024-01-10', 
     lastLogin: '2026-01-19 08:30',
     employees: [
-      { id: '2-1', role: 'ceo', name: '이대진', phone: '010-3456-7890', password: '1234', address: '경기도 성남시 분당구 정자동 789', createdAt: '2024-01-10', lastLogin: '2026-01-19 08:30', status: 'active' },
+      { id: '2-1', role: '대표', name: '이대진', phone: '010-3456-7890', password: '1234', address: '경기도 성남시 분당구 정자동 789', createdAt: '2024-01-10', lastLogin: '2026-01-19 08:30', status: 'active' },
     ]
   },
   { 
@@ -81,9 +81,9 @@ const initialCompanies: Company[] = [
     createdAt: '2024-02-15', 
     lastLogin: '2026-01-18 17:00',
     employees: [
-      { id: '3-1', role: 'ceo', name: '박안심', phone: '010-4567-8901', password: '1234', address: '충북 음성군 음성읍 중앙로 12', createdAt: '2024-02-15', lastLogin: '2026-01-18 17:00', status: 'active' },
-      { id: '3-2', role: 'staff', name: '김직원', phone: '010-5678-9012', password: '1234', address: '충북 음성군 음성읍 읍내리 34', createdAt: '2024-05-20', lastLogin: '2026-01-19 08:00', status: 'active' },
-      { id: '3-3', role: 'staff', name: '최직원', phone: '010-6789-0123', password: '1234', address: '충북 음성군 금왕읍 금왕리 56', createdAt: '2024-06-10', lastLogin: '2026-01-17 16:00', status: 'inactive' },
+      { id: '3-1', role: '대표', name: '박안심', phone: '010-4567-8901', password: '1234', address: '충북 음성군 음성읍 중앙로 12', createdAt: '2024-02-15', lastLogin: '2026-01-18 17:00', status: 'active' },
+      { id: '3-2', role: '직원', name: '김직원', phone: '010-5678-9012', password: '1234', address: '충북 음성군 음성읍 읍내리 34', createdAt: '2024-05-20', lastLogin: '2026-01-19 08:00', status: 'active' },
+      { id: '3-3', role: '직원', name: '최직원', phone: '010-6789-0123', password: '1234', address: '충북 음성군 금왕읍 금왕리 56', createdAt: '2024-06-10', lastLogin: '2026-01-17 16:00', status: 'inactive' },
     ]
   },
   { 
@@ -97,7 +97,7 @@ const initialCompanies: Company[] = [
     createdAt: '2024-03-20', 
     lastLogin: '2026-01-19 10:30',
     employees: [
-      { id: '4-1', role: 'ceo', name: '최정직', phone: '010-7890-1234', password: '1234', address: '충북 음성군 대소면 대소리 78', createdAt: '2024-03-20', lastLogin: '2026-01-19 10:30', status: 'active' },
+      { id: '4-1', role: '대표', name: '최정직', phone: '010-7890-1234', password: '1234', address: '충북 음성군 대소면 대소리 78', createdAt: '2024-03-20', lastLogin: '2026-01-19 10:30', status: 'active' },
     ]
   },
 ];
@@ -109,15 +109,15 @@ export default function CompaniesPage() {
   const [expandedCompany, setExpandedCompany] = useState<string | null>(null);
   const itemsPerPage = 10;
 
-  // 모달 상태
-  const [showEditModal, setShowEditModal] = useState(false);
+  // 상장업체 상태
+  const [editingCompanyId, setEditingCompanyId] = useState<string | null>(null);
+  const [isAddingCompany, setIsAddingCompany] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [showAddModal, setShowAddModal] = useState(false);
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
 
-  // 직원 모달 상태
-  const [showAddEmployeeModal, setShowAddEmployeeModal] = useState(false);
-  const [showEditEmployeeModal, setShowEditEmployeeModal] = useState(false);
+  // 직원 상태
+  const [addingEmployeeToCompanyId, setAddingEmployeeToCompanyId] = useState<string | null>(null);
+  const [editingEmployeeId, setEditingEmployeeId] = useState<string | null>(null);
   const [showDeleteEmployeeModal, setShowDeleteEmployeeModal] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
 
@@ -133,7 +133,7 @@ export default function CompaniesPage() {
 
   // 직원 폼 데이터
   const [employeeFormData, setEmployeeFormData] = useState({
-    role: 'staff' as 'ceo' | 'staff',
+    role: '',
     name: '',
     phone: '',
     password: '',
@@ -166,7 +166,7 @@ export default function CompaniesPage() {
     setExpandedCompany(expandedCompany === companyId ? null : companyId);
   };
 
-  // 수정 모달 열기
+  // 수정 인라인 열기
   const handleEditOpen = (company: Company, e: React.MouseEvent) => {
     e.stopPropagation();
     setSelectedCompany(company);
@@ -178,19 +178,27 @@ export default function CompaniesPage() {
       phone: company.phone,
       status: company.status,
     });
-    setShowEditModal(true);
+    setEditingCompanyId(company.id);
+  };
+
+  // 수정 취소
+  const handleEditCancel = () => {
+    setEditingCompanyId(null);
+    setSelectedCompany(null);
+    setFormData({ companyNo: '', name: '', businessNo: '', ceo: '', phone: '', status: 'active' });
   };
 
   // 수정 저장
   const handleEditSave = () => {
-    if (!selectedCompany) return;
+    if (!editingCompanyId) return;
     setCompanies(companies.map(c => 
-      c.id === selectedCompany.id 
+      c.id === editingCompanyId 
         ? { ...c, ...formData }
         : c
     ));
-    setShowEditModal(false);
+    setEditingCompanyId(null);
     setSelectedCompany(null);
+    setFormData({ companyNo: '', name: '', businessNo: '', ceo: '', phone: '', status: 'active' });
   };
 
   // 삭제 모달 열기
@@ -208,7 +216,7 @@ export default function CompaniesPage() {
     setSelectedCompany(null);
   };
 
-  // 등록 모달 열기
+  // 등록 인라인 열기
   const handleAddOpen = () => {
     const nextNo = String((companies.length + 1) * 100);
     setFormData({
@@ -219,7 +227,13 @@ export default function CompaniesPage() {
       phone: '',
       status: 'active',
     });
-    setShowAddModal(true);
+    setIsAddingCompany(true);
+  };
+
+  // 등록 취소
+  const handleAddCancel = () => {
+    setIsAddingCompany(false);
+    setFormData({ companyNo: '', name: '', businessNo: '', ceo: '', phone: '', status: 'active' });
   };
 
   // 등록 저장
@@ -238,29 +252,37 @@ export default function CompaniesPage() {
       employees: [],
     };
     setCompanies([...companies, newCompany]);
-    setShowAddModal(false);
+    setIsAddingCompany(false);
+    setFormData({ companyNo: '', name: '', businessNo: '', ceo: '', phone: '', status: 'active' });
   };
 
-  // 직원 추가 모달 열기
-  const handleAddEmployeeOpen = (company: Company) => {
+  // 직원 추가 인라인 열기
+  const handleAddEmployeeOpen = (company: Company, e: React.MouseEvent) => {
+    e.stopPropagation();
     setSelectedCompany(company);
     setEmployeeFormData({
-      role: 'staff',
+      role: '',
       name: '',
       phone: '',
       password: '',
       address: '',
       status: 'active',
     });
-    setShowAddEmployeeModal(true);
+    setAddingEmployeeToCompanyId(company.id);
+  };
+
+  // 직원 추가 취소
+  const handleAddEmployeeCancel = () => {
+    setAddingEmployeeToCompanyId(null);
+    setSelectedCompany(null);
+    setEmployeeFormData({ role: '', name: '', phone: '', password: '', address: '', status: 'active' });
   };
 
   // 직원 추가 저장
-  const handleAddEmployeeSave = () => {
-    if (!selectedCompany) return;
+  const handleAddEmployeeSave = (company: Company) => {
     const today = new Date().toISOString().split('T')[0];
     const newEmployee: Employee = {
-      id: `${selectedCompany.id}-${selectedCompany.employees.length + 1}`,
+      id: `${company.id}-${company.employees.length + 1}`,
       role: employeeFormData.role,
       name: employeeFormData.name,
       phone: employeeFormData.phone,
@@ -271,15 +293,16 @@ export default function CompaniesPage() {
       status: employeeFormData.status,
     };
     setCompanies(companies.map(c => 
-      c.id === selectedCompany.id 
+      c.id === company.id 
         ? { ...c, employees: [...c.employees, newEmployee] }
         : c
     ));
-    setShowAddEmployeeModal(false);
+    setAddingEmployeeToCompanyId(null);
     setSelectedCompany(null);
+    setEmployeeFormData({ role: '', name: '', phone: '', password: '', address: '', status: 'active' });
   };
 
-  // 직원 수정 모달 열기
+  // 직원 수정 인라인 열기
   const handleEditEmployeeOpen = (company: Company, employee: Employee) => {
     setSelectedCompany(company);
     setSelectedEmployee(employee);
@@ -291,7 +314,15 @@ export default function CompaniesPage() {
       address: employee.address,
       status: employee.status,
     });
-    setShowEditEmployeeModal(true);
+    setEditingEmployeeId(employee.id);
+  };
+
+  // 직원 수정 취소
+  const handleEditEmployeeCancel = () => {
+    setEditingEmployeeId(null);
+    setSelectedCompany(null);
+    setSelectedEmployee(null);
+    setEmployeeFormData({ role: '', name: '', phone: '', password: '', address: '', status: 'active' });
   };
 
   // 직원 수정 저장
@@ -309,9 +340,10 @@ export default function CompaniesPage() {
           }
         : c
     ));
-    setShowEditEmployeeModal(false);
+    setEditingEmployeeId(null);
     setSelectedCompany(null);
     setSelectedEmployee(null);
+    setEmployeeFormData({ role: '', name: '', phone: '', password: '', address: '', status: 'active' });
   };
 
   // 직원 삭제 모달 열기
@@ -348,6 +380,32 @@ export default function CompaniesPage() {
           }
         : c
     ));
+  };
+
+  // 전화번호 포맷팅
+  const formatPhoneNumber = (value: string) => {
+    const numbers = value.replace(/[^0-9]/g, '');
+    if (numbers.length <= 3) {
+      return numbers;
+    } else if (numbers.length <= 7) {
+      return `${numbers.slice(0, 3)}-${numbers.slice(3)}`;
+    } else {
+      return `${numbers.slice(0, 3)}-${numbers.slice(3, 7)}-${numbers.slice(7, 11)}`;
+    }
+  };
+
+  const handlePhoneChange = (value: string) => {
+    const formatted = formatPhoneNumber(value);
+    setEmployeeFormData({ ...employeeFormData, phone: formatted });
+  };
+
+  const handleCompanyPhoneChange = (value: string) => {
+    const formatted = formatPhoneNumber(value);
+    setFormData({ ...formData, phone: formatted });
+  };
+
+  const getRoleText = (role: string) => {
+    return role || '-';
   };
 
   return (
@@ -405,56 +463,201 @@ export default function CompaniesPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
+              {/* 인라인 상장업체 등록 행 */}
+              {isAddingCompany && (
+                <tr className="bg-gray-50">
+                  <td className="px-2 py-4 text-center">-</td>
+                  <td className="px-4 py-4">
+                    <input
+                      type="text"
+                      value={formData.companyNo}
+                      onChange={(e) => setFormData({ ...formData, companyNo: e.target.value })}
+                      placeholder="100"
+                      className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                    />
+                  </td>
+                  <td className="px-4 py-4">
+                    <input
+                      type="text"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      placeholder="업체명"
+                      className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                    />
+                  </td>
+                  <td className="px-4 py-4">
+                    <input
+                      type="text"
+                      value={formData.businessNo}
+                      onChange={(e) => setFormData({ ...formData, businessNo: e.target.value })}
+                      placeholder="123-45-67890"
+                      className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                    />
+                  </td>
+                  <td className="px-4 py-4">
+                    <input
+                      type="text"
+                      value={formData.ceo}
+                      onChange={(e) => setFormData({ ...formData, ceo: e.target.value })}
+                      placeholder="대표자"
+                      className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                    />
+                  </td>
+                  <td className="px-4 py-4">
+                    <input
+                      type="text"
+                      value={formData.phone}
+                      onChange={(e) => handleCompanyPhoneChange(e.target.value)}
+                      placeholder="02-0000-0000"
+                      maxLength={13}
+                      className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                    />
+                  </td>
+                  <td className="px-4 py-4 text-sm text-gray-400 text-center">-</td>
+                  <td className="px-4 py-4 text-sm text-gray-400 text-center">-</td>
+                  <td className="px-4 py-4 text-sm text-gray-400 text-center">-</td>
+                  <td className="px-4 py-4" colSpan={2}>
+                    <div className="flex items-center justify-center gap-2">
+                      <button
+                        onClick={handleAddSave}
+                        disabled={!formData.companyNo || !formData.name || !formData.businessNo || !formData.ceo || !formData.phone}
+                        className="px-3 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        저장
+                      </button>
+                      <button
+                        onClick={handleAddCancel}
+                        className="px-3 py-1 text-xs border border-gray-300 text-gray-600 rounded hover:bg-gray-100"
+                      >
+                        취소
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              )}
               {paginatedCompanies.map((company) => (
                 <React.Fragment key={company.id}>
-                  <tr 
-                    className="hover:bg-gray-50 transition-colors cursor-pointer"
-                    onClick={() => toggleExpand(company.id)}
-                  >
-                    <td className="px-2 py-4 text-center">
-                      {expandedCompany === company.id ? (
-                        <ChevronUp className="w-4 h-4 text-gray-400 mx-auto" />
-                      ) : (
-                        <ChevronDown className="w-4 h-4 text-gray-400 mx-auto" />
-                      )}
-                    </td>
-                    <td className="px-4 py-4 text-sm font-medium text-gray-900 text-center">{company.companyNo}</td>
-                    <td className="px-4 py-4 text-sm font-medium text-gray-900 text-center">{company.name}</td>
-                    <td className="px-4 py-4 text-sm text-gray-600 text-center">{company.businessNo}</td>
-                    <td className="px-4 py-4 text-sm text-gray-900 text-center">{company.ceo}</td>
-                    <td className="px-4 py-4 text-sm text-gray-600 text-center">{company.phone}</td>
-                    <td className="px-4 py-4 text-sm text-gray-500 text-center">{company.createdAt}</td>
-                    <td className="px-4 py-4 text-sm text-gray-500 text-center">{company.lastLogin}</td>
-                    <td className="px-4 py-4 text-sm text-gray-900 text-center font-medium">{company.employees.length}명</td>
-                    <td className="px-4 py-4">
-                      <div className="flex items-center justify-center">
-                        <button 
-                          onClick={(e) => handleEditOpen(company, e)}
-                          className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors" 
-                          title="수정"
+                  {editingCompanyId === company.id ? (
+                    <tr className="bg-gray-50">
+                      <td className="px-2 py-4 text-center">
+                        {expandedCompany === company.id ? (
+                          <ChevronUp className="w-4 h-4 text-gray-400 mx-auto" />
+                        ) : (
+                          <ChevronDown className="w-4 h-4 text-gray-400 mx-auto" />
+                        )}
+                      </td>
+                      <td className="px-4 py-4">
+                        <input
+                          type="text"
+                          value={formData.companyNo}
+                          disabled
+                          className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded bg-gray-100 text-gray-500 text-center"
+                        />
+                      </td>
+                      <td className="px-4 py-4">
+                        <input
+                          type="text"
+                          value={formData.name}
+                          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                          className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                        />
+                      </td>
+                      <td className="px-4 py-4">
+                        <input
+                          type="text"
+                          value={formData.businessNo}
+                          onChange={(e) => setFormData({ ...formData, businessNo: e.target.value })}
+                          className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                        />
+                      </td>
+                      <td className="px-4 py-4">
+                        <input
+                          type="text"
+                          value={formData.ceo}
+                          onChange={(e) => setFormData({ ...formData, ceo: e.target.value })}
+                          className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                        />
+                      </td>
+                      <td className="px-4 py-4">
+                        <input
+                          type="text"
+                          value={formData.phone}
+                          onChange={(e) => handleCompanyPhoneChange(e.target.value)}
+                          maxLength={13}
+                          className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                        />
+                      </td>
+                      <td className="px-4 py-4 text-sm text-gray-500 text-center">{company.createdAt}</td>
+                      <td className="px-4 py-4 text-sm text-gray-500 text-center">{company.lastLogin}</td>
+                      <td className="px-4 py-4 text-sm text-gray-900 text-center font-medium">{company.employees.length}명</td>
+                      <td className="px-4 py-4" colSpan={2}>
+                        <div className="flex items-center justify-center gap-2">
+                          <button
+                            onClick={handleEditSave}
+                            disabled={!formData.name || !formData.businessNo || !formData.ceo || !formData.phone}
+                            className="px-3 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            저장
+                          </button>
+                          <button
+                            onClick={handleEditCancel}
+                            className="px-3 py-1 text-xs border border-gray-300 text-gray-600 rounded hover:bg-gray-100"
+                          >
+                            취소
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    <tr 
+                      className="hover:bg-gray-50 transition-colors cursor-pointer"
+                      onClick={() => toggleExpand(company.id)}
+                    >
+                      <td className="px-2 py-4 text-center">
+                        {expandedCompany === company.id ? (
+                          <ChevronUp className="w-4 h-4 text-gray-400 mx-auto" />
+                        ) : (
+                          <ChevronDown className="w-4 h-4 text-gray-400 mx-auto" />
+                        )}
+                      </td>
+                      <td className="px-4 py-4 text-sm font-medium text-gray-900 text-center">{company.companyNo}</td>
+                      <td className="px-4 py-4 text-sm font-medium text-gray-900 text-center">{company.name}</td>
+                      <td className="px-4 py-4 text-sm text-gray-600 text-center">{company.businessNo}</td>
+                      <td className="px-4 py-4 text-sm text-gray-900 text-center">{company.ceo}</td>
+                      <td className="px-4 py-4 text-sm text-gray-600 text-center">{company.phone}</td>
+                      <td className="px-4 py-4 text-sm text-gray-500 text-center">{company.createdAt}</td>
+                      <td className="px-4 py-4 text-sm text-gray-500 text-center">{company.lastLogin}</td>
+                      <td className="px-4 py-4 text-sm text-gray-900 text-center font-medium">{company.employees.length}명</td>
+                      <td className="px-4 py-4">
+                        <div className="flex items-center justify-center">
+                          <button 
+                            onClick={(e) => handleEditOpen(company, e)}
+                            className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors" 
+                            title="수정"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                      <td className="px-4 py-4">
+                        <select
+                          value={company.status}
+                          onClick={(e) => e.stopPropagation()}
+                          onChange={(e) => {
+                            setCompanies(companies.map(c => 
+                              c.id === company.id 
+                                ? { ...c, status: e.target.value as 'active' | 'inactive' }
+                                : c
+                            ));
+                          }}
+                          className="w-full px-3 py-1.5 text-sm border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
                         >
-                          <Edit className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
-                    <td className="px-4 py-4">
-                      <select
-                        value={company.status}
-                        onClick={(e) => e.stopPropagation()}
-                        onChange={(e) => {
-                          setCompanies(companies.map(c => 
-                            c.id === company.id 
-                              ? { ...c, status: e.target.value as 'active' | 'inactive' }
-                              : c
-                          ));
-                        }}
-                        className="w-full px-3 py-1.5 text-sm border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
-                      >
-                        <option value="active">활성</option>
-                        <option value="inactive">비활성</option>
-                      </select>
-                    </td>
-                  </tr>
+                          <option value="active">활성</option>
+                          <option value="inactive">비활성</option>
+                        </select>
+                      </td>
+                    </tr>
+                  )}
                   {/* 확장된 직원 테이블 */}
                   {expandedCompany === company.id && (
                     <tr>
@@ -463,62 +666,201 @@ export default function CompaniesPage() {
                           <div className="flex items-center justify-between mb-3">
                             <h4 className="text-sm font-semibold text-gray-700">대표/직원 목록</h4>
                             <button
-                              onClick={() => handleAddEmployeeOpen(company)}
+                              onClick={(e) => handleAddEmployeeOpen(company, e)}
                               className="inline-flex items-center gap-1 px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-xs font-medium"
                             >
                               <Plus className="w-3.5 h-3.5" />
                               직원 추가
                             </button>
                           </div>
-                          {company.employees.length > 0 ? (
-                            <table className="w-full bg-white rounded-lg border border-gray-200">
+                          {(company.employees.length > 0 || addingEmployeeToCompanyId === company.id) ? (
+                            <table className="w-full bg-white border border-gray-200 table-fixed">
                               <thead className="bg-gray-100">
                                 <tr>
-                                  <th className="px-3 py-2 text-center text-xs font-semibold text-gray-500">구분</th>
-                                  <th className="px-3 py-2 text-center text-xs font-semibold text-gray-500">성함</th>
-                                  <th className="px-3 py-2 text-center text-xs font-semibold text-gray-500">연락처(ID)</th>
-                                  <th className="px-3 py-2 text-center text-xs font-semibold text-gray-500">비밀번호</th>
-                                  <th className="px-3 py-2 text-center text-xs font-semibold text-gray-500 min-w-[180px]">주소</th>
-                                  <th className="px-3 py-2 text-center text-xs font-semibold text-gray-500">등록일</th>
-                                  <th className="px-3 py-2 text-center text-xs font-semibold text-gray-500">최근로그인</th>
-                                  <th className="px-3 py-2 text-center text-xs font-semibold text-gray-500">수정</th>
-                                  <th className="px-3 py-2 text-center text-xs font-semibold text-gray-500">상태</th>
+                                  <th className="px-3 py-2 text-center text-xs font-semibold text-gray-500 w-[80px]">구분</th>
+                                  <th className="px-3 py-2 text-center text-xs font-semibold text-gray-500 w-[80px]">성함</th>
+                                  <th className="px-3 py-2 text-center text-xs font-semibold text-gray-500 w-[130px]">연락처(ID)</th>
+                                  <th className="px-3 py-2 text-center text-xs font-semibold text-gray-500 w-[90px]">비밀번호</th>
+                                  <th className="px-3 py-2 text-center text-xs font-semibold text-gray-500 w-[180px]">주소</th>
+                                  <th className="px-3 py-2 text-center text-xs font-semibold text-gray-500 w-[90px]">등록일</th>
+                                  <th className="px-3 py-2 text-center text-xs font-semibold text-gray-500 w-[120px]">최근로그인</th>
+                                  <th className="px-3 py-2 text-center text-xs font-semibold text-gray-500 w-[50px]">수정</th>
+                                  <th className="px-3 py-2 text-center text-xs font-semibold text-gray-500 w-[70px]">상태</th>
                                 </tr>
                               </thead>
                               <tbody className="divide-y divide-gray-100">
-                                {company.employees.map((employee) => (
-                                  <tr key={employee.id} className="hover:bg-gray-50">
-                                    <td className="px-3 py-2 text-xs text-gray-900 text-center">
-                                      {employee.role === 'ceo' ? '대표' : '직원'}
+                                {/* 인라인 직원 추가 행 */}
+                                {addingEmployeeToCompanyId === company.id && (
+                                  <tr className="bg-gray-50">
+                                    <td className="px-3 py-2 w-[80px]">
+                                      <input
+                                        type="text"
+                                        value={employeeFormData.role}
+                                        onChange={(e) => setEmployeeFormData({ ...employeeFormData, role: e.target.value })}
+                                        placeholder="구분"
+                                        className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                                      />
                                     </td>
-                                    <td className="px-3 py-2 text-xs text-gray-900 text-center">{employee.name}</td>
-                                    <td className="px-3 py-2 text-xs text-gray-600 text-center">{employee.phone}</td>
-                                    <td className="px-3 py-2 text-xs text-gray-600 text-center">{employee.password}</td>
-                                    <td className="px-3 py-2 text-xs text-gray-600 text-center">{employee.address}</td>
-                                    <td className="px-3 py-2 text-xs text-gray-500 text-center">{employee.createdAt}</td>
-                                    <td className="px-3 py-2 text-xs text-gray-500 text-center">{employee.lastLogin}</td>
-                                    <td className="px-3 py-2">
-                                      <div className="flex items-center justify-center">
-                                        <button 
-                                          onClick={() => handleEditEmployeeOpen(company, employee)}
-                                          className="p-1 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors" 
-                                          title="수정"
+                                    <td className="px-3 py-2 w-[80px]">
+                                      <input
+                                        type="text"
+                                        value={employeeFormData.name}
+                                        onChange={(e) => setEmployeeFormData({ ...employeeFormData, name: e.target.value })}
+                                        placeholder="성함"
+                                        className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                                      />
+                                    </td>
+                                    <td className="px-3 py-2 w-[130px]">
+                                      <input
+                                        type="text"
+                                        value={employeeFormData.phone}
+                                        onChange={(e) => handlePhoneChange(e.target.value)}
+                                        placeholder="010-0000-0000"
+                                        maxLength={13}
+                                        className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                                      />
+                                    </td>
+                                    <td className="px-3 py-2 w-[90px]">
+                                      <input
+                                        type="text"
+                                        value={employeeFormData.password}
+                                        onChange={(e) => setEmployeeFormData({ ...employeeFormData, password: e.target.value })}
+                                        placeholder="비밀번호"
+                                        className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                                      />
+                                    </td>
+                                    <td className="px-3 py-2 w-[180px]">
+                                      <input
+                                        type="text"
+                                        value={employeeFormData.address}
+                                        onChange={(e) => setEmployeeFormData({ ...employeeFormData, address: e.target.value })}
+                                        placeholder="주소"
+                                        className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                                      />
+                                    </td>
+                                    <td className="px-3 py-2 text-xs text-gray-400 text-center w-[90px]">-</td>
+                                    <td className="px-3 py-2 text-xs text-gray-400 text-center w-[120px]">-</td>
+                                    <td className="px-3 py-2 w-[50px]" colSpan={2}>
+                                      <div className="flex items-center justify-center gap-2">
+                                        <button
+                                          onClick={() => handleAddEmployeeSave(company)}
+                                          disabled={!employeeFormData.role || !employeeFormData.name || !employeeFormData.phone || !employeeFormData.password}
+                                          className="px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
                                         >
-                                          <Edit className="w-3.5 h-3.5" />
+                                          저장
+                                        </button>
+                                        <button
+                                          onClick={handleAddEmployeeCancel}
+                                          className="px-2 py-1 text-xs border border-gray-300 text-gray-600 rounded hover:bg-gray-100"
+                                        >
+                                          취소
                                         </button>
                                       </div>
                                     </td>
-                                    <td className="px-3 py-2">
-                                      <select
-                                        value={employee.status}
-                                        onChange={(e) => handleEmployeeStatusChange(company.id, employee.id, e.target.value as 'active' | 'inactive')}
-                                        className="w-full px-2 py-1 text-xs border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
-                                      >
-                                        <option value="active">활성</option>
-                                        <option value="inactive">비활성</option>
-                                      </select>
-                                    </td>
                                   </tr>
+                                )}
+                                {company.employees.map((employee) => (
+                                  editingEmployeeId === employee.id ? (
+                                    <tr key={employee.id} className="bg-gray-50">
+                                      <td className="px-3 py-2 w-[80px]">
+                                        <input
+                                          type="text"
+                                          value={employeeFormData.role}
+                                          onChange={(e) => setEmployeeFormData({ ...employeeFormData, role: e.target.value })}
+                                          placeholder="구분"
+                                          className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                                        />
+                                      </td>
+                                      <td className="px-3 py-2 w-[80px]">
+                                        <input
+                                          type="text"
+                                          value={employeeFormData.name}
+                                          onChange={(e) => setEmployeeFormData({ ...employeeFormData, name: e.target.value })}
+                                          className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                                        />
+                                      </td>
+                                      <td className="px-3 py-2 w-[130px]">
+                                        <input
+                                          type="text"
+                                          value={employeeFormData.phone}
+                                          onChange={(e) => handlePhoneChange(e.target.value)}
+                                          maxLength={13}
+                                          className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                                        />
+                                      </td>
+                                      <td className="px-3 py-2 w-[90px]">
+                                        <input
+                                          type="text"
+                                          value={employeeFormData.password}
+                                          onChange={(e) => setEmployeeFormData({ ...employeeFormData, password: e.target.value })}
+                                          className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                                        />
+                                      </td>
+                                      <td className="px-3 py-2 w-[180px]">
+                                        <input
+                                          type="text"
+                                          value={employeeFormData.address}
+                                          onChange={(e) => setEmployeeFormData({ ...employeeFormData, address: e.target.value })}
+                                          className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                                        />
+                                      </td>
+                                      <td className="px-3 py-2 text-xs text-gray-500 text-center w-[90px]">{employee.createdAt}</td>
+                                      <td className="px-3 py-2 text-xs text-gray-500 text-center w-[120px]">{employee.lastLogin}</td>
+                                      <td className="px-3 py-2 w-[50px]">
+                                        <div className="flex items-center justify-center gap-2">
+                                          <button
+                                            onClick={handleEditEmployeeSave}
+                                            className="px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700"
+                                          >
+                                            저장
+                                          </button>
+                                        </div>
+                                      </td>
+                                      <td className="px-3 py-2 w-[70px]">
+                                        <div className="flex items-center justify-center">
+                                          <button
+                                            onClick={handleEditEmployeeCancel}
+                                            className="px-2 py-1 text-xs border border-gray-300 text-gray-600 rounded hover:bg-gray-100"
+                                          >
+                                            취소
+                                          </button>
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  ) : (
+                                    <tr key={employee.id} className="hover:bg-gray-50">
+                                      <td className="px-3 py-2 text-xs text-gray-900 text-center w-[80px]">
+                                        {getRoleText(employee.role)}
+                                      </td>
+                                      <td className="px-3 py-2 text-xs text-gray-900 text-center w-[80px]">{employee.name}</td>
+                                      <td className="px-3 py-2 text-xs text-gray-600 text-center w-[130px]">{employee.phone}</td>
+                                      <td className="px-3 py-2 text-xs text-gray-600 text-center w-[90px]">{employee.password}</td>
+                                      <td className="px-3 py-2 text-xs text-gray-600 text-center w-[180px]">{employee.address}</td>
+                                      <td className="px-3 py-2 text-xs text-gray-500 text-center w-[90px]">{employee.createdAt}</td>
+                                      <td className="px-3 py-2 text-xs text-gray-500 text-center w-[120px]">{employee.lastLogin}</td>
+                                      <td className="px-3 py-2 w-[50px]">
+                                        <div className="flex items-center justify-center">
+                                          <button 
+                                            onClick={() => handleEditEmployeeOpen(company, employee)}
+                                            className="p-1 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors" 
+                                            title="수정"
+                                          >
+                                            <Edit className="w-3.5 h-3.5" />
+                                          </button>
+                                        </div>
+                                      </td>
+                                      <td className="px-3 py-2 w-[70px]">
+                                        <select
+                                          value={employee.status}
+                                          onChange={(e) => handleEmployeeStatusChange(company.id, employee.id, e.target.value as 'active' | 'inactive')}
+                                          className="w-full px-2 py-1 text-xs border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                                        >
+                                          <option value="active">활성</option>
+                                          <option value="inactive">비활성</option>
+                                        </select>
+                                      </td>
+                                    </tr>
+                                  )
                                 ))}
                               </tbody>
                             </table>
@@ -571,95 +913,6 @@ export default function CompaniesPage() {
         </div>
       </div>
 
-      {/* 업체 수정 모달 */}
-      {showEditModal && selectedCompany && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setShowEditModal(false)} />
-          <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold text-gray-900">상장업체 수정</h3>
-              <button onClick={() => setShowEditModal(false)} className="p-1 hover:bg-gray-100 rounded">
-                <X className="w-5 h-5 text-gray-500" />
-              </button>
-            </div>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">업체번호</label>
-                <input
-                  type="text"
-                  value={formData.companyNo}
-                  disabled
-                  className="w-full px-3 py-2.5 border border-gray-100 rounded-lg bg-gray-50 text-gray-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">업체명</label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-3 py-2.5 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">사업자등록번호</label>
-                <input
-                  type="text"
-                  value={formData.businessNo}
-                  onChange={(e) => setFormData({ ...formData, businessNo: e.target.value })}
-                  className="w-full px-3 py-2.5 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">대표자</label>
-                <input
-                  type="text"
-                  value={formData.ceo}
-                  onChange={(e) => setFormData({ ...formData, ceo: e.target.value })}
-                  className="w-full px-3 py-2.5 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">대표번호</label>
-                <input
-                  type="text"
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  className="w-full px-3 py-2.5 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">상태</label>
-                <select
-                  value={formData.status}
-                  onChange={(e) => setFormData({ ...formData, status: e.target.value as 'active' | 'inactive' })}
-                  className="w-full px-3 py-2.5 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
-                >
-                  <option value="active">활성</option>
-                  <option value="inactive">비활성</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="flex gap-3 mt-6">
-              <button
-                onClick={() => setShowEditModal(false)}
-                className="flex-1 px-4 py-2.5 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 font-medium"
-              >
-                취소
-              </button>
-              <button
-                onClick={handleEditSave}
-                className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium"
-              >
-                저장
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* 업체 삭제 확인 모달 */}
       {showDeleteModal && selectedCompany && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -687,288 +940,6 @@ export default function CompaniesPage() {
                 className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium"
               >
                 삭제
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 업체 등록 모달 */}
-      {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setShowAddModal(false)} />
-          <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold text-gray-900">상장업체 등록</h3>
-              <button onClick={() => setShowAddModal(false)} className="p-1 hover:bg-gray-100 rounded">
-                <X className="w-5 h-5 text-gray-500" />
-              </button>
-            </div>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">업체번호 <span className="text-red-500">*</span></label>
-                <input
-                  type="text"
-                  value={formData.companyNo}
-                  onChange={(e) => setFormData({ ...formData, companyNo: e.target.value })}
-                  placeholder="100"
-                  className="w-full px-3 py-2.5 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">업체명 <span className="text-red-500">*</span></label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="업체명을 입력하세요"
-                  className="w-full px-3 py-2.5 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">사업자등록번호 <span className="text-red-500">*</span></label>
-                <input
-                  type="text"
-                  value={formData.businessNo}
-                  onChange={(e) => setFormData({ ...formData, businessNo: e.target.value })}
-                  placeholder="000-00-00000"
-                  className="w-full px-3 py-2.5 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">대표자 <span className="text-red-500">*</span></label>
-                <input
-                  type="text"
-                  value={formData.ceo}
-                  onChange={(e) => setFormData({ ...formData, ceo: e.target.value })}
-                  placeholder="대표자명을 입력하세요"
-                  className="w-full px-3 py-2.5 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">대표번호 <span className="text-red-500">*</span></label>
-                <input
-                  type="text"
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  placeholder="02-0000-0000"
-                  className="w-full px-3 py-2.5 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">상태 <span className="text-red-500">*</span></label>
-                <select
-                  value={formData.status}
-                  onChange={(e) => setFormData({ ...formData, status: e.target.value as 'active' | 'inactive' })}
-                  className="w-full px-3 py-2.5 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
-                >
-                  <option value="active">활성</option>
-                  <option value="inactive">비활성</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="flex gap-3 mt-6">
-              <button
-                onClick={() => setShowAddModal(false)}
-                className="flex-1 px-4 py-2.5 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 font-medium"
-              >
-                취소
-              </button>
-              <button
-                onClick={handleAddSave}
-                disabled={!formData.companyNo || !formData.name || !formData.businessNo || !formData.ceo || !formData.phone}
-                className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                등록
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 직원 추가 모달 */}
-      {showAddEmployeeModal && selectedCompany && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setShowAddEmployeeModal(false)} />
-          <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold text-gray-900">직원 추가 - {selectedCompany.name}</h3>
-              <button onClick={() => setShowAddEmployeeModal(false)} className="p-1 hover:bg-gray-100 rounded">
-                <X className="w-5 h-5 text-gray-500" />
-              </button>
-            </div>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">구분 <span className="text-red-500">*</span></label>
-                <select
-                  value={employeeFormData.role}
-                  onChange={(e) => setEmployeeFormData({ ...employeeFormData, role: e.target.value as 'ceo' | 'staff' })}
-                  className="w-full px-3 py-2.5 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
-                >
-                  <option value="ceo">대표</option>
-                  <option value="staff">직원</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">성함 <span className="text-red-500">*</span></label>
-                <input
-                  type="text"
-                  value={employeeFormData.name}
-                  onChange={(e) => setEmployeeFormData({ ...employeeFormData, name: e.target.value })}
-                  placeholder="성함을 입력하세요"
-                  className="w-full px-3 py-2.5 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">연락처(ID) <span className="text-red-500">*</span></label>
-                <input
-                  type="text"
-                  value={employeeFormData.phone}
-                  onChange={(e) => setEmployeeFormData({ ...employeeFormData, phone: e.target.value })}
-                  placeholder="010-0000-0000"
-                  className="w-full px-3 py-2.5 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">비밀번호 <span className="text-red-500">*</span></label>
-                <input
-                  type="text"
-                  value={employeeFormData.password}
-                  onChange={(e) => setEmployeeFormData({ ...employeeFormData, password: e.target.value })}
-                  placeholder="비밀번호를 입력하세요"
-                  className="w-full px-3 py-2.5 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">주소</label>
-                <input
-                  type="text"
-                  value={employeeFormData.address}
-                  onChange={(e) => setEmployeeFormData({ ...employeeFormData, address: e.target.value })}
-                  placeholder="주소를 입력하세요"
-                  className="w-full px-3 py-2.5 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">상태 <span className="text-red-500">*</span></label>
-                <select
-                  value={employeeFormData.status}
-                  onChange={(e) => setEmployeeFormData({ ...employeeFormData, status: e.target.value as 'active' | 'inactive' })}
-                  className="w-full px-3 py-2.5 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
-                >
-                  <option value="active">활성</option>
-                  <option value="inactive">비활성</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="flex gap-3 mt-6">
-              <button
-                onClick={() => setShowAddEmployeeModal(false)}
-                className="flex-1 px-4 py-2.5 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 font-medium"
-              >
-                취소
-              </button>
-              <button
-                onClick={handleAddEmployeeSave}
-                disabled={!employeeFormData.name || !employeeFormData.phone || !employeeFormData.password}
-                className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                등록
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 직원 수정 모달 */}
-      {showEditEmployeeModal && selectedCompany && selectedEmployee && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setShowEditEmployeeModal(false)} />
-          <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold text-gray-900">직원 수정 - {selectedCompany.name}</h3>
-              <button onClick={() => setShowEditEmployeeModal(false)} className="p-1 hover:bg-gray-100 rounded">
-                <X className="w-5 h-5 text-gray-500" />
-              </button>
-            </div>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">구분</label>
-                <select
-                  value={employeeFormData.role}
-                  onChange={(e) => setEmployeeFormData({ ...employeeFormData, role: e.target.value as 'ceo' | 'staff' })}
-                  className="w-full px-3 py-2.5 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
-                >
-                  <option value="ceo">대표</option>
-                  <option value="staff">직원</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">성함</label>
-                <input
-                  type="text"
-                  value={employeeFormData.name}
-                  onChange={(e) => setEmployeeFormData({ ...employeeFormData, name: e.target.value })}
-                  className="w-full px-3 py-2.5 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">연락처(ID)</label>
-                <input
-                  type="text"
-                  value={employeeFormData.phone}
-                  onChange={(e) => setEmployeeFormData({ ...employeeFormData, phone: e.target.value })}
-                  className="w-full px-3 py-2.5 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">비밀번호</label>
-                <input
-                  type="text"
-                  value={employeeFormData.password}
-                  onChange={(e) => setEmployeeFormData({ ...employeeFormData, password: e.target.value })}
-                  className="w-full px-3 py-2.5 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">주소</label>
-                <input
-                  type="text"
-                  value={employeeFormData.address}
-                  onChange={(e) => setEmployeeFormData({ ...employeeFormData, address: e.target.value })}
-                  className="w-full px-3 py-2.5 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">상태</label>
-                <select
-                  value={employeeFormData.status}
-                  onChange={(e) => setEmployeeFormData({ ...employeeFormData, status: e.target.value as 'active' | 'inactive' })}
-                  className="w-full px-3 py-2.5 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
-                >
-                  <option value="active">활성</option>
-                  <option value="inactive">비활성</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="flex gap-3 mt-6">
-              <button
-                onClick={() => setShowEditEmployeeModal(false)}
-                className="flex-1 px-4 py-2.5 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 font-medium"
-              >
-                취소
-              </button>
-              <button
-                onClick={handleEditEmployeeSave}
-                className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium"
-              >
-                저장
               </button>
             </div>
           </div>

@@ -21,7 +21,8 @@ interface Employee {
   phone: string;
   password: string;
   address: string;
-  role: 'agent' | 'staff'; // 경매대리인 | 직원
+  role: string; // 구분 (자유 입력)
+  position: string; // 직책
   status: 'active' | 'inactive';
   createdAt: string;
   lastLogin: string;
@@ -54,8 +55,8 @@ const initialDealers: Dealer[] = [
     createdAt: '2024-03-15', 
     lastLogin: '2026-01-19 11:30',
     employees: [
-      { id: '1-1', name: '김대리', phone: '010-1111-1111', password: '1234', address: '서울시 강남구', role: 'agent', status: 'active', createdAt: '2024-05-01', lastLogin: '2026-01-19 10:30' },
-      { id: '1-2', name: '이직원', phone: '010-2222-2222', password: '1234', address: '서울시 서초구', role: 'staff', status: 'active', createdAt: '2024-06-15', lastLogin: '2026-01-18 15:20' },
+      { id: '1-1', name: '김대리', phone: '010-1111-1111', password: '1234', address: '서울시 강남구', role: '경매대리인', position: '대리', status: 'active', createdAt: '2024-05-01', lastLogin: '2026-01-19 10:30' },
+      { id: '1-2', name: '이직원', phone: '010-2222-2222', password: '1234', address: '서울시 서초구', role: '직원', position: '사원', status: 'active', createdAt: '2024-06-15', lastLogin: '2026-01-18 15:20' },
     ]
   },
   { 
@@ -70,7 +71,7 @@ const initialDealers: Dealer[] = [
     createdAt: '2024-05-20', 
     lastLogin: '2026-01-19 10:15',
     employees: [
-      { id: '2-1', name: '박대리', phone: '010-3333-3333', password: '1234', address: '경기도 성남시', role: 'agent', status: 'active', createdAt: '2024-07-01', lastLogin: '2026-01-19 09:15' },
+      { id: '2-1', name: '박대리', phone: '010-3333-3333', password: '1234', address: '경기도 성남시', role: '경매대리인', position: '대리', status: 'active', createdAt: '2024-07-01', lastLogin: '2026-01-19 09:15' },
     ]
   },
   { 
@@ -98,7 +99,7 @@ const initialDealers: Dealer[] = [
     createdAt: '2024-08-10', 
     lastLogin: '2026-01-18 16:45',
     employees: [
-      { id: '4-1', name: '정직원', phone: '010-4444-4444', password: '1234', address: '서울시 서초구', role: 'staff', status: 'inactive', createdAt: '2024-09-01', lastLogin: '2026-01-17 14:00' },
+      { id: '4-1', name: '정직원', phone: '010-4444-4444', password: '1234', address: '서울시 서초구', role: '직원', position: '사원', status: 'inactive', createdAt: '2024-09-01', lastLogin: '2026-01-17 14:00' },
     ]
   },
   { 
@@ -123,15 +124,15 @@ export default function DealersPage() {
   const [expandedDealer, setExpandedDealer] = useState<string | null>(null);
   const itemsPerPage = 10;
 
-  // 모달 상태
-  const [showEditModal, setShowEditModal] = useState(false);
+  // 중도매인 상태
+  const [editingDealerId, setEditingDealerId] = useState<string | null>(null);
+  const [isAddingDealer, setIsAddingDealer] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [showAddModal, setShowAddModal] = useState(false);
   const [selectedDealer, setSelectedDealer] = useState<Dealer | null>(null);
 
-  // 직원 모달 상태
-  const [showAddEmployeeModal, setShowAddEmployeeModal] = useState(false);
-  const [showEditEmployeeModal, setShowEditEmployeeModal] = useState(false);
+  // 직원 상태
+  const [addingEmployeeToDealerId, setAddingEmployeeToDealerId] = useState<string | null>(null);
+  const [editingEmployeeId, setEditingEmployeeId] = useState<string | null>(null);
   const [showDeleteEmployeeModal, setShowDeleteEmployeeModal] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
 
@@ -152,7 +153,8 @@ export default function DealersPage() {
     phone: '',
     password: '',
     address: '',
-    role: 'agent' as 'agent' | 'staff',
+    role: '',
+    position: '',
     status: 'active' as 'active' | 'inactive',
   });
 
@@ -183,7 +185,7 @@ export default function DealersPage() {
     setExpandedDealer(expandedDealer === dealerId ? null : dealerId);
   };
 
-  // 수정 모달 열기
+  // 수정 인라인 열기
   const handleEditOpen = (dealer: Dealer, e: React.MouseEvent) => {
     e.stopPropagation();
     setSelectedDealer(dealer);
@@ -196,19 +198,27 @@ export default function DealersPage() {
       address: dealer.address,
       status: dealer.status,
     });
-    setShowEditModal(true);
+    setEditingDealerId(dealer.id);
+  };
+
+  // 수정 취소
+  const handleEditCancel = () => {
+    setEditingDealerId(null);
+    setSelectedDealer(null);
+    setFormData({ dealerNo: '', name: '', phone: '', password: '', auctionPassword: '', address: '', status: 'active' });
   };
 
   // 수정 저장
   const handleEditSave = () => {
-    if (!selectedDealer) return;
+    if (!editingDealerId) return;
     setDealers(dealers.map(d => 
-      d.id === selectedDealer.id 
+      d.id === editingDealerId 
         ? { ...d, ...formData }
         : d
     ));
-    setShowEditModal(false);
+    setEditingDealerId(null);
     setSelectedDealer(null);
+    setFormData({ dealerNo: '', name: '', phone: '', password: '', auctionPassword: '', address: '', status: 'active' });
   };
 
   // 삭제 모달 열기
@@ -226,7 +236,7 @@ export default function DealersPage() {
     setSelectedDealer(null);
   };
 
-  // 등록 모달 열기
+  // 등록 인라인 열기
   const handleAddOpen = () => {
     const nextNo = 7000000 + dealers.length + 1;
     setFormData({
@@ -238,7 +248,13 @@ export default function DealersPage() {
       address: '',
       status: 'active',
     });
-    setShowAddModal(true);
+    setIsAddingDealer(true);
+  };
+
+  // 등록 취소
+  const handleAddCancel = () => {
+    setIsAddingDealer(false);
+    setFormData({ dealerNo: '', name: '', phone: '', password: '', auctionPassword: '', address: '', status: 'active' });
   };
 
   // 등록 저장
@@ -258,42 +274,52 @@ export default function DealersPage() {
       employees: [],
     };
     setDealers([...dealers, newDealer]);
-    setShowAddModal(false);
+    setIsAddingDealer(false);
+    setFormData({ dealerNo: '', name: '', phone: '', password: '', auctionPassword: '', address: '', status: 'active' });
   };
 
-  // 직원 추가 모달 열기
+  // 직원 추가 인라인 열기
   const handleAddEmployeeOpen = (dealer: Dealer, e: React.MouseEvent) => {
     e.stopPropagation();
     setSelectedDealer(dealer);
-    setEmployeeFormData({ name: '', phone: '', password: '', address: '', role: 'agent', status: 'active' });
-    setShowAddEmployeeModal(true);
+    setEmployeeFormData({ name: '', phone: '', password: '', address: '', role: '', position: '', status: 'active' });
+    setAddingEmployeeToDealerId(dealer.id);
+  };
+
+  // 직원 추가 취소
+  const handleAddEmployeeCancel = () => {
+    setAddingEmployeeToDealerId(null);
+    setEmployeeFormData({ name: '', phone: '', password: '', address: '', role: '', position: '', status: 'active' });
   };
 
   // 직원 추가 저장
   const handleAddEmployeeSave = () => {
-    if (!selectedDealer) return;
+    if (!addingEmployeeToDealerId) return;
+    const dealer = dealers.find(d => d.id === addingEmployeeToDealerId);
+    if (!dealer) return;
     const today = new Date().toISOString().split('T')[0];
     const newEmployee: Employee = {
-      id: `${selectedDealer.id}-${selectedDealer.employees.length + 1}`,
+      id: `${dealer.id}-${dealer.employees.length + 1}`,
       name: employeeFormData.name,
       phone: employeeFormData.phone,
       password: employeeFormData.password,
       address: employeeFormData.address,
       role: employeeFormData.role,
+      position: employeeFormData.position,
       status: employeeFormData.status,
       createdAt: today,
       lastLogin: '-',
     };
     setDealers(dealers.map(d => 
-      d.id === selectedDealer.id 
+      d.id === addingEmployeeToDealerId 
         ? { ...d, employees: [...d.employees, newEmployee] }
         : d
     ));
-    setShowAddEmployeeModal(false);
-    setSelectedDealer(null);
+    setAddingEmployeeToDealerId(null);
+    setEmployeeFormData({ name: '', phone: '', password: '', address: '', role: '', position: '', status: 'active' });
   };
 
-  // 직원 수정 모달 열기
+  // 직원 수정 인라인 열기
   const handleEditEmployeeOpen = (dealer: Dealer, employee: Employee) => {
     setSelectedDealer(dealer);
     setSelectedEmployee(employee);
@@ -303,9 +329,18 @@ export default function DealersPage() {
       password: employee.password,
       address: employee.address,
       role: employee.role,
+      position: employee.position,
       status: employee.status,
     });
-    setShowEditEmployeeModal(true);
+    setEditingEmployeeId(employee.id);
+  };
+
+  // 직원 수정 취소
+  const handleEditEmployeeCancel = () => {
+    setEditingEmployeeId(null);
+    setSelectedDealer(null);
+    setSelectedEmployee(null);
+    setEmployeeFormData({ name: '', phone: '', password: '', address: '', role: '', position: '', status: 'active' });
   };
 
   // 직원 수정 저장
@@ -323,9 +358,10 @@ export default function DealersPage() {
           }
         : d
     ));
-    setShowEditEmployeeModal(false);
+    setEditingEmployeeId(null);
     setSelectedDealer(null);
     setSelectedEmployee(null);
+    setEmployeeFormData({ name: '', phone: '', password: '', address: '', role: '', position: '', status: 'active' });
   };
 
   // 직원 삭제 모달 열기
@@ -348,15 +384,30 @@ export default function DealersPage() {
     setSelectedEmployee(null);
   };
 
-  const getRoleText = (role: string) => {
-    switch (role) {
-      case 'agent':
-        return '경매대리인';
-      case 'staff':
-        return '직원';
-      default:
-        return '-';
+  // 전화번호 포맷팅 함수
+  const formatPhoneNumber = (value: string) => {
+    const numbers = value.replace(/[^0-9]/g, '');
+    if (numbers.length <= 3) {
+      return numbers;
+    } else if (numbers.length <= 7) {
+      return `${numbers.slice(0, 3)}-${numbers.slice(3)}`;
+    } else {
+      return `${numbers.slice(0, 3)}-${numbers.slice(3, 7)}-${numbers.slice(7, 11)}`;
     }
+  };
+
+  const handlePhoneChange = (value: string) => {
+    const formatted = formatPhoneNumber(value);
+    setEmployeeFormData({ ...employeeFormData, phone: formatted });
+  };
+
+  const handleDealerPhoneChange = (value: string) => {
+    const formatted = formatPhoneNumber(value);
+    setFormData({ ...formData, phone: formatted });
+  };
+
+  const getRoleText = (role: string) => {
+    return role || '-';
   };
 
   return (
@@ -415,56 +466,218 @@ export default function DealersPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
+              {/* 인라인 중도매인 등록 행 */}
+              {isAddingDealer && (
+                <tr className="bg-gray-50">
+                  <td className="px-4 py-4 text-center">-</td>
+                  <td className="px-4 py-4">
+                    <input
+                      type="text"
+                      value={formData.dealerNo}
+                      onChange={(e) => setFormData({ ...formData, dealerNo: e.target.value })}
+                      placeholder="7000000"
+                      className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                    />
+                  </td>
+                  <td className="px-4 py-4">
+                    <input
+                      type="text"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      placeholder="중도매인명"
+                      className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                    />
+                  </td>
+                  <td className="px-4 py-4">
+                    <input
+                      type="text"
+                      value={formData.phone}
+                      onChange={(e) => handleDealerPhoneChange(e.target.value)}
+                      placeholder="010-0000-0000"
+                      maxLength={13}
+                      className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                    />
+                  </td>
+                  <td className="px-4 py-4">
+                    <input
+                      type="text"
+                      value={formData.password}
+                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                      placeholder="비밀번호"
+                      className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                    />
+                  </td>
+                  <td className="px-4 py-4">
+                    <input
+                      type="text"
+                      value={formData.auctionPassword}
+                      onChange={(e) => setFormData({ ...formData, auctionPassword: e.target.value })}
+                      placeholder="경매비밀번호"
+                      className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                    />
+                  </td>
+                  <td className="px-4 py-4">
+                    <input
+                      type="text"
+                      value={formData.address}
+                      onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                      placeholder="주소"
+                      className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                    />
+                  </td>
+                  <td className="px-4 py-4 text-sm text-gray-400 text-center">-</td>
+                  <td className="px-4 py-4 text-sm text-gray-400 text-center">-</td>
+                  <td className="px-4 py-4 text-sm text-gray-400 text-center">-</td>
+                  <td className="px-4 py-4" colSpan={2}>
+                    <div className="flex items-center justify-center gap-2">
+                      <button
+                        onClick={handleAddSave}
+                        disabled={!formData.dealerNo || !formData.name || !formData.phone || !formData.password || !formData.auctionPassword}
+                        className="px-3 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        저장
+                      </button>
+                      <button
+                        onClick={handleAddCancel}
+                        className="px-3 py-1 text-xs border border-gray-300 text-gray-600 rounded hover:bg-gray-100"
+                      >
+                        취소
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              )}
               {paginatedDealers.map((dealer) => (
                 <React.Fragment key={dealer.id}>
-                  <tr 
-                    className="hover:bg-gray-50 transition-colors cursor-pointer"
-                    onClick={() => toggleExpand(dealer.id)}
-                  >
-                    <td className="px-4 py-4 text-center">
-                      {expandedDealer === dealer.id ? (
-                        <ChevronUp className="w-4 h-4 text-gray-500 mx-auto" />
-                      ) : (
-                        <ChevronDown className="w-4 h-4 text-gray-500 mx-auto" />
-                      )}
-                    </td>
-                    <td className="px-4 py-4 text-sm font-medium text-gray-900 text-center">{dealer.dealerNo}</td>
-                    <td className="px-4 py-4 text-sm font-medium text-gray-900 text-center">{dealer.name}</td>
-                    <td className="px-4 py-4 text-sm text-gray-600 text-center">{dealer.phone}</td>
-                    <td className="px-4 py-4 text-sm text-gray-600 text-center">{dealer.password}</td>
-                    <td className="px-4 py-4 text-sm text-gray-600 text-center">{dealer.auctionPassword}</td>
-                    <td className="px-4 py-4 text-sm text-gray-600 text-center">{dealer.address}</td>
-                    <td className="px-4 py-4 text-sm text-gray-500 text-center">{dealer.createdAt}</td>
-                    <td className="px-4 py-4 text-sm text-gray-500 text-center">{dealer.lastLogin}</td>
-                    <td className="px-4 py-4 text-sm text-gray-500 text-center">{dealer.employees.length}명</td>
-                    <td className="px-4 py-4">
-                      <div className="flex items-center justify-center">
-                        <button 
-                          onClick={(e) => handleEditOpen(dealer, e)}
-                          className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors" 
-                          title="수정"
+                  {editingDealerId === dealer.id ? (
+                    <tr className="bg-gray-50">
+                      <td className="px-4 py-4 text-center">
+                        {expandedDealer === dealer.id ? (
+                          <ChevronUp className="w-4 h-4 text-gray-500 mx-auto" />
+                        ) : (
+                          <ChevronDown className="w-4 h-4 text-gray-500 mx-auto" />
+                        )}
+                      </td>
+                      <td className="px-4 py-4">
+                        <input
+                          type="text"
+                          value={formData.dealerNo}
+                          disabled
+                          className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded bg-gray-100 text-gray-500 text-center"
+                        />
+                      </td>
+                      <td className="px-4 py-4">
+                        <input
+                          type="text"
+                          value={formData.name}
+                          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                          className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                        />
+                      </td>
+                      <td className="px-4 py-4">
+                        <input
+                          type="text"
+                          value={formData.phone}
+                          onChange={(e) => handleDealerPhoneChange(e.target.value)}
+                          maxLength={13}
+                          className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                        />
+                      </td>
+                      <td className="px-4 py-4">
+                        <input
+                          type="text"
+                          value={formData.password}
+                          onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                          className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                        />
+                      </td>
+                      <td className="px-4 py-4">
+                        <input
+                          type="text"
+                          value={formData.auctionPassword}
+                          onChange={(e) => setFormData({ ...formData, auctionPassword: e.target.value })}
+                          className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                        />
+                      </td>
+                      <td className="px-4 py-4">
+                        <input
+                          type="text"
+                          value={formData.address}
+                          onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                          className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                        />
+                      </td>
+                      <td className="px-4 py-4 text-sm text-gray-500 text-center">{dealer.createdAt}</td>
+                      <td className="px-4 py-4 text-sm text-gray-500 text-center">{dealer.lastLogin}</td>
+                      <td className="px-4 py-4 text-sm text-gray-500 text-center">{dealer.employees.length}명</td>
+                      <td className="px-4 py-4" colSpan={2}>
+                        <div className="flex items-center justify-center gap-2">
+                          <button
+                            onClick={handleEditSave}
+                            disabled={!formData.name || !formData.phone || !formData.password || !formData.auctionPassword}
+                            className="px-3 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            저장
+                          </button>
+                          <button
+                            onClick={handleEditCancel}
+                            className="px-3 py-1 text-xs border border-gray-300 text-gray-600 rounded hover:bg-gray-100"
+                          >
+                            취소
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    <tr 
+                      className="hover:bg-gray-50 transition-colors cursor-pointer"
+                      onClick={() => toggleExpand(dealer.id)}
+                    >
+                      <td className="px-4 py-4 text-center">
+                        {expandedDealer === dealer.id ? (
+                          <ChevronUp className="w-4 h-4 text-gray-500 mx-auto" />
+                        ) : (
+                          <ChevronDown className="w-4 h-4 text-gray-500 mx-auto" />
+                        )}
+                      </td>
+                      <td className="px-4 py-4 text-sm font-medium text-gray-900 text-center">{dealer.dealerNo}</td>
+                      <td className="px-4 py-4 text-sm font-medium text-gray-900 text-center">{dealer.name}</td>
+                      <td className="px-4 py-4 text-sm text-gray-600 text-center">{dealer.phone}</td>
+                      <td className="px-4 py-4 text-sm text-gray-600 text-center">{dealer.password}</td>
+                      <td className="px-4 py-4 text-sm text-gray-600 text-center">{dealer.auctionPassword}</td>
+                      <td className="px-4 py-4 text-sm text-gray-600 text-center">{dealer.address}</td>
+                      <td className="px-4 py-4 text-sm text-gray-500 text-center">{dealer.createdAt}</td>
+                      <td className="px-4 py-4 text-sm text-gray-500 text-center">{dealer.lastLogin}</td>
+                      <td className="px-4 py-4 text-sm text-gray-500 text-center">{dealer.employees.length}명</td>
+                      <td className="px-4 py-4">
+                        <div className="flex items-center justify-center">
+                          <button 
+                            onClick={(e) => handleEditOpen(dealer, e)}
+                            className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors" 
+                            title="수정"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                      <td className="px-4 py-4" onClick={(e) => e.stopPropagation()}>
+                        <select
+                          value={dealer.status}
+                          onChange={(e) => {
+                            setDealers(dealers.map(d => 
+                              d.id === dealer.id 
+                                ? { ...d, status: e.target.value as 'active' | 'inactive' }
+                                : d
+                            ));
+                          }}
+                          className="w-full px-3 py-1.5 text-sm border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
                         >
-                          <Edit className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
-                    <td className="px-4 py-4" onClick={(e) => e.stopPropagation()}>
-                      <select
-                        value={dealer.status}
-                        onChange={(e) => {
-                          setDealers(dealers.map(d => 
-                            d.id === dealer.id 
-                              ? { ...d, status: e.target.value as 'active' | 'inactive' }
-                              : d
-                          ));
-                        }}
-                        className="w-full px-3 py-1.5 text-sm border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
-                      >
-                        <option value="active">활성</option>
-                        <option value="inactive">비활성</option>
-                      </select>
-                    </td>
-                  </tr>
+                          <option value="active">활성</option>
+                          <option value="inactive">비활성</option>
+                        </select>
+                      </td>
+                    </tr>
+                  )}
                   {/* 직원 목록 (펼침) */}
                   {expandedDealer === dealer.id && (
                     <tr>
@@ -480,71 +693,231 @@ export default function DealersPage() {
                               직원 추가
                             </button>
                           </div>
-                          {dealer.employees.length > 0 ? (
-                            <table className="w-full bg-white border border-gray-200 rounded-lg overflow-hidden">
+                          {(dealer.employees.length > 0 || addingEmployeeToDealerId === dealer.id) ? (
+                            <table className="w-full bg-white border border-gray-200 table-fixed">
                               <thead className="bg-gray-100">
                                 <tr>
-                                  <th className="px-4 py-2 text-center text-xs font-semibold text-gray-600">구분</th>
-                                  <th className="px-4 py-2 text-center text-xs font-semibold text-gray-600">성함</th>
-                                  <th className="px-4 py-2 text-center text-xs font-semibold text-gray-600">연락처(ID)</th>
-                                  <th className="px-4 py-2 text-center text-xs font-semibold text-gray-600">비밀번호</th>
-                                  <th className="px-4 py-2 text-center text-xs font-semibold text-gray-600 min-w-[180px]">주소</th>
-                                  <th className="px-4 py-2 text-center text-xs font-semibold text-gray-600">등록일</th>
-                                  <th className="px-4 py-2 text-center text-xs font-semibold text-gray-600">최근로그인</th>
-                                  <th className="px-4 py-2 text-center text-xs font-semibold text-gray-600">수정</th>
-                                  <th className="px-4 py-2 text-center text-xs font-semibold text-gray-600">상태</th>
+                                  <th className="px-4 py-2 text-center text-xs font-semibold text-gray-600 w-[100px]">구분</th>
+                                  <th className="px-4 py-2 text-center text-xs font-semibold text-gray-600 w-[80px]">직책</th>
+                                  <th className="px-4 py-2 text-center text-xs font-semibold text-gray-600 w-[80px]">성함</th>
+                                  <th className="px-4 py-2 text-center text-xs font-semibold text-gray-600 w-[140px]">연락처(ID)</th>
+                                  <th className="px-4 py-2 text-center text-xs font-semibold text-gray-600 w-[100px]">비밀번호</th>
+                                  <th className="px-4 py-2 text-center text-xs font-semibold text-gray-600 w-[180px]">주소</th>
+                                  <th className="px-4 py-2 text-center text-xs font-semibold text-gray-600 w-[100px]">등록일</th>
+                                  <th className="px-4 py-2 text-center text-xs font-semibold text-gray-600 w-[140px]">최근로그인</th>
+                                  <th className="px-4 py-2 text-center text-xs font-semibold text-gray-600 w-[60px]">수정</th>
+                                  <th className="px-4 py-2 text-center text-xs font-semibold text-gray-600 w-[80px]">상태</th>
                                 </tr>
                               </thead>
                               <tbody className="divide-y divide-gray-100">
                                 {dealer.employees.map((employee) => (
-                                  <tr key={employee.id} className="hover:bg-gray-50">
-                                    <td className="px-4 py-2 text-sm text-gray-600 text-center">{getRoleText(employee.role)}</td>
-                                    <td className="px-4 py-2 text-sm text-gray-900 text-center">{employee.name}</td>
-                                    <td className="px-4 py-2 text-sm text-gray-600 text-center">{employee.phone}</td>
-                                    <td className="px-4 py-2 text-sm text-gray-600 text-center">{employee.password}</td>
-                                    <td className="px-4 py-2 text-sm text-gray-600 text-center">{employee.address || '-'}</td>
-                                    <td className="px-4 py-2 text-sm text-gray-500 text-center">{employee.createdAt}</td>
-                                    <td className="px-4 py-2 text-sm text-gray-500 text-center">{employee.lastLogin}</td>
-                                    <td className="px-4 py-2">
-                                      <div className="flex items-center justify-center">
-                                        <button 
-                                          onClick={() => handleEditEmployeeOpen(dealer, employee)}
-                                          className="p-1 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors" 
-                                          title="수정"
+                                  editingEmployeeId === employee.id ? (
+                                    <tr key={employee.id} className="bg-gray-50">
+                                      <td className="px-4 py-2">
+                                        <input
+                                          type="text"
+                                          value={employeeFormData.role}
+                                          onChange={(e) => setEmployeeFormData({ ...employeeFormData, role: e.target.value })}
+                                          placeholder="구분"
+                                          className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                                        />
+                                      </td>
+                                      <td className="px-4 py-2">
+                                        <input
+                                          type="text"
+                                          value={employeeFormData.position}
+                                          onChange={(e) => setEmployeeFormData({ ...employeeFormData, position: e.target.value })}
+                                          placeholder="직책"
+                                          className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                                        />
+                                      </td>
+                                      <td className="px-4 py-2">
+                                        <input
+                                          type="text"
+                                          value={employeeFormData.name}
+                                          onChange={(e) => setEmployeeFormData({ ...employeeFormData, name: e.target.value })}
+                                          placeholder="성함"
+                                          className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                                        />
+                                      </td>
+                                      <td className="px-4 py-2">
+                                        <input
+                                          type="text"
+                                          value={employeeFormData.phone}
+                                          onChange={(e) => handlePhoneChange(e.target.value)}
+                                          placeholder="010-0000-0000"
+                                          maxLength={13}
+                                          className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                                        />
+                                      </td>
+                                      <td className="px-4 py-2">
+                                        <input
+                                          type="text"
+                                          value={employeeFormData.password}
+                                          onChange={(e) => setEmployeeFormData({ ...employeeFormData, password: e.target.value })}
+                                          placeholder="비밀번호"
+                                          className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                                        />
+                                      </td>
+                                      <td className="px-4 py-2">
+                                        <input
+                                          type="text"
+                                          value={employeeFormData.address}
+                                          onChange={(e) => setEmployeeFormData({ ...employeeFormData, address: e.target.value })}
+                                          placeholder="주소"
+                                          className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                                        />
+                                      </td>
+                                      <td className="px-4 py-2 text-sm text-gray-400 text-center">{employee.createdAt}</td>
+                                      <td className="px-4 py-2 text-sm text-gray-400 text-center">{employee.lastLogin}</td>
+                                      <td className="px-4 py-2" colSpan={2}>
+                                        <div className="flex items-center justify-center gap-2">
+                                          <button
+                                            onClick={handleEditEmployeeSave}
+                                            disabled={!employeeFormData.role || !employeeFormData.name || !employeeFormData.phone || !employeeFormData.password}
+                                            className="px-3 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                          >
+                                            저장
+                                          </button>
+                                          <button
+                                            onClick={handleEditEmployeeCancel}
+                                            className="px-3 py-1 text-xs border border-gray-300 text-gray-600 rounded hover:bg-gray-100"
+                                          >
+                                            취소
+                                          </button>
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  ) : (
+                                    <tr key={employee.id} className="hover:bg-gray-50">
+                                      <td className="px-4 py-2 text-sm text-gray-600 text-center">{getRoleText(employee.role)}</td>
+                                      <td className="px-4 py-2 text-sm text-gray-600 text-center">{employee.position || '-'}</td>
+                                      <td className="px-4 py-2 text-sm text-gray-900 text-center">{employee.name}</td>
+                                      <td className="px-4 py-2 text-sm text-gray-600 text-center">{employee.phone}</td>
+                                      <td className="px-4 py-2 text-sm text-gray-600 text-center">{employee.password}</td>
+                                      <td className="px-4 py-2 text-sm text-gray-600 text-center">{employee.address || '-'}</td>
+                                      <td className="px-4 py-2 text-sm text-gray-500 text-center">{employee.createdAt}</td>
+                                      <td className="px-4 py-2 text-sm text-gray-500 text-center">{employee.lastLogin}</td>
+                                      <td className="px-4 py-2">
+                                        <div className="flex items-center justify-center">
+                                          <button 
+                                            onClick={() => handleEditEmployeeOpen(dealer, employee)}
+                                            className="p-1 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors" 
+                                            title="수정"
+                                          >
+                                            <Edit className="w-3.5 h-3.5" />
+                                          </button>
+                                        </div>
+                                      </td>
+                                      <td className="px-4 py-2">
+                                        <select
+                                          value={employee.status}
+                                          onChange={(e) => {
+                                            setDealers(dealers.map(d => 
+                                              d.id === dealer.id 
+                                                ? { 
+                                                    ...d, 
+                                                    employees: d.employees.map(emp => 
+                                                      emp.id === employee.id 
+                                                        ? { ...emp, status: e.target.value as 'active' | 'inactive' }
+                                                        : emp
+                                                    )
+                                                  }
+                                                : d
+                                            ));
+                                          }}
+                                          className="w-full px-2 py-1 text-xs border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
                                         >
-                                          <Edit className="w-3.5 h-3.5" />
+                                          <option value="active">활성</option>
+                                          <option value="inactive">비활성</option>
+                                        </select>
+                                      </td>
+                                    </tr>
+                                  )
+                                ))}
+                                {/* 인라인 직원 추가 행 */}
+                                {addingEmployeeToDealerId === dealer.id && (
+                                  <tr className="bg-gray-50">
+                                    <td className="px-4 py-2">
+                                      <input
+                                        type="text"
+                                        value={employeeFormData.role}
+                                        onChange={(e) => setEmployeeFormData({ ...employeeFormData, role: e.target.value })}
+                                        placeholder="구분"
+                                        className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                                      />
+                                    </td>
+                                    <td className="px-4 py-2">
+                                      <input
+                                        type="text"
+                                        value={employeeFormData.position}
+                                        onChange={(e) => setEmployeeFormData({ ...employeeFormData, position: e.target.value })}
+                                        placeholder="직책"
+                                        className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                                      />
+                                    </td>
+                                    <td className="px-4 py-2">
+                                      <input
+                                        type="text"
+                                        value={employeeFormData.name}
+                                        onChange={(e) => setEmployeeFormData({ ...employeeFormData, name: e.target.value })}
+                                        placeholder="성함"
+                                        className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                                      />
+                                    </td>
+                                    <td className="px-4 py-2">
+                                      <input
+                                        type="text"
+                                        value={employeeFormData.phone}
+                                        onChange={(e) => handlePhoneChange(e.target.value)}
+                                        placeholder="010-0000-0000"
+                                        maxLength={13}
+                                        className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                                      />
+                                    </td>
+                                    <td className="px-4 py-2">
+                                      <input
+                                        type="text"
+                                        value={employeeFormData.password}
+                                        onChange={(e) => setEmployeeFormData({ ...employeeFormData, password: e.target.value })}
+                                        placeholder="비밀번호"
+                                        className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                                      />
+                                    </td>
+                                    <td className="px-4 py-2">
+                                      <input
+                                        type="text"
+                                        value={employeeFormData.address}
+                                        onChange={(e) => setEmployeeFormData({ ...employeeFormData, address: e.target.value })}
+                                        placeholder="주소"
+                                        className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                                      />
+                                    </td>
+                                    <td className="px-4 py-2 text-sm text-gray-400 text-center">-</td>
+                                    <td className="px-4 py-2 text-sm text-gray-400 text-center">-</td>
+                                    <td className="px-4 py-2" colSpan={2}>
+                                      <div className="flex items-center justify-center gap-2">
+                                        <button
+                                          onClick={handleAddEmployeeSave}
+                                          disabled={!employeeFormData.role || !employeeFormData.name || !employeeFormData.phone || !employeeFormData.password}
+                                          className="px-3 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        >
+                                          저장
+                                        </button>
+                                        <button
+                                          onClick={handleAddEmployeeCancel}
+                                          className="px-3 py-1 text-xs border border-gray-300 text-gray-600 rounded hover:bg-gray-100"
+                                        >
+                                          취소
                                         </button>
                                       </div>
                                     </td>
-                                    <td className="px-4 py-2">
-                                      <select
-                                        value={employee.status}
-                                        onChange={(e) => {
-                                          setDealers(dealers.map(d => 
-                                            d.id === dealer.id 
-                                              ? { 
-                                                  ...d, 
-                                                  employees: d.employees.map(emp => 
-                                                    emp.id === employee.id 
-                                                      ? { ...emp, status: e.target.value as 'active' | 'inactive' }
-                                                      : emp
-                                                  )
-                                                }
-                                              : d
-                                          ));
-                                        }}
-                                        className="w-full px-2 py-1 text-xs border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
-                                      >
-                                        <option value="active">활성</option>
-                                        <option value="inactive">비활성</option>
-                                      </select>
-                                    </td>
                                   </tr>
-                                ))}
+                                )}
                               </tbody>
                             </table>
                           ) : (
-                            <div className="text-center py-6 text-sm text-gray-500 bg-white rounded-lg border border-gray-200">
+                            <div className="text-center py-6 text-sm text-gray-500 bg-white border border-gray-200">
                               등록된 경매대리인/직원이 없습니다.
                             </div>
                           )}
@@ -592,104 +965,6 @@ export default function DealersPage() {
         </div>
       </div>
 
-      {/* 중도매인 수정 모달 */}
-      {showEditModal && selectedDealer && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setShowEditModal(false)} />
-          <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold text-gray-900">중도매인 수정</h3>
-              <button onClick={() => setShowEditModal(false)} className="p-1 hover:bg-gray-100 rounded">
-                <X className="w-5 h-5 text-gray-500" />
-              </button>
-            </div>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">중도매인번호</label>
-                <input
-                  type="text"
-                  value={formData.dealerNo}
-                  disabled
-                  className="w-full px-3 py-2.5 border border-gray-100 rounded-lg bg-gray-50 text-gray-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">중도매인명</label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-3 py-2.5 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">연락처(ID)</label>
-                <input
-                  type="text"
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  className="w-full px-3 py-2.5 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">비밀번호</label>
-                <input
-                  type="text"
-                  value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  className="w-full px-3 py-2.5 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">경매 비밀번호</label>
-                <input
-                  type="text"
-                  value={formData.auctionPassword}
-                  onChange={(e) => setFormData({ ...formData, auctionPassword: e.target.value })}
-                  className="w-full px-3 py-2.5 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">주소</label>
-                <input
-                  type="text"
-                  value={formData.address}
-                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                  className="w-full px-3 py-2.5 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">상태</label>
-                <select
-                  value={formData.status}
-                  onChange={(e) => setFormData({ ...formData, status: e.target.value as 'active' | 'inactive' })}
-                  className="w-full px-3 py-2.5 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
-                >
-                  <option value="active">활성</option>
-                  <option value="inactive">비활성</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="flex gap-3 mt-6">
-              <button
-                onClick={() => setShowEditModal(false)}
-                className="flex-1 px-4 py-2.5 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 font-medium"
-              >
-                취소
-              </button>
-              <button
-                onClick={handleEditSave}
-                className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium"
-              >
-                저장
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* 중도매인 삭제 확인 모달 */}
       {showDeleteModal && selectedDealer && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -717,308 +992,6 @@ export default function DealersPage() {
                 className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium"
               >
                 삭제
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 중도매인 등록 모달 */}
-      {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setShowAddModal(false)} />
-          <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold text-gray-900">중도매인 등록</h3>
-              <button onClick={() => setShowAddModal(false)} className="p-1 hover:bg-gray-100 rounded">
-                <X className="w-5 h-5 text-gray-500" />
-              </button>
-            </div>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">중도매인번호 <span className="text-red-500">*</span></label>
-                <input
-                  type="text"
-                  value={formData.dealerNo}
-                  onChange={(e) => setFormData({ ...formData, dealerNo: e.target.value })}
-                  placeholder="7000000"
-                  className="w-full px-3 py-2.5 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">중도매인명 <span className="text-red-500">*</span></label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="이름을 입력하세요"
-                  className="w-full px-3 py-2.5 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">연락처(ID) <span className="text-red-500">*</span></label>
-                <input
-                  type="text"
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  placeholder="010-0000-0000"
-                  className="w-full px-3 py-2.5 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">비밀번호 <span className="text-red-500">*</span></label>
-                <input
-                  type="text"
-                  value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  placeholder="비밀번호를 입력하세요"
-                  className="w-full px-3 py-2.5 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">경매 비밀번호 <span className="text-red-500">*</span></label>
-                <input
-                  type="text"
-                  value={formData.auctionPassword}
-                  onChange={(e) => setFormData({ ...formData, auctionPassword: e.target.value })}
-                  placeholder="경매 비밀번호를 입력하세요"
-                  className="w-full px-3 py-2.5 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">주소</label>
-                <input
-                  type="text"
-                  value={formData.address}
-                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                  placeholder="주소를 입력하세요"
-                  className="w-full px-3 py-2.5 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">상태 <span className="text-red-500">*</span></label>
-                <select
-                  value={formData.status}
-                  onChange={(e) => setFormData({ ...formData, status: e.target.value as 'active' | 'inactive' })}
-                  className="w-full px-3 py-2.5 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
-                >
-                  <option value="active">활성</option>
-                  <option value="inactive">비활성</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="flex gap-3 mt-6">
-              <button
-                onClick={() => setShowAddModal(false)}
-                className="flex-1 px-4 py-2.5 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 font-medium"
-              >
-                취소
-              </button>
-              <button
-                onClick={handleAddSave}
-                disabled={!formData.dealerNo || !formData.name || !formData.phone || !formData.password || !formData.auctionPassword}
-                className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                등록
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 직원 추가 모달 */}
-      {showAddEmployeeModal && selectedDealer && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setShowAddEmployeeModal(false)} />
-          <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold text-gray-900">직원 추가 - {selectedDealer.name}</h3>
-              <button onClick={() => setShowAddEmployeeModal(false)} className="p-1 hover:bg-gray-100 rounded">
-                <X className="w-5 h-5 text-gray-500" />
-              </button>
-            </div>
-
-            <div className="mb-4 p-3 bg-gray-50 rounded-lg">
-              <p className="text-xs text-gray-500">소속 중도매인</p>
-              <p className="text-sm font-medium text-gray-900">{selectedDealer.name} ({selectedDealer.dealerNo})</p>
-            </div>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">구분 <span className="text-red-500">*</span></label>
-                <select
-                  value={employeeFormData.role}
-                  onChange={(e) => setEmployeeFormData({ ...employeeFormData, role: e.target.value as 'agent' | 'staff' })}
-                  className="w-full px-3 py-2.5 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
-                >
-                  <option value="agent">경매대리인</option>
-                  <option value="staff">직원</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">성함 <span className="text-red-500">*</span></label>
-                <input
-                  type="text"
-                  value={employeeFormData.name}
-                  onChange={(e) => setEmployeeFormData({ ...employeeFormData, name: e.target.value })}
-                  placeholder="성함을 입력하세요"
-                  className="w-full px-3 py-2.5 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">연락처(ID) <span className="text-red-500">*</span></label>
-                <input
-                  type="text"
-                  value={employeeFormData.phone}
-                  onChange={(e) => setEmployeeFormData({ ...employeeFormData, phone: e.target.value })}
-                  placeholder="010-0000-0000"
-                  className="w-full px-3 py-2.5 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">비밀번호 <span className="text-red-500">*</span></label>
-                <input
-                  type="text"
-                  value={employeeFormData.password}
-                  onChange={(e) => setEmployeeFormData({ ...employeeFormData, password: e.target.value })}
-                  placeholder="비밀번호를 입력하세요"
-                  className="w-full px-3 py-2.5 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">주소</label>
-                <input
-                  type="text"
-                  value={employeeFormData.address}
-                  onChange={(e) => setEmployeeFormData({ ...employeeFormData, address: e.target.value })}
-                  placeholder="주소를 입력하세요"
-                  className="w-full px-3 py-2.5 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">상태 <span className="text-red-500">*</span></label>
-                <select
-                  value={employeeFormData.status}
-                  onChange={(e) => setEmployeeFormData({ ...employeeFormData, status: e.target.value as 'active' | 'inactive' })}
-                  className="w-full px-3 py-2.5 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
-                >
-                  <option value="active">활성</option>
-                  <option value="inactive">비활성</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="flex gap-3 mt-6">
-              <button
-                onClick={() => setShowAddEmployeeModal(false)}
-                className="flex-1 px-4 py-2.5 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 font-medium"
-              >
-                취소
-              </button>
-              <button
-                onClick={handleAddEmployeeSave}
-                disabled={!employeeFormData.name || !employeeFormData.phone || !employeeFormData.password}
-                className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                등록
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 직원 수정 모달 */}
-      {showEditEmployeeModal && selectedDealer && selectedEmployee && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setShowEditEmployeeModal(false)} />
-          <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold text-gray-900">경매대리인/직원 수정</h3>
-              <button onClick={() => setShowEditEmployeeModal(false)} className="p-1 hover:bg-gray-100 rounded">
-                <X className="w-5 h-5 text-gray-500" />
-              </button>
-            </div>
-
-            <div className="mb-4 p-3 bg-gray-50 rounded-lg">
-              <p className="text-xs text-gray-500">소속 중도매인</p>
-              <p className="text-sm font-medium text-gray-900">{selectedDealer.name} ({selectedDealer.dealerNo})</p>
-            </div>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">구분</label>
-                <select
-                  value={employeeFormData.role}
-                  onChange={(e) => setEmployeeFormData({ ...employeeFormData, role: e.target.value as 'agent' | 'staff' })}
-                  className="w-full px-3 py-2.5 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
-                >
-                  <option value="agent">경매대리인</option>
-                  <option value="staff">직원</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">성함</label>
-                <input
-                  type="text"
-                  value={employeeFormData.name}
-                  onChange={(e) => setEmployeeFormData({ ...employeeFormData, name: e.target.value })}
-                  className="w-full px-3 py-2.5 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">연락처(ID)</label>
-                <input
-                  type="text"
-                  value={employeeFormData.phone}
-                  onChange={(e) => setEmployeeFormData({ ...employeeFormData, phone: e.target.value })}
-                  className="w-full px-3 py-2.5 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">비밀번호</label>
-                <input
-                  type="text"
-                  value={employeeFormData.password}
-                  onChange={(e) => setEmployeeFormData({ ...employeeFormData, password: e.target.value })}
-                  className="w-full px-3 py-2.5 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">주소</label>
-                <input
-                  type="text"
-                  value={employeeFormData.address}
-                  onChange={(e) => setEmployeeFormData({ ...employeeFormData, address: e.target.value })}
-                  className="w-full px-3 py-2.5 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">상태</label>
-                <select
-                  value={employeeFormData.status}
-                  onChange={(e) => setEmployeeFormData({ ...employeeFormData, status: e.target.value as 'active' | 'inactive' })}
-                  className="w-full px-3 py-2.5 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
-                >
-                  <option value="active">활성</option>
-                  <option value="inactive">비활성</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="flex gap-3 mt-6">
-              <button
-                onClick={() => setShowEditEmployeeModal(false)}
-                className="flex-1 px-4 py-2.5 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 font-medium"
-              >
-                취소
-              </button>
-              <button
-                onClick={handleEditEmployeeSave}
-                className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium"
-              >
-                저장
               </button>
             </div>
           </div>

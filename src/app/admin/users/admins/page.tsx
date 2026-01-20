@@ -9,7 +9,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Download,
-  X,
 } from 'lucide-react';
 
 interface Admin {
@@ -39,9 +38,9 @@ export default function AdminsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
-  // 모달 상태
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [showAddModal, setShowAddModal] = useState(false);
+  // 관리자 상태
+  const [editingAdminId, setEditingAdminId] = useState<string | null>(null);
+  const [isAddingAdmin, setIsAddingAdmin] = useState(false);
   const [selectedAdmin, setSelectedAdmin] = useState<Admin | null>(null);
 
   // 폼 데이터
@@ -76,7 +75,7 @@ export default function AdminsPage() {
     }
   };
 
-  // 수정 모달 열기
+  // 수정 인라인 열기
   const handleEditOpen = (admin: Admin) => {
     setSelectedAdmin(admin);
     setFormData({
@@ -87,32 +86,46 @@ export default function AdminsPage() {
       role: admin.role,
       status: admin.status,
     });
-    setShowEditModal(true);
+    setEditingAdminId(admin.id);
+  };
+
+  // 수정 취소
+  const handleEditCancel = () => {
+    setEditingAdminId(null);
+    setSelectedAdmin(null);
+    setFormData({ department: '', name: '', phone: '', password: '', role: 'admin', status: 'active' });
   };
 
   // 수정 저장
   const handleEditSave = () => {
-    if (!selectedAdmin) return;
+    if (!editingAdminId) return;
     setAdmins(admins.map(a => 
-      a.id === selectedAdmin.id 
+      a.id === editingAdminId 
         ? { ...a, ...formData }
         : a
     ));
-    setShowEditModal(false);
+    setEditingAdminId(null);
     setSelectedAdmin(null);
+    setFormData({ department: '', name: '', phone: '', password: '', role: 'admin', status: 'active' });
   };
 
-  // 등록 모달 열기
+  // 등록 인라인 열기
   const handleAddOpen = () => {
     setFormData({
-      department: '중부미트센터',
+      department: '',
       name: '',
       phone: '',
       password: '',
       role: 'admin',
       status: 'active',
     });
-    setShowAddModal(true);
+    setIsAddingAdmin(true);
+  };
+
+  // 등록 취소
+  const handleAddCancel = () => {
+    setIsAddingAdmin(false);
+    setFormData({ department: '', name: '', phone: '', password: '', role: 'admin', status: 'active' });
   };
 
   // 등록 저장
@@ -130,7 +143,25 @@ export default function AdminsPage() {
       lastLogin: '-',
     };
     setAdmins([...admins, newAdmin]);
-    setShowAddModal(false);
+    setIsAddingAdmin(false);
+    setFormData({ department: '', name: '', phone: '', password: '', role: 'admin', status: 'active' });
+  };
+
+  // 전화번호 포맷팅
+  const formatPhoneNumber = (value: string) => {
+    const numbers = value.replace(/[^0-9]/g, '');
+    if (numbers.length <= 3) {
+      return numbers;
+    } else if (numbers.length <= 7) {
+      return `${numbers.slice(0, 3)}-${numbers.slice(3)}`;
+    } else {
+      return `${numbers.slice(0, 3)}-${numbers.slice(3, 7)}-${numbers.slice(7, 11)}`;
+    }
+  };
+
+  const handlePhoneChange = (value: string) => {
+    const formatted = formatPhoneNumber(value);
+    setFormData({ ...formData, phone: formatted });
   };
 
   return (
@@ -186,43 +217,181 @@ export default function AdminsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {paginatedAdmins.map((admin) => (
-                <tr key={admin.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-4 py-4 text-sm font-medium text-gray-900 text-center">{admin.department}</td>
-                  <td className="px-4 py-4 text-sm font-medium text-gray-900 text-center">{admin.name}</td>
-                  <td className="px-4 py-4 text-sm text-gray-600 text-center">{admin.phone}</td>
-                  <td className="px-4 py-4 text-sm text-gray-600 text-center">{admin.password}</td>
-                  <td className="px-4 py-4 text-sm text-gray-900 text-center">{getRoleText(admin.role)}</td>
-                  <td className="px-4 py-4 text-sm text-gray-500 text-center">{admin.createdAt}</td>
-                  <td className="px-4 py-4 text-sm text-gray-500 text-center">{admin.lastLogin}</td>
+              {/* 인라인 관리자 등록 행 */}
+              {isAddingAdmin && (
+                <tr className="bg-gray-50">
                   <td className="px-4 py-4">
-                    <div className="flex items-center justify-center">
-                      <button 
-                        onClick={() => handleEditOpen(admin)}
-                        className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors" 
-                        title="수정"
-                      >
-                        <Edit className="w-4 h-4" />
-                      </button>
-                    </div>
+                    <input
+                      type="text"
+                      value={formData.department}
+                      onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+                      placeholder="소속"
+                      className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                    />
+                  </td>
+                  <td className="px-4 py-4">
+                    <input
+                      type="text"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      placeholder="이름"
+                      className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                    />
+                  </td>
+                  <td className="px-4 py-4">
+                    <input
+                      type="text"
+                      value={formData.phone}
+                      onChange={(e) => handlePhoneChange(e.target.value)}
+                      placeholder="010-0000-0000"
+                      maxLength={13}
+                      className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                    />
+                  </td>
+                  <td className="px-4 py-4">
+                    <input
+                      type="text"
+                      value={formData.password}
+                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                      placeholder="비밀번호"
+                      className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                    />
                   </td>
                   <td className="px-4 py-4">
                     <select
-                      value={admin.status}
-                      onChange={(e) => {
-                        setAdmins(admins.map(a => 
-                          a.id === admin.id 
-                            ? { ...a, status: e.target.value as 'active' | 'inactive' }
-                            : a
-                        ));
-                      }}
-                      className="w-full px-3 py-1.5 text-sm border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                      value={formData.role}
+                      onChange={(e) => setFormData({ ...formData, role: e.target.value as 'master' | 'admin' })}
+                      className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
                     >
-                      <option value="active">활성</option>
-                      <option value="inactive">비활성</option>
+                      <option value="master">마스터권한</option>
+                      <option value="admin">관리자</option>
                     </select>
                   </td>
+                  <td className="px-4 py-4 text-sm text-gray-400 text-center">-</td>
+                  <td className="px-4 py-4 text-sm text-gray-400 text-center">-</td>
+                  <td className="px-4 py-4" colSpan={2}>
+                    <div className="flex items-center justify-center gap-2">
+                      <button
+                        onClick={handleAddSave}
+                        disabled={!formData.department || !formData.name || !formData.phone || !formData.password}
+                        className="px-3 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        저장
+                      </button>
+                      <button
+                        onClick={handleAddCancel}
+                        className="px-3 py-1 text-xs border border-gray-300 text-gray-600 rounded hover:bg-gray-100"
+                      >
+                        취소
+                      </button>
+                    </div>
+                  </td>
                 </tr>
+              )}
+              {paginatedAdmins.map((admin) => (
+                editingAdminId === admin.id ? (
+                  <tr key={admin.id} className="bg-gray-50">
+                    <td className="px-4 py-4">
+                      <input
+                        type="text"
+                        value={formData.department}
+                        onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+                        className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                      />
+                    </td>
+                    <td className="px-4 py-4">
+                      <input
+                        type="text"
+                        value={formData.name}
+                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                        className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                      />
+                    </td>
+                    <td className="px-4 py-4">
+                      <input
+                        type="text"
+                        value={formData.phone}
+                        onChange={(e) => handlePhoneChange(e.target.value)}
+                        maxLength={13}
+                        className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                      />
+                    </td>
+                    <td className="px-4 py-4">
+                      <input
+                        type="text"
+                        value={formData.password}
+                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                        className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                      />
+                    </td>
+                    <td className="px-4 py-4">
+                      <select
+                        value={formData.role}
+                        onChange={(e) => setFormData({ ...formData, role: e.target.value as 'master' | 'admin' })}
+                        className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                      >
+                        <option value="master">마스터권한</option>
+                        <option value="admin">관리자</option>
+                      </select>
+                    </td>
+                    <td className="px-4 py-4 text-sm text-gray-500 text-center">{admin.createdAt}</td>
+                    <td className="px-4 py-4 text-sm text-gray-500 text-center">{admin.lastLogin}</td>
+                    <td className="px-4 py-4" colSpan={2}>
+                      <div className="flex items-center justify-center gap-2">
+                        <button
+                          onClick={handleEditSave}
+                          disabled={!formData.department || !formData.name || !formData.phone || !formData.password}
+                          className="px-3 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          저장
+                        </button>
+                        <button
+                          onClick={handleEditCancel}
+                          className="px-3 py-1 text-xs border border-gray-300 text-gray-600 rounded hover:bg-gray-100"
+                        >
+                          취소
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  <tr key={admin.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-4 py-4 text-sm font-medium text-gray-900 text-center">{admin.department}</td>
+                    <td className="px-4 py-4 text-sm font-medium text-gray-900 text-center">{admin.name}</td>
+                    <td className="px-4 py-4 text-sm text-gray-600 text-center">{admin.phone}</td>
+                    <td className="px-4 py-4 text-sm text-gray-600 text-center">{admin.password}</td>
+                    <td className="px-4 py-4 text-sm text-gray-900 text-center">{getRoleText(admin.role)}</td>
+                    <td className="px-4 py-4 text-sm text-gray-500 text-center">{admin.createdAt}</td>
+                    <td className="px-4 py-4 text-sm text-gray-500 text-center">{admin.lastLogin}</td>
+                    <td className="px-4 py-4">
+                      <div className="flex items-center justify-center">
+                        <button 
+                          onClick={() => handleEditOpen(admin)}
+                          className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors" 
+                          title="수정"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
+                    <td className="px-4 py-4">
+                      <select
+                        value={admin.status}
+                        onChange={(e) => {
+                          setAdmins(admins.map(a => 
+                            a.id === admin.id 
+                              ? { ...a, status: e.target.value as 'active' | 'inactive' }
+                              : a
+                          ));
+                        }}
+                        className="w-full px-3 py-1.5 text-sm border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                      >
+                        <option value="active">활성</option>
+                        <option value="inactive">비활성</option>
+                      </select>
+                    </td>
+                  </tr>
+                )
               ))}
             </tbody>
           </table>
@@ -262,192 +431,6 @@ export default function AdminsPage() {
         </div>
       </div>
 
-      {/* 수정 모달 */}
-      {showEditModal && selectedAdmin && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setShowEditModal(false)} />
-          <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold text-gray-900">관리자 수정</h3>
-              <button onClick={() => setShowEditModal(false)} className="p-1 hover:bg-gray-100 rounded">
-                <X className="w-5 h-5 text-gray-500" />
-              </button>
-            </div>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">소속</label>
-                <input
-                  type="text"
-                  value={formData.department}
-                  onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-                  className="w-full px-3 py-2.5 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">이름</label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-3 py-2.5 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">연락처(ID)</label>
-                <input
-                  type="text"
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  className="w-full px-3 py-2.5 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">비밀번호</label>
-                <input
-                  type="text"
-                  value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  className="w-full px-3 py-2.5 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">권한</label>
-                <select
-                  value={formData.role}
-                  onChange={(e) => setFormData({ ...formData, role: e.target.value as 'master' | 'admin' })}
-                  className="w-full px-3 py-2.5 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
-                >
-                  <option value="master">마스터권한</option>
-                  <option value="admin">관리자</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">상태</label>
-                <select
-                  value={formData.status}
-                  onChange={(e) => setFormData({ ...formData, status: e.target.value as 'active' | 'inactive' })}
-                  className="w-full px-3 py-2.5 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
-                >
-                  <option value="active">활성</option>
-                  <option value="inactive">비활성</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="flex gap-3 mt-6">
-              <button
-                onClick={() => setShowEditModal(false)}
-                className="flex-1 px-4 py-2.5 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 font-medium"
-              >
-                취소
-              </button>
-              <button
-                onClick={handleEditSave}
-                className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium"
-              >
-                저장
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 등록 모달 */}
-      {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setShowAddModal(false)} />
-          <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold text-gray-900">관리자 등록</h3>
-              <button onClick={() => setShowAddModal(false)} className="p-1 hover:bg-gray-100 rounded">
-                <X className="w-5 h-5 text-gray-500" />
-              </button>
-            </div>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">소속 <span className="text-red-500">*</span></label>
-                <input
-                  type="text"
-                  value={formData.department}
-                  onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-                  placeholder="중부미트센터"
-                  className="w-full px-3 py-2.5 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">이름 <span className="text-red-500">*</span></label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="이름을 입력하세요"
-                  className="w-full px-3 py-2.5 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">연락처(ID) <span className="text-red-500">*</span></label>
-                <input
-                  type="text"
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  placeholder="010-0000-0000"
-                  className="w-full px-3 py-2.5 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">비밀번호 <span className="text-red-500">*</span></label>
-                <input
-                  type="text"
-                  value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  placeholder="비밀번호를 입력하세요"
-                  className="w-full px-3 py-2.5 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">권한 <span className="text-red-500">*</span></label>
-                <select
-                  value={formData.role}
-                  onChange={(e) => setFormData({ ...formData, role: e.target.value as 'master' | 'admin' })}
-                  className="w-full px-3 py-2.5 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
-                >
-                  <option value="master">마스터권한</option>
-                  <option value="admin">관리자</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">상태 <span className="text-red-500">*</span></label>
-                <select
-                  value={formData.status}
-                  onChange={(e) => setFormData({ ...formData, status: e.target.value as 'active' | 'inactive' })}
-                  className="w-full px-3 py-2.5 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
-                >
-                  <option value="active">활성</option>
-                  <option value="inactive">비활성</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="flex gap-3 mt-6">
-              <button
-                onClick={() => setShowAddModal(false)}
-                className="flex-1 px-4 py-2.5 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 font-medium"
-              >
-                취소
-              </button>
-              <button
-                onClick={handleAddSave}
-                disabled={!formData.department || !formData.name || !formData.phone || !formData.password}
-                className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                등록
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </AdminLayout>
   );
 }

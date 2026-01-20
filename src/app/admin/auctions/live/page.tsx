@@ -4,6 +4,21 @@ import React, { useState, useEffect } from 'react';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { ChevronDown, ChevronUp, X } from 'lucide-react';
 
+// 수정 이력 타입
+interface EditHistory {
+  editedAt: string;
+  editedBy: string; // 수정자
+  previousDealerNo: string;
+  previousDealerName: string;
+  previousBidPrice: number;
+  newDealerNo: string;
+  newDealerName: string;
+  newBidPrice: number;
+}
+
+// 현재 로그인한 관리자 (실제로는 세션에서 가져옴)
+const CURRENT_ADMIN = '관리자1';
+
 // 입찰 내역 타입
 interface BidRecord {
   id: string;
@@ -12,6 +27,7 @@ interface BidRecord {
   bidPrice: number;
   bidTime: string;
   rank: number;
+  editHistory?: EditHistory[]; // 수정 이력
 }
 
 // 경매 항목 타입
@@ -28,13 +44,6 @@ interface AuctionItem {
   bids: BidRecord[];
 }
 
-// 수정 모달 타입
-interface EditModalData {
-  itemId: string;
-  bid: BidRecord;
-  weight: number;
-  action: 'edit' | 'delete' | 'changeBidder';
-}
 
 // 19개 부위
 const PART_NAMES = [
@@ -104,46 +113,47 @@ const generateDummyData = (targetDate: Date): AuctionItem[] => {
         const basePrice = PART_PRICES[partName];
         const minPrice = Math.round(basePrice * gradeMultiplier);
         
-        // 입찰 데이터 생성 (0~5명)
-        const bidCount = (companyIdx + cattleIdx + partIdx) % 6;
+        // 입찰 데이터 생성 (0~8건, 같은 사람이 재입찰 가능)
+        const bidSeed = (companyIdx * 17 + cattleIdx * 31 + partIdx * 7) % 100;
+        const totalBidCount = bidSeed < 10 ? 0 : bidSeed < 20 ? 1 : bidSeed < 35 ? 2 : bidSeed < 50 ? 3 : bidSeed < 65 ? 4 : bidSeed < 80 ? 5 : bidSeed < 90 ? 6 : 7;
         const bids: BidRecord[] = [];
         
-        if (bidCount > 0) {
-          // 입찰자 선정 (중복 없이)
-          const shuffledDealers = [...DEALERS]
-            .sort((a, b) => {
-              const seedA = (companyIdx * 100 + cattleIdx * 10 + partIdx + parseInt(a.no)) % 100;
-              const seedB = (companyIdx * 100 + cattleIdx * 10 + partIdx + parseInt(b.no)) % 100;
-              return seedA - seedB;
-            })
-            .slice(0, bidCount);
+        if (totalBidCount > 0) {
+          const seed = companyIdx * 7 + cattleIdx * 13 + partIdx * 17;
+          const dateStr = `${String(targetDate.getFullYear()).slice(2)}.${String(targetDate.getMonth() + 1).padStart(2, '0')}.${String(targetDate.getDate()).padStart(2, '0')}`;
           
-          // 입찰가 생성 (최저가 기준 +0~20%)
-          const bidPrices = shuffledDealers.map((_, idx) => {
-            const increase = ((companyIdx + cattleIdx + partIdx + idx) % 20) / 100;
-            return Math.round(minPrice * (1 + increase));
-          }).sort((a, b) => b - a); // 내림차순 정렬
+          // 입찰 이력 생성 (시간순으로)
+          let currentPrice = minPrice;
+          const baseMinutes = (companyIdx * 10 + cattleIdx * 5 + partIdx) % 40 + 5;
           
-          shuffledDealers.forEach((dealer, idx) => {
-            const hours = 9;
-            // 높은 가격(낮은 idx)일수록 늦은 시간 (최고가 갱신 순서)
-            const baseMinutes = (companyIdx * 10 + cattleIdx * 5 + partIdx) % 50;
-            const reverseIdx = bidCount - 1 - idx; // 순서 역전
-            const minutes = baseMinutes + reverseIdx * 2;
-            const seconds = reverseIdx * 15 % 60;
+          for (let bidIdx = 0; bidIdx < totalBidCount; bidIdx++) {
+            // 입찰자 선정 (재입찰 가능하도록)
+            const dealerSeed = (seed * (bidIdx + 1) * 13) % DEALERS.length;
+            const dealer = DEALERS[dealerSeed];
             
-            // 날짜 포함한 입찰시간
-            const dateStr = `${String(targetDate.getFullYear()).slice(2)}.${String(targetDate.getMonth() + 1).padStart(2, '0')}.${String(targetDate.getDate()).padStart(2, '0')}`;
-            const timeStr = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+            // 가격 증가 (500~2000원 단위로 불규칙하게)
+            const priceIncrease = ((seed + bidIdx * 7) % 4 + 1) * 500;
+            currentPrice = currentPrice + priceIncrease;
+            
+            // 입찰 시간 (뒤로 갈수록 늦은 시간)
+            const minutes = baseMinutes + bidIdx * 2;
+            const seconds = (bidIdx * 17) % 60;
+            const timeStr = `09:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
             
             bids.push({
-              id: `${listingNo}-${dealer.no}`,
+              id: `${listingNo}-${bidIdx}`,
               dealerNo: dealer.no,
               dealerName: dealer.name,
-              bidPrice: bidPrices[idx],
+              bidPrice: currentPrice,
               bidTime: `${dateStr} ${timeStr}`,
-              rank: idx + 1,
+              rank: 0, // 나중에 계산
             });
+          }
+          
+          // 가격 내림차순 정렬 후 순위 부여 (최고가가 1위)
+          bids.sort((a, b) => b.bidPrice - a.bidPrice);
+          bids.forEach((bid, idx) => {
+            bid.rank = idx + 1;
           });
         }
         
@@ -158,7 +168,7 @@ const generateDummyData = (targetDate: Date): AuctionItem[] => {
           weight,
           minPrice,
           currentHighestBid,
-          bidCount,
+          bidCount: bids.length,
           bids,
         });
       });
@@ -189,12 +199,15 @@ export default function AuctionLivePage() {
   const [bidFilter, setBidFilter] = useState('all'); // all, withBids, withoutBids
   const [showSubtotal, setShowSubtotal] = useState(true); // 개체별 소계 표시 여부
   
-  // 수정 모달 상태
-  const [editModal, setEditModal] = useState<EditModalData | null>(null);
+  // 인라인 수정 상태
+  const [editingBidKey, setEditingBidKey] = useState<string | null>(null); // itemId-bidId
+  const [editFormData, setEditFormData] = useState({ dealerNo: '', bidPrice: '', password: '' });
+  const [editPasswordError, setEditPasswordError] = useState('');
+  
+  // 삭제 모달 상태
+  const [deleteModal, setDeleteModal] = useState<{ itemId: string; bid: BidRecord } | null>(null);
   const [secondaryPassword, setSecondaryPassword] = useState('');
   const [passwordError, setPasswordError] = useState('');
-  const [newBidPrice, setNewBidPrice] = useState('');
-  const [newDealerNo, setNewDealerNo] = useState('');
 
   // 마감 관리 상태
   const [isAuctionClosed, setIsAuctionClosed] = useState(false);
@@ -234,61 +247,80 @@ export default function AuctionLivePage() {
     );
   };
 
-  // 수정 모달 열기
-  const openEditModal = (itemId: string, bid: BidRecord, weight: number, action: 'edit' | 'delete' | 'changeBidder') => {
-    setEditModal({ itemId, bid, weight, action });
-    setSecondaryPassword('');
-    setPasswordError('');
-    setNewBidPrice(bid.bidPrice.toString());
-    setNewDealerNo(bid.dealerNo);
+  // 인라인 수정 시작
+  const startEditing = (itemId: string, bid: BidRecord) => {
+    setEditingBidKey(`${itemId}-${bid.id}`);
+    setEditFormData({
+      dealerNo: bid.dealerNo,
+      bidPrice: bid.bidPrice.toLocaleString(),
+      password: '',
+    });
+    setEditPasswordError('');
   };
 
-  // 모달 닫기
-  const closeModal = () => {
-    setEditModal(null);
-    setSecondaryPassword('');
-    setPasswordError('');
-    setNewBidPrice('');
-    setNewDealerNo('');
+  // 인라인 수정 취소
+  const cancelEditing = () => {
+    setEditingBidKey(null);
+    setEditFormData({ dealerNo: '', bidPrice: '', password: '' });
+    setEditPasswordError('');
   };
 
-  // 수정 실행
-  const handleEdit = () => {
-    if (secondaryPassword !== SECONDARY_PASSWORD) {
-      setPasswordError('2차 비밀번호가 일치하지 않습니다.');
+  // 현재 시간 포맷팅
+  const formatCurrentTime = () => {
+    const now = new Date();
+    return `${String(now.getFullYear()).slice(2)}.${String(now.getMonth() + 1).padStart(2, '0')}.${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+  };
+
+  // 인라인 수정 저장
+  const saveEditing = (itemId: string, bidId: string) => {
+    // 2차 비밀번호 확인
+    if (editFormData.password !== SECONDARY_PASSWORD) {
+      setEditPasswordError('비밀번호 오류');
       return;
     }
-    if (!editModal) return;
 
-    const { itemId, bid, action } = editModal;
-    
+    const dealer = DEALERS.find(d => d.no === editFormData.dealerNo);
+    if (!dealer) {
+      alert('올바른 중도매인을 선택하세요.');
+      return;
+    }
+
+    const newPrice = parseInt(editFormData.bidPrice.replace(/,/g, ''));
+    if (isNaN(newPrice) || newPrice <= 0) {
+      alert('올바른 입찰가를 입력하세요.');
+      return;
+    }
+
     setAuctionItems(prev => prev.map(item => {
       if (item.id !== itemId) return item;
       
-      let updatedBids = [...item.bids];
+      let updatedBids = item.bids.map(b => {
+        if (b.id !== bidId) return b;
+        
+        // 수정 이력 추가 (수정자 포함)
+        const editHistoryEntry: EditHistory = {
+          editedAt: formatCurrentTime(),
+          editedBy: CURRENT_ADMIN,
+          previousDealerNo: b.dealerNo,
+          previousDealerName: b.dealerName,
+          previousBidPrice: b.bidPrice,
+          newDealerNo: dealer.no,
+          newDealerName: dealer.name,
+          newBidPrice: newPrice,
+        };
+        
+        return {
+          ...b,
+          dealerNo: dealer.no,
+          dealerName: dealer.name,
+          bidPrice: newPrice,
+          editHistory: [...(b.editHistory || []), editHistoryEntry],
+        };
+      });
       
-      if (action === 'edit') {
-        // 입찰가 수정
-        updatedBids = updatedBids.map(b => 
-          b.id === bid.id ? { ...b, bidPrice: parseInt(newBidPrice.replace(/,/g, '')) } : b
-        );
-        // 가격순으로 재정렬 및 순위 재산정
-        updatedBids.sort((a, b) => b.bidPrice - a.bidPrice);
-        updatedBids = updatedBids.map((b, idx) => ({ ...b, rank: idx + 1 }));
-      } else if (action === 'delete') {
-        // 입찰 삭제 (유찰 처리)
-        updatedBids = updatedBids.filter(b => b.id !== bid.id);
-        // 순위 재산정
-        updatedBids = updatedBids.map((b, idx) => ({ ...b, rank: idx + 1 }));
-      } else if (action === 'changeBidder') {
-        // 낙찰자 변경
-        const dealer = DEALERS.find(d => d.no === newDealerNo);
-        if (dealer) {
-          updatedBids = updatedBids.map(b => 
-            b.id === bid.id ? { ...b, dealerNo: dealer.no, dealerName: dealer.name } : b
-          );
-        }
-      }
+      // 가격순으로 재정렬 및 순위 재산정
+      updatedBids.sort((a, b) => b.bidPrice - a.bidPrice);
+      updatedBids = updatedBids.map((b, idx) => ({ ...b, rank: idx + 1 }));
       
       const newHighestBid = updatedBids.length > 0 ? updatedBids[0].bidPrice : 0;
       
@@ -300,7 +332,56 @@ export default function AuctionLivePage() {
       };
     }));
     
-    closeModal();
+    cancelEditing();
+  };
+
+  // 삭제 모달 열기
+  const openDeleteModal = (itemId: string, bid: BidRecord) => {
+    setDeleteModal({ itemId, bid });
+    setSecondaryPassword('');
+    setPasswordError('');
+  };
+
+  // 삭제 모달 닫기
+  const closeDeleteModal = () => {
+    setDeleteModal(null);
+    setSecondaryPassword('');
+    setPasswordError('');
+  };
+
+  // 삭제 실행
+  const handleDelete = () => {
+    if (secondaryPassword !== SECONDARY_PASSWORD) {
+      setPasswordError('2차 비밀번호가 일치하지 않습니다.');
+      return;
+    }
+    if (!deleteModal) return;
+
+    const { itemId, bid } = deleteModal;
+    
+    setAuctionItems(prev => prev.map(item => {
+      if (item.id !== itemId) return item;
+      
+      let updatedBids = item.bids.filter(b => b.id !== bid.id);
+      updatedBids = updatedBids.map((b, idx) => ({ ...b, rank: idx + 1 }));
+      
+      const newHighestBid = updatedBids.length > 0 ? updatedBids[0].bidPrice : 0;
+      
+      return {
+        ...item,
+        bids: updatedBids,
+        bidCount: updatedBids.length,
+        currentHighestBid: newHighestBid,
+      };
+    }));
+    
+    closeDeleteModal();
+  };
+
+  // 입찰가 포맷팅
+  const formatBidPrice = (value: string) => {
+    const numbers = value.replace(/[^0-9]/g, '');
+    return numbers ? parseInt(numbers).toLocaleString() : '';
   };
 
   const filteredItems = auctionItems.filter(item => {
@@ -367,15 +448,15 @@ export default function AuctionLivePage() {
         </div>
         <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
           <div className="text-xs text-gray-500">입찰 있음</div>
-          <div className="text-xl font-bold text-green-600">{itemsWithBids}건</div>
+          <div className="text-xl font-bold text-gray-900">{itemsWithBids}건</div>
         </div>
         <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
           <div className="text-xs text-gray-500">입찰 없음</div>
-          <div className="text-xl font-bold text-orange-500">{itemsWithoutBids}건</div>
+          <div className="text-xl font-bold text-gray-900">{itemsWithoutBids}건</div>
         </div>
         <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
           <div className="text-xs text-gray-500">현재 총 입찰금액</div>
-          <div className="text-xl font-bold text-blue-600">{Math.round(totalBidAmount).toLocaleString()}원</div>
+          <div className="text-xl font-bold text-gray-900">{Math.round(totalBidAmount).toLocaleString()}원</div>
         </div>
       </div>
 
@@ -429,7 +510,7 @@ export default function AuctionLivePage() {
                 type="checkbox"
                 checked={showSubtotal}
                 onChange={(e) => setShowSubtotal(e.target.checked)}
-                className="w-4 h-4 rounded appearance-none bg-white border border-gray-200 checked:bg-red-600 checked:border-red-600 relative
+                className="w-4 h-4 rounded appearance-none bg-white border border-gray-300 checked:bg-gray-700 checked:border-gray-700 relative
                   after:content-['✓'] after:absolute after:inset-0 after:flex after:items-center after:justify-center after:text-white after:text-xs after:font-bold after:opacity-0 checked:after:opacity-100"
               />
               <span className="text-xs text-gray-600">개체별 소계</span>
@@ -466,6 +547,8 @@ export default function AuctionLivePage() {
               <th className={`${thClass} w-[80px]`}>최저가격</th>
               <th className={`${thClass} w-[90px]`}>최고입찰가격</th>
               <th className={`${thClass} w-[100px]`}>총입찰가격</th>
+              <th className={`${thClass} w-[80px]`}>중도매인번호</th>
+              <th className={`${thClass} w-[80px]`}>중도매인명</th>
               <th className={`${thClass} w-[60px]`}>입찰수</th>
             </tr>
           </thead>
@@ -482,7 +565,7 @@ export default function AuctionLivePage() {
                   {cattleItems.map((item) => (
                     <React.Fragment key={item.id}>
                       <tr 
-                        className={`hover:bg-gray-50 cursor-pointer ${item.bidCount === 0 ? 'bg-orange-50' : ''}`}
+                        className="hover:bg-gray-50 cursor-pointer"
                         onClick={() => item.bidCount > 0 && toggleItem(item.id)}
                       >
                         <td className={tdClass}>
@@ -498,85 +581,171 @@ export default function AuctionLivePage() {
                         <td className={tdClass}>{item.grade}</td>
                         <td className={`${tdClass} text-right`}>{item.weight.toFixed(1)}</td>
                         <td className={`${tdClass} text-right`}>{item.minPrice.toLocaleString()}</td>
-                        <td className={`${tdClass} text-right font-semibold ${item.currentHighestBid > 0 ? 'text-blue-600' : 'text-gray-400'}`}>
+                        <td className={`${tdClass} text-right font-semibold ${item.currentHighestBid > 0 ? 'text-gray-900' : 'text-gray-400'}`}>
                           {item.currentHighestBid > 0 ? item.currentHighestBid.toLocaleString() : '-'}
                         </td>
-                        <td className={`${tdClass} text-right font-semibold ${item.currentHighestBid > 0 ? 'text-blue-600' : 'text-gray-400'}`}>
+                        <td className={`${tdClass} text-right font-semibold ${item.currentHighestBid > 0 ? 'text-gray-900' : 'text-gray-400'}`}>
                           {item.currentHighestBid > 0 ? Math.round(item.currentHighestBid * item.weight).toLocaleString() : '-'}
                         </td>
-                        <td className={`${tdClass} ${item.bidCount > 0 ? 'text-green-600 font-semibold' : 'text-gray-400'}`}>
+                        <td className={`${tdClass} ${item.bids.length > 0 ? 'text-gray-900' : 'text-gray-400'}`}>
+                          {item.bids.length > 0 ? item.bids[0].dealerNo : '-'}
+                        </td>
+                        <td className={`${tdClass} ${item.bids.length > 0 ? 'text-gray-900' : 'text-gray-400'}`}>
+                          {item.bids.length > 0 ? item.bids[0].dealerName : '-'}
+                        </td>
+                        <td className={`${tdClass} ${item.bidCount > 0 ? 'text-gray-900 font-semibold' : 'text-gray-400'}`}>
                           {item.bidCount}
                         </td>
                       </tr>
                       {/* 입찰 내역 펼침 */}
                       {expandedItems.includes(item.id) && item.bids.length > 0 && (
                         <tr>
-                          <td colSpan={10} className="p-0">
-                            <div className="bg-blue-50 p-3">
+                          <td colSpan={12} className="p-0">
+                            <div className="bg-gray-50 p-3">
                               <div className="text-xs font-semibold text-gray-700 mb-2">입찰 내역 ({item.bids.length}건)</div>
                               <table className="w-full border-collapse">
                                 <thead>
                                   <tr>
-                                    <th className="px-2 py-1 text-xs font-medium text-gray-600 bg-blue-100 border border-blue-200 text-center w-[70px]">상태</th>
-                                    <th className="px-2 py-1 text-xs font-medium text-gray-600 bg-blue-100 border border-blue-200 text-center w-[100px]">중도매인번호</th>
-                                    <th className="px-2 py-1 text-xs font-medium text-gray-600 bg-blue-100 border border-blue-200 text-center w-[100px]">중도매인명</th>
-                                    <th className="px-2 py-1 text-xs font-medium text-gray-600 bg-blue-100 border border-blue-200 text-center w-[100px]">입찰가</th>
-                                    <th className="px-2 py-1 text-xs font-medium text-gray-600 bg-blue-100 border border-blue-200 text-center w-[120px]">총입찰금액</th>
-                                    <th className="px-2 py-1 text-xs font-medium text-gray-600 bg-blue-100 border border-blue-200 text-center w-[140px]">입찰시간</th>
-                                    <th className="px-2 py-1 text-xs font-medium text-gray-600 bg-blue-100 border border-blue-200 text-center w-[120px]">관리</th>
+                                    <th className="px-2 py-1 text-xs font-medium text-gray-600 bg-gray-100 border border-gray-200 text-center w-[70px]">상태</th>
+                                    <th className="px-2 py-1 text-xs font-medium text-gray-600 bg-gray-100 border border-gray-200 text-center w-[100px]">중도매인번호</th>
+                                    <th className="px-2 py-1 text-xs font-medium text-gray-600 bg-gray-100 border border-gray-200 text-center w-[100px]">중도매인명</th>
+                                    <th className="px-2 py-1 text-xs font-medium text-gray-600 bg-gray-100 border border-gray-200 text-center w-[100px]">입찰가</th>
+                                    <th className="px-2 py-1 text-xs font-medium text-gray-600 bg-gray-100 border border-gray-200 text-center w-[120px]">총입찰금액</th>
+                                    <th className="px-2 py-1 text-xs font-medium text-gray-600 bg-gray-100 border border-gray-200 text-center w-[140px]">입찰시간</th>
+                                    <th className="px-2 py-1 text-xs font-medium text-gray-600 bg-gray-100 border border-gray-200 text-center w-[60px]">수정</th>
+                                    <th className="px-2 py-1 text-xs font-medium text-gray-600 bg-gray-100 border border-gray-200 text-center w-[130px]">관리</th>
                                   </tr>
                                 </thead>
                                 <tbody>
-                                  {item.bids.map((bid) => (
-                                    <tr key={bid.id} className={bid.rank === 1 ? 'bg-yellow-50' : 'bg-white'}>
-                                      <td className={`px-2 py-1 text-xs border border-blue-200 text-center ${bid.rank === 1 ? 'font-bold text-blue-600' : 'text-gray-500'}`}>
-                                        {bid.rank === 1 ? '최고순위' : '차순위'}
-                                      </td>
-                                      <td className="px-2 py-1 text-xs border border-blue-200 text-center">{bid.dealerNo}</td>
-                                      <td className="px-2 py-1 text-xs border border-blue-200 text-center">{bid.dealerName}</td>
-                                      <td className={`px-2 py-1 text-xs border border-blue-200 text-right ${bid.rank === 1 ? 'font-bold text-blue-600' : ''}`}>
-                                        {bid.bidPrice.toLocaleString()}원
-                                      </td>
-                                      <td className={`px-2 py-1 text-xs border border-blue-200 text-right ${bid.rank === 1 ? 'font-bold text-blue-600' : ''}`}>
-                                        {Math.round(bid.bidPrice * item.weight).toLocaleString()}원
-                                      </td>
-                                      <td className="px-2 py-1 text-xs border border-blue-200 text-center text-gray-500">{bid.bidTime}</td>
-                                      <td className="px-2 py-1 text-xs border border-blue-200 text-center">
-                                        <div className="flex items-center justify-center gap-1">
-                                          <button
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              openEditModal(item.id, bid, item.weight, 'edit');
-                                            }}
-                                            className="px-1.5 py-0.5 text-[10px] bg-blue-500 text-white rounded hover:bg-blue-600"
-                                            title="입찰가 수정"
-                                          >
-                                            수정
-                                          </button>
-                                          <button
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              openEditModal(item.id, bid, item.weight, 'changeBidder');
-                                            }}
-                                            className="px-1.5 py-0.5 text-[10px] bg-green-500 text-white rounded hover:bg-green-600"
-                                            title="낙찰자 변경"
-                                          >
-                                            변경
-                                          </button>
-                                          <button
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              openEditModal(item.id, bid, item.weight, 'delete');
-                                            }}
-                                            className="px-1.5 py-0.5 text-[10px] bg-red-500 text-white rounded hover:bg-red-600"
-                                            title="입찰 삭제"
-                                          >
-                                            삭제
-                                          </button>
-                                        </div>
-                                      </td>
-                                    </tr>
-                                  ))}
+                                  {item.bids.map((bid) => {
+                                    const isEditing = editingBidKey === `${item.id}-${bid.id}`;
+                                    return (
+                                      <tr key={bid.id} className={bid.rank === 1 ? 'bg-gray-50' : 'bg-white'}>
+                                        <td className={`px-2 py-1 text-xs border border-gray-200 text-center ${bid.rank === 1 ? 'font-bold text-gray-900' : 'text-gray-500'}`}>
+                                          {bid.rank === 1 ? '최고순위' : '차순위'}
+                                        </td>
+                                        {isEditing ? (
+                                          <>
+                                            <td className="px-2 py-1 text-xs border border-gray-200 text-center">
+                                              <select
+                                                value={editFormData.dealerNo}
+                                                onChange={(e) => setEditFormData({ ...editFormData, dealerNo: e.target.value })}
+                                                onClick={(e) => e.stopPropagation()}
+                                                className="w-full px-1 py-0.5 text-xs border border-gray-300 bg-white outline-none"
+                                              >
+                                                {DEALERS.map(d => (
+                                                  <option key={d.no} value={d.no}>{d.no}</option>
+                                                ))}
+                                              </select>
+                                            </td>
+                                            <td className="px-2 py-1 text-xs border border-gray-200 text-center">
+                                              {DEALERS.find(d => d.no === editFormData.dealerNo)?.name || '-'}
+                                            </td>
+                                            <td className="px-2 py-1 text-xs border border-gray-200">
+                                              <input
+                                                type="text"
+                                                value={editFormData.bidPrice}
+                                                onChange={(e) => setEditFormData({ ...editFormData, bidPrice: formatBidPrice(e.target.value) })}
+                                                onClick={(e) => e.stopPropagation()}
+                                                className="w-full px-1 py-0.5 text-xs border border-gray-300 bg-white outline-none text-right"
+                                              />
+                                            </td>
+                                            <td className="px-2 py-1 text-xs border border-gray-200 text-right text-gray-500">
+                                              {(parseInt(editFormData.bidPrice.replace(/,/g, '') || '0') * item.weight).toLocaleString()}원
+                                            </td>
+                                          </>
+                                        ) : (
+                                          <>
+                                            <td className="px-2 py-1 text-xs border border-gray-200 text-center">{bid.dealerNo}</td>
+                                            <td className="px-2 py-1 text-xs border border-gray-200 text-center">{bid.dealerName}</td>
+                                            <td className={`px-2 py-1 text-xs border border-gray-200 text-right ${bid.rank === 1 ? 'font-bold text-gray-900' : ''}`}>
+                                              {bid.bidPrice.toLocaleString()}원
+                                            </td>
+                                            <td className={`px-2 py-1 text-xs border border-gray-200 text-right ${bid.rank === 1 ? 'font-bold text-gray-900' : ''}`}>
+                                              {Math.round(bid.bidPrice * item.weight).toLocaleString()}원
+                                            </td>
+                                          </>
+                                        )}
+                                        <td className="px-2 py-1 text-xs border border-gray-200 text-center text-gray-500">{bid.bidTime}</td>
+                                        <td className="px-2 py-1 text-xs border border-gray-200 text-center">
+                                          {bid.editHistory && bid.editHistory.length > 0 ? (
+                                            <span 
+                                              className="text-gray-900 font-semibold cursor-help"
+                                              title={bid.editHistory.map((h, idx) => 
+                                                `[${idx + 1}차 수정] ${h.editedAt} (${h.editedBy})\n` +
+                                                `  ${h.previousDealerName}(${h.previousDealerNo}) → ${h.newDealerName}(${h.newDealerNo})\n` +
+                                                `  ${h.previousBidPrice.toLocaleString()}원 → ${h.newBidPrice.toLocaleString()}원`
+                                              ).join('\n\n')}
+                                            >
+                                              {bid.editHistory.length}회
+                                            </span>
+                                          ) : (
+                                            <span className="text-gray-400">-</span>
+                                          )}
+                                        </td>
+                                        <td className="px-2 py-1 text-xs border border-gray-200 text-center">
+                                          {isEditing ? (
+                                            <div className="flex items-center justify-center gap-1">
+                                              <div className="relative">
+                                                <input
+                                                  type="password"
+                                                  value={editFormData.password}
+                                                  onChange={(e) => {
+                                                    setEditFormData({ ...editFormData, password: e.target.value });
+                                                    setEditPasswordError('');
+                                                  }}
+                                                  onClick={(e) => e.stopPropagation()}
+                                                  placeholder="2차PW"
+                                                  className={`w-[50px] px-1 py-0.5 text-[10px] border ${editPasswordError ? 'border-red-400' : 'border-gray-300'} bg-white outline-none text-center`}
+                                                />
+                                              </div>
+                                              <button
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  saveEditing(item.id, bid.id);
+                                                }}
+                                                className="px-1.5 py-0.5 text-[10px] bg-gray-700 text-white hover:bg-gray-800"
+                                              >
+                                                저장
+                                              </button>
+                                              <button
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  cancelEditing();
+                                                }}
+                                                className="px-1.5 py-0.5 text-[10px] border border-gray-400 text-gray-600 hover:bg-gray-100"
+                                              >
+                                                취소
+                                              </button>
+                                            </div>
+                                          ) : (
+                                            <div className="flex items-center justify-center gap-1">
+                                              <button
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  startEditing(item.id, bid);
+                                                }}
+                                                className="px-1.5 py-0.5 text-[10px] bg-gray-600 text-white hover:bg-gray-700"
+                                                title="수정"
+                                              >
+                                                수정
+                                              </button>
+                                              <button
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  openDeleteModal(item.id, bid);
+                                                }}
+                                                className="px-1.5 py-0.5 text-[10px] border border-gray-400 text-gray-600 hover:bg-gray-100"
+                                                title="삭제"
+                                              >
+                                                삭제
+                                              </button>
+                                            </div>
+                                          )}
+                                        </td>
+                                      </tr>
+                                    );
+                                  })}
                                 </tbody>
                               </table>
                             </div>
@@ -597,16 +766,18 @@ export default function AuctionLivePage() {
                       <td className={`${tdClass} text-right`}>{subtotalWeight.toFixed(1)}</td>
                       <td className={tdClass}></td>
                       <td className={tdClass}></td>
-                      <td className={`${tdClass} text-right text-blue-600`}>
+                      <td className={`${tdClass} text-right text-gray-900`}>
                         {subtotalBidAmount > 0 ? Math.round(subtotalBidAmount).toLocaleString() : '-'}
                       </td>
-                      <td className={`${tdClass} text-green-600`}>{subtotalBidCount}</td>
+                      <td className={tdClass}></td>
+                      <td className={tdClass}></td>
+                      <td className={`${tdClass} text-gray-900`}>{subtotalBidCount}</td>
                     </tr>
                   )}
                   {/* 개체 간 구분선 */}
                   {cattleIdx < sortedCattleNos.length - 1 && showSubtotal && (
                     <tr>
-                      <td colSpan={10} className="h-1 bg-gray-300"></td>
+                      <td colSpan={12} className="h-1 bg-gray-300"></td>
                     </tr>
                   )}
                 </React.Fragment>
@@ -616,7 +787,7 @@ export default function AuctionLivePage() {
             {showSubtotal && (
               <>
                 <tr>
-                  <td colSpan={10} className="h-1 bg-gray-400"></td>
+                  <td colSpan={12} className="h-1 bg-gray-400"></td>
                 </tr>
                 <tr className="bg-gray-200 font-bold">
                   <td className={tdClass}></td>
@@ -630,10 +801,12 @@ export default function AuctionLivePage() {
                   </td>
                   <td className={tdClass}></td>
                   <td className={tdClass}></td>
-                  <td className={`${tdClass} text-right text-blue-600`}>
+                  <td className={`${tdClass} text-right text-gray-900`}>
                     {totalBidAmount > 0 ? Math.round(totalBidAmount).toLocaleString() : '-'}
                   </td>
-                  <td className={`${tdClass} text-green-600`}>
+                  <td className={tdClass}></td>
+                  <td className={tdClass}></td>
+                  <td className={`${tdClass} text-gray-900`}>
                     {filteredItems.reduce((sum, item) => sum + item.bidCount, 0)}
                   </td>
                 </tr>
@@ -643,85 +816,36 @@ export default function AuctionLivePage() {
         </table>
       </div>
 
-      {/* 수정/삭제/변경 모달 */}
-      {editModal && (
+      {/* 삭제 확인 모달 */}
+      {deleteModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl w-[400px] max-h-[90vh] overflow-y-auto">
+          <div className="bg-white shadow-xl w-[400px]">
             {/* 모달 헤더 */}
             <div className="flex items-center justify-between px-4 py-3 border-b">
-              <h3 className="text-lg font-semibold text-gray-900">
-                {editModal.action === 'edit' && '입찰가 수정'}
-                {editModal.action === 'delete' && '입찰 삭제 (유찰 처리)'}
-                {editModal.action === 'changeBidder' && '낙찰자 변경'}
-              </h3>
-              <button onClick={closeModal} className="text-gray-400 hover:text-gray-600">
+              <h3 className="text-lg font-semibold text-gray-900">입찰 삭제</h3>
+              <button onClick={closeDeleteModal} className="text-gray-400 hover:text-gray-600">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             {/* 모달 본문 */}
             <div className="p-4 space-y-4">
-              {/* 현재 입찰 정보 */}
-              <div className="bg-gray-50 p-3 rounded-lg text-sm">
+              {/* 삭제 대상 정보 */}
+              <div className="bg-gray-50 p-3 text-sm">
                 <div className="grid grid-cols-2 gap-2">
-                  <div><span className="text-gray-500">중도매인:</span> {editModal.bid.dealerName} ({editModal.bid.dealerNo})</div>
-                  <div><span className="text-gray-500">현재 입찰가:</span> {editModal.bid.bidPrice.toLocaleString()}원</div>
-                  <div><span className="text-gray-500">총 입찰금액:</span> {Math.round(editModal.bid.bidPrice * editModal.weight).toLocaleString()}원</div>
-                  <div><span className="text-gray-500">입찰시간:</span> {editModal.bid.bidTime}</div>
+                  <div><span className="text-gray-500">중도매인:</span> {deleteModal.bid.dealerName} ({deleteModal.bid.dealerNo})</div>
+                  <div><span className="text-gray-500">입찰가:</span> {deleteModal.bid.bidPrice.toLocaleString()}원</div>
                 </div>
               </div>
 
-              {/* 수정 입력 필드 */}
-              {editModal.action === 'edit' && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">새 입찰가</label>
-                  <input
-                    type="text"
-                    value={newBidPrice ? parseInt(newBidPrice.replace(/,/g, '')).toLocaleString() : ''}
-                    onChange={(e) => {
-                      const rawValue = e.target.value.replace(/,/g, '').replace(/[^0-9]/g, '');
-                      setNewBidPrice(rawValue);
-                    }}
-                    className="w-full px-3 py-2 border border-gray-200 rounded text-sm outline-none focus:border-blue-500 bg-white"
-                    placeholder="새 입찰가 입력"
-                  />
-                  {newBidPrice && (
-                    <div className="text-xs text-gray-500 mt-1">
-                      총 입찰금액: {Math.round(parseInt(newBidPrice.replace(/,/g, '')) * editModal.weight).toLocaleString()}원
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* 낙찰자 변경 */}
-              {editModal.action === 'changeBidder' && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">새 낙찰자</label>
-                  <select
-                    value={newDealerNo}
-                    onChange={(e) => setNewDealerNo(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-200 rounded text-sm outline-none focus:border-blue-500 bg-white"
-                  >
-                    {DEALERS.map(dealer => (
-                      <option key={dealer.no} value={dealer.no}>
-                        {dealer.name} ({dealer.no})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              {/* 삭제 확인 메시지 */}
-              {editModal.action === 'delete' && (
-                <div className="text-sm text-red-600 bg-red-50 p-3 rounded-lg">
-                  이 입찰을 삭제하면 해당 입찰이 유찰 처리됩니다. 계속하시겠습니까?
-                </div>
-              )}
+              <div className="text-sm text-gray-600 bg-gray-100 p-3">
+                이 입찰을 삭제하시겠습니까?
+              </div>
 
               {/* 2차 비밀번호 입력 */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  2차 비밀번호 <span className="text-red-500">*</span>
+                  2차 비밀번호
                 </label>
                 <input
                   type="password"
@@ -730,7 +854,7 @@ export default function AuctionLivePage() {
                     setSecondaryPassword(e.target.value);
                     setPasswordError('');
                   }}
-                  className="w-full px-3 py-2 border border-gray-200 rounded text-sm outline-none focus:border-blue-500 bg-white"
+                  className="w-full px-3 py-2 border border-gray-200 text-sm outline-none bg-white"
                   placeholder="2차 비밀번호 입력"
                 />
                 {passwordError && (
@@ -742,22 +866,16 @@ export default function AuctionLivePage() {
             {/* 모달 푸터 */}
             <div className="flex justify-end gap-2 px-4 py-3 border-t bg-gray-50">
               <button
-                onClick={closeModal}
-                className="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded hover:bg-gray-100"
+                onClick={closeDeleteModal}
+                className="px-4 py-2 text-sm text-gray-600 border border-gray-200 hover:bg-gray-100"
               >
                 취소
               </button>
               <button
-                onClick={handleEdit}
-                className={`px-4 py-2 text-sm text-white rounded ${
-                  editModal.action === 'delete' 
-                    ? 'bg-red-600 hover:bg-red-700' 
-                    : 'bg-blue-600 hover:bg-blue-700'
-                }`}
+                onClick={handleDelete}
+                className="px-4 py-2 text-sm text-white bg-gray-700 hover:bg-gray-800"
               >
-                {editModal.action === 'edit' && '수정'}
-                {editModal.action === 'delete' && '삭제'}
-                {editModal.action === 'changeBidder' && '변경'}
+                삭제
               </button>
             </div>
           </div>
