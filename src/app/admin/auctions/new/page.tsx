@@ -230,13 +230,23 @@ export default function NewAuctionPage() {
 
   // 부위 정보 수정
   const updatePart = (cattleId: number, partId: number, field: 'weight' | 'minPrice', value: string) => {
+    // 최저가격은 콤마 제거하고 숫자만 저장
+    const cleanValue = field === 'minPrice' ? value.replace(/,/g, '').replace(/[^0-9]/g, '') : value;
     setCattleList(cattleList.map(c => {
       if (c.id !== cattleId) return c;
       return {
         ...c,
-        parts: c.parts.map(p => p.id === partId ? { ...p, [field]: value } : p)
+        parts: c.parts.map(p => p.id === partId ? { ...p, [field]: cleanValue } : p)
       };
     }));
+  };
+  
+  // 가격 표시용 포맷 (천단위 콤마)
+  const displayPrice = (value: string) => {
+    if (!value) return '';
+    const num = parseInt(value.replace(/,/g, ''), 10);
+    if (isNaN(num)) return '';
+    return num.toLocaleString('ko-KR');
   };
 
   // 접기/펼치기
@@ -272,6 +282,12 @@ export default function NewAuctionPage() {
     router.push('/admin/auctions');
   };
 
+  // 숫자 천단위 콤마 포맷
+  const formatNumber = (num: number) => num.toLocaleString('ko-KR');
+  
+  // 콤마 제거하고 숫자로 파싱
+  const parseNumber = (str: string) => String(str).replace(/,/g, '');
+
   // 엑셀 템플릿 다운로드
   const downloadExcelTemplate = () => {
     // 개체 정보 시트
@@ -294,10 +310,10 @@ export default function NewAuctionPage() {
     const partNames = createDefaultParts().map(p => p.name);
     
     const samplePartData = [
-      // 1번 개체
-      ...partNames.map((name, idx) => ['1', name, (10 + idx * 0.5).toFixed(1), String((100000 + idx * 5000))]),
+      // 1번 개체 (최저가격에 천단위 콤마 적용)
+      ...partNames.map((name, idx) => ['1', name, (10 + idx * 0.5).toFixed(1), formatNumber(100000 + idx * 5000)]),
       // 2번 개체
-      ...partNames.map((name, idx) => ['2', name, (9 + idx * 0.4).toFixed(1), String((95000 + idx * 4500))]),
+      ...partNames.map((name, idx) => ['2', name, (9 + idx * 0.4).toFixed(1), formatNumber(95000 + idx * 4500)]),
     ];
     
     const partsSheet = XLSX.utils.aoa_to_sheet([partHeaders, ...samplePartData]);
@@ -376,8 +392,8 @@ export default function NewAuctionPage() {
               if (partData) {
                 return {
                   ...part,
-                  weight: String(partData['중량(kg)'] || ''),
-                  minPrice: String(partData['최저가격(원)'] || ''),
+                  weight: parseNumber(String(partData['중량(kg)'] || '')),
+                  minPrice: parseNumber(String(partData['최저가격(원)'] || '')),
                 };
               }
               return part;
@@ -729,12 +745,11 @@ export default function NewAuctionPage() {
                                 </td>
                                 <td className={tdClass}>
                                   <input
-                                    type="number"
-                                    value={part.minPrice}
+                                    type="text"
+                                    value={displayPrice(part.minPrice)}
                                     onChange={(e) => updatePart(cattle.id, part.id, 'minPrice', e.target.value)}
                                     placeholder="0"
                                     required
-                                    step="1000"
                                     className="w-20 px-1 py-1 border border-gray-200 rounded text-xs text-center outline-none bg-white"
                                   />
                                 </td>
