@@ -127,8 +127,9 @@ const generateBidRecords = (): BidRecord[] => {
       const totalPrice = isFailed || !unitPrice ? null : Math.round(weight * unitPrice);
       const commission = totalPrice ? Math.round(totalPrice * 0.02) : null;
       
-      // 유찰이 아닌 경우 랜덤하게 중도매인 배정
-      const dealer = isFailed ? null : dealers[Math.floor(Math.random() * dealers.length)];
+      // 유찰이 아닌 경우 결정론적으로 중도매인 배정 (cattleIdx + partIdx 기반)
+      const dealerIdx = (cattleIdx + partIdx) % dealers.length;
+      const dealer = isFailed ? null : dealers[dealerIdx];
       
       records.push({
         id: String(id++),

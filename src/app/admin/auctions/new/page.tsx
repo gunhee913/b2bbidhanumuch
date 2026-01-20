@@ -72,11 +72,24 @@ const getTomorrowDateCode = () => {
   return `${year}${month}${day}`;
 };
 
+// 내일 날짜 (YYYY-MM-DD) - input date용
+const getTomorrowDateString = () => {
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const year = tomorrow.getFullYear();
+  const month = String(tomorrow.getMonth() + 1).padStart(2, '0');
+  const day = String(tomorrow.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const tomorrowDateString = getTomorrowDateString();
+
 export default function NewAuctionPage() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   // 기본 정보
+  const [listingDate, setListingDate] = useState(tomorrowDateString); // 상장일자 (기본: 내일)
   const [company, setCompany] = useState('');
   const [seqNo, setSeqNo] = useState('1');
   
@@ -106,6 +119,7 @@ export default function NewAuctionPage() {
   const [processWeight, setProcessWeight] = useState('');
   
   // 날짜 입력 ref
+  const listingDateRef = useRef<HTMLInputElement>(null);
   const slaughterDateRef = useRef<HTMLInputElement>(null);
   const processDateRef = useRef<HTMLInputElement>(null);
   
@@ -115,10 +129,20 @@ export default function NewAuctionPage() {
   // 이미지
   const [images, setImages] = useState<string[]>([]);
 
+  // 상장일자 기반 날짜 코드 생성 (YYMMDD)
+  const getDateCodeFromListingDate = () => {
+    if (!listingDate) return getTomorrowDateCode();
+    const date = new Date(listingDate);
+    const year = String(date.getFullYear()).slice(-2);
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}${month}${day}`;
+  };
+
   // 접수번호 자동 생성
   const getAuctionNo = () => {
     if (!company) return '-';
-    const dateCode = getTomorrowDateCode();
+    const dateCode = getDateCodeFromListingDate();
     const basePrefix = COMPANY_PREFIX[company] || '100';
     const prefixBase = basePrefix.charAt(0);
     const seq = String(seqNo || '1').padStart(2, '0');
@@ -154,7 +178,7 @@ export default function NewAuctionPage() {
   // 상장번호 생성
   const getListingNo = (partIndex: number) => {
     if (!company) return '-';
-    const dateCode = getTomorrowDateCode();
+    const dateCode = getDateCodeFromListingDate();
     const basePrefix = COMPANY_PREFIX[company] || '100';
     const prefixBase = basePrefix.charAt(0);
     const seq = String(seqNo || '1').padStart(2, '0');
@@ -200,6 +224,7 @@ export default function NewAuctionPage() {
             <table className="w-full text-xs border-collapse">
               <thead>
                 <tr>
+                  <th className={thClass}>상장일자</th>
                   <th className={thClass}>상장업체</th>
                   <th className={thClass}>순번</th>
                   <th className={thClass}>접수번호</th>
@@ -214,6 +239,22 @@ export default function NewAuctionPage() {
               </thead>
               <tbody>
                 <tr>
+                  <td className={tdClass}>
+                    <div className="relative inline-flex items-center">
+                      <input 
+                        ref={listingDateRef}
+                        type="date" 
+                        value={listingDate} 
+                        onChange={(e) => setListingDate(e.target.value)} 
+                        required 
+                        className="w-36 pl-8 pr-2 py-1 border border-gray-200 rounded text-xs outline-none bg-white cursor-pointer" 
+                      />
+                      <Calendar 
+                        className="absolute left-2 w-4 h-4 text-gray-400 cursor-pointer hover:text-gray-600" 
+                        onClick={() => listingDateRef.current?.showPicker()}
+                      />
+                    </div>
+                  </td>
                   <td className={tdClass}>
                     <select value={company} onChange={(e) => setCompany(e.target.value)} required className={selectClass}>
                       <option value="">선택</option>

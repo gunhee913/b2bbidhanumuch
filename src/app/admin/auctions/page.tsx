@@ -8,9 +8,10 @@ import {
   ChevronDown,
   ChevronUp,
   Calendar,
-  Search,
   X,
+  Download,
 } from 'lucide-react';
+import * as XLSX from 'xlsx';
 
 // 부위 데이터 (내일 경매이므로 낙찰가격 없음)
 const PARTS_DATA = [
@@ -272,27 +273,63 @@ export default function AuctionsListPage() {
     return `${auctionNo}-${String(partIndex + 1).padStart(4, '0')}`;
   };
 
+  // 엑셀 다운로드 함수
+  const handleExcelDownload = () => {
+    const excelData = filteredAuctions.map((auction) => ({
+      '접수번호': auction.auctionNo,
+      '축종': auction.breed,
+      '성별': auction.gender,
+      '등급': auction.grade,
+      '개월령': auction.monthAge,
+      '등지방': auction.backFat,
+      '등심면적': auction.eyeMuscle,
+      '근내지방': auction.fatMarbling,
+      '육색': auction.meatColor,
+      '지방색': auction.fatColor,
+      '조직감': auction.texture,
+      '성숙도': auction.maturity,
+      '이력번호': auction.traceNo,
+      '도축장': auction.slaughterHouse,
+      '도축일': auction.slaughterDate,
+      '도축번호': auction.slaughterNo,
+      '도체중': auction.carcassWeight,
+      '상장업체': auction.company,
+      '가공일': auction.processDate,
+      '가공중량': auction.processWeight,
+      '상태': auction.status,
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(excelData);
+    
+    worksheet['!cols'] = [
+      { wch: 15 }, { wch: 8 }, { wch: 8 }, { wch: 12 }, { wch: 8 },
+      { wch: 8 }, { wch: 10 }, { wch: 10 }, { wch: 6 }, { wch: 8 },
+      { wch: 8 }, { wch: 8 }, { wch: 14 }, { wch: 8 }, { wch: 12 },
+      { wch: 10 }, { wch: 8 }, { wch: 12 }, { wch: 12 }, { wch: 10 },
+      { wch: 8 },
+    ];
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, '부분육 상장 조회');
+
+    const today = new Date();
+    const fileName = `부분육_상장조회_${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}${String(today.getDate()).padStart(2, '0')}.xlsx`;
+    XLSX.writeFile(workbook, fileName);
+  };
+
   return (
     <AdminLayout>
-      {/* 페이지 헤더 */}
-      <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">부분육 상장 조회</h1>
       </div>
 
-      {/* 검색 조건 */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6">
+      {/* 필터 섹션 */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4 mb-4">
         <div className="flex flex-wrap items-center gap-4">
-          {/* 상장일자 */}
+          {/* 기간 선택 */}
           <div className="flex items-center gap-2">
-            <label className="text-sm font-medium text-gray-700 whitespace-nowrap">상장일자</label>
+            <span className="text-sm font-medium text-gray-600">상장일자</span>
             <div className="relative">
-              <button
-                type="button"
-                onClick={() => startDateRef.current?.showPicker()}
-                className="absolute left-3 top-1/2 -translate-y-1/2 p-0 border-0 bg-transparent cursor-pointer hover:opacity-70"
-              >
-                <Calendar className="w-4 h-4 text-gray-400" />
-              </button>
               <input
                 ref={startDateRef}
                 type="date"
@@ -301,18 +338,12 @@ export default function AuctionsListPage() {
                   setStartDate(e.target.value);
                   setCurrentPage(1);
                 }}
-                className="pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-sm"
+                className="w-36 pl-3 pr-8 py-1.5 border border-gray-200 rounded text-xs outline-none bg-white"
               />
+              <Calendar className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
             </div>
-            <span className="text-gray-500">~</span>
+            <span className="text-gray-400">~</span>
             <div className="relative">
-              <button
-                type="button"
-                onClick={() => endDateRef.current?.showPicker()}
-                className="absolute left-3 top-1/2 -translate-y-1/2 p-0 border-0 bg-transparent cursor-pointer hover:opacity-70"
-              >
-                <Calendar className="w-4 h-4 text-gray-400" />
-              </button>
               <input
                 ref={endDateRef}
                 type="date"
@@ -322,21 +353,22 @@ export default function AuctionsListPage() {
                   setEndDate(e.target.value);
                   setCurrentPage(1);
                 }}
-                className="pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-sm"
+                className="w-36 pl-3 pr-8 py-1.5 border border-gray-200 rounded text-xs outline-none bg-white"
               />
+              <Calendar className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
             </div>
           </div>
 
-          {/* 상장업체 */}
+          {/* 상장업체 필터 */}
           <div className="flex items-center gap-2">
-            <label className="text-sm font-medium text-gray-700 whitespace-nowrap">상장업체</label>
+            <span className="text-sm font-medium text-gray-600">상장업체</span>
             <select
               value={companyFilter}
               onChange={(e) => {
                 setCompanyFilter(e.target.value);
                 setCurrentPage(1);
               }}
-              className="px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-sm min-w-[140px]"
+              className="px-3 py-1.5 border border-gray-200 rounded text-xs outline-none bg-white"
             >
               <option value="all">전체</option>
               {companies.map(company => (
@@ -345,32 +377,38 @@ export default function AuctionsListPage() {
             </select>
           </div>
 
-          {/* 검색 버튼 */}
-          <button 
-            type="button"
-            onClick={() => setCurrentPage(1)}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium transition-colors"
-          >
-            <Search className="w-4 h-4" />
-            검색
-          </button>
-
-          {/* 초기화 버튼 */}
-          <button 
-            type="button"
-            onClick={() => {
-              setStartDate(tomorrowDateString);
-              setEndDate(tomorrowDateString);
-              setCompanyFilter('all');
-              setCurrentPage(1);
-              // 입력 필드 직접 초기화
-              if (startDateRef.current) startDateRef.current.value = tomorrowDateString;
-              if (endDateRef.current) endDateRef.current.value = tomorrowDateString;
-            }}
-            className="px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 text-sm font-medium text-gray-600 transition-colors"
-          >
-            초기화
-          </button>
+          {/* 검색/초기화/엑셀 버튼 */}
+          <div className="flex items-center gap-2 ml-auto">
+            <button
+              type="button"
+              onClick={() => {
+                setStartDate(tomorrowDateString);
+                setEndDate(tomorrowDateString);
+                setCompanyFilter('all');
+                setCurrentPage(1);
+                if (startDateRef.current) startDateRef.current.value = tomorrowDateString;
+                if (endDateRef.current) endDateRef.current.value = tomorrowDateString;
+              }}
+              className="px-4 py-1.5 border border-gray-200 text-gray-600 rounded text-xs hover:bg-gray-50"
+            >
+              초기화
+            </button>
+            <button
+              type="button"
+              onClick={() => setCurrentPage(1)}
+              className="px-4 py-1.5 bg-red-600 text-white rounded text-xs hover:bg-red-700"
+            >
+              검색
+            </button>
+            <button
+              type="button"
+              onClick={handleExcelDownload}
+              className="flex items-center gap-1.5 px-4 py-1.5 bg-green-600 text-white rounded text-xs hover:bg-green-700"
+            >
+              <Download className="w-3.5 h-3.5" />
+              엑셀
+            </button>
+          </div>
         </div>
       </div>
 
