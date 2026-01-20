@@ -34,11 +34,11 @@ const FAILED_PARTS_BY_COMPANY: Record<string, number[]> = {
   '정직한고기': [11, 12, 17], // 목심, 특수부위, 사골 유찰
 };
 
-// 낙찰율 데이터 계산
+// 낙찰률 데이터 계산
 interface ResultData {
   listed: number;   // 상장 개수
   awarded: number;  // 낙찰 개수
-  rate: number;     // 낙찰율 (%)
+  rate: number;     // 낙찰률 (%)
 }
 
 // 부위별, 업체별 데이터 생성
@@ -72,7 +72,7 @@ const generateResultData = () => {
       data[part][company].listed = 1;
       // 낙찰 개수는 유찰이 아닌 경우 1
       data[part][company].awarded = isFailed ? 0 : 1;
-      // 낙찰율 계산
+      // 낙찰률 계산
       data[part][company].rate = isFailed ? 0 : 100;
       
       // 부위별 합계
@@ -89,7 +89,7 @@ const generateResultData = () => {
     });
   });
   
-  // 합계 행의 낙찰율 계산
+  // 합계 행의 낙찰률 계산
   PARTS.forEach(part => {
     const total = data[part]['합계'];
     total.rate = total.listed > 0 ? Math.round((total.awarded / total.listed) * 100) : 0;
@@ -125,24 +125,24 @@ export default function AuctionResultsPage() {
         const d = resultData[part][company];
         row[`${company}_상장`] = d.listed;
         row[`${company}_낙찰`] = d.awarded;
-        row[`${company}_낙찰율`] = `${d.rate}%`;
+        row[`${company}_낙찰률`] = `${d.rate}%`;
       });
       excelData.push(row);
     });
 
     const worksheet = XLSX.utils.json_to_sheet(excelData);
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, '낙찰율 조회');
+    XLSX.utils.book_append_sheet(workbook, worksheet, '낙찰률 조회');
 
     const today = new Date();
-    const fileName = `낙찰율조회_${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}${String(today.getDate()).padStart(2, '0')}.xlsx`;
+    const fileName = `낙찰률조회_${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}${String(today.getDate()).padStart(2, '0')}.xlsx`;
     XLSX.writeFile(workbook, fileName);
   };
 
   return (
     <AdminLayout>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">부분육 낙찰율 조회</h1>
+        <h1 className="text-2xl font-bold text-gray-900">부분육 낙찰률 조회</h1>
       </div>
 
       {/* 필터 섹션 */}
@@ -218,7 +218,7 @@ export default function AuctionResultsPage() {
             <span className="text-sm font-semibold text-orange-500">{resultData['합계']['합계'].listed - resultData['합계']['합계'].awarded}건</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-500">평균 낙찰율</span>
+            <span className="text-sm text-gray-500">평균 낙찰률</span>
             <span className="text-sm font-semibold text-red-600">{resultData['합계']['합계'].rate}%</span>
           </div>
         </div>
@@ -241,7 +241,7 @@ export default function AuctionResultsPage() {
                   <React.Fragment key={`header-${company}`}>
                     <th className={`${thClass} ${idx === COMPANIES.length ? 'bg-red-50' : 'bg-gray-50'} min-w-[50px]`}>상장</th>
                     <th className={`${thClass} ${idx === COMPANIES.length ? 'bg-red-50' : 'bg-gray-50'} min-w-[50px]`}>낙찰</th>
-                    <th className={`${thClass} ${idx === COMPANIES.length ? 'bg-red-50' : 'bg-gray-50'} min-w-[55px]`}>낙찰율</th>
+                    <th className={`${thClass} ${idx === COMPANIES.length ? 'bg-red-50' : 'bg-gray-50'} min-w-[55px]`}>낙찰률</th>
                   </React.Fragment>
                 ))}
               </tr>
