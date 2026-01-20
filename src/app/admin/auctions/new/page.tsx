@@ -219,12 +219,15 @@ export default function NewAuctionPage() {
     setCattleList(cattleList.map(c => {
       if (c.id !== id) return c;
       if (field === 'grade' && !String(value).startsWith('1++')) {
-        return { ...c, [field]: value, marbling: '' };
+        return { ...c, [field]: String(value), marbling: '' };
       }
       if (field === 'traceNo') {
         return { ...c, [field]: formatTraceNo(String(value)) };
       }
-      return { ...c, [field]: value };
+      if (field === 'isExpanded') {
+        return { ...c, [field]: Boolean(value) };
+      }
+      return { ...c, [field]: String(value) };
     }));
   };
 
