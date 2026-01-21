@@ -13,7 +13,8 @@ import {
   Gavel,
   TrendingUp,
   ClipboardList,
-  Truck
+  Truck,
+  Wallet
 } from 'lucide-react';
 
 interface AdminLayoutProps {
@@ -65,6 +66,15 @@ const menuItems = [
     subItems: [
       { title: '정산서(상장업체별)', href: '/admin/settlements' },
       { title: '낙찰서(중도매인별)', href: '/admin/settlements/dealers' },
+    ],
+  },
+  {
+    title: '자산 관리',
+    href: '/admin/assets',
+    icon: Wallet,
+    subItems: [
+      { title: '중도매인 자산 관리', href: '/admin/assets/balance' },
+      { title: '중도매인 거래 내역', href: '/admin/assets/transactions' },
     ],
   },
   {
