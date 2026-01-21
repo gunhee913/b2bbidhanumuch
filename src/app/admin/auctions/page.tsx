@@ -7,33 +7,54 @@ import {
   ChevronRight,
   ChevronDown,
   ChevronUp,
-  Calendar,
   X,
   Download,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
-// 부위 데이터 (내일 경매이므로 낙찰가격 없음)
-const PARTS_DATA = [
-  { id: 1, name: '등심(좌)', weight: '15.2kg', minPrice: 85000, bidPrice: null },
-  { id: 2, name: '등심(우)', weight: '15.3kg', minPrice: 85000, bidPrice: null },
-  { id: 3, name: '안심', weight: '4.5kg', minPrice: 95000, bidPrice: null },
-  { id: 4, name: '채끝', weight: '8.2kg', minPrice: 82000, bidPrice: null },
-  { id: 5, name: '갈비(좌)', weight: '12.8kg', minPrice: 78000, bidPrice: null },
-  { id: 6, name: '갈비(우)', weight: '12.0kg', minPrice: 78000, bidPrice: null },
-  { id: 7, name: '특수부위', weight: '3.2kg', minPrice: 72000, bidPrice: null },
-  { id: 8, name: '설도(좌)', weight: '16.5kg', minPrice: 56000, bidPrice: null },
-  { id: 9, name: '설도(우)', weight: '16.8kg', minPrice: 56000, bidPrice: null },
-  { id: 10, name: '앞다리', weight: '25.4kg', minPrice: 55000, bidPrice: null },
-  { id: 11, name: '우둔', weight: '21.7kg', minPrice: 58000, bidPrice: null },
-  { id: 12, name: '목심', weight: '14.0kg', minPrice: 62000, bidPrice: null },
-  { id: 13, name: '양지(좌)', weight: '12.2kg', minPrice: 52000, bidPrice: null },
-  { id: 14, name: '양지(우)', weight: '12.4kg', minPrice: 52000, bidPrice: null },
-  { id: 15, name: '사태', weight: '15.1kg', minPrice: 48000, bidPrice: null },
-  { id: 16, name: '꼬리', weight: '16.2kg', minPrice: 35000, bidPrice: null },
-  { id: 17, name: '족', weight: '10.9kg', minPrice: 25000, bidPrice: null },
-  { id: 18, name: '사골', weight: '3.1kg', minPrice: 20000, bidPrice: null },
-  { id: 19, name: '잡뼈', weight: '21.5kg', minPrice: 15000, bidPrice: null },
+// number input 스피너 숨기기 스타일
+const hideSpinnerStyle = `
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type="number"] {
+    -moz-appearance: textfield;
+  }
+`;
+
+// 부위 데이터 타입
+interface PartData {
+  id: number;
+  name: string;
+  weight: number;
+  minPrice: number;
+  bidPrice: number | null;
+  isIncluded: boolean;
+}
+
+// 기본 부위 데이터 생성
+const createDefaultParts = (): PartData[] => [
+  { id: 1, name: '등심(좌)', weight: 15.2, minPrice: 85000, bidPrice: null, isIncluded: true },
+  { id: 2, name: '등심(우)', weight: 15.3, minPrice: 85000, bidPrice: null, isIncluded: true },
+  { id: 3, name: '안심', weight: 4.5, minPrice: 95000, bidPrice: null, isIncluded: true },
+  { id: 4, name: '채끝', weight: 8.2, minPrice: 82000, bidPrice: null, isIncluded: true },
+  { id: 5, name: '갈비(좌)', weight: 12.8, minPrice: 78000, bidPrice: null, isIncluded: true },
+  { id: 6, name: '갈비(우)', weight: 12.0, minPrice: 78000, bidPrice: null, isIncluded: true },
+  { id: 7, name: '특수부위', weight: 3.2, minPrice: 72000, bidPrice: null, isIncluded: true },
+  { id: 8, name: '설도(좌)', weight: 16.5, minPrice: 56000, bidPrice: null, isIncluded: true },
+  { id: 9, name: '설도(우)', weight: 16.8, minPrice: 56000, bidPrice: null, isIncluded: true },
+  { id: 10, name: '앞다리', weight: 25.4, minPrice: 55000, bidPrice: null, isIncluded: true },
+  { id: 11, name: '우둔', weight: 21.7, minPrice: 58000, bidPrice: null, isIncluded: true },
+  { id: 12, name: '목심', weight: 14.0, minPrice: 62000, bidPrice: null, isIncluded: true },
+  { id: 13, name: '양지(좌)', weight: 12.2, minPrice: 52000, bidPrice: null, isIncluded: true },
+  { id: 14, name: '양지(우)', weight: 12.4, minPrice: 52000, bidPrice: null, isIncluded: true },
+  { id: 15, name: '사태', weight: 15.1, minPrice: 48000, bidPrice: null, isIncluded: true },
+  { id: 16, name: '꼬리', weight: 16.2, minPrice: 35000, bidPrice: null, isIncluded: true },
+  { id: 17, name: '족', weight: 10.9, minPrice: 25000, bidPrice: null, isIncluded: true },
+  { id: 18, name: '사골', weight: 3.1, minPrice: 20000, bidPrice: null, isIncluded: true },
+  { id: 19, name: '잡뼈', weight: 21.5, minPrice: 15000, bidPrice: null, isIncluded: true },
 ];
 
 // 상태 타입 및 옵션
@@ -68,6 +89,7 @@ interface Auction {
   processDate: string;
   processWeight: number;
   status: AuctionStatus;
+  parts: PartData[];
 }
 
 // 내일 날짜 코드 생성 (YYMMDD)
@@ -119,6 +141,7 @@ const dummyAuctions: Auction[] = [
     processDate: "26.01.17",
     processWeight: 312,
     status: '승인',
+    parts: createDefaultParts(),
   },
   { 
     id: '2', 
@@ -143,6 +166,7 @@ const dummyAuctions: Auction[] = [
     processDate: "26.01.17",
     processWeight: 287,
     status: '승인',
+    parts: createDefaultParts(),
   },
   // 대진엠에스 - 2두
   { 
@@ -168,6 +192,7 @@ const dummyAuctions: Auction[] = [
     processDate: "26.01.17",
     processWeight: 291,
     status: '승인',
+    parts: createDefaultParts(),
   },
   { 
     id: '4', 
@@ -192,6 +217,7 @@ const dummyAuctions: Auction[] = [
     processDate: "26.01.17",
     processWeight: 305,
     status: '승인',
+    parts: createDefaultParts(),
   },
   // 안심엘피씨 - 2두
   { 
@@ -217,6 +243,7 @@ const dummyAuctions: Auction[] = [
     processDate: "26.01.17",
     processWeight: 307,
     status: '대기',
+    parts: createDefaultParts(),
   },
   { 
     id: '6', 
@@ -241,6 +268,7 @@ const dummyAuctions: Auction[] = [
     processDate: "26.01.17",
     processWeight: 283,
     status: '대기',
+    parts: createDefaultParts(),
   },
   // 정직한고기 - 2두
   { 
@@ -266,6 +294,7 @@ const dummyAuctions: Auction[] = [
     processDate: "26.01.17",
     processWeight: 281,
     status: '대기',
+    parts: createDefaultParts(),
   },
   { 
     id: '8', 
@@ -290,8 +319,29 @@ const dummyAuctions: Auction[] = [
     processDate: "26.01.17",
     processWeight: 321,
     status: '승인',
+    parts: createDefaultParts(),
   },
 ];
+
+// 수정 폼 데이터 타입
+interface EditFormData {
+  gender: string;
+  grade: string;
+  monthAge: string;
+  backFat: string;
+  eyeMuscle: string;
+  fatMarbling: string;
+  meatColor: string;
+  fatColor: string;
+  texture: string;
+  maturity: string;
+  traceNo: string;
+  slaughterDate: string;
+  slaughterNo: string;
+  carcassWeight: string;
+  processDate: string;
+  processWeight: string;
+}
 
 export default function AuctionsListPage() {
   const [currentPage, setCurrentPage] = useState(1);
@@ -309,14 +359,132 @@ export default function AuctionsListPage() {
   // 사진 모달 상태
   const [photoModalAuction, setPhotoModalAuction] = useState<Auction | null>(null);
 
+  // 인라인 수정 상태
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [secondaryPassword, setSecondaryPassword] = useState('');
+  const [passwordError, setPasswordError] = useState(false);
+  const [editFormData, setEditFormData] = useState<EditFormData>({
+    gender: '',
+    grade: '',
+    monthAge: '',
+    backFat: '',
+    eyeMuscle: '',
+    fatMarbling: '',
+    meatColor: '',
+    fatColor: '',
+    texture: '',
+    maturity: '',
+    traceNo: '',
+    slaughterDate: '',
+    slaughterNo: '',
+    carcassWeight: '',
+    processDate: '',
+    processWeight: '',
+  });
+
   // 고유 업체 목록
   const companies = [...new Set(auctions.map(a => a.company))];
+
+  // 수정 시작
+  const startEditing = (auction: Auction) => {
+    setEditingId(auction.id);
+    setExpandedId(auction.id);
+    setEditFormData({
+      gender: auction.gender,
+      grade: auction.grade,
+      monthAge: String(auction.monthAge),
+      backFat: String(auction.backFat),
+      eyeMuscle: String(auction.eyeMuscle),
+      fatMarbling: String(auction.fatMarbling),
+      meatColor: String(auction.meatColor),
+      fatColor: String(auction.fatColor),
+      texture: String(auction.texture),
+      maturity: String(auction.maturity),
+      traceNo: auction.traceNo,
+      slaughterDate: auction.slaughterDate,
+      slaughterNo: auction.slaughterNo,
+      carcassWeight: String(auction.carcassWeight),
+      processDate: auction.processDate,
+      processWeight: String(auction.processWeight),
+    });
+  };
+
+  // 수정 취소
+  const cancelEditing = () => {
+    setEditingId(null);
+    setSecondaryPassword('');
+    setPasswordError(false);
+  };
+
+  // 수정 저장
+  const saveEditing = () => {
+    if (!editingId) return;
+    
+    // 2차 비밀번호 확인
+    if (secondaryPassword !== '1234') {
+      setPasswordError(true);
+      return;
+    }
+    
+    setAuctions(prev => prev.map(auction => {
+      if (auction.id !== editingId) return auction;
+      return {
+        ...auction,
+        gender: editFormData.gender,
+        grade: editFormData.grade,
+        monthAge: parseInt(editFormData.monthAge) || 0,
+        backFat: parseInt(editFormData.backFat) || 0,
+        eyeMuscle: parseInt(editFormData.eyeMuscle) || 0,
+        fatMarbling: parseInt(editFormData.fatMarbling) || 0,
+        meatColor: parseInt(editFormData.meatColor) || 0,
+        fatColor: parseInt(editFormData.fatColor) || 0,
+        texture: parseInt(editFormData.texture) || 0,
+        maturity: parseInt(editFormData.maturity) || 0,
+        traceNo: editFormData.traceNo,
+        slaughterDate: editFormData.slaughterDate,
+        slaughterNo: editFormData.slaughterNo,
+        carcassWeight: parseInt(editFormData.carcassWeight) || 0,
+        processDate: editFormData.processDate,
+        processWeight: parseInt(editFormData.processWeight) || 0,
+      };
+    }));
+    setEditingId(null);
+    setSecondaryPassword('');
+    setPasswordError(false);
+  };
 
   // 상태 변경 핸들러
   const handleStatusChange = (auctionId: string, newStatus: AuctionStatus) => {
     setAuctions(prev => prev.map(auction => 
       auction.id === auctionId ? { ...auction, status: newStatus } : auction
     ));
+  };
+
+  // 부위 정보 수정
+  const updatePart = (auctionId: string, partId: number, field: 'weight' | 'minPrice', value: string) => {
+    const numValue = parseFloat(value) || 0;
+    setAuctions(prev => prev.map(auction => {
+      if (auction.id !== auctionId) return auction;
+      return {
+        ...auction,
+        parts: auction.parts.map(part => 
+          part.id === partId ? { ...part, [field]: numValue } : part
+        ),
+      };
+    }));
+  };
+
+  // 부위 포함/제외 토글
+  const togglePartIncluded = (auctionId: string, partId: number) => {
+    setAuctions(prev => prev.map(auction => {
+      if (auction.id !== auctionId) return auction;
+      return {
+        ...auction,
+        parts: auction.parts.map(part => 
+          part.id === partId ? { ...part, isIncluded: !part.isIncluded } : part
+        ),
+      };
+    }));
   };
 
   // 날짜를 6자리 코드로 변환 (YYMMDD)
@@ -419,44 +587,40 @@ export default function AuctionsListPage() {
 
   return (
     <AdminLayout>
+      <style dangerouslySetInnerHTML={{ __html: hideSpinnerStyle }} />
+      
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">부분육 상장 조회</h1>
       </div>
 
       {/* 필터 섹션 */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4 mb-4">
+      <div className="bg-white border border-gray-200 p-4 mb-4">
         <div className="flex flex-wrap items-center gap-4">
           {/* 기간 선택 */}
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium text-gray-600">상장일자</span>
-            <div className="relative">
-              <input
-                ref={startDateRef}
-                type="date"
-                value={startDate}
-                onChange={(e) => {
-                  setStartDate(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className="w-36 pl-3 pr-8 py-1.5 border border-gray-200 rounded text-xs outline-none bg-white"
-              />
-              <Calendar className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-            </div>
+            <input
+              ref={startDateRef}
+              type="date"
+              value={startDate}
+              onChange={(e) => {
+                setStartDate(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="w-36 px-3 py-1.5 border border-gray-200 text-xs outline-none bg-white"
+            />
             <span className="text-gray-400">~</span>
-            <div className="relative">
-              <input
-                ref={endDateRef}
-                type="date"
-                value={endDate}
-                min={startDate}
-                onChange={(e) => {
-                  setEndDate(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className="w-36 pl-3 pr-8 py-1.5 border border-gray-200 rounded text-xs outline-none bg-white"
-              />
-              <Calendar className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-            </div>
+            <input
+              ref={endDateRef}
+              type="date"
+              value={endDate}
+              min={startDate}
+              onChange={(e) => {
+                setEndDate(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="w-36 px-3 py-1.5 border border-gray-200 text-xs outline-none bg-white"
+            />
           </div>
 
           {/* 상장업체 필터 */}
@@ -468,7 +632,7 @@ export default function AuctionsListPage() {
                 setCompanyFilter(e.target.value);
                 setCurrentPage(1);
               }}
-              className="px-3 py-1.5 border border-gray-200 rounded text-xs outline-none bg-white"
+              className="px-3 py-1.5 border border-gray-200 text-xs outline-none bg-white"
             >
               <option value="all">전체</option>
               {companies.map(company => (
@@ -477,7 +641,7 @@ export default function AuctionsListPage() {
             </select>
           </div>
 
-          {/* 검색/초기화/엑셀 버튼 */}
+          {/* 초기화/엑셀 버튼 */}
           <div className="flex items-center gap-2 ml-auto">
             <button
               type="button"
@@ -489,21 +653,14 @@ export default function AuctionsListPage() {
                 if (startDateRef.current) startDateRef.current.value = tomorrowDateString;
                 if (endDateRef.current) endDateRef.current.value = tomorrowDateString;
               }}
-              className="px-4 py-1.5 border border-gray-200 text-gray-600 rounded text-xs hover:bg-gray-50"
+              className="px-4 py-1.5 border border-gray-300 text-gray-600 text-xs hover:bg-gray-50"
             >
               초기화
             </button>
             <button
               type="button"
-              onClick={() => setCurrentPage(1)}
-              className="px-4 py-1.5 bg-gray-700 text-white rounded text-xs hover:bg-gray-800"
-            >
-              검색
-            </button>
-            <button
-              type="button"
               onClick={handleExcelDownload}
-              className="flex items-center gap-1.5 px-4 py-1.5 bg-gray-700 text-white rounded text-xs hover:bg-gray-800"
+              className="flex items-center gap-1.5 px-4 py-1.5 bg-gray-700 text-white text-xs hover:bg-gray-800"
             >
               <Download className="w-3.5 h-3.5" />
               엑셀
@@ -513,87 +670,167 @@ export default function AuctionsListPage() {
       </div>
 
       {/* 테이블 */}
-      <div className="bg-white shadow-sm border border-gray-100 overflow-hidden">
+      <div className="bg-white border border-gray-200 overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-100">
+          <table className="w-full border-collapse">
+            <thead>
               <tr>
-                <th className="w-8 px-1 py-2"></th>
-                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-500 whitespace-nowrap">접수번호</th>
-                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-500 whitespace-nowrap">축종</th>
-                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-500 whitespace-nowrap">성별</th>
-                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-500 whitespace-nowrap">등급</th>
-                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-500 whitespace-nowrap">개월령</th>
-                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-500 whitespace-nowrap">등지방</th>
-                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-500 whitespace-nowrap">등심면적</th>
-                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-500 whitespace-nowrap">근내지방</th>
-                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-500 whitespace-nowrap">육색</th>
-                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-500 whitespace-nowrap">지방색</th>
-                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-500 whitespace-nowrap">조직감</th>
-                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-500 whitespace-nowrap">성숙도</th>
-                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-500 whitespace-nowrap">이력번호</th>
-                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-500 whitespace-nowrap">도축장</th>
-                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-500 whitespace-nowrap">도축일</th>
-                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-500 whitespace-nowrap">도축번호</th>
-                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-500 whitespace-nowrap">도체중</th>
-                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-500 whitespace-nowrap">상장업체</th>
-                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-500 whitespace-nowrap">가공일</th>
-                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-500 whitespace-nowrap">가공중량</th>
-                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-500 whitespace-nowrap">사진</th>
-                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-500 whitespace-nowrap">상태</th>
+                <th className="w-8 px-1 py-2 border border-gray-200 bg-gray-50"></th>
+                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">접수번호</th>
+                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">축종</th>
+                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">성별</th>
+                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">등급</th>
+                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">개월령</th>
+                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">등지방</th>
+                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">등심면적</th>
+                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">근내지방</th>
+                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">육색</th>
+                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">지방색</th>
+                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">조직감</th>
+                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">성숙도</th>
+                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">이력번호</th>
+                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">도축장</th>
+                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">도축일</th>
+                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">도축번호</th>
+                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">도체중</th>
+                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">상장업체</th>
+                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">가공일</th>
+                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">가공중량</th>
+                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">사진</th>
+                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">상태</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody>
               {paginatedAuctions.map((auction) => (
                 <React.Fragment key={auction.id}>
                   <tr 
                     className="hover:bg-gray-50 transition-colors cursor-pointer"
-                    onClick={() => toggleExpand(auction.id)}
+                    onClick={() => editingId !== auction.id && toggleExpand(auction.id)}
                   >
-                    <td className="px-2 py-3 text-center">
+                    <td className="px-2 py-3 text-center border border-gray-200">
                       {expandedId === auction.id ? (
                         <ChevronUp className="w-3 h-3 text-gray-400 mx-auto" />
                       ) : (
                         <ChevronDown className="w-3 h-3 text-gray-400 mx-auto" />
                       )}
                     </td>
-                    <td className="px-2 py-3 text-xs font-medium text-gray-900 text-center whitespace-nowrap">{auction.auctionNo}</td>
-                    <td className="px-2 py-3 text-xs text-gray-600 text-center whitespace-nowrap">{auction.breed}</td>
-                    <td className="px-2 py-3 text-xs text-gray-600 text-center whitespace-nowrap">{auction.gender}</td>
-                    <td className="px-2 py-3 text-xs font-medium text-gray-900 text-center whitespace-nowrap">{auction.grade}</td>
-                    <td className="px-2 py-3 text-xs text-gray-600 text-center whitespace-nowrap">{auction.monthAge}</td>
-                    <td className="px-2 py-3 text-xs text-gray-600 text-center whitespace-nowrap">{auction.backFat}</td>
-                    <td className="px-2 py-3 text-xs text-gray-600 text-center whitespace-nowrap">{auction.eyeMuscle}</td>
-                    <td className="px-2 py-3 text-xs text-gray-600 text-center whitespace-nowrap">{auction.fatMarbling}</td>
-                    <td className="px-2 py-3 text-xs text-gray-600 text-center whitespace-nowrap">{auction.meatColor}</td>
-                    <td className="px-2 py-3 text-xs text-gray-600 text-center whitespace-nowrap">{auction.fatColor}</td>
-                    <td className="px-2 py-3 text-xs text-gray-600 text-center whitespace-nowrap">{auction.texture}</td>
-                    <td className="px-2 py-3 text-xs text-gray-600 text-center whitespace-nowrap">{auction.maturity}</td>
-                    <td className="px-2 py-3 text-xs text-gray-600 text-center whitespace-nowrap">{auction.traceNo}</td>
-                    <td className="px-2 py-3 text-xs text-gray-600 text-center whitespace-nowrap">{auction.slaughterHouse}</td>
-                    <td className="px-2 py-3 text-xs text-gray-600 text-center whitespace-nowrap">{auction.slaughterDate}</td>
-                    <td className="px-2 py-3 text-xs text-gray-600 text-center whitespace-nowrap">{auction.slaughterNo}</td>
-                    <td className="px-2 py-3 text-xs text-gray-600 text-center whitespace-nowrap">{auction.carcassWeight}</td>
-                    <td className="px-2 py-3 text-xs text-gray-600 text-center whitespace-nowrap">{auction.company}</td>
-                    <td className="px-2 py-3 text-xs text-gray-600 text-center whitespace-nowrap">{auction.processDate}</td>
-                    <td className="px-2 py-3 text-xs text-gray-600 text-center whitespace-nowrap">{auction.processWeight}</td>
-                    <td className="px-2 py-3 text-center whitespace-nowrap">
+                    <td className="px-2 py-3 text-xs border border-gray-200 font-medium text-gray-900 text-center whitespace-nowrap">{auction.auctionNo}</td>
+                    <td className="px-2 py-3 text-xs border border-gray-200 text-gray-600 text-center whitespace-nowrap">{auction.breed}</td>
+                    {editingId === auction.id ? (
+                      <>
+                        <td className="px-1 py-1 text-center whitespace-nowrap">
+                          <select
+                            value={editFormData.gender}
+                            onClick={(e) => e.stopPropagation()}
+                            onChange={(e) => setEditFormData({ ...editFormData, gender: e.target.value })}
+                            className="w-14 px-1 py-1 text-xs border border-gray-300 outline-none bg-white text-center"
+                          >
+                            <option value="거세">거세</option>
+                            <option value="암">암</option>
+                          </select>
+                        </td>
+                        <td className="px-1 py-1 text-center whitespace-nowrap">
+                          <select
+                            value={editFormData.grade}
+                            onClick={(e) => e.stopPropagation()}
+                            onChange={(e) => setEditFormData({ ...editFormData, grade: e.target.value })}
+                            className="w-20 px-1 py-1 text-xs border border-gray-300 outline-none bg-white text-center"
+                          >
+                            <option value="1++A(9)">1++A(9)</option>
+                            <option value="1++A(8)">1++A(8)</option>
+                            <option value="1++B(9)">1++B(9)</option>
+                            <option value="1++B(8)">1++B(8)</option>
+                            <option value="1+A">1+A</option>
+                            <option value="1+B">1+B</option>
+                            <option value="1A">1A</option>
+                            <option value="1B">1B</option>
+                            <option value="2">2</option>
+                          </select>
+                        </td>
+                        <td className="px-1 py-1 text-center whitespace-nowrap">
+                          <input type="number" value={editFormData.monthAge} onClick={(e) => e.stopPropagation()} onChange={(e) => setEditFormData({ ...editFormData, monthAge: e.target.value })} className="w-10 px-1 py-1 text-xs border border-gray-300 outline-none bg-white text-center" />
+                        </td>
+                        <td className="px-1 py-1 text-center whitespace-nowrap">
+                          <input type="number" value={editFormData.backFat} onClick={(e) => e.stopPropagation()} onChange={(e) => setEditFormData({ ...editFormData, backFat: e.target.value })} className="w-10 px-1 py-1 text-xs border border-gray-300 outline-none bg-white text-center" />
+                        </td>
+                        <td className="px-1 py-1 text-center whitespace-nowrap">
+                          <input type="number" value={editFormData.eyeMuscle} onClick={(e) => e.stopPropagation()} onChange={(e) => setEditFormData({ ...editFormData, eyeMuscle: e.target.value })} className="w-10 px-1 py-1 text-xs border border-gray-300 outline-none bg-white text-center" />
+                        </td>
+                        <td className="px-1 py-1 text-center whitespace-nowrap">
+                          <input type="number" value={editFormData.fatMarbling} onClick={(e) => e.stopPropagation()} onChange={(e) => setEditFormData({ ...editFormData, fatMarbling: e.target.value })} className="w-10 px-1 py-1 text-xs border border-gray-300 outline-none bg-white text-center" />
+                        </td>
+                        <td className="px-1 py-1 text-center whitespace-nowrap">
+                          <input type="number" value={editFormData.meatColor} onClick={(e) => e.stopPropagation()} onChange={(e) => setEditFormData({ ...editFormData, meatColor: e.target.value })} className="w-8 px-1 py-1 text-xs border border-gray-300 outline-none bg-white text-center" />
+                        </td>
+                        <td className="px-1 py-1 text-center whitespace-nowrap">
+                          <input type="number" value={editFormData.fatColor} onClick={(e) => e.stopPropagation()} onChange={(e) => setEditFormData({ ...editFormData, fatColor: e.target.value })} className="w-8 px-1 py-1 text-xs border border-gray-300 outline-none bg-white text-center" />
+                        </td>
+                        <td className="px-1 py-1 text-center whitespace-nowrap">
+                          <input type="number" value={editFormData.texture} onClick={(e) => e.stopPropagation()} onChange={(e) => setEditFormData({ ...editFormData, texture: e.target.value })} className="w-8 px-1 py-1 text-xs border border-gray-300 outline-none bg-white text-center" />
+                        </td>
+                        <td className="px-1 py-1 text-center whitespace-nowrap">
+                          <input type="number" value={editFormData.maturity} onClick={(e) => e.stopPropagation()} onChange={(e) => setEditFormData({ ...editFormData, maturity: e.target.value })} className="w-8 px-1 py-1 text-xs border border-gray-300 outline-none bg-white text-center" />
+                        </td>
+                        <td className="px-1 py-1 text-center whitespace-nowrap">
+                          <input type="text" value={editFormData.traceNo} onClick={(e) => e.stopPropagation()} onChange={(e) => setEditFormData({ ...editFormData, traceNo: e.target.value })} className="w-24 px-1 py-1 text-xs border border-gray-300 outline-none bg-white text-center" />
+                        </td>
+                        <td className="px-2 py-3 text-xs border border-gray-200 text-gray-600 text-center whitespace-nowrap">{auction.slaughterHouse}</td>
+                        <td className="px-1 py-1 text-center whitespace-nowrap">
+                          <input type="text" value={editFormData.slaughterDate} onClick={(e) => e.stopPropagation()} onChange={(e) => setEditFormData({ ...editFormData, slaughterDate: e.target.value })} className="w-20 px-1 py-1 text-xs border border-gray-300 outline-none bg-white text-center" />
+                        </td>
+                        <td className="px-1 py-1 text-center whitespace-nowrap">
+                          <input type="text" value={editFormData.slaughterNo} onClick={(e) => e.stopPropagation()} onChange={(e) => setEditFormData({ ...editFormData, slaughterNo: e.target.value })} className="w-12 px-1 py-1 text-xs border border-gray-300 outline-none bg-white text-center" />
+                        </td>
+                        <td className="px-1 py-1 text-center whitespace-nowrap">
+                          <input type="number" value={editFormData.carcassWeight} onClick={(e) => e.stopPropagation()} onChange={(e) => setEditFormData({ ...editFormData, carcassWeight: e.target.value })} className="w-12 px-1 py-1 text-xs border border-gray-300 outline-none bg-white text-center" />
+                        </td>
+                        <td className="px-2 py-3 text-xs border border-gray-200 text-gray-600 text-center whitespace-nowrap">{auction.company}</td>
+                        <td className="px-1 py-1 text-center whitespace-nowrap">
+                          <input type="text" value={editFormData.processDate} onClick={(e) => e.stopPropagation()} onChange={(e) => setEditFormData({ ...editFormData, processDate: e.target.value })} className="w-20 px-1 py-1 text-xs border border-gray-300 outline-none bg-white text-center" />
+                        </td>
+                        <td className="px-1 py-1 text-center whitespace-nowrap">
+                          <input type="number" value={editFormData.processWeight} onClick={(e) => e.stopPropagation()} onChange={(e) => setEditFormData({ ...editFormData, processWeight: e.target.value })} className="w-12 px-1 py-1 text-xs border border-gray-300 outline-none bg-white text-center" />
+                        </td>
+                      </>
+                    ) : (
+                      <>
+                        <td className="px-2 py-3 text-xs border border-gray-200 text-gray-600 text-center whitespace-nowrap">{auction.gender}</td>
+                        <td className="px-2 py-3 text-xs border border-gray-200 font-medium text-gray-900 text-center whitespace-nowrap">{auction.grade}</td>
+                        <td className="px-2 py-3 text-xs border border-gray-200 text-gray-600 text-center whitespace-nowrap">{auction.monthAge}</td>
+                        <td className="px-2 py-3 text-xs border border-gray-200 text-gray-600 text-center whitespace-nowrap">{auction.backFat}</td>
+                        <td className="px-2 py-3 text-xs border border-gray-200 text-gray-600 text-center whitespace-nowrap">{auction.eyeMuscle}</td>
+                        <td className="px-2 py-3 text-xs border border-gray-200 text-gray-600 text-center whitespace-nowrap">{auction.fatMarbling}</td>
+                        <td className="px-2 py-3 text-xs border border-gray-200 text-gray-600 text-center whitespace-nowrap">{auction.meatColor}</td>
+                        <td className="px-2 py-3 text-xs border border-gray-200 text-gray-600 text-center whitespace-nowrap">{auction.fatColor}</td>
+                        <td className="px-2 py-3 text-xs border border-gray-200 text-gray-600 text-center whitespace-nowrap">{auction.texture}</td>
+                        <td className="px-2 py-3 text-xs border border-gray-200 text-gray-600 text-center whitespace-nowrap">{auction.maturity}</td>
+                        <td className="px-2 py-3 text-xs border border-gray-200 text-gray-600 text-center whitespace-nowrap">{auction.traceNo}</td>
+                        <td className="px-2 py-3 text-xs border border-gray-200 text-gray-600 text-center whitespace-nowrap">{auction.slaughterHouse}</td>
+                        <td className="px-2 py-3 text-xs border border-gray-200 text-gray-600 text-center whitespace-nowrap">{auction.slaughterDate}</td>
+                        <td className="px-2 py-3 text-xs border border-gray-200 text-gray-600 text-center whitespace-nowrap">{auction.slaughterNo}</td>
+                        <td className="px-2 py-3 text-xs border border-gray-200 text-gray-600 text-center whitespace-nowrap">{auction.carcassWeight}</td>
+                        <td className="px-2 py-3 text-xs border border-gray-200 text-gray-600 text-center whitespace-nowrap">{auction.company}</td>
+                        <td className="px-2 py-3 text-xs border border-gray-200 text-gray-600 text-center whitespace-nowrap">{auction.processDate}</td>
+                        <td className="px-2 py-3 text-xs border border-gray-200 text-gray-600 text-center whitespace-nowrap">{auction.processWeight}</td>
+                      </>
+                    )}
+                    <td className="px-2 py-3 text-center whitespace-nowrap border border-gray-200">
                       <button 
                         onClick={(e) => { 
                           e.stopPropagation(); 
                           setPhotoModalAuction(auction);
                         }}
-                        className="px-2 py-0.5 text-xs font-medium text-white bg-gray-700 rounded hover:bg-gray-800 transition-colors"
+                        className="px-2 py-0.5 text-xs font-medium text-white bg-gray-700 hover:bg-gray-800 transition-colors"
                       >
                         보기
                       </button>
                     </td>
-                    <td className="px-2 py-3 text-center whitespace-nowrap">
+                    <td className="px-2 py-3 text-center whitespace-nowrap border border-gray-200">
                       <select
                         value={auction.status}
                         onClick={(e) => e.stopPropagation()}
                         onChange={(e) => handleStatusChange(auction.id, e.target.value as AuctionStatus)}
-                        className="px-1 py-0.5 text-xs font-medium rounded border border-gray-200 cursor-pointer outline-none focus:ring-2 focus:ring-red-500 bg-white text-gray-700"
+                        className="px-1 py-0.5 text-xs font-medium border border-gray-200 cursor-pointer outline-none bg-white text-gray-700"
                       >
                         {STATUS_OPTIONS.map(option => (
                           <option key={option.value} value={option.value}>
@@ -607,12 +844,24 @@ export default function AuctionsListPage() {
                   {expandedId === auction.id && (
                     <tr>
                       <td colSpan={23} className="px-4 py-4 bg-white">
+                        {/* 부위 개수 표시 */}
+                        <div className="mb-3 flex items-center gap-2">
+                          <span className="text-sm font-medium text-gray-700">
+                            부위: {auction.parts.filter(p => p.isIncluded).length}/{auction.parts.length}
+                          </span>
+                          {editingId === auction.id && (
+                            <span className="text-xs text-gray-500">(체크박스로 상장 제외 가능)</span>
+                          )}
+                        </div>
                         <div className="grid grid-cols-3 gap-4">
                           {/* 3열로 부위 데이터 표시 */}
                           {[0, 1, 2].map((colIndex) => (
                             <table key={colIndex} className="w-full bg-white border border-gray-200">
                               <thead className="bg-gray-50">
                                 <tr>
+                                  {editingId === auction.id && (
+                                    <th className="w-8 px-1 py-2 text-center text-xs font-semibold text-gray-600 border-r border-gray-200"></th>
+                                  )}
                                   <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 border-r border-gray-200">상장번호</th>
                                   <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 border-r border-gray-200">부위</th>
                                   <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 border-r border-gray-200">중량</th>
@@ -623,12 +872,15 @@ export default function AuctionsListPage() {
                               <tbody>
                                 {Array.from({ length: 7 }).map((_, idx) => {
                                   const globalIdx = colIndex * 7 + idx;
-                                  const part = PARTS_DATA[globalIdx];
+                                  const part = auction.parts[globalIdx];
                                   
                                   // 데이터가 없으면 빈 행 표시
                                   if (!part) {
                                     return (
                                       <tr key={`empty-${globalIdx}`} className="border-t border-gray-100">
+                                        {editingId === auction.id && (
+                                          <td className="px-1 py-2 text-center border-r border-gray-200"></td>
+                                        )}
                                         <td className="px-2 py-2 text-xs text-gray-400 text-center border-r border-gray-200">-</td>
                                         <td className="px-2 py-2 text-xs text-gray-400 text-center border-r border-gray-200">-</td>
                                         <td className="px-2 py-2 text-xs text-gray-400 text-center border-r border-gray-200">-</td>
@@ -638,19 +890,61 @@ export default function AuctionsListPage() {
                                     );
                                   }
                                   
+                                  const isEditing = editingId === auction.id;
+                                  const isIncluded = part.isIncluded;
+                                  
                                   return (
-                                    <tr key={part.id} className="border-t border-gray-100">
-                                      <td className="px-2 py-2 text-xs text-gray-600 text-center border-r border-gray-200">
-                                        {generateListingNo(auction.auctionNo, globalIdx)}
+                                    <tr key={part.id} className={`border-t border-gray-100 ${!isIncluded ? 'bg-gray-100' : ''}`}>
+                                      {isEditing && (
+                                        <td className={`px-1 py-1 text-center border-r border-gray-200 ${!isIncluded ? 'bg-gray-100' : ''}`}>
+                                          <input
+                                            type="checkbox"
+                                            checked={isIncluded}
+                                            onClick={(e) => e.stopPropagation()}
+                                            onChange={() => togglePartIncluded(auction.id, part.id)}
+                                            className="w-4 h-4 rounded appearance-none bg-white border border-gray-300 checked:bg-gray-700 checked:border-gray-700 relative cursor-pointer
+                                              after:content-['✓'] after:absolute after:inset-0 after:flex after:items-center after:justify-center after:text-white after:text-xs after:font-bold after:opacity-0 checked:after:opacity-100"
+                                          />
+                                        </td>
+                                      )}
+                                      <td className={`px-2 py-2 text-xs text-center border-r border-gray-200 ${!isIncluded ? 'text-gray-400 line-through' : 'text-gray-600'}`}>
+                                        {isIncluded ? generateListingNo(auction.auctionNo, globalIdx) : '-'}
                                       </td>
-                                      <td className="px-2 py-2 text-xs text-gray-900 text-center border-r border-gray-200">{part.name}</td>
-                                      <td className="px-2 py-2 text-xs text-gray-600 text-center border-r border-gray-200">{part.weight}</td>
-                                      <td className="px-2 py-2 text-xs text-gray-600 text-center border-r border-gray-200">
-                                        {part.minPrice.toLocaleString()}
+                                      <td className={`px-2 py-2 text-xs text-center border-r border-gray-200 ${!isIncluded ? 'text-gray-400 line-through' : 'text-gray-900'}`}>{part.name}</td>
+                                      <td className={`px-1 py-1 text-xs text-center border-r border-gray-200 ${!isIncluded ? 'text-gray-400' : 'text-gray-600'}`}>
+                                        {isEditing && isIncluded ? (
+                                          <input
+                                            type="number"
+                                            value={part.weight}
+                                            onClick={(e) => e.stopPropagation()}
+                                            onChange={(e) => updatePart(auction.id, part.id, 'weight', e.target.value)}
+                                            step="0.1"
+                                            className="w-14 px-1 py-0.5 text-xs border border-gray-300 outline-none bg-white text-center"
+                                          />
+                                        ) : (
+                                          isIncluded ? `${part.weight}kg` : '-'
+                                        )}
+                                      </td>
+                                      <td className={`px-1 py-1 text-xs text-center border-r border-gray-200 ${!isIncluded ? 'text-gray-400' : 'text-gray-600'}`}>
+                                        {isEditing && isIncluded ? (
+                                          <input
+                                            type="number"
+                                            value={part.minPrice}
+                                            onClick={(e) => e.stopPropagation()}
+                                            onChange={(e) => updatePart(auction.id, part.id, 'minPrice', e.target.value)}
+                                            className="w-16 px-1 py-0.5 text-xs border border-gray-300 outline-none bg-white text-center"
+                                          />
+                                        ) : (
+                                          isIncluded ? part.minPrice.toLocaleString() : '-'
+                                        )}
                                       </td>
                                       <td className="px-2 py-2 text-xs text-center">
-                                        {part.bidPrice ? (
-                                          <span className="text-gray-900 font-medium">{part.bidPrice.toLocaleString()}</span>
+                                        {isIncluded ? (
+                                          part.bidPrice ? (
+                                            <span className="text-gray-900 font-medium">{part.bidPrice.toLocaleString()}</span>
+                                          ) : (
+                                            <span className="text-gray-400">-</span>
+                                          )
                                         ) : (
                                           <span className="text-gray-400">-</span>
                                         )}
@@ -663,26 +957,67 @@ export default function AuctionsListPage() {
                           ))}
                         </div>
                         {/* 수정/삭제 버튼 */}
-                        <div className="flex justify-end gap-2 mt-4">
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              alert(`${auction.auctionNo} 수정`);
-                            }}
-                            className="px-4 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50 transition-colors"
-                          >
-                            수정
-                          </button>
+                        <div className="flex justify-end items-center gap-2 mt-4">
+                          {editingId === auction.id ? (
+                            <>
+                              <div className="flex items-center gap-1">
+                                <span className="text-xs text-gray-600">2차PW</span>
+                                <input
+                                  type="password"
+                                  value={secondaryPassword}
+                                  onClick={(e) => e.stopPropagation()}
+                                  onChange={(e) => {
+                                    setSecondaryPassword(e.target.value);
+                                    setPasswordError(false);
+                                  }}
+                                  placeholder="비밀번호"
+                                  className={`w-20 px-2 py-1 text-xs border outline-none bg-white ${
+                                    passwordError ? 'border-red-500' : 'border-gray-300'
+                                  }`}
+                                />
+                              </div>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  saveEditing();
+                                }}
+                                className="px-4 py-1.5 text-xs font-medium text-white bg-gray-700 hover:bg-gray-800 transition-colors"
+                              >
+                                저장
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  cancelEditing();
+                                }}
+                                className="px-4 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 transition-colors"
+                              >
+                                수정취소
+                              </button>
+                            </>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                startEditing(auction);
+                              }}
+                              className="px-4 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 transition-colors"
+                            >
+                              수정
+                            </button>
+                          )}
                           <button
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
                               if (confirm(`${auction.auctionNo}을(를) 삭제하시겠습니까?`)) {
-                                alert('삭제되었습니다.');
+                                setAuctions(prev => prev.filter(a => a.id !== auction.id));
                               }
                             }}
-                            className="px-4 py-1.5 text-xs font-medium text-white bg-gray-700 rounded hover:bg-gray-800 transition-colors"
+                            className="px-4 py-1.5 text-xs font-medium text-white bg-gray-700 hover:bg-gray-800 transition-colors"
                           >
                             삭제
                           </button>

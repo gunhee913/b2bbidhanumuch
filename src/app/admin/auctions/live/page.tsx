@@ -416,52 +416,12 @@ export default function AuctionLivePage() {
 
   return (
     <AdminLayout>
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">부분육 경매 현황(실시간)</h1>
-        
-        {/* 마감 관리 */}
-        <div className="flex items-center gap-4">
-          {/* 마감 상태 */}
-          {isAuctionClosed && (
-            <div className="px-4 py-2 rounded bg-gray-100 text-gray-700 text-sm">
-              마감 완료
-            </div>
-          )}
-          
-          {/* 마감 버튼 (오늘 날짜이고 마감 전일 때만) */}
-          {isToday && !isAuctionClosed && (
-            <button
-              onClick={() => setShowCloseModal(true)}
-              className="px-4 py-2 bg-gray-800 text-white rounded text-sm hover:bg-gray-900"
-            >
-              마감
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* 통계 요약 */}
-      <div className="grid grid-cols-4 gap-4 mb-4">
-        <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
-          <div className="text-xs text-gray-500">총 상장</div>
-          <div className="text-xl font-bold text-gray-900">{totalItems}건</div>
-        </div>
-        <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
-          <div className="text-xs text-gray-500">입찰 있음</div>
-          <div className="text-xl font-bold text-gray-900">{itemsWithBids}건</div>
-        </div>
-        <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
-          <div className="text-xs text-gray-500">입찰 없음</div>
-          <div className="text-xl font-bold text-gray-900">{itemsWithoutBids}건</div>
-        </div>
-        <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
-          <div className="text-xs text-gray-500">현재 총 입찰금액</div>
-          <div className="text-xl font-bold text-gray-900">{Math.round(totalBidAmount).toLocaleString()}원</div>
-        </div>
       </div>
 
       {/* 필터 */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4 mb-4">
+      <div className="bg-white border border-gray-200 p-4 mb-4">
         <div className="flex flex-wrap items-center gap-4">
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium text-gray-600">조회일자</span>
@@ -470,7 +430,7 @@ export default function AuctionLivePage() {
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
               max={todayStr}
-              className="px-3 py-1.5 border border-gray-200 rounded text-xs outline-none bg-white"
+              className="px-3 py-1.5 border border-gray-200 text-xs outline-none bg-white"
             />
             {!isToday && (
               <span className="text-xs text-gray-500">(과거 데이터)</span>
@@ -482,7 +442,7 @@ export default function AuctionLivePage() {
             <select
               value={companyFilter}
               onChange={(e) => setCompanyFilter(e.target.value)}
-              className="px-3 py-1.5 border border-gray-200 rounded text-xs outline-none bg-white min-w-[120px]"
+              className="px-3 py-1.5 border border-gray-200 text-xs outline-none bg-white min-w-[120px]"
             >
               <option value="all">전체</option>
               {COMPANIES.map(company => (
@@ -496,7 +456,7 @@ export default function AuctionLivePage() {
             <select
               value={bidFilter}
               onChange={(e) => setBidFilter(e.target.value)}
-              className="px-3 py-1.5 border border-gray-200 rounded text-xs outline-none bg-white min-w-[100px]"
+              className="px-3 py-1.5 border border-gray-200 text-xs outline-none bg-white min-w-[100px]"
             >
               <option value="all">전체</option>
               <option value="withBids">입찰 있음</option>
@@ -525,11 +485,46 @@ export default function AuctionLivePage() {
                 setCompanyFilter('all');
                 setBidFilter('all');
               }}
-              className="px-4 py-1.5 border border-gray-200 text-gray-600 rounded text-xs hover:bg-gray-50"
+              className="px-4 py-1.5 border border-gray-300 text-gray-600 text-xs hover:bg-gray-50"
             >
               초기화
             </button>
+            {/* 마감 상태 */}
+            {isAuctionClosed && (
+              <div className="px-4 py-1.5 bg-gray-100 text-gray-700 text-xs">
+                마감 완료
+              </div>
+            )}
+            {/* 마감 버튼 (오늘 날짜이고 마감 전일 때만) */}
+            {isToday && !isAuctionClosed && (
+              <button
+                onClick={() => setShowCloseModal(true)}
+                className="px-4 py-1.5 bg-gray-700 text-white text-xs hover:bg-gray-800"
+              >
+                마감
+              </button>
+            )}
           </div>
+        </div>
+      </div>
+
+      {/* 통계 요약 */}
+      <div className="grid grid-cols-4 gap-4 mb-4">
+        <div className="bg-white border border-gray-200 p-4">
+          <div className="text-xs text-gray-500">총 상장</div>
+          <div className="text-xl font-bold text-gray-900">{totalItems}건</div>
+        </div>
+        <div className="bg-white border border-gray-200 p-4">
+          <div className="text-xs text-gray-500">입찰 있음</div>
+          <div className="text-xl font-bold text-gray-900">{itemsWithBids}건</div>
+        </div>
+        <div className="bg-white border border-gray-200 p-4">
+          <div className="text-xs text-gray-500">입찰 없음</div>
+          <div className="text-xl font-bold text-gray-900">{itemsWithoutBids}건</div>
+        </div>
+        <div className="bg-white border border-gray-200 p-4">
+          <div className="text-xs text-gray-500">현재 총 입찰금액</div>
+          <div className="text-xl font-bold text-gray-900">{Math.round(totalBidAmount).toLocaleString()}원</div>
         </div>
       </div>
 

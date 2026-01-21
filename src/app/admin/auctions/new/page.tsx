@@ -24,6 +24,7 @@ interface PartData {
   name: string;
   weight: string;
   minPrice: string;
+  isIncluded: boolean; // 등록 포함 여부
 }
 
 // 개체 데이터 타입
@@ -56,25 +57,25 @@ interface CattleData {
 
 // 기본 19개 부위 생성
 const createDefaultParts = (): PartData[] => [
-  { id: 1, name: '등심(좌)', weight: '', minPrice: '' },
-  { id: 2, name: '등심(우)', weight: '', minPrice: '' },
-  { id: 3, name: '안심', weight: '', minPrice: '' },
-  { id: 4, name: '채끝', weight: '', minPrice: '' },
-  { id: 5, name: '갈비(좌)', weight: '', minPrice: '' },
-  { id: 6, name: '갈비(우)', weight: '', minPrice: '' },
-  { id: 7, name: '특수부위', weight: '', minPrice: '' },
-  { id: 8, name: '설도(좌)', weight: '', minPrice: '' },
-  { id: 9, name: '설도(우)', weight: '', minPrice: '' },
-  { id: 10, name: '앞다리', weight: '', minPrice: '' },
-  { id: 11, name: '우둔', weight: '', minPrice: '' },
-  { id: 12, name: '목심', weight: '', minPrice: '' },
-  { id: 13, name: '양지(좌)', weight: '', minPrice: '' },
-  { id: 14, name: '양지(우)', weight: '', minPrice: '' },
-  { id: 15, name: '사태', weight: '', minPrice: '' },
-  { id: 16, name: '꼬리', weight: '', minPrice: '' },
-  { id: 17, name: '족', weight: '', minPrice: '' },
-  { id: 18, name: '사골', weight: '', minPrice: '' },
-  { id: 19, name: '잡뼈', weight: '', minPrice: '' },
+  { id: 1, name: '등심(좌)', weight: '', minPrice: '', isIncluded: true },
+  { id: 2, name: '등심(우)', weight: '', minPrice: '', isIncluded: true },
+  { id: 3, name: '안심', weight: '', minPrice: '', isIncluded: true },
+  { id: 4, name: '채끝', weight: '', minPrice: '', isIncluded: true },
+  { id: 5, name: '갈비(좌)', weight: '', minPrice: '', isIncluded: true },
+  { id: 6, name: '갈비(우)', weight: '', minPrice: '', isIncluded: true },
+  { id: 7, name: '특수부위', weight: '', minPrice: '', isIncluded: true },
+  { id: 8, name: '설도(좌)', weight: '', minPrice: '', isIncluded: true },
+  { id: 9, name: '설도(우)', weight: '', minPrice: '', isIncluded: true },
+  { id: 10, name: '앞다리', weight: '', minPrice: '', isIncluded: true },
+  { id: 11, name: '우둔', weight: '', minPrice: '', isIncluded: true },
+  { id: 12, name: '목심', weight: '', minPrice: '', isIncluded: true },
+  { id: 13, name: '양지(좌)', weight: '', minPrice: '', isIncluded: true },
+  { id: 14, name: '양지(우)', weight: '', minPrice: '', isIncluded: true },
+  { id: 15, name: '사태', weight: '', minPrice: '', isIncluded: true },
+  { id: 16, name: '꼬리', weight: '', minPrice: '', isIncluded: true },
+  { id: 17, name: '족', weight: '', minPrice: '', isIncluded: true },
+  { id: 18, name: '사골', weight: '', minPrice: '', isIncluded: true },
+  { id: 19, name: '잡뼈', weight: '', minPrice: '', isIncluded: true },
 ];
 
 // 새 개체 생성
@@ -226,6 +227,17 @@ export default function NewAuctionPage() {
       };
     }));
   };
+
+  // 부위 포함/제외 토글
+  const togglePartIncluded = (cattleId: number, partId: number) => {
+    setCattleList(cattleList.map(c => {
+      if (c.id !== cattleId) return c;
+      return {
+        ...c,
+        parts: c.parts.map(p => p.id === partId ? { ...p, isIncluded: !p.isIncluded } : p)
+      };
+    }));
+  };
   
   // 가격 표시용 포맷 (천단위 콤마)
   const displayPrice = (value: string) => {
@@ -242,13 +254,40 @@ export default function NewAuctionPage() {
     ));
   };
 
-  // 이미지 업로드
-  const handleImageUpload = (cattleId: number) => {
-    setCattleList(cattleList.map(c => {
-      if (c.id !== cattleId) return c;
-      if (c.images.length >= 4) return c;
-      return { ...c, images: [...c.images, `/등심${c.images.length + 1}.png`] };
-    }));
+  // 이미지 업로드 ref
+  const imageInputRefs = useRef<{ [key: number]: HTMLInputElement | null }>({});
+
+  // 이미지 업로드 처리
+  const handleImageUpload = (cattleId: number, e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    const cattle = cattleList.find(c => c.id === cattleId);
+    if (!cattle) return;
+
+    const remainingSlots = 4 - cattle.images.length;
+    const filesToProcess = Array.from(files).slice(0, remainingSlots);
+
+    filesToProcess.forEach(file => {
+      if (!file.type.startsWith('image/')) {
+        alert('이미지 파일만 업로드 가능합니다.');
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const imageUrl = event.target?.result as string;
+        setCattleList(prev => prev.map(c => {
+          if (c.id !== cattleId) return c;
+          if (c.images.length >= 4) return c;
+          return { ...c, images: [...c.images, imageUrl] };
+        }));
+      };
+      reader.readAsDataURL(file);
+    });
+
+    // input 초기화 (같은 파일 다시 선택 가능하도록)
+    e.target.value = '';
   };
 
   // 이미지 삭제
@@ -527,6 +566,9 @@ export default function NewAuctionPage() {
                 <span className="text-xs text-gray-500 bg-gray-200 px-2 py-0.5">
                   접수번호: {getAuctionNo(cattle.seqNo)}
                 </span>
+                <span className="text-xs text-gray-500 bg-gray-200 px-2 py-0.5">
+                  부위: {cattle.parts.filter(p => p.isIncluded).length}/{cattle.parts.length}
+                </span>
               </div>
               <div className="flex items-center gap-2">
                 {cattleList.length > 1 && (
@@ -583,11 +625,16 @@ export default function NewAuctionPage() {
                             <option value="">선택</option>
                             <option value="1++A">1++A</option>
                             <option value="1++B">1++B</option>
+                            <option value="1++C">1++C</option>
                             <option value="1+A">1+A</option>
                             <option value="1+B">1+B</option>
+                            <option value="1+C">1+C</option>
                             <option value="1A">1A</option>
                             <option value="1B">1B</option>
-                            <option value="2">2</option>
+                            <option value="1C">1C</option>
+                            <option value="2A">2A</option>
+                            <option value="2B">2B</option>
+                            <option value="2C">2C</option>
                           </select>
                         </td>
                         <td className={tdClass}>
@@ -690,15 +737,16 @@ export default function NewAuctionPage() {
 
                 {/* 부위별 정보 테이블 */}
                 <div className="overflow-x-auto">
-                  <table className="w-full text-xs border-collapse">
+                  <table className="w-full text-xs border-collapse table-fixed">
                     <thead>
                       <tr>
                         {[0, 1, 2].map(col => (
                           <React.Fragment key={col}>
-                            <th className={thClass}>상장번호</th>
-                            <th className={thClass}>부위</th>
-                            <th className={thClass}>중량</th>
-                            <th className={thClass}>최저가격</th>
+                            <th className={`${thClass} w-[28px]`}></th>
+                            <th className={`${thClass} w-[110px]`}>상장번호</th>
+                            <th className={`${thClass} w-[70px]`}>부위</th>
+                            <th className={`${thClass} w-[70px]`}>중량</th>
+                            <th className={`${thClass} w-[85px]`}>최저가격</th>
                           </React.Fragment>
                         ))}
                       </tr>
@@ -713,6 +761,7 @@ export default function NewAuctionPage() {
                             if (!part) {
                               return (
                                 <React.Fragment key={colIndex}>
+                                  <td className={`${tdClass} text-gray-400`}></td>
                                   <td className={`${tdClass} text-gray-400`}>-</td>
                                   <td className={`${tdClass} text-gray-400`}>-</td>
                                   <td className={`${tdClass} text-gray-400`}>-</td>
@@ -721,29 +770,46 @@ export default function NewAuctionPage() {
                               );
                             }
                             
+                            const isIncluded = part.isIncluded;
+                            
                             return (
                               <React.Fragment key={colIndex}>
-                                <td className={`${tdClass} text-gray-600 whitespace-nowrap text-[10px]`}>{getListingNo(cattle.seqNo, partIndex)}</td>
-                                <td className={`${tdClass} font-medium text-gray-900 bg-gray-50 whitespace-nowrap`}>{part.name}</td>
-                                <td className={tdClass}>
+                                <td className={`${tdClass} ${!isIncluded ? 'bg-gray-100' : ''}`}>
+                                  <input
+                                    type="checkbox"
+                                    checked={isIncluded}
+                                    onChange={() => togglePartIncluded(cattle.id, part.id)}
+                                    className="w-4 h-4 rounded appearance-none bg-white border border-gray-300 checked:bg-gray-700 checked:border-gray-700 relative cursor-pointer
+                                      after:content-['✓'] after:absolute after:inset-0 after:flex after:items-center after:justify-center after:text-white after:text-xs after:font-bold after:opacity-0 checked:after:opacity-100"
+                                  />
+                                </td>
+                                <td className={`${tdClass} whitespace-nowrap text-[10px] ${!isIncluded ? 'bg-gray-100 text-gray-400 line-through' : 'text-gray-600'}`}>
+                                  {isIncluded ? getListingNo(cattle.seqNo, partIndex) : '-'}
+                                </td>
+                                <td className={`${tdClass} font-medium whitespace-nowrap ${!isIncluded ? 'bg-gray-100 text-gray-400 line-through' : 'text-gray-900 bg-gray-50'}`}>
+                                  {part.name}
+                                </td>
+                                <td className={`${tdClass} ${!isIncluded ? 'bg-gray-100' : ''}`}>
                                   <input
                                     type="number"
                                     value={part.weight}
                                     onChange={(e) => updatePart(cattle.id, part.id, 'weight', e.target.value)}
                                     placeholder="0.0"
-                                    required
+                                    required={isIncluded}
+                                    disabled={!isIncluded}
                                     step="0.1"
-                                    className={`w-16 ${inputClass}`}
+                                    className={`w-16 ${inputClass} ${!isIncluded ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : ''}`}
                                   />
                                 </td>
-                                <td className={tdClass}>
+                                <td className={`${tdClass} ${!isIncluded ? 'bg-gray-100' : ''}`}>
                                   <input
                                     type="text"
                                     value={displayPrice(part.minPrice)}
                                     onChange={(e) => updatePart(cattle.id, part.id, 'minPrice', e.target.value)}
                                     placeholder="0"
-                                    required
-                                    className={`w-20 ${inputClass}`}
+                                    required={isIncluded}
+                                    disabled={!isIncluded}
+                                    className={`w-20 ${inputClass} ${!isIncluded ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : ''}`}
                                   />
                                 </td>
                               </React.Fragment>
@@ -758,19 +824,38 @@ export default function NewAuctionPage() {
                 {/* 사진 업로드 */}
                 <div className="flex items-center gap-3 pt-2">
                   <span className="text-xs font-medium text-gray-600">사진:</span>
+                  <span className="text-[10px] text-gray-400">({cattle.images.length}/4)</span>
                   {cattle.images.map((img, index) => (
-                    <div key={index} className="relative w-14 h-14 border border-gray-200 overflow-hidden">
+                    <div key={index} className="relative w-14 h-14 border border-gray-200 overflow-hidden bg-gray-50">
                       <img src={img} alt={`상품 ${index + 1}`} className="w-full h-full object-cover" />
-                      <button type="button" onClick={() => removeImage(cattle.id, index)} className="absolute top-0.5 right-0.5 p-0.5 bg-black/50 text-white hover:bg-black/70">
+                      <button 
+                        type="button" 
+                        onClick={() => removeImage(cattle.id, index)} 
+                        className="absolute top-0 right-0 w-4 h-4 bg-gray-700 text-white flex items-center justify-center hover:bg-gray-800"
+                      >
                         <X className="w-2.5 h-2.5" />
                       </button>
                     </div>
                   ))}
                   {cattle.images.length < 4 && (
-                    <button type="button" onClick={() => handleImageUpload(cattle.id)} className="w-14 h-14 border-2 border-dashed border-gray-300 flex flex-col items-center justify-center text-gray-400 hover:border-gray-500 hover:text-gray-500 transition-colors">
-                      <Upload className="w-3.5 h-3.5" />
-                      <span className="text-[9px] mt-0.5">추가</span>
-                    </button>
+                    <>
+                      <input
+                        ref={el => { imageInputRefs.current[cattle.id] = el; }}
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        onChange={(e) => handleImageUpload(cattle.id, e)}
+                        className="hidden"
+                      />
+                      <button 
+                        type="button" 
+                        onClick={() => imageInputRefs.current[cattle.id]?.click()} 
+                        className="w-14 h-14 border border-dashed border-gray-300 flex flex-col items-center justify-center text-gray-400 hover:border-gray-500 hover:text-gray-500 transition-colors bg-white"
+                      >
+                        <Upload className="w-3.5 h-3.5" />
+                        <span className="text-[9px] mt-0.5">추가</span>
+                      </button>
+                    </>
                   )}
                 </div>
               </div>

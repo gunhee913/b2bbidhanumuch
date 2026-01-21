@@ -3,7 +3,6 @@
 import React, { useState } from 'react';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { 
-  Search, 
   Plus, 
   Edit, 
   ChevronLeft,
@@ -166,61 +165,56 @@ export default function AdminsPage() {
 
   return (
     <AdminLayout>
-      <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">관리자 관리</h1>
-        <button 
-          onClick={handleAddOpen}
-          className="inline-flex items-center gap-2 px-4 py-2.5 bg-gray-700 text-white  hover:bg-gray-800 transition-colors font-medium"
-        >
-          <Plus className="w-5 h-5" />
-          관리자 등록
-        </button>
       </div>
 
-      <div className="bg-white rounded-none shadow-sm border border-gray-100 p-4 mb-6">
-        <div className="flex flex-col lg:flex-row gap-4">
-          <div className="flex-1">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input
-                type="text"
-                placeholder="관리자번호, 이름, 연락처로 검색..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 border border-gray-100  focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white"
-              />
-            </div>
-          </div>
-          <div className="flex flex-wrap gap-3">
-            <button className="inline-flex items-center gap-2 px-4 py-2.5 border border-gray-100  hover:bg-gray-50 text-sm font-medium text-gray-700 bg-white">
-              <Download className="w-4 h-4" />
-              내보내기
+      <div className="bg-white border border-gray-200 p-4 mb-4">
+        <div className="flex flex-wrap items-center gap-4">
+          <input
+            type="text"
+            placeholder="관리자번호, 이름, 연락처로 검색..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-64 px-3 py-1.5 border border-gray-200 text-xs outline-none bg-white"
+          />
+          <div className="flex items-center gap-2 ml-auto">
+            <button className="inline-flex items-center gap-1.5 px-4 py-1.5 border border-gray-300 hover:bg-gray-50 text-xs font-medium text-gray-700 bg-white">
+              <Download className="w-3.5 h-3.5" />
+              엑셀
+            </button>
+            <button 
+              onClick={handleAddOpen}
+              className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-gray-700 text-white hover:bg-gray-800 text-xs font-medium"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              관리자 등록
             </button>
           </div>
         </div>
       </div>
 
-      <div className="bg-white rounded-none shadow-sm border border-gray-100 overflow-hidden">
+      <div className="bg-white border border-gray-200 overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-100">
+          <table className="w-full border-collapse">
+            <thead>
               <tr>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">소속</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">이름</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">연락처(ID)</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">비밀번호</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">권한</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">등록일</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">최근로그인</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">수정</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">상태</th>
+                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">소속</th>
+                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">이름</th>
+                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">연락처(ID)</th>
+                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">비밀번호</th>
+                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">권한</th>
+                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">등록일</th>
+                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">최근로그인</th>
+                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">수정</th>
+                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">상태</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody>
               {/* 인라인 관리자 등록 행 */}
               {isAddingAdmin && (
                 <tr>
-                  <td className="px-4 py-4">
+                  <td className="px-2 py-2 border border-gray-200">
                     <input
                       type="text"
                       value={formData.department}
@@ -229,7 +223,7 @@ export default function AdminsPage() {
                       className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
                     />
                   </td>
-                  <td className="px-4 py-4">
+                  <td className="px-2 py-2 border border-gray-200">
                     <input
                       type="text"
                       value={formData.name}
@@ -238,7 +232,7 @@ export default function AdminsPage() {
                       className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
                     />
                   </td>
-                  <td className="px-4 py-4">
+                  <td className="px-2 py-2 border border-gray-200">
                     <input
                       type="text"
                       value={formData.phone}
@@ -248,7 +242,7 @@ export default function AdminsPage() {
                       className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
                     />
                   </td>
-                  <td className="px-4 py-4">
+                  <td className="px-2 py-2 border border-gray-200">
                     <input
                       type="text"
                       value={formData.password}
@@ -257,7 +251,7 @@ export default function AdminsPage() {
                       className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
                     />
                   </td>
-                  <td className="px-4 py-4">
+                  <td className="px-2 py-2 border border-gray-200">
                     <select
                       value={formData.role}
                       onChange={(e) => setFormData({ ...formData, role: e.target.value as 'master' | 'admin' })}
@@ -267,9 +261,9 @@ export default function AdminsPage() {
                       <option value="admin">관리자</option>
                     </select>
                   </td>
-                  <td className="px-4 py-4 text-sm text-gray-400 text-center">-</td>
-                  <td className="px-4 py-4 text-sm text-gray-400 text-center">-</td>
-                  <td className="px-4 py-4" colSpan={2}>
+                  <td className="px-2 py-2 border border-gray-200 text-sm text-gray-400 text-center">-</td>
+                  <td className="px-2 py-2 border border-gray-200 text-sm text-gray-400 text-center">-</td>
+                  <td className="px-2 py-2 border border-gray-200" colSpan={2}>
                     <div className="flex items-center justify-center gap-2">
                       <button
                         onClick={handleAddSave}
@@ -291,7 +285,7 @@ export default function AdminsPage() {
               {paginatedAdmins.map((admin) => (
                 editingAdminId === admin.id ? (
                   <tr key={admin.id} className="bg-gray-50">
-                    <td className="px-4 py-4">
+                    <td className="px-2 py-2 border border-gray-200">
                       <input
                         type="text"
                         value={formData.department}
@@ -299,7 +293,7 @@ export default function AdminsPage() {
                         className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
                       />
                     </td>
-                    <td className="px-4 py-4">
+                    <td className="px-2 py-2 border border-gray-200">
                       <input
                         type="text"
                         value={formData.name}
@@ -307,7 +301,7 @@ export default function AdminsPage() {
                         className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
                       />
                     </td>
-                    <td className="px-4 py-4">
+                    <td className="px-2 py-2 border border-gray-200">
                       <input
                         type="text"
                         value={formData.phone}
@@ -316,7 +310,7 @@ export default function AdminsPage() {
                         className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
                       />
                     </td>
-                    <td className="px-4 py-4">
+                    <td className="px-2 py-2 border border-gray-200">
                       <input
                         type="text"
                         value={formData.password}
@@ -324,7 +318,7 @@ export default function AdminsPage() {
                         className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
                       />
                     </td>
-                    <td className="px-4 py-4">
+                    <td className="px-2 py-2 border border-gray-200">
                       <select
                         value={formData.role}
                         onChange={(e) => setFormData({ ...formData, role: e.target.value as 'master' | 'admin' })}
@@ -334,9 +328,9 @@ export default function AdminsPage() {
                         <option value="admin">관리자</option>
                       </select>
                     </td>
-                    <td className="px-4 py-4 text-sm text-gray-500 text-center">{admin.createdAt}</td>
-                    <td className="px-4 py-4 text-sm text-gray-500 text-center">{admin.lastLogin}</td>
-                    <td className="px-4 py-4" colSpan={2}>
+                    <td className="px-2 py-2 border border-gray-200 text-sm text-gray-500 text-center">{admin.createdAt}</td>
+                    <td className="px-2 py-2 border border-gray-200 text-sm text-gray-500 text-center">{admin.lastLogin}</td>
+                    <td className="px-2 py-2 border border-gray-200" colSpan={2}>
                       <div className="flex items-center justify-center gap-2">
                         <button
                           onClick={handleEditSave}
@@ -356,14 +350,14 @@ export default function AdminsPage() {
                   </tr>
                 ) : (
                   <tr key={admin.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-4 py-4 text-sm font-medium text-gray-900 text-center">{admin.department}</td>
-                    <td className="px-4 py-4 text-sm font-medium text-gray-900 text-center">{admin.name}</td>
-                    <td className="px-4 py-4 text-sm text-gray-600 text-center">{admin.phone}</td>
-                    <td className="px-4 py-4 text-sm text-gray-600 text-center">{admin.password}</td>
-                    <td className="px-4 py-4 text-sm text-gray-900 text-center">{getRoleText(admin.role)}</td>
-                    <td className="px-4 py-4 text-sm text-gray-500 text-center">{admin.createdAt}</td>
-                    <td className="px-4 py-4 text-sm text-gray-500 text-center">{admin.lastLogin}</td>
-                    <td className="px-4 py-4">
+                    <td className="px-2 py-2 border border-gray-200 text-sm font-medium text-gray-900 text-center">{admin.department}</td>
+                    <td className="px-2 py-2 border border-gray-200 text-sm font-medium text-gray-900 text-center">{admin.name}</td>
+                    <td className="px-2 py-2 border border-gray-200 text-sm text-gray-600 text-center">{admin.phone}</td>
+                    <td className="px-2 py-2 border border-gray-200 text-sm text-gray-600 text-center">{admin.password}</td>
+                    <td className="px-2 py-2 border border-gray-200 text-sm text-gray-900 text-center">{getRoleText(admin.role)}</td>
+                    <td className="px-2 py-2 border border-gray-200 text-sm text-gray-500 text-center">{admin.createdAt}</td>
+                    <td className="px-2 py-2 border border-gray-200 text-sm text-gray-500 text-center">{admin.lastLogin}</td>
+                    <td className="px-2 py-2 border border-gray-200">
                       <div className="flex items-center justify-center">
                         <button 
                           onClick={() => handleEditOpen(admin)}
@@ -374,7 +368,7 @@ export default function AdminsPage() {
                         </button>
                       </div>
                     </td>
-                    <td className="px-4 py-4">
+                    <td className="px-2 py-2 border border-gray-200">
                       <select
                         value={admin.status}
                         onChange={(e) => {

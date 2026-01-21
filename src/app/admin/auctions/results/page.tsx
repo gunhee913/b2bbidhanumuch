@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import AdminLayout from '@/components/admin/AdminLayout';
-import { Calendar, Download } from 'lucide-react';
+import { Download } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
 // 오늘 날짜 (YYYY-MM-DD) - input[type="date"]용
@@ -146,33 +146,27 @@ export default function AuctionResultsPage() {
       </div>
 
       {/* 필터 섹션 */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4 mb-4">
+      <div className="bg-white border border-gray-200 p-4 mb-4">
         <div className="flex flex-wrap items-center gap-4">
           {/* 기간 선택 */}
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium text-gray-600">기간</span>
-            <div className="relative">
-              <input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="w-36 pl-3 pr-8 py-1.5 border border-gray-200 rounded text-xs outline-none bg-white"
-              />
-              <Calendar className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-            </div>
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="w-36 px-3 py-1.5 border border-gray-200 text-xs outline-none bg-white"
+            />
             <span className="text-gray-400">~</span>
-            <div className="relative">
-              <input
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="w-36 pl-3 pr-8 py-1.5 border border-gray-200 rounded text-xs outline-none bg-white"
-              />
-              <Calendar className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-            </div>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="w-36 px-3 py-1.5 border border-gray-200 text-xs outline-none bg-white"
+            />
           </div>
 
-          {/* 검색/초기화/엑셀 버튼 */}
+          {/* 초기화/엑셀 버튼 */}
           <div className="flex items-center gap-2 ml-auto">
             <button
               type="button"
@@ -180,20 +174,14 @@ export default function AuctionResultsPage() {
                 setStartDate(todayDateValue);
                 setEndDate(todayDateValue);
               }}
-              className="px-4 py-1.5 border border-gray-200 text-gray-600 rounded text-xs hover:bg-gray-50"
+              className="px-4 py-1.5 border border-gray-300 text-gray-600 text-xs hover:bg-gray-50"
             >
               초기화
             </button>
             <button
               type="button"
-              className="px-4 py-1.5 bg-gray-700 text-white rounded text-xs hover:bg-gray-800"
-            >
-              검색
-            </button>
-            <button
-              type="button"
               onClick={handleExcelDownload}
-              className="flex items-center gap-1.5 px-4 py-1.5 bg-gray-700 text-white rounded text-xs hover:bg-gray-800"
+              className="flex items-center gap-1.5 px-4 py-1.5 bg-gray-700 text-white text-xs hover:bg-gray-800"
             >
               <Download className="w-3.5 h-3.5" />
               엑셀
@@ -203,7 +191,7 @@ export default function AuctionResultsPage() {
       </div>
 
       {/* 요약 정보 */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4 mb-4">
+      <div className="bg-white border border-gray-200 p-4 mb-4">
         <div className="flex items-center gap-8">
           <div className="flex items-center gap-2">
             <span className="text-sm text-gray-500">총 상장</span>
@@ -225,7 +213,7 @@ export default function AuctionResultsPage() {
       </div>
 
       {/* 테이블 */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
+      <div className="bg-white border border-gray-200 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full border-collapse">
             <thead className="bg-gray-50">
@@ -234,14 +222,14 @@ export default function AuctionResultsPage() {
                 {COMPANIES.map(company => (
                   <th key={company} colSpan={3} className={`${thClass} bg-gray-50`}>{company}</th>
                 ))}
-                <th colSpan={3} className={`${thClass} bg-gray-100 font-bold`}>합계</th>
+                <th colSpan={3} className={`${thClass} bg-gray-50 font-bold`}>합계</th>
               </tr>
               <tr>
                 {[...COMPANIES, '합계'].map((company, idx) => (
                   <React.Fragment key={`header-${company}`}>
-                    <th className={`${thClass} ${idx === COMPANIES.length ? 'bg-gray-100' : 'bg-gray-50'} min-w-[50px]`}>상장</th>
-                    <th className={`${thClass} ${idx === COMPANIES.length ? 'bg-gray-100' : 'bg-gray-50'} min-w-[50px]`}>낙찰</th>
-                    <th className={`${thClass} ${idx === COMPANIES.length ? 'bg-gray-100' : 'bg-gray-50'} min-w-[55px]`}>낙찰률</th>
+                    <th className={`${thClass} bg-gray-50 min-w-[50px]`}>상장</th>
+                    <th className={`${thClass} bg-gray-50 min-w-[50px]`}>낙찰</th>
+                    <th className={`${thClass} bg-gray-50 min-w-[55px]`}>낙찰률</th>
                   </React.Fragment>
                 ))}
               </tr>
@@ -249,17 +237,17 @@ export default function AuctionResultsPage() {
             <tbody>
               {PARTS.map((part, partIdx) => (
                 <tr key={part} className="hover:bg-gray-50">
-                  <td className={`${tdClass} font-medium bg-white`}>{part}</td>
+                  <td className={`${tdClass} font-medium`}>{part}</td>
                   {[...COMPANIES, '합계'].map((company, idx) => {
                     const d = resultData[part][company];
                     const isTotal = idx === COMPANIES.length;
                     return (
                       <React.Fragment key={`${part}-${company}`}>
-                        <td className={`${tdClass} ${isTotal ? 'bg-gray-50 font-medium' : ''}`}>{d.listed}</td>
-                        <td className={`${tdClass} ${isTotal ? 'bg-gray-50 font-medium' : ''} ${d.awarded > 0 ? 'text-gray-900' : 'text-gray-400'}`}>
+                        <td className={`${tdClass} ${isTotal ? 'font-medium' : ''}`}>{d.listed}</td>
+                        <td className={`${tdClass} ${isTotal ? 'font-medium' : ''} ${d.awarded > 0 ? 'text-gray-900' : 'text-gray-400'}`}>
                           {d.awarded}
                         </td>
-                        <td className={`${tdClass} ${isTotal ? 'bg-gray-50 font-medium' : ''} text-gray-600`}>
+                        <td className={`${tdClass} ${isTotal ? 'font-medium' : ''} text-gray-600`}>
                           {d.rate}%
                         </td>
                       </React.Fragment>
@@ -269,15 +257,15 @@ export default function AuctionResultsPage() {
               ))}
               {/* 합계 행 */}
               <tr className="bg-white font-semibold border-t-2 border-gray-200">
-                <td className={`${tdClass} font-bold bg-gray-50`}>합계</td>
+                <td className={`${tdClass} font-bold`}>합계</td>
                 {[...COMPANIES, '합계'].map((company, idx) => {
                   const d = resultData['합계'][company];
                   const isGrandTotal = idx === COMPANIES.length;
                   return (
                     <React.Fragment key={`total-${company}`}>
-                      <td className={`${tdClass} ${isGrandTotal ? 'bg-gray-100' : ''}`}>{d.listed}</td>
-                      <td className={`${tdClass} ${isGrandTotal ? 'bg-gray-100' : ''} text-gray-900`}>{d.awarded}</td>
-                      <td className={`${tdClass} ${isGrandTotal ? 'bg-gray-100 font-bold' : ''}`}>{d.rate}%</td>
+                      <td className={`${tdClass}`}>{d.listed}</td>
+                      <td className={`${tdClass} text-gray-900`}>{d.awarded}</td>
+                      <td className={`${tdClass} ${isGrandTotal ? 'font-bold' : ''}`}>{d.rate}%</td>
                     </React.Fragment>
                   );
                 })}

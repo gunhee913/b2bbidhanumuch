@@ -9,11 +9,7 @@ import {
   Building2,
   FileText,
   Settings,
-  Bell,
   ChevronDown,
-  Menu,
-  X,
-  LogOut,
   Gavel,
   TrendingUp,
   ClipboardList,
@@ -49,7 +45,7 @@ const menuItems = [
       { title: '부분육 상장 조회', href: '/admin/auctions' },
       { title: '부분육 상장 등록', href: '/admin/auctions/new' },
       { title: '부분육 경매 현황(실시간)', href: '/admin/auctions/live' },
-        { title: '부분육 경락 내역', href: '/admin/auctions/bids' },
+      { title: '부분육 경락 내역', href: '/admin/auctions/bids' },
       { title: '부분육 낙찰률 조회', href: '/admin/auctions/results' },
     ],
   },
@@ -98,10 +94,8 @@ const menuItems = [
 
 export default function AdminLayout({ children }: AdminLayoutProps) {
   const pathname = usePathname();
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
-  const [showUserMenu, setShowUserMenu] = useState(false);
 
   // 현재 경로에 해당하는 메뉴를 자동으로 열기
   useEffect(() => {
@@ -139,43 +133,20 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      {/* 사이드바 */}
-      <aside
-        className={`fixed left-0 top-0 z-40 h-screen transition-transform duration-300 ${
-          isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        } bg-gray-900 w-64`}
-      >
+      {/* 사이드바 - 항상 고정 */}
+      <aside className="fixed left-0 top-0 z-40 h-screen bg-gray-900 w-64">
         {/* 로고 영역 */}
-        <div className="flex items-center justify-between h-16 px-4 border-b border-gray-800">
+        <div className="flex items-center h-14 px-4 border-b border-gray-800">
           <Link href="/admin" className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-red-600 rounded-lg flex items-center justify-center">
+            <div className="w-7 h-7 bg-red-600 rounded flex items-center justify-center">
               <span className="text-white font-bold text-sm">H</span>
             </div>
             <span className="text-white font-bold text-lg">HanuMuch</span>
           </Link>
-          <button
-            onClick={() => setIsSidebarOpen(false)}
-            className="lg:hidden p-1 text-gray-400 hover:text-white"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        {/* 관리자 정보 */}
-        <div className="px-4 py-4 border-b border-gray-800">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gray-700 rounded-full flex items-center justify-center">
-              <span className="text-white font-medium text-sm">관리</span>
-            </div>
-            <div>
-              <p className="text-white font-medium text-sm">관리자</p>
-              <p className="text-gray-400 text-xs">admin@hanumuch.co.kr</p>
-            </div>
-          </div>
         </div>
 
         {/* 네비게이션 메뉴 */}
-        <nav className="px-3 py-4 overflow-y-auto h-[calc(100vh-180px)]">
+        <nav className="px-3 py-4 overflow-y-auto h-[calc(100vh-56px-56px)]">
           <ul className="space-y-1">
             {menuItems.map((item) => (
               <li key={item.href}>
@@ -185,7 +156,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                       onClick={() => toggleMenu(item.href)}
                       className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg transition-colors ${
                         isActiveLink(item.href)
-                          ? 'bg-red-600 text-white'
+                          ? 'bg-gray-700 text-white'
                           : 'text-gray-300 hover:bg-gray-800 hover:text-white'
                       }`}
                     >
@@ -207,7 +178,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                               href={subItem.href}
                               className={`block px-3 py-2 rounded-lg text-sm transition-colors ${
                                 pathname === subItem.href
-                                  ? 'text-red-400 bg-gray-800'
+                                  ? 'text-white bg-gray-800 font-medium'
                                   : 'text-gray-400 hover:text-white hover:bg-gray-800'
                               }`}
                             >
@@ -223,7 +194,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                     href={item.href}
                     className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
                       isActiveLink(item.href)
-                        ? 'bg-red-600 text-white'
+                        ? 'bg-gray-700 text-white'
                         : 'text-gray-300 hover:bg-gray-800 hover:text-white'
                     }`}
                   >
@@ -235,101 +206,75 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
             ))}
           </ul>
         </nav>
+
+        {/* 하단 영역: 관리자 정보 */}
+        <div className="absolute bottom-0 left-0 right-0 border-t border-gray-800">
+          <div className="flex items-center gap-2 px-4 py-3 bg-gray-800">
+            <div className="w-7 h-7 bg-gray-600 rounded-full flex items-center justify-center">
+              <span className="text-white font-medium text-xs">관</span>
+            </div>
+            <span className="text-white text-sm">관리자</span>
+          </div>
+        </div>
       </aside>
 
-      {/* 메인 콘텐츠 영역 */}
-      <div className={`transition-all duration-300 ${isSidebarOpen ? 'lg:ml-64' : ''}`}>
-        {/* 상단 헤더 */}
-        <header className="sticky top-0 z-30 h-16 bg-white border-b border-gray-200 shadow-sm">
-          <div className="flex items-center justify-between h-full px-4 lg:px-6">
-            {/* 왼쪽: 메뉴 토글 */}
+      {/* 메인 콘텐츠 영역 - 항상 사이드바 오른쪽에 */}
+      <div className="ml-64">
+        {/* 미니 상단 바 */}
+        <header className="sticky top-0 z-30 h-10 bg-white border-b border-gray-200">
+          <div className="flex items-center justify-end h-full px-4">
+            {/* 오른쪽: 알림 + 로그인 정보 + 로그아웃 */}
             <div className="flex items-center gap-4">
-              <button
-                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg"
-              >
-                <Menu className="w-5 h-5" />
-              </button>
-              <div className="hidden md:block">
-                <h1 className="text-lg font-semibold text-gray-800">관리자 페이지</h1>
-              </div>
-            </div>
-
-            {/* 오른쪽: 알림, 사용자 메뉴 */}
-            <div className="flex items-center gap-2">
               {/* 알림 */}
               <div className="relative">
                 <button
                   onClick={() => setShowNotifications(!showNotifications)}
-                  className="relative p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg"
+                  className="text-xs text-gray-500 hover:text-gray-700 flex items-center gap-1"
                 >
-                  <Bell className="w-5 h-5" />
-                  <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+                  알림
+                  <span className="w-4 h-4 bg-red-500 rounded-full text-[10px] text-white flex items-center justify-center">3</span>
                 </button>
                 {showNotifications && (
-                  <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 py-2">
-                    <div className="px-4 py-2 border-b border-gray-100">
-                      <h3 className="font-semibold text-gray-800">알림</h3>
+                  <div className="absolute right-0 top-full mt-1 w-64 bg-white border border-gray-200 shadow-lg py-1 z-50">
+                    <div className="px-3 py-1.5 border-b border-gray-100">
+                      <span className="font-medium text-xs text-gray-800">알림</span>
                     </div>
-                    <div className="max-h-64 overflow-y-auto">
-                      <div className="px-4 py-3 hover:bg-gray-50 cursor-pointer">
-                        <p className="text-sm text-gray-800">새로운 입찰이 등록되었습니다.</p>
-                        <p className="text-xs text-gray-500 mt-1">2분 전</p>
+                    <div className="max-h-40 overflow-y-auto">
+                      <div className="px-3 py-2 hover:bg-gray-50 cursor-pointer border-b border-gray-50">
+                        <p className="text-xs text-gray-700">새로운 입찰이 등록되었습니다.</p>
+                        <p className="text-[10px] text-gray-400 mt-0.5">2분 전</p>
                       </div>
-                      <div className="px-4 py-3 hover:bg-gray-50 cursor-pointer">
-                        <p className="text-sm text-gray-800">경매 #001이 마감되었습니다.</p>
-                        <p className="text-xs text-gray-500 mt-1">10분 전</p>
+                      <div className="px-3 py-2 hover:bg-gray-50 cursor-pointer border-b border-gray-50">
+                        <p className="text-xs text-gray-700">경매 #001이 마감되었습니다.</p>
+                        <p className="text-[10px] text-gray-400 mt-0.5">10분 전</p>
                       </div>
-                      <div className="px-4 py-3 hover:bg-gray-50 cursor-pointer">
-                        <p className="text-sm text-gray-800">신규 회원이 가입했습니다.</p>
-                        <p className="text-xs text-gray-500 mt-1">1시간 전</p>
+                      <div className="px-3 py-2 hover:bg-gray-50 cursor-pointer">
+                        <p className="text-xs text-gray-700">신규 회원이 가입했습니다.</p>
+                        <p className="text-[10px] text-gray-400 mt-0.5">1시간 전</p>
                       </div>
-                    </div>
-                    <div className="px-4 py-2 border-t border-gray-100">
-                      <Link href="/admin/notifications" className="text-sm text-red-600 hover:text-red-700">
-                        모든 알림 보기
-                      </Link>
                     </div>
                   </div>
                 )}
               </div>
 
-              {/* 사용자 메뉴 */}
-              <div className="relative">
-                <button
-                  onClick={() => setShowUserMenu(!showUserMenu)}
-                  className="flex items-center gap-2 p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg"
-                >
-                  <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
-                    <span className="text-gray-600 font-medium text-xs">관리</span>
-                  </div>
-                  <ChevronDown className="w-4 h-4" />
-                </button>
-                {showUserMenu && (
-                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2">
-                    <Link
-                      href="/admin/profile"
-                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                    >
-                      프로필 설정
-                    </Link>
-                    <Link
-                      href="/admin/settings"
-                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                    >
-                      시스템 설정
-                    </Link>
-                    <hr className="my-2 border-gray-100" />
-                    <button
-                      onClick={() => {/* 로그아웃 처리 */}}
-                      className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-50 flex items-center gap-2"
-                    >
-                      <LogOut className="w-4 h-4" />
-                      로그아웃
-                    </button>
-                  </div>
-                )}
-              </div>
+              {/* 구분선 */}
+              <span className="text-gray-200">|</span>
+
+              {/* 로그인 정보 */}
+              <span className="text-xs text-gray-600">
+                [ <span className="font-medium text-gray-700">관리자</span> ] 로그인
+              </span>
+
+              {/* 구분선 */}
+              <span className="text-gray-200">|</span>
+
+              {/* 로그아웃 */}
+              <button
+                onClick={() => {/* 로그아웃 처리 */}}
+                className="text-xs text-gray-500 hover:text-gray-700"
+              >
+                로그아웃
+              </button>
             </div>
           </div>
         </header>
@@ -339,14 +284,6 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           {children}
         </main>
       </div>
-
-      {/* 모바일 사이드바 오버레이 */}
-      {isSidebarOpen && (
-        <div
-          className="fixed inset-0 z-30 bg-black/50 lg:hidden"
-          onClick={() => setIsSidebarOpen(false)}
-        />
-      )}
     </div>
   );
 }

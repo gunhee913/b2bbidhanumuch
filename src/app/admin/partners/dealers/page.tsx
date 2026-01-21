@@ -3,7 +3,6 @@
 import React, { useState } from 'react';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { 
-  Search, 
   Download,
   ChevronDown,
   ChevronUp,
@@ -60,7 +59,7 @@ export default function PartnersDealersPage() {
   const [partners] = useState<Partner[]>(initialPartners);
   const [dealers] = useState<Dealer[]>(initialDealers);
   
-  const [expandedDealers, setExpandedDealers] = useState<string[]>(['d1']);
+  const [expandedDealers, setExpandedDealers] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [dealerFilter, setDealerFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
@@ -145,7 +144,7 @@ export default function PartnersDealersPage() {
       </div>
 
       {/* 필터 및 검색 */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4 mb-4">
+      <div className="bg-white border border-gray-200 p-4 mb-4">
         <div className="flex flex-wrap items-center gap-4">
           {/* 중도매인 필터 */}
           <div className="flex items-center gap-2">
@@ -153,7 +152,7 @@ export default function PartnersDealersPage() {
             <select
               value={dealerFilter}
               onChange={(e) => setDealerFilter(e.target.value)}
-              className="px-3 py-1.5 border border-gray-200 rounded text-xs outline-none bg-white min-w-[140px]"
+              className="px-3 py-1.5 border border-gray-200 text-xs outline-none bg-white min-w-[140px]"
             >
               <option value="all">전체</option>
               {dealers.map(dealer => (
@@ -168,7 +167,7 @@ export default function PartnersDealersPage() {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value as 'all' | 'active' | 'inactive')}
-              className="px-3 py-1.5 border border-gray-200 rounded text-xs outline-none bg-white"
+              className="px-3 py-1.5 border border-gray-200 text-xs outline-none bg-white"
             >
               <option value="all">전체</option>
               <option value="active">활성</option>
@@ -178,16 +177,13 @@ export default function PartnersDealersPage() {
 
           {/* 검색 */}
           <div className="flex items-center gap-2">
-            <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="거래처명, 대표자 검색"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-8 pr-3 py-1.5 border border-gray-200 rounded text-xs outline-none bg-white w-48"
-              />
-            </div>
+            <input
+              type="text"
+              placeholder="거래처명, 대표자 검색"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="px-3 py-1.5 border border-gray-200 text-xs outline-none bg-white w-48"
+            />
           </div>
 
           {/* 버튼 그룹 */}
@@ -199,14 +195,14 @@ export default function PartnersDealersPage() {
                 setDealerFilter('all');
                 setStatusFilter('all');
               }}
-              className="px-4 py-1.5 border border-gray-200 text-gray-600 rounded text-xs hover:bg-gray-50"
+              className="px-4 py-1.5 border border-gray-300 text-gray-600 text-xs hover:bg-gray-50"
             >
               초기화
             </button>
             <button
               type="button"
               onClick={handleExcelDownload}
-              className="flex items-center gap-1.5 px-4 py-1.5 bg-green-600 text-white rounded text-xs hover:bg-green-700"
+              className="flex items-center gap-1.5 px-4 py-1.5 bg-gray-700 text-white text-xs hover:bg-gray-800"
             >
               <Download className="w-3.5 h-3.5" />
               엑셀
@@ -216,7 +212,7 @@ export default function PartnersDealersPage() {
       </div>
 
       {/* 요약 정보 */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4 mb-4">
+      <div className="bg-white border border-gray-200 p-4 mb-4">
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-2">
             <span className="text-sm text-gray-500">총 연결</span>
@@ -230,7 +226,7 @@ export default function PartnersDealersPage() {
       </div>
 
       {/* 테이블 */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
+      <div className="bg-white border border-gray-200 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-xs border-collapse table-fixed">
             <thead>
@@ -258,7 +254,7 @@ export default function PartnersDealersPage() {
                         className="hover:bg-gray-50 cursor-pointer"
                         onClick={() => toggleDealer(dealer.id)}
                       >
-                        <td className={`${tdClass} bg-blue-50 font-medium`} rowSpan={expandedDealers.includes(dealer.id) ? dealer.partners.length : 1}>
+                        <td className={`${tdClass} bg-gray-50 font-medium`} rowSpan={expandedDealers.includes(dealer.id) ? dealer.partners.length : 1}>
                           <div className="flex items-center justify-center gap-1">
                             {expandedDealers.includes(dealer.id) ? (
                               <ChevronUp className="w-3.5 h-3.5 text-gray-400" />
@@ -268,10 +264,10 @@ export default function PartnersDealersPage() {
                             {dealer.dealerNo}
                           </div>
                         </td>
-                        <td className={`${tdClass} bg-blue-50 font-medium`} rowSpan={expandedDealers.includes(dealer.id) ? dealer.partners.length : 1}>
+                        <td className={`${tdClass} bg-gray-50 font-medium`} rowSpan={expandedDealers.includes(dealer.id) ? dealer.partners.length : 1}>
                           {dealer.name}
                         </td>
-                        <td className={`${tdClass} bg-blue-50`} rowSpan={expandedDealers.includes(dealer.id) ? dealer.partners.length : 1}>
+                        <td className={`${tdClass} bg-gray-50`} rowSpan={expandedDealers.includes(dealer.id) ? dealer.partners.length : 1}>
                           {dealer.partners.length}개
                         </td>
                         {expandedDealers.includes(dealer.id) ? (
@@ -307,9 +303,9 @@ export default function PartnersDealersPage() {
                     </>
                   ) : (
                     <tr className="hover:bg-gray-50">
-                      <td className={`${tdClass} bg-blue-50 font-medium`}>{dealer.dealerNo}</td>
-                      <td className={`${tdClass} bg-blue-50 font-medium`}>{dealer.name}</td>
-                      <td className={`${tdClass} bg-blue-50`}>0개</td>
+                      <td className={`${tdClass} bg-gray-50 font-medium`}>{dealer.dealerNo}</td>
+                      <td className={`${tdClass} bg-gray-50 font-medium`}>{dealer.name}</td>
+                      <td className={`${tdClass} bg-gray-50`}>0개</td>
                       <td className={tdClass} colSpan={8}>
                         <span className="text-gray-400">등록된 거래처가 없습니다.</span>
                       </td>

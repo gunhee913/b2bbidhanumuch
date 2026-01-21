@@ -3,7 +3,6 @@
 import React, { useState } from 'react';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { 
-  Search, 
   Plus, 
   Edit, 
   Trash2,
@@ -410,64 +409,59 @@ export default function CompaniesPage() {
 
   return (
     <AdminLayout>
-      <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">상장업체 관리</h1>
-        <button 
-          onClick={handleAddOpen}
-          className="inline-flex items-center gap-2 px-4 py-2.5 bg-gray-700 text-white  hover:bg-gray-800 transition-colors font-medium"
-        >
-          <Plus className="w-5 h-5" />
-          상장업체 등록
-        </button>
       </div>
 
-      <div className="bg-white rounded-none shadow-sm border border-gray-100 p-4 mb-6">
-        <div className="flex flex-col lg:flex-row gap-4">
-          <div className="flex-1">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input
-                type="text"
-                placeholder="업체번호, 업체명, 사업자등록번호, 대표자, 대표번호, 직원명, 직원연락처로 검색..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 border border-gray-100  focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white"
-              />
-            </div>
-          </div>
-          <div className="flex flex-wrap gap-3">
-            <button className="inline-flex items-center gap-2 px-4 py-2.5 border border-gray-100  hover:bg-gray-50 text-sm font-medium text-gray-700 bg-white">
-              <Download className="w-4 h-4" />
-              내보내기
+      <div className="bg-white border border-gray-200 p-4 mb-4">
+        <div className="flex flex-wrap items-center gap-4">
+          <input
+            type="text"
+            placeholder="업체번호, 업체명, 사업자등록번호, 대표자, 대표번호 검색..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-80 px-3 py-1.5 border border-gray-200 text-xs outline-none bg-white"
+          />
+          <div className="flex items-center gap-2 ml-auto">
+            <button className="inline-flex items-center gap-1.5 px-4 py-1.5 border border-gray-300 hover:bg-gray-50 text-xs font-medium text-gray-700 bg-white">
+              <Download className="w-3.5 h-3.5" />
+              엑셀
+            </button>
+            <button 
+              onClick={handleAddOpen}
+              className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-gray-700 text-white hover:bg-gray-800 text-xs font-medium"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              상장업체 등록
             </button>
           </div>
         </div>
       </div>
 
-      <div className="bg-white rounded-none shadow-sm border border-gray-100 overflow-hidden">
+      <div className="bg-white border border-gray-200 overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-100">
+          <table className="w-full border-collapse">
+            <thead>
               <tr>
-                <th className="w-10 px-2 py-3"></th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">업체번호</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">업체명</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">사업자등록번호</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">대표자</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">대표번호</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">등록일</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">최근로그인</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">직원수</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">수정</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">상태</th>
+                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50 w-8"></th>
+                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">업체번호</th>
+                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">업체명</th>
+                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">사업자등록번호</th>
+                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">대표자</th>
+                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">대표번호</th>
+                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">등록일</th>
+                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">최근로그인</th>
+                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">직원수</th>
+                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">수정</th>
+                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">상태</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody>
               {/* 인라인 상장업체 등록 행 */}
               {isAddingCompany && (
                 <tr>
-                  <td className="px-2 py-4 text-center">-</td>
-                  <td className="px-4 py-4">
+                  <td className="px-2 py-2 text-center border border-gray-200">-</td>
+                  <td className="px-2 py-2 border border-gray-200">
                     <input
                       type="text"
                       value={formData.companyNo}
@@ -476,7 +470,7 @@ export default function CompaniesPage() {
                       className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
                     />
                   </td>
-                  <td className="px-4 py-4">
+                  <td className="px-2 py-2 border border-gray-200">
                     <input
                       type="text"
                       value={formData.name}
@@ -485,7 +479,7 @@ export default function CompaniesPage() {
                       className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
                     />
                   </td>
-                  <td className="px-4 py-4">
+                  <td className="px-2 py-2 border border-gray-200">
                     <input
                       type="text"
                       value={formData.businessNo}
@@ -494,7 +488,7 @@ export default function CompaniesPage() {
                       className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
                     />
                   </td>
-                  <td className="px-4 py-4">
+                  <td className="px-2 py-2 border border-gray-200">
                     <input
                       type="text"
                       value={formData.ceo}
@@ -503,7 +497,7 @@ export default function CompaniesPage() {
                       className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
                     />
                   </td>
-                  <td className="px-4 py-4">
+                  <td className="px-2 py-2 border border-gray-200">
                     <input
                       type="text"
                       value={formData.phone}
@@ -513,10 +507,10 @@ export default function CompaniesPage() {
                       className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
                     />
                   </td>
-                  <td className="px-4 py-4 text-sm text-gray-400 text-center">-</td>
-                  <td className="px-4 py-4 text-sm text-gray-400 text-center">-</td>
-                  <td className="px-4 py-4 text-sm text-gray-400 text-center">-</td>
-                  <td className="px-4 py-4" colSpan={2}>
+                  <td className="px-2 py-2 border border-gray-200 text-sm text-gray-400 text-center">-</td>
+                  <td className="px-2 py-2 border border-gray-200 text-sm text-gray-400 text-center">-</td>
+                  <td className="px-2 py-2 border border-gray-200 text-sm text-gray-400 text-center">-</td>
+                  <td className="px-2 py-2 border border-gray-200" colSpan={2}>
                     <div className="flex items-center justify-center gap-2">
                       <button
                         onClick={handleAddSave}
@@ -539,14 +533,14 @@ export default function CompaniesPage() {
                 <React.Fragment key={company.id}>
                   {editingCompanyId === company.id ? (
                     <tr>
-                      <td className="px-2 py-4 text-center">
+                      <td className="px-2 py-2 text-center border border-gray-200">
                         {expandedCompany === company.id ? (
                           <ChevronUp className="w-4 h-4 text-gray-400 mx-auto" />
                         ) : (
                           <ChevronDown className="w-4 h-4 text-gray-400 mx-auto" />
                         )}
                       </td>
-                      <td className="px-4 py-4">
+                      <td className="px-2 py-2 border border-gray-200">
                         <input
                           type="text"
                           value={formData.companyNo}
@@ -554,7 +548,7 @@ export default function CompaniesPage() {
                           className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded bg-gray-100 text-gray-500 text-center"
                         />
                       </td>
-                      <td className="px-4 py-4">
+                      <td className="px-2 py-2 border border-gray-200">
                         <input
                           type="text"
                           value={formData.name}
@@ -562,7 +556,7 @@ export default function CompaniesPage() {
                           className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
                         />
                       </td>
-                      <td className="px-4 py-4">
+                      <td className="px-2 py-2 border border-gray-200">
                         <input
                           type="text"
                           value={formData.businessNo}
@@ -570,7 +564,7 @@ export default function CompaniesPage() {
                           className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
                         />
                       </td>
-                      <td className="px-4 py-4">
+                      <td className="px-2 py-2 border border-gray-200">
                         <input
                           type="text"
                           value={formData.ceo}
@@ -578,7 +572,7 @@ export default function CompaniesPage() {
                           className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
                         />
                       </td>
-                      <td className="px-4 py-4">
+                      <td className="px-2 py-2 border border-gray-200">
                         <input
                           type="text"
                           value={formData.phone}
@@ -587,10 +581,10 @@ export default function CompaniesPage() {
                           className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
                         />
                       </td>
-                      <td className="px-4 py-4 text-sm text-gray-500 text-center">{company.createdAt}</td>
-                      <td className="px-4 py-4 text-sm text-gray-500 text-center">{company.lastLogin}</td>
-                      <td className="px-4 py-4 text-sm text-gray-900 text-center font-medium">{company.employees.length}명</td>
-                      <td className="px-4 py-4" colSpan={2}>
+                      <td className="px-2 py-2 border border-gray-200 text-sm text-gray-500 text-center">{company.createdAt}</td>
+                      <td className="px-2 py-2 border border-gray-200 text-sm text-gray-500 text-center">{company.lastLogin}</td>
+                      <td className="px-2 py-2 border border-gray-200 text-sm text-gray-900 text-center font-medium">{company.employees.length}명</td>
+                      <td className="px-2 py-2 border border-gray-200" colSpan={2}>
                         <div className="flex items-center justify-center gap-2">
                           <button
                             onClick={handleEditSave}
@@ -613,22 +607,22 @@ export default function CompaniesPage() {
                       className="hover:bg-gray-50 transition-colors cursor-pointer"
                       onClick={() => toggleExpand(company.id)}
                     >
-                      <td className="px-2 py-4 text-center">
+                      <td className="px-2 py-2 text-center border border-gray-200">
                         {expandedCompany === company.id ? (
                           <ChevronUp className="w-4 h-4 text-gray-400 mx-auto" />
                         ) : (
                           <ChevronDown className="w-4 h-4 text-gray-400 mx-auto" />
                         )}
                       </td>
-                      <td className="px-4 py-4 text-sm font-medium text-gray-900 text-center">{company.companyNo}</td>
-                      <td className="px-4 py-4 text-sm font-medium text-gray-900 text-center">{company.name}</td>
-                      <td className="px-4 py-4 text-sm text-gray-600 text-center">{company.businessNo}</td>
-                      <td className="px-4 py-4 text-sm text-gray-900 text-center">{company.ceo}</td>
-                      <td className="px-4 py-4 text-sm text-gray-600 text-center">{company.phone}</td>
-                      <td className="px-4 py-4 text-sm text-gray-500 text-center">{company.createdAt}</td>
-                      <td className="px-4 py-4 text-sm text-gray-500 text-center">{company.lastLogin}</td>
-                      <td className="px-4 py-4 text-sm text-gray-900 text-center font-medium">{company.employees.length}명</td>
-                      <td className="px-4 py-4">
+                      <td className="px-2 py-2 border border-gray-200 text-sm font-medium text-gray-900 text-center">{company.companyNo}</td>
+                      <td className="px-2 py-2 border border-gray-200 text-sm font-medium text-gray-900 text-center">{company.name}</td>
+                      <td className="px-2 py-2 border border-gray-200 text-sm text-gray-600 text-center">{company.businessNo}</td>
+                      <td className="px-2 py-2 border border-gray-200 text-sm text-gray-900 text-center">{company.ceo}</td>
+                      <td className="px-2 py-2 border border-gray-200 text-sm text-gray-600 text-center">{company.phone}</td>
+                      <td className="px-2 py-2 border border-gray-200 text-sm text-gray-500 text-center">{company.createdAt}</td>
+                      <td className="px-2 py-2 border border-gray-200 text-sm text-gray-500 text-center">{company.lastLogin}</td>
+                      <td className="px-2 py-2 border border-gray-200 text-sm text-gray-900 text-center font-medium">{company.employees.length}명</td>
+                      <td className="px-2 py-2 border border-gray-200">
                         <div className="flex items-center justify-center">
                           <button 
                             onClick={(e) => handleEditOpen(company, e)}
@@ -639,7 +633,7 @@ export default function CompaniesPage() {
                           </button>
                         </div>
                       </td>
-                      <td className="px-4 py-4">
+                      <td className="px-2 py-2 border border-gray-200">
                         <select
                           value={company.status}
                           onClick={(e) => e.stopPropagation()}
@@ -661,7 +655,7 @@ export default function CompaniesPage() {
                   {/* 확장된 직원 테이블 */}
                   {expandedCompany === company.id && (
                     <tr>
-                      <td colSpan={11} className="px-4 py-4">
+                      <td colSpan={11} className="px-2 py-2 border border-gray-200">
                         <div className="ml-8">
                           <div className="flex items-center justify-between mb-3">
                             <h4 className="text-sm font-semibold text-gray-700">대표/직원 목록</h4>
@@ -674,25 +668,25 @@ export default function CompaniesPage() {
                             </button>
                           </div>
                           {(company.employees.length > 0 || addingEmployeeToCompanyId === company.id) ? (
-                            <table className="w-full bg-white border border-gray-200 table-fixed">
+                            <table className="w-full bg-white border border-gray-200 table-fixed border-collapse">
                               <thead className="bg-gray-50">
                                 <tr>
-                                  <th className="px-3 py-2 text-center text-xs font-semibold text-gray-500 w-[80px]">구분</th>
-                                  <th className="px-3 py-2 text-center text-xs font-semibold text-gray-500 w-[80px]">성함</th>
-                                  <th className="px-3 py-2 text-center text-xs font-semibold text-gray-500 w-[130px]">연락처(ID)</th>
-                                  <th className="px-3 py-2 text-center text-xs font-semibold text-gray-500 w-[90px]">비밀번호</th>
-                                  <th className="px-3 py-2 text-center text-xs font-semibold text-gray-500 w-[180px]">주소</th>
-                                  <th className="px-3 py-2 text-center text-xs font-semibold text-gray-500 w-[90px]">등록일</th>
-                                  <th className="px-3 py-2 text-center text-xs font-semibold text-gray-500 w-[120px]">최근로그인</th>
-                                  <th className="px-3 py-2 text-center text-xs font-semibold text-gray-500 w-[50px]">수정</th>
-                                  <th className="px-3 py-2 text-center text-xs font-semibold text-gray-500 w-[70px]">상태</th>
+                                  <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 w-[80px] border border-gray-200">구분</th>
+                                  <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 w-[80px] border border-gray-200">성함</th>
+                                  <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 w-[130px] border border-gray-200">연락처(ID)</th>
+                                  <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 w-[90px] border border-gray-200">비밀번호</th>
+                                  <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 w-[180px] border border-gray-200">주소</th>
+                                  <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 w-[90px] border border-gray-200">등록일</th>
+                                  <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 w-[120px] border border-gray-200">최근로그인</th>
+                                  <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 w-[50px] border border-gray-200">수정</th>
+                                  <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 w-[70px] border border-gray-200">상태</th>
                                 </tr>
                               </thead>
-                              <tbody className="divide-y divide-gray-100">
+                              <tbody>
                                 {/* 인라인 직원 추가 행 */}
                                 {addingEmployeeToCompanyId === company.id && (
                                   <tr>
-                                    <td className="px-3 py-2 w-[80px]">
+                                    <td className="px-3 py-2 w-[80px] border border-gray-200">
                                       <input
                                         type="text"
                                         value={employeeFormData.role}
@@ -701,7 +695,7 @@ export default function CompaniesPage() {
                                         className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
                                       />
                                     </td>
-                                    <td className="px-3 py-2 w-[80px]">
+                                    <td className="px-3 py-2 w-[80px] border border-gray-200">
                                       <input
                                         type="text"
                                         value={employeeFormData.name}
@@ -710,7 +704,7 @@ export default function CompaniesPage() {
                                         className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
                                       />
                                     </td>
-                                    <td className="px-3 py-2 w-[130px]">
+                                    <td className="px-3 py-2 w-[130px] border border-gray-200">
                                       <input
                                         type="text"
                                         value={employeeFormData.phone}
@@ -720,7 +714,7 @@ export default function CompaniesPage() {
                                         className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
                                       />
                                     </td>
-                                    <td className="px-3 py-2 w-[90px]">
+                                    <td className="px-3 py-2 w-[90px] border border-gray-200">
                                       <input
                                         type="text"
                                         value={employeeFormData.password}
@@ -729,7 +723,7 @@ export default function CompaniesPage() {
                                         className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
                                       />
                                     </td>
-                                    <td className="px-3 py-2 w-[180px]">
+                                    <td className="px-3 py-2 w-[180px] border border-gray-200">
                                       <input
                                         type="text"
                                         value={employeeFormData.address}
@@ -738,9 +732,9 @@ export default function CompaniesPage() {
                                         className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
                                       />
                                     </td>
-                                    <td className="px-3 py-2 text-xs text-gray-400 text-center w-[90px]">-</td>
-                                    <td className="px-3 py-2 text-xs text-gray-400 text-center w-[120px]">-</td>
-                                    <td className="px-3 py-2 w-[50px]" colSpan={2}>
+                                    <td className="px-3 py-2 text-xs text-gray-400 text-center w-[90px] border border-gray-200">-</td>
+                                    <td className="px-3 py-2 text-xs text-gray-400 text-center w-[120px] border border-gray-200">-</td>
+                                    <td className="px-3 py-2 w-[50px] border border-gray-200" colSpan={2}>
                                       <div className="flex items-center justify-center gap-2">
                                         <button
                                           onClick={() => handleAddEmployeeSave(company)}
@@ -762,7 +756,7 @@ export default function CompaniesPage() {
                                 {company.employees.map((employee) => (
                                   editingEmployeeId === employee.id ? (
                                     <tr key={employee.id} className="bg-gray-50">
-                                      <td className="px-3 py-2 w-[80px]">
+                                      <td className="px-3 py-2 w-[80px] border border-gray-200">
                                         <input
                                           type="text"
                                           value={employeeFormData.role}
@@ -771,7 +765,7 @@ export default function CompaniesPage() {
                                           className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
                                         />
                                       </td>
-                                      <td className="px-3 py-2 w-[80px]">
+                                      <td className="px-3 py-2 w-[80px] border border-gray-200">
                                         <input
                                           type="text"
                                           value={employeeFormData.name}
@@ -779,7 +773,7 @@ export default function CompaniesPage() {
                                           className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
                                         />
                                       </td>
-                                      <td className="px-3 py-2 w-[130px]">
+                                      <td className="px-3 py-2 w-[130px] border border-gray-200">
                                         <input
                                           type="text"
                                           value={employeeFormData.phone}
@@ -788,7 +782,7 @@ export default function CompaniesPage() {
                                           className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
                                         />
                                       </td>
-                                      <td className="px-3 py-2 w-[90px]">
+                                      <td className="px-3 py-2 w-[90px] border border-gray-200">
                                         <input
                                           type="text"
                                           value={employeeFormData.password}
@@ -796,7 +790,7 @@ export default function CompaniesPage() {
                                           className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
                                         />
                                       </td>
-                                      <td className="px-3 py-2 w-[180px]">
+                                      <td className="px-3 py-2 w-[180px] border border-gray-200">
                                         <input
                                           type="text"
                                           value={employeeFormData.address}
@@ -804,9 +798,9 @@ export default function CompaniesPage() {
                                           className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
                                         />
                                       </td>
-                                      <td className="px-3 py-2 text-xs text-gray-500 text-center w-[90px]">{employee.createdAt}</td>
-                                      <td className="px-3 py-2 text-xs text-gray-500 text-center w-[120px]">{employee.lastLogin}</td>
-                                      <td className="px-3 py-2 w-[50px]">
+                                      <td className="px-3 py-2 text-xs text-gray-500 text-center w-[90px] border border-gray-200">{employee.createdAt}</td>
+                                      <td className="px-3 py-2 text-xs text-gray-500 text-center w-[120px] border border-gray-200">{employee.lastLogin}</td>
+                                      <td className="px-3 py-2 w-[50px] border border-gray-200">
                                         <div className="flex items-center justify-center gap-2">
                                           <button
                                             onClick={handleEditEmployeeSave}
@@ -816,7 +810,7 @@ export default function CompaniesPage() {
                                           </button>
                                         </div>
                                       </td>
-                                      <td className="px-3 py-2 w-[70px]">
+                                      <td className="px-3 py-2 w-[70px] border border-gray-200">
                                         <div className="flex items-center justify-center">
                                           <button
                                             onClick={handleEditEmployeeCancel}
@@ -829,16 +823,16 @@ export default function CompaniesPage() {
                                     </tr>
                                   ) : (
                                     <tr key={employee.id} className="hover:bg-gray-50">
-                                      <td className="px-3 py-2 text-xs text-gray-900 text-center w-[80px]">
+                                      <td className="px-3 py-2 text-xs text-gray-900 text-center w-[80px] border border-gray-200">
                                         {getRoleText(employee.role)}
                                       </td>
-                                      <td className="px-3 py-2 text-xs text-gray-900 text-center w-[80px]">{employee.name}</td>
-                                      <td className="px-3 py-2 text-xs text-gray-600 text-center w-[130px]">{employee.phone}</td>
-                                      <td className="px-3 py-2 text-xs text-gray-600 text-center w-[90px]">{employee.password}</td>
-                                      <td className="px-3 py-2 text-xs text-gray-600 text-center w-[180px]">{employee.address}</td>
-                                      <td className="px-3 py-2 text-xs text-gray-500 text-center w-[90px]">{employee.createdAt}</td>
-                                      <td className="px-3 py-2 text-xs text-gray-500 text-center w-[120px]">{employee.lastLogin}</td>
-                                      <td className="px-3 py-2 w-[50px]">
+                                      <td className="px-3 py-2 text-xs text-gray-900 text-center w-[80px] border border-gray-200">{employee.name}</td>
+                                      <td className="px-3 py-2 text-xs text-gray-600 text-center w-[130px] border border-gray-200">{employee.phone}</td>
+                                      <td className="px-3 py-2 text-xs text-gray-600 text-center w-[90px] border border-gray-200">{employee.password}</td>
+                                      <td className="px-3 py-2 text-xs text-gray-600 text-center w-[180px] border border-gray-200">{employee.address}</td>
+                                      <td className="px-3 py-2 text-xs text-gray-500 text-center w-[90px] border border-gray-200">{employee.createdAt}</td>
+                                      <td className="px-3 py-2 text-xs text-gray-500 text-center w-[120px] border border-gray-200">{employee.lastLogin}</td>
+                                      <td className="px-3 py-2 w-[50px] border border-gray-200">
                                         <div className="flex items-center justify-center">
                                           <button 
                                             onClick={() => handleEditEmployeeOpen(company, employee)}
@@ -849,7 +843,7 @@ export default function CompaniesPage() {
                                           </button>
                                         </div>
                                       </td>
-                                      <td className="px-3 py-2 w-[70px]">
+                                      <td className="px-3 py-2 w-[70px] border border-gray-200">
                                         <select
                                           value={employee.status}
                                           onChange={(e) => handleEmployeeStatusChange(company.id, employee.id, e.target.value as 'active' | 'inactive')}

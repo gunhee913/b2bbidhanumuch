@@ -201,10 +201,10 @@ export default function UsersListPage() {
               <option value="suspended">정지</option>
             </select>
 
-            {/* 내보내기 */}
+            {/* 엑셀 */}
             <button className="inline-flex items-center gap-2 px-4 py-2.5 border border-gray-100 rounded-lg hover:bg-gray-50 text-sm font-medium text-gray-700 bg-white">
               <Download className="w-4 h-4" />
-              내보내기
+              엑셀
             </button>
           </div>
         </div>
