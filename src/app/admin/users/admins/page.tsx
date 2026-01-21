@@ -170,14 +170,14 @@ export default function AdminsPage() {
         <h1 className="text-2xl font-bold text-gray-900">관리자 관리</h1>
         <button 
           onClick={handleAddOpen}
-          className="inline-flex items-center gap-2 px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
+          className="inline-flex items-center gap-2 px-4 py-2.5 bg-gray-700 text-white  hover:bg-gray-800 transition-colors font-medium"
         >
           <Plus className="w-5 h-5" />
           관리자 등록
         </button>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6">
+      <div className="bg-white rounded-none shadow-sm border border-gray-100 p-4 mb-6">
         <div className="flex flex-col lg:flex-row gap-4">
           <div className="flex-1">
             <div className="relative">
@@ -187,12 +187,12 @@ export default function AdminsPage() {
                 placeholder="관리자번호, 이름, 연락처로 검색..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
+                className="w-full pl-10 pr-4 py-2.5 border border-gray-100  focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white"
               />
             </div>
           </div>
           <div className="flex flex-wrap gap-3">
-            <button className="inline-flex items-center gap-2 px-4 py-2.5 border border-gray-100 rounded-lg hover:bg-gray-50 text-sm font-medium text-gray-700 bg-white">
+            <button className="inline-flex items-center gap-2 px-4 py-2.5 border border-gray-100  hover:bg-gray-50 text-sm font-medium text-gray-700 bg-white">
               <Download className="w-4 h-4" />
               내보내기
             </button>
@@ -200,7 +200,7 @@ export default function AdminsPage() {
         </div>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+      <div className="bg-white rounded-none shadow-sm border border-gray-100 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gray-50 border-b border-gray-100">
@@ -219,14 +219,14 @@ export default function AdminsPage() {
             <tbody className="divide-y divide-gray-100">
               {/* 인라인 관리자 등록 행 */}
               {isAddingAdmin && (
-                <tr className="bg-gray-50">
+                <tr>
                   <td className="px-4 py-4">
                     <input
                       type="text"
                       value={formData.department}
                       onChange={(e) => setFormData({ ...formData, department: e.target.value })}
                       placeholder="소속"
-                      className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                      className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
                     />
                   </td>
                   <td className="px-4 py-4">
@@ -235,7 +235,7 @@ export default function AdminsPage() {
                       value={formData.name}
                       onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                       placeholder="이름"
-                      className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                      className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
                     />
                   </td>
                   <td className="px-4 py-4">
@@ -245,7 +245,7 @@ export default function AdminsPage() {
                       onChange={(e) => handlePhoneChange(e.target.value)}
                       placeholder="010-0000-0000"
                       maxLength={13}
-                      className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                      className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
                     />
                   </td>
                   <td className="px-4 py-4">
@@ -254,14 +254,14 @@ export default function AdminsPage() {
                       value={formData.password}
                       onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                       placeholder="비밀번호"
-                      className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                      className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
                     />
                   </td>
                   <td className="px-4 py-4">
                     <select
                       value={formData.role}
                       onChange={(e) => setFormData({ ...formData, role: e.target.value as 'master' | 'admin' })}
-                      className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                      className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
                     >
                       <option value="master">마스터권한</option>
                       <option value="admin">관리자</option>
@@ -274,7 +274,7 @@ export default function AdminsPage() {
                       <button
                         onClick={handleAddSave}
                         disabled={!formData.department || !formData.name || !formData.phone || !formData.password}
-                        className="px-3 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="px-3 py-1 text-xs bg-gray-700 text-white rounded hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         저장
                       </button>
@@ -296,7 +296,7 @@ export default function AdminsPage() {
                         type="text"
                         value={formData.department}
                         onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-                        className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                        className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
                       />
                     </td>
                     <td className="px-4 py-4">
@@ -304,7 +304,7 @@ export default function AdminsPage() {
                         type="text"
                         value={formData.name}
                         onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                        className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                        className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
                       />
                     </td>
                     <td className="px-4 py-4">
@@ -313,7 +313,7 @@ export default function AdminsPage() {
                         value={formData.phone}
                         onChange={(e) => handlePhoneChange(e.target.value)}
                         maxLength={13}
-                        className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                        className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
                       />
                     </td>
                     <td className="px-4 py-4">
@@ -321,14 +321,14 @@ export default function AdminsPage() {
                         type="text"
                         value={formData.password}
                         onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                        className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                        className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
                       />
                     </td>
                     <td className="px-4 py-4">
                       <select
                         value={formData.role}
                         onChange={(e) => setFormData({ ...formData, role: e.target.value as 'master' | 'admin' })}
-                        className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                        className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
                       >
                         <option value="master">마스터권한</option>
                         <option value="admin">관리자</option>
@@ -341,7 +341,7 @@ export default function AdminsPage() {
                         <button
                           onClick={handleEditSave}
                           disabled={!formData.department || !formData.name || !formData.phone || !formData.password}
-                          className="px-3 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="px-3 py-1 text-xs bg-gray-700 text-white rounded hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           저장
                         </button>
@@ -367,7 +367,7 @@ export default function AdminsPage() {
                       <div className="flex items-center justify-center">
                         <button 
                           onClick={() => handleEditOpen(admin)}
-                          className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors" 
+                          className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors" 
                           title="수정"
                         >
                           <Edit className="w-4 h-4" />
@@ -384,7 +384,7 @@ export default function AdminsPage() {
                               : a
                           ));
                         }}
-                        className="w-full px-3 py-1.5 text-sm border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                        className="w-full px-3 py-1.5 text-sm border border-gray-100  focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
                       >
                         <option value="active">활성</option>
                         <option value="inactive">비활성</option>
@@ -405,7 +405,7 @@ export default function AdminsPage() {
             <button
               onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
               disabled={currentPage === 1}
-              className="p-2 border border-gray-100 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed bg-white"
+              className="p-2 border border-gray-100  hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed bg-white"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
@@ -413,8 +413,8 @@ export default function AdminsPage() {
               <button
                 key={page}
                 onClick={() => setCurrentPage(page)}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                  currentPage === page ? 'bg-red-600 text-white' : 'text-gray-600 hover:bg-gray-100'
+                className={`px-3 py-1.5  text-sm font-medium transition-colors ${
+                  currentPage === page ? 'bg-gray-700 text-white' : 'text-gray-600 hover:bg-gray-100'
                 }`}
               >
                 {page}
@@ -423,7 +423,7 @@ export default function AdminsPage() {
             <button
               onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
               disabled={currentPage === totalPages}
-              className="p-2 border border-gray-100 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed bg-white"
+              className="p-2 border border-gray-100  hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed bg-white"
             >
               <ChevronRight className="w-4 h-4" />
             </button>

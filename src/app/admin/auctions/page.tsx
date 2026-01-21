@@ -93,8 +93,9 @@ const getTomorrowDateString = () => {
 const tomorrowCode = getTomorrowDateCode();
 const tomorrowDateString = getTomorrowDateString();
 
-// 더미 데이터
+// 더미 데이터 (업체별 2개씩)
 const dummyAuctions: Auction[] = [
+  // 건화 - 2두
   { 
     id: '1', 
     auctionNo: `${tomorrowCode}-101`, 
@@ -121,6 +122,31 @@ const dummyAuctions: Auction[] = [
   },
   { 
     id: '2', 
+    auctionNo: `${tomorrowCode}-102`, 
+    breed: '한우', 
+    gender: '암', 
+    grade: '1+A', 
+    monthAge: 29,
+    backFat: 13, 
+    eyeMuscle: 91, 
+    fatMarbling: 6,
+    meatColor: 5, 
+    fatColor: 3, 
+    texture: 1, 
+    maturity: 2, 
+    traceNo: '1486-7294-2',
+    slaughterHouse: '음성',
+    slaughterDate: "26.01.16",
+    slaughterNo: '205',
+    carcassWeight: 478, 
+    company: '건화',
+    processDate: "26.01.17",
+    processWeight: 287,
+    status: '승인',
+  },
+  // 대진엠에스 - 2두
+  { 
+    id: '3', 
     auctionNo: `${tomorrowCode}-201`, 
     breed: '한우', 
     gender: '암', 
@@ -144,7 +170,32 @@ const dummyAuctions: Auction[] = [
     status: '승인',
   },
   { 
-    id: '3', 
+    id: '4', 
+    auctionNo: `${tomorrowCode}-202`, 
+    breed: '한우', 
+    gender: '거세', 
+    grade: '1++B(8)', 
+    monthAge: 33,
+    backFat: 14, 
+    eyeMuscle: 96, 
+    fatMarbling: 8,
+    meatColor: 5, 
+    fatColor: 3, 
+    texture: 1, 
+    maturity: 2, 
+    traceNo: '1523-8843-4',
+    slaughterHouse: '음성',
+    slaughterDate: "26.01.16",
+    slaughterNo: '206',
+    carcassWeight: 508, 
+    company: '대진엠에스',
+    processDate: "26.01.17",
+    processWeight: 305,
+    status: '승인',
+  },
+  // 안심엘피씨 - 2두
+  { 
+    id: '5', 
     auctionNo: `${tomorrowCode}-301`, 
     breed: '한우', 
     gender: '거세', 
@@ -168,7 +219,32 @@ const dummyAuctions: Auction[] = [
     status: '대기',
   },
   { 
-    id: '4', 
+    id: '6', 
+    auctionNo: `${tomorrowCode}-302`, 
+    breed: '한우', 
+    gender: '암', 
+    grade: '1+B', 
+    monthAge: 31,
+    backFat: 12, 
+    eyeMuscle: 89, 
+    fatMarbling: 5,
+    meatColor: 5, 
+    fatColor: 3, 
+    texture: 1, 
+    maturity: 2, 
+    traceNo: '1498-6522-8',
+    slaughterHouse: '음성',
+    slaughterDate: "26.01.16",
+    slaughterNo: '207',
+    carcassWeight: 472, 
+    company: '안심엘피씨',
+    processDate: "26.01.17",
+    processWeight: 283,
+    status: '대기',
+  },
+  // 정직한고기 - 2두
+  { 
+    id: '7', 
     auctionNo: `${tomorrowCode}-401`, 
     breed: '한우', 
     gender: '암', 
@@ -190,6 +266,30 @@ const dummyAuctions: Auction[] = [
     processDate: "26.01.17",
     processWeight: 281,
     status: '대기',
+  },
+  { 
+    id: '8', 
+    auctionNo: `${tomorrowCode}-402`, 
+    breed: '한우', 
+    gender: '거세', 
+    grade: '1++A(9)', 
+    monthAge: 35,
+    backFat: 16, 
+    eyeMuscle: 99, 
+    fatMarbling: 9,
+    meatColor: 5, 
+    fatColor: 3, 
+    texture: 1, 
+    maturity: 2, 
+    traceNo: '1512-9935-3',
+    slaughterHouse: '음성',
+    slaughterDate: "26.01.16",
+    slaughterNo: '208',
+    carcassWeight: 535, 
+    company: '정직한고기',
+    processDate: "26.01.17",
+    processWeight: 321,
+    status: '승인',
   },
 ];
 
@@ -270,7 +370,7 @@ export default function AuctionsListPage() {
 
   // 상장번호 생성
   const generateListingNo = (auctionNo: string, partIndex: number) => {
-    return `${auctionNo}-${String(partIndex + 1).padStart(4, '0')}`;
+    return `${auctionNo}-${String(partIndex + 1).padStart(2, '0')}`;
   };
 
   // 엑셀 다운로드 함수
@@ -396,14 +496,14 @@ export default function AuctionsListPage() {
             <button
               type="button"
               onClick={() => setCurrentPage(1)}
-              className="px-4 py-1.5 bg-red-600 text-white rounded text-xs hover:bg-red-700"
+              className="px-4 py-1.5 bg-gray-700 text-white rounded text-xs hover:bg-gray-800"
             >
               검색
             </button>
             <button
               type="button"
               onClick={handleExcelDownload}
-              className="flex items-center gap-1.5 px-4 py-1.5 bg-green-600 text-white rounded text-xs hover:bg-green-700"
+              className="flex items-center gap-1.5 px-4 py-1.5 bg-gray-700 text-white rounded text-xs hover:bg-gray-800"
             >
               <Download className="w-3.5 h-3.5" />
               엑셀
@@ -413,7 +513,7 @@ export default function AuctionsListPage() {
       </div>
 
       {/* 테이블 */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+      <div className="bg-white shadow-sm border border-gray-100 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gray-50 border-b border-gray-100">
@@ -483,7 +583,7 @@ export default function AuctionsListPage() {
                           e.stopPropagation(); 
                           setPhotoModalAuction(auction);
                         }}
-                        className="px-2 py-0.5 text-xs font-medium text-white bg-blue-500 rounded hover:bg-blue-600 transition-colors"
+                        className="px-2 py-0.5 text-xs font-medium text-white bg-gray-700 rounded hover:bg-gray-800 transition-colors"
                       >
                         보기
                       </button>
@@ -506,12 +606,12 @@ export default function AuctionsListPage() {
                   {/* 확장된 부위 테이블 */}
                   {expandedId === auction.id && (
                     <tr>
-                      <td colSpan={23} className="px-4 py-4 bg-gray-50">
+                      <td colSpan={23} className="px-4 py-4 bg-white">
                         <div className="grid grid-cols-3 gap-4">
                           {/* 3열로 부위 데이터 표시 */}
                           {[0, 1, 2].map((colIndex) => (
                             <table key={colIndex} className="w-full bg-white border border-gray-200">
-                              <thead className="bg-gray-100">
+                              <thead className="bg-gray-50">
                                 <tr>
                                   <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 border-r border-gray-200">상장번호</th>
                                   <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 border-r border-gray-200">부위</th>
@@ -550,7 +650,7 @@ export default function AuctionsListPage() {
                                       </td>
                                       <td className="px-2 py-2 text-xs text-center">
                                         {part.bidPrice ? (
-                                          <span className="text-red-600 font-medium">{part.bidPrice.toLocaleString()}</span>
+                                          <span className="text-gray-900 font-medium">{part.bidPrice.toLocaleString()}</span>
                                         ) : (
                                           <span className="text-gray-400">-</span>
                                         )}
@@ -582,7 +682,7 @@ export default function AuctionsListPage() {
                                 alert('삭제되었습니다.');
                               }
                             }}
-                            className="px-4 py-1.5 text-xs font-medium text-white bg-red-600 rounded hover:bg-red-700 transition-colors"
+                            className="px-4 py-1.5 text-xs font-medium text-white bg-gray-700 rounded hover:bg-gray-800 transition-colors"
                           >
                             삭제
                           </button>
@@ -605,7 +705,7 @@ export default function AuctionsListPage() {
             <button
               onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
               disabled={currentPage === 1}
-              className="p-2 border border-gray-100 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed bg-white"
+              className="p-2 border border-gray-100 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed bg-white"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
@@ -613,9 +713,9 @@ export default function AuctionsListPage() {
               <button
                 key={page}
                 onClick={() => setCurrentPage(page)}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                className={`px-3 py-1.5 text-sm font-medium transition-colors ${
                   currentPage === page
-                    ? 'bg-red-600 text-white'
+                    ? 'bg-gray-700 text-white'
                     : 'text-gray-600 hover:bg-gray-100'
                 }`}
               >
@@ -625,7 +725,7 @@ export default function AuctionsListPage() {
             <button
               onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
               disabled={currentPage === totalPages}
-              className="p-2 border border-gray-100 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed bg-white"
+              className="p-2 border border-gray-100 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed bg-white"
             >
               <ChevronRight className="w-4 h-4" />
             </button>
@@ -643,7 +743,7 @@ export default function AuctionsListPage() {
           />
           
           {/* 모달 컨텐츠 */}
-          <div className="relative bg-white rounded-xl shadow-2xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-hidden">
+          <div className="relative bg-white shadow-2xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-hidden">
             {/* 헤더 */}
             <div className="flex items-center justify-between p-4 border-b border-gray-100">
               <div>
@@ -654,7 +754,7 @@ export default function AuctionsListPage() {
               </div>
               <button
                 onClick={() => setPhotoModalAuction(null)}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                className="p-2 hover:bg-gray-100 transition-colors"
               >
                 <X className="w-5 h-5 text-gray-500" />
               </button>
@@ -669,7 +769,7 @@ export default function AuctionsListPage() {
                   <img 
                     src="/등심1.png" 
                     alt="등심1"
-                    className="w-full h-40 object-cover rounded-lg border border-gray-200"
+                    className="w-full h-40 object-cover border border-gray-200"
                   />
                 </div>
                 <div className="space-y-2">
@@ -677,7 +777,7 @@ export default function AuctionsListPage() {
                   <img 
                     src="/등심2.png" 
                     alt="등심2"
-                    className="w-full h-40 object-cover rounded-lg border border-gray-200"
+                    className="w-full h-40 object-cover border border-gray-200"
                   />
                 </div>
                 <div className="space-y-2">
@@ -685,7 +785,7 @@ export default function AuctionsListPage() {
                   <img 
                     src="/등심3.png" 
                     alt="등심3"
-                    className="w-full h-40 object-cover rounded-lg border border-gray-200"
+                    className="w-full h-40 object-cover border border-gray-200"
                   />
                 </div>
                 <div className="space-y-2">
@@ -693,7 +793,7 @@ export default function AuctionsListPage() {
                   <img 
                     src="/등심4.png" 
                     alt="등심4"
-                    className="w-full h-40 object-cover rounded-lg border border-gray-200"
+                    className="w-full h-40 object-cover border border-gray-200"
                   />
                 </div>
               </div>
@@ -703,7 +803,7 @@ export default function AuctionsListPage() {
             <div className="p-4 border-t border-gray-100 flex justify-end">
               <button
                 onClick={() => setPhotoModalAuction(null)}
-                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium"
+                className="px-4 py-2 bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors text-sm font-medium"
               >
                 닫기
               </button>

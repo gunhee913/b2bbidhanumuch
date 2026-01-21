@@ -2,7 +2,7 @@
 
 import React, { useState, useRef } from 'react';
 import AdminLayout from '@/components/admin/AdminLayout';
-import { Save, Upload, X, Calendar, Plus, ChevronDown, ChevronUp, Trash2, Download, FileSpreadsheet } from 'lucide-react';
+import { Save, Upload, X, Plus, ChevronDown, ChevronUp, Trash2, Download, FileSpreadsheet } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import * as XLSX from 'xlsx';
 
@@ -15,20 +15,6 @@ const hideSpinnerStyle = `
   }
   input[type="number"] {
     -moz-appearance: textfield;
-  }
-  input[type="date"]::-webkit-calendar-picker-indicator {
-    display: none !important;
-    -webkit-appearance: none;
-    width: 0;
-    height: 0;
-    margin: 0;
-    padding: 0;
-  }
-  input[type="date"]::-webkit-inner-spin-button {
-    display: none;
-  }
-  input[type="date"]::-webkit-clear-button {
-    display: none;
   }
 `;
 
@@ -147,9 +133,6 @@ export default function NewAuctionPage() {
   const [listingDate, setListingDate] = useState(tomorrowDateString);
   const [company, setCompany] = useState('');
   
-  // 날짜 입력 ref
-  const listingDateRef = useRef<HTMLInputElement>(null);
-  
   // 개체 목록
   const [cattleList, setCattleList] = useState<CattleData[]>([
     createNewCattle(1, '1')
@@ -182,7 +165,7 @@ export default function NewAuctionPage() {
     const basePrefix = COMPANY_PREFIX[company] || '100';
     const prefixBase = basePrefix.charAt(0);
     const seq = String(seqNo || '1').padStart(2, '0');
-    return `${dateCode}-${prefixBase}${seq}-${String(partIndex + 1).padStart(4, '0')}`;
+    return `${dateCode}-${prefixBase}${seq}-${String(partIndex + 1).padStart(2, '0')}`;
   };
 
   // 이력번호 포맷팅
@@ -433,7 +416,8 @@ export default function NewAuctionPage() {
   // 공통 스타일
   const thClass = "px-2 py-2 text-xs font-medium text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50 text-center";
   const tdClass = "px-2 py-2 text-xs border border-gray-200 text-center";
-  const selectClass = "w-full px-2 py-1 border border-gray-200 rounded text-xs text-center focus:ring-1 focus:ring-red-500 focus:border-red-500 outline-none bg-white";
+  const selectClass = "w-full px-2 py-1 border border-gray-200 text-xs text-center outline-none bg-white";
+  const inputClass = "px-2 py-1 border border-gray-200 text-xs text-center outline-none bg-white";
 
   return (
     <AdminLayout>
@@ -442,32 +426,25 @@ export default function NewAuctionPage() {
       <div className="mb-4 flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">부분육상장등록</h1>
         <div className="flex items-center gap-2 text-sm text-gray-600">
-          <span className="text-red-600 font-medium">{cattleList.length}두</span>
+          <span className="font-medium text-gray-900">{cattleList.length}두</span>
           <span>/ 최대 10두</span>
         </div>
       </div>
 
       <form onSubmit={handleSubmit}>
         {/* 공통 정보 */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4 mb-4">
+        <div className="bg-white shadow-sm border border-gray-100 p-4 mb-4">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="flex flex-wrap items-center gap-4">
               <div className="flex items-center gap-2">
                 <span className="text-sm font-medium text-gray-600">상장일자</span>
-                <div className="relative">
-                  <input
-                    ref={listingDateRef}
-                    type="date"
-                    value={listingDate}
-                    onChange={(e) => setListingDate(e.target.value)}
-                    required
-                    className="w-36 pl-3 pr-8 py-1.5 border border-gray-200 rounded text-xs outline-none bg-white"
-                  />
-                  <Calendar 
-                    className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 cursor-pointer hover:text-gray-600" 
-                    onClick={() => listingDateRef.current?.showPicker()}
-                  />
-                </div>
+                <input
+                  type="date"
+                  value={listingDate}
+                  onChange={(e) => setListingDate(e.target.value)}
+                  required
+                  className="px-3 py-1.5 border border-gray-200 text-xs outline-none bg-white"
+                />
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-sm font-medium text-gray-600">상장업체</span>
@@ -475,7 +452,7 @@ export default function NewAuctionPage() {
                   value={company}
                   onChange={(e) => setCompany(e.target.value)}
                   required
-                  className="px-3 py-1.5 border border-gray-200 rounded text-xs outline-none bg-white min-w-[120px]"
+                  className="px-3 py-1.5 border border-gray-200 text-xs outline-none bg-white min-w-[120px]"
                 >
                   <option value="">선택</option>
                   <option value="건화">건화</option>
@@ -486,12 +463,12 @@ export default function NewAuctionPage() {
               </div>
             </div>
             
-            {/* 엑셀 업로드/다운로드 버튼 */}
+            {/* 엑셀 업로드/다운로드 및 등록 버튼 */}
             <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={downloadExcelTemplate}
-                className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 text-gray-600 rounded text-xs hover:bg-gray-50"
+                className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 text-gray-600 text-xs hover:bg-gray-50"
               >
                 <Download className="w-3.5 h-3.5" />
                 템플릿 다운로드
@@ -499,7 +476,7 @@ export default function NewAuctionPage() {
               <button
                 type="button"
                 onClick={() => excelInputRef.current?.click()}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 text-white rounded text-xs hover:bg-green-700"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-600 text-white text-xs hover:bg-gray-700"
               >
                 <FileSpreadsheet className="w-3.5 h-3.5" />
                 엑셀 업로드
@@ -511,26 +488,43 @@ export default function NewAuctionPage() {
                 onChange={handleExcelUpload}
                 className="hidden"
               />
+              <button 
+                type="submit" 
+                disabled={isSubmitting} 
+                className="flex items-center gap-1.5 px-4 py-1.5 bg-gray-700 text-white text-xs hover:bg-gray-800 disabled:opacity-50"
+              >
+                {isSubmitting ? (
+                  <>
+                    <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    등록 중...
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-3.5 h-3.5" />
+                    {cattleList.length}두 일괄 등록
+                  </>
+                )}
+              </button>
             </div>
           </div>
         </div>
 
         {/* 개체 목록 */}
         {cattleList.map((cattle, cattleIndex) => (
-          <div key={cattle.id} className="bg-white rounded-lg shadow-sm border border-gray-100 mb-4 overflow-hidden">
+          <div key={cattle.id} className="bg-white shadow-sm border border-gray-100 mb-4 overflow-hidden">
             {/* 개체 헤더 */}
             <div 
               className="flex items-center justify-between px-4 py-3 bg-gray-50 border-b border-gray-200 cursor-pointer"
               onClick={() => toggleExpand(cattle.id)}
             >
               <div className="flex items-center gap-3">
-                <span className="flex items-center justify-center w-7 h-7 bg-red-600 text-white rounded-full text-sm font-bold">
+                <span className="flex items-center justify-center w-7 h-7 bg-gray-700 text-white text-sm font-bold">
                   {cattleIndex + 1}
                 </span>
                 <span className="font-medium text-gray-900">
                   {cattle.gender || '성별'} / {cattle.grade || '등급'}{cattle.marbling ? `(${cattle.marbling})` : ''} / {cattle.traceNo || '이력번호'}
                 </span>
-                <span className="text-xs text-gray-500 bg-gray-200 px-2 py-0.5 rounded">
+                <span className="text-xs text-gray-500 bg-gray-200 px-2 py-0.5">
                   접수번호: {getAuctionNo(cattle.seqNo)}
                 </span>
               </div>
@@ -539,7 +533,7 @@ export default function NewAuctionPage() {
                   <button
                     type="button"
                     onClick={(e) => { e.stopPropagation(); removeCattle(cattle.id); }}
-                    className="flex items-center gap-1 px-2 py-1 text-xs text-red-600 hover:text-red-700"
+                    className="flex items-center gap-1 px-2 py-1 text-xs text-gray-600 hover:text-gray-800"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                     삭제
@@ -571,7 +565,7 @@ export default function NewAuctionPage() {
                     <tbody>
                       <tr>
                         <td className={`${tdClass} font-medium bg-gray-50`}>{cattle.seqNo}</td>
-                        <td className={`${tdClass} font-medium text-gray-900 bg-blue-50`}>{getAuctionNo(cattle.seqNo)}</td>
+                        <td className={`${tdClass} font-medium text-gray-900 bg-gray-100`}>{getAuctionNo(cattle.seqNo)}</td>
                         <td className={tdClass}>
                           <select value={cattle.breed} onChange={(e) => updateCattle(cattle.id, 'breed', e.target.value)} className={selectClass}>
                             <option value="한우">한우</option>
@@ -605,13 +599,13 @@ export default function NewAuctionPage() {
                           </select>
                         </td>
                         <td className={tdClass}>
-                          <input type="number" value={cattle.monthAge} onChange={(e) => updateCattle(cattle.id, 'monthAge', e.target.value)} placeholder="32" required className="w-14 px-2 py-1 border border-gray-200 rounded text-xs text-center outline-none bg-white" />
+                          <input type="number" value={cattle.monthAge} onChange={(e) => updateCattle(cattle.id, 'monthAge', e.target.value)} placeholder="32" required className={`w-14 ${inputClass}`} />
                         </td>
                         <td className={tdClass}>
-                          <input type="number" value={cattle.carcassWeight} onChange={(e) => updateCattle(cattle.id, 'carcassWeight', e.target.value)} placeholder="520" required className="w-14 px-2 py-1 border border-gray-200 rounded text-xs text-center outline-none bg-white" />
+                          <input type="number" value={cattle.carcassWeight} onChange={(e) => updateCattle(cattle.id, 'carcassWeight', e.target.value)} placeholder="520" required className={`w-14 ${inputClass}`} />
                         </td>
                         <td className={tdClass}>
-                          <input type="text" value={cattle.traceNo} onChange={(e) => updateCattle(cattle.id, 'traceNo', e.target.value)} placeholder="0000-0000-0" maxLength={11} required className="w-28 px-2 py-1 border border-gray-200 rounded text-xs text-center outline-none bg-white" />
+                          <input type="text" value={cattle.traceNo} onChange={(e) => updateCattle(cattle.id, 'traceNo', e.target.value)} placeholder="0000-0000-0" maxLength={11} required className={`w-28 ${inputClass}`} />
                         </td>
                       </tr>
                     </tbody>
@@ -640,58 +634,54 @@ export default function NewAuctionPage() {
                     <tbody>
                       <tr>
                         <td className={tdClass}>
-                          <input type="number" value={cattle.backFat} onChange={(e) => updateCattle(cattle.id, 'backFat', e.target.value)} placeholder="15" required className="w-12 px-2 py-1 border border-gray-200 rounded text-xs text-center outline-none bg-white" />
+                          <input type="number" value={cattle.backFat} onChange={(e) => updateCattle(cattle.id, 'backFat', e.target.value)} placeholder="15" required className={`w-12 ${inputClass}`} />
                         </td>
                         <td className={tdClass}>
-                          <input type="number" value={cattle.eyeMuscle} onChange={(e) => updateCattle(cattle.id, 'eyeMuscle', e.target.value)} placeholder="98" required className="w-12 px-2 py-1 border border-gray-200 rounded text-xs text-center outline-none bg-white" />
+                          <input type="number" value={cattle.eyeMuscle} onChange={(e) => updateCattle(cattle.id, 'eyeMuscle', e.target.value)} placeholder="98" required className={`w-12 ${inputClass}`} />
                         </td>
                         <td className={tdClass}>
-                          <input type="number" value={cattle.fatMarbling} onChange={(e) => updateCattle(cattle.id, 'fatMarbling', e.target.value)} placeholder="9" required className="w-12 px-2 py-1 border border-gray-200 rounded text-xs text-center outline-none bg-white" />
+                          <input type="number" value={cattle.fatMarbling} onChange={(e) => updateCattle(cattle.id, 'fatMarbling', e.target.value)} placeholder="9" required className={`w-12 ${inputClass}`} />
                         </td>
                         <td className={tdClass}>
-                          <input type="number" value={cattle.meatColor} onChange={(e) => updateCattle(cattle.id, 'meatColor', e.target.value)} placeholder="5" required className="w-12 px-2 py-1 border border-gray-200 rounded text-xs text-center outline-none bg-white" />
+                          <input type="number" value={cattle.meatColor} onChange={(e) => updateCattle(cattle.id, 'meatColor', e.target.value)} placeholder="5" required className={`w-12 ${inputClass}`} />
                         </td>
                         <td className={tdClass}>
-                          <input type="number" value={cattle.fatColor} onChange={(e) => updateCattle(cattle.id, 'fatColor', e.target.value)} placeholder="3" required className="w-12 px-2 py-1 border border-gray-200 rounded text-xs text-center outline-none bg-white" />
+                          <input type="number" value={cattle.fatColor} onChange={(e) => updateCattle(cattle.id, 'fatColor', e.target.value)} placeholder="3" required className={`w-12 ${inputClass}`} />
                         </td>
                         <td className={tdClass}>
-                          <input type="number" value={cattle.texture} onChange={(e) => updateCattle(cattle.id, 'texture', e.target.value)} placeholder="1" required className="w-12 px-2 py-1 border border-gray-200 rounded text-xs text-center outline-none bg-white" />
+                          <input type="number" value={cattle.texture} onChange={(e) => updateCattle(cattle.id, 'texture', e.target.value)} placeholder="1" required className={`w-12 ${inputClass}`} />
                         </td>
                         <td className={tdClass}>
-                          <input type="number" value={cattle.maturity} onChange={(e) => updateCattle(cattle.id, 'maturity', e.target.value)} placeholder="2" required className="w-12 px-2 py-1 border border-gray-200 rounded text-xs text-center outline-none bg-white" />
+                          <input type="number" value={cattle.maturity} onChange={(e) => updateCattle(cattle.id, 'maturity', e.target.value)} placeholder="2" required className={`w-12 ${inputClass}`} />
                         </td>
                         <td className={tdClass}>
-                          <select value={cattle.slaughterHouse} onChange={(e) => updateCattle(cattle.id, 'slaughterHouse', e.target.value)} className="w-14 px-1 py-1 border border-gray-200 rounded text-xs text-center outline-none bg-white">
+                          <select value={cattle.slaughterHouse} onChange={(e) => updateCattle(cattle.id, 'slaughterHouse', e.target.value)} className={`w-14 ${selectClass}`}>
                             <option value="음성">음성</option>
                           </select>
                         </td>
                         <td className={tdClass}>
-                          <div className="relative inline-flex items-center">
-                            <input 
-                              type="date" 
-                              value={cattle.slaughterDate} 
-                              onChange={(e) => updateCattle(cattle.id, 'slaughterDate', e.target.value)} 
-                              required 
-                              className="w-36 pl-3 pr-2 py-1 border border-gray-200 rounded text-xs outline-none bg-white" 
-                            />
-                          </div>
+                          <input 
+                            type="date" 
+                            value={cattle.slaughterDate} 
+                            onChange={(e) => updateCattle(cattle.id, 'slaughterDate', e.target.value)} 
+                            required 
+                            className={`w-36 ${inputClass}`} 
+                          />
                         </td>
                         <td className={tdClass}>
-                          <input type="text" value={cattle.slaughterNo} onChange={(e) => updateCattle(cattle.id, 'slaughterNo', e.target.value)} placeholder="201" required className="w-14 px-2 py-1 border border-gray-200 rounded text-xs text-center outline-none bg-white" />
+                          <input type="text" value={cattle.slaughterNo} onChange={(e) => updateCattle(cattle.id, 'slaughterNo', e.target.value)} placeholder="201" required className={`w-14 ${inputClass}`} />
                         </td>
                         <td className={tdClass}>
-                          <div className="relative inline-flex items-center">
-                            <input 
-                              type="date" 
-                              value={cattle.processDate} 
-                              onChange={(e) => updateCattle(cattle.id, 'processDate', e.target.value)} 
-                              required 
-                              className="w-36 pl-3 pr-2 py-1 border border-gray-200 rounded text-xs outline-none bg-white" 
-                            />
-                          </div>
+                          <input 
+                            type="date" 
+                            value={cattle.processDate} 
+                            onChange={(e) => updateCattle(cattle.id, 'processDate', e.target.value)} 
+                            required 
+                            className={`w-36 ${inputClass}`} 
+                          />
                         </td>
                         <td className={tdClass}>
-                          <input type="number" value={cattle.processWeight} onChange={(e) => updateCattle(cattle.id, 'processWeight', e.target.value)} placeholder="312" required className="w-14 px-2 py-1 border border-gray-200 rounded text-xs text-center outline-none bg-white" />
+                          <input type="number" value={cattle.processWeight} onChange={(e) => updateCattle(cattle.id, 'processWeight', e.target.value)} placeholder="312" required className={`w-14 ${inputClass}`} />
                         </td>
                       </tr>
                     </tbody>
@@ -743,7 +733,7 @@ export default function NewAuctionPage() {
                                     placeholder="0.0"
                                     required
                                     step="0.1"
-                                    className="w-16 px-1 py-1 border border-gray-200 rounded text-xs text-center outline-none bg-white"
+                                    className={`w-16 ${inputClass}`}
                                   />
                                 </td>
                                 <td className={tdClass}>
@@ -753,7 +743,7 @@ export default function NewAuctionPage() {
                                     onChange={(e) => updatePart(cattle.id, part.id, 'minPrice', e.target.value)}
                                     placeholder="0"
                                     required
-                                    className="w-20 px-1 py-1 border border-gray-200 rounded text-xs text-center outline-none bg-white"
+                                    className={`w-20 ${inputClass}`}
                                   />
                                 </td>
                               </React.Fragment>
@@ -769,15 +759,15 @@ export default function NewAuctionPage() {
                 <div className="flex items-center gap-3 pt-2">
                   <span className="text-xs font-medium text-gray-600">사진:</span>
                   {cattle.images.map((img, index) => (
-                    <div key={index} className="relative w-14 h-14 rounded border border-gray-200 overflow-hidden">
+                    <div key={index} className="relative w-14 h-14 border border-gray-200 overflow-hidden">
                       <img src={img} alt={`상품 ${index + 1}`} className="w-full h-full object-cover" />
-                      <button type="button" onClick={() => removeImage(cattle.id, index)} className="absolute top-0.5 right-0.5 p-0.5 bg-black/50 rounded-full text-white hover:bg-black/70">
+                      <button type="button" onClick={() => removeImage(cattle.id, index)} className="absolute top-0.5 right-0.5 p-0.5 bg-black/50 text-white hover:bg-black/70">
                         <X className="w-2.5 h-2.5" />
                       </button>
                     </div>
                   ))}
                   {cattle.images.length < 4 && (
-                    <button type="button" onClick={() => handleImageUpload(cattle.id)} className="w-14 h-14 rounded border-2 border-dashed border-gray-200 flex flex-col items-center justify-center text-gray-400 hover:border-red-400 hover:text-red-500 transition-colors">
+                    <button type="button" onClick={() => handleImageUpload(cattle.id)} className="w-14 h-14 border-2 border-dashed border-gray-300 flex flex-col items-center justify-center text-gray-400 hover:border-gray-500 hover:text-gray-500 transition-colors">
                       <Upload className="w-3.5 h-3.5" />
                       <span className="text-[9px] mt-0.5">추가</span>
                     </button>
@@ -793,33 +783,13 @@ export default function NewAuctionPage() {
           <button
             type="button"
             onClick={addCattle}
-            className="w-full py-3 border-2 border-dashed border-gray-300 rounded-lg text-gray-500 hover:border-red-400 hover:text-red-500 transition-colors flex items-center justify-center gap-2 mb-4"
+            className="w-full py-3 border-2 border-dashed border-gray-300 text-gray-500 hover:border-gray-500 hover:text-gray-600 transition-colors flex items-center justify-center gap-2 mb-4"
           >
             <Plus className="w-5 h-5" />
             <span className="font-medium">개체 추가</span>
           </button>
         )}
 
-        {/* 제출 버튼 */}
-        <div className="flex items-center justify-end gap-3 mt-6">
-          <button 
-            type="submit" 
-            disabled={isSubmitting} 
-            className="inline-flex items-center gap-2 px-8 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium disabled:opacity-50"
-          >
-            {isSubmitting ? (
-              <>
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                등록 중...
-              </>
-            ) : (
-              <>
-                <Save className="w-4 h-4" />
-                {cattleList.length}두 일괄 등록
-              </>
-            )}
-          </button>
-        </div>
       </form>
     </AdminLayout>
   );

@@ -4,7 +4,6 @@ import React, { useState } from 'react';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { 
   Download,
-  Calendar,
   Printer,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
@@ -145,18 +144,9 @@ export default function DealerSettlementsPage() {
   const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
   
   const [settlements] = useState<DealerSettlement[]>(generateDummyData());
-  const [expandedDealers, setExpandedDealers] = useState<string[]>([]);
   const [dealerFilter, setDealerFilter] = useState('all');
   const [startDate, setStartDate] = useState(todayStr);
   const [endDate, setEndDate] = useState(todayStr);
-
-  const toggleDealer = (dealerId: string) => {
-    setExpandedDealers(prev =>
-      prev.includes(dealerId)
-        ? prev.filter(id => id !== dealerId)
-        : [...prev, dealerId]
-    );
-  };
 
   const filteredSettlements = settlements.filter(s => 
     dealerFilter === 'all' || s.id === dealerFilter
@@ -216,10 +206,8 @@ export default function DealerSettlementsPage() {
           th, td { border: 1px solid #ccc; padding: 2px 4px; text-align: center; font-size: 8px; }
           th { background: #f5f5f5; font-weight: 600; }
           .text-right { text-align: right; }
-          .text-red { color: #dc2626; }
-          .text-blue { color: #2563eb; }
           .font-bold { font-weight: bold; }
-          .subtotal-row { background: #e8f4fc; font-weight: 600; }
+          .subtotal-row { border-top: 2px solid #333; font-weight: 600; }
           @media print {
             @page { size: A4; margin: 5mm; }
             body { padding: 0; }
@@ -228,7 +216,7 @@ export default function DealerSettlementsPage() {
         </style>
       </head>
       <body>
-        <h1>정 산 서 (중도매인별)</h1>
+        <h1>낙 찰 서 (중도매인별)</h1>
         <div class="main-header">
           <div>
             <p>정산일: ${new Date().toLocaleDateString('ko-KR')}</p>
@@ -236,7 +224,7 @@ export default function DealerSettlementsPage() {
           </div>
           <div class="summary">
             <p>총 ${totalParts}건</p>
-            <p class="font-bold text-blue">낙찰금액: ${totalAmount.toLocaleString()}원</p>
+            <p class="font-bold">낙찰금액: ${totalAmount.toLocaleString()}원</p>
           </div>
         </div>
         
@@ -289,7 +277,7 @@ export default function DealerSettlementsPage() {
     printWindow.document.close();
   };
 
-  const thClass = "px-2 py-1.5 text-xs font-medium text-gray-700 whitespace-nowrap border border-gray-200 bg-gray-100 text-center";
+  const thClass = "px-2 py-1.5 text-xs font-medium text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50 text-center";
   const tdClass = "px-2 py-1.5 text-xs border border-gray-200 text-center whitespace-nowrap";
 
   return (
@@ -299,14 +287,14 @@ export default function DealerSettlementsPage() {
       </div>
 
       {/* 필터 */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4 mb-4">
+      <div className="bg-white shadow-sm border border-gray-100 p-4 mb-4">
         <div className="flex flex-wrap items-center gap-4">
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium text-gray-600">중도매인</span>
             <select
               value={dealerFilter}
               onChange={(e) => setDealerFilter(e.target.value)}
-              className="px-3 py-1.5 border border-gray-200 rounded text-xs outline-none bg-white min-w-[120px]"
+              className="px-3 py-1.5 border border-gray-200 text-xs outline-none bg-white min-w-[120px]"
             >
               <option value="all">전체</option>
               {settlements.map(s => (
@@ -317,25 +305,19 @@ export default function DealerSettlementsPage() {
 
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium text-gray-600">기간</span>
-            <div className="relative">
-              <input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="px-3 py-1.5 border border-gray-200 rounded text-xs outline-none bg-white w-32"
-              />
-              <Calendar className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
-            </div>
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="px-3 py-1.5 border border-gray-200 text-xs outline-none bg-white"
+            />
             <span className="text-gray-400">~</span>
-            <div className="relative">
-              <input
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="px-3 py-1.5 border border-gray-200 rounded text-xs outline-none bg-white w-32"
-              />
-              <Calendar className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
-            </div>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="px-3 py-1.5 border border-gray-200 text-xs outline-none bg-white"
+            />
           </div>
 
           <div className="flex items-center gap-2 ml-auto">
@@ -346,14 +328,14 @@ export default function DealerSettlementsPage() {
                 setStartDate(todayStr);
                 setEndDate(todayStr);
               }}
-              className="px-4 py-1.5 border border-gray-200 text-gray-600 rounded text-xs hover:bg-gray-50"
+              className="px-4 py-1.5 border border-gray-300 text-gray-600 text-xs hover:bg-gray-50"
             >
               초기화
             </button>
             <button
               type="button"
               onClick={handleExcelDownload}
-              className="flex items-center gap-1.5 px-4 py-1.5 bg-green-600 text-white rounded text-xs hover:bg-green-700"
+              className="flex items-center gap-1.5 px-4 py-1.5 bg-gray-600 text-white text-xs hover:bg-gray-700"
             >
               <Download className="w-3.5 h-3.5" />
               엑셀
@@ -361,7 +343,7 @@ export default function DealerSettlementsPage() {
             <button
               type="button"
               onClick={handlePrint}
-              className="flex items-center gap-1.5 px-4 py-1.5 bg-gray-600 text-white rounded text-xs hover:bg-gray-700"
+              className="flex items-center gap-1.5 px-4 py-1.5 bg-gray-700 text-white text-xs hover:bg-gray-800"
             >
               <Printer className="w-3.5 h-3.5" />
               인쇄
@@ -404,31 +386,31 @@ export default function DealerSettlementsPage() {
                     <td className={`${tdClass} text-right`}>{part.unitPrice.toLocaleString()}</td>
                     <td className={`${tdClass} text-right`}>{part.amount.toLocaleString()}</td>
                     <td className={`${tdClass} text-gray-400`}>{partIdx === 0 ? '-' : ''}</td>
-                    <td className={`${tdClass} text-right font-semibold text-blue-600`}>
+                    <td className={`${tdClass} text-right font-semibold`}>
                       {partIdx === 0 ? settlement.netPayment.toLocaleString() : ''}
                     </td>
                   </tr>
                 ))}
                 {/* 중도매인별 소계 */}
-                <tr className="bg-blue-50 font-semibold">
+                <tr className="font-semibold border-t-2 border-gray-300">
                   <td className={`${tdClass} text-left`} colSpan={3}>{settlement.dealerName} 소계 ({settlement.bidParts.length}건)</td>
                   <td className={tdClass} colSpan={3}></td>
                   <td className={`${tdClass} text-right`}>{settlement.totalWeight.toFixed(1)}</td>
                   <td className={tdClass}></td>
                   <td className={`${tdClass} text-right`}>{settlement.totalAmount.toLocaleString()}</td>
                   <td className={`${tdClass} text-gray-400`}>-</td>
-                  <td className={`${tdClass} text-right text-blue-600`}>{settlement.netPayment.toLocaleString()}</td>
+                  <td className={`${tdClass} text-right`}>{settlement.netPayment.toLocaleString()}</td>
                 </tr>
                 {/* 중도매인 구분선 */}
                 {sIdx < filteredSettlements.length - 1 && (
                   <tr>
-                    <td colSpan={11} className="h-2 bg-gray-200"></td>
+                    <td colSpan={11} className="h-2 bg-gray-100"></td>
                   </tr>
                 )}
               </React.Fragment>
             ))}
             {/* 전체 합계 */}
-            <tr className="bg-gray-100 font-bold">
+            <tr className="font-bold border-t-2 border-gray-400">
               <td className={`${tdClass} text-left`} colSpan={3}>
                 전체 합계 ({filteredSettlements.reduce((sum, s) => sum + s.bidParts.length, 0)}건)
               </td>
@@ -441,7 +423,7 @@ export default function DealerSettlementsPage() {
                 {filteredSettlements.reduce((sum, s) => sum + s.totalAmount, 0).toLocaleString()}
               </td>
               <td className={`${tdClass} text-gray-400`}>-</td>
-              <td className={`${tdClass} text-right text-blue-600`}>
+              <td className={`${tdClass} text-right`}>
                 {filteredSettlements.reduce((sum, s) => sum + s.netPayment, 0).toLocaleString()}
               </td>
             </tr>

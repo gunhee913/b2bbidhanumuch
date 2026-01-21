@@ -186,14 +186,14 @@ export default function AuctionResultsPage() {
             </button>
             <button
               type="button"
-              className="px-4 py-1.5 bg-red-600 text-white rounded text-xs hover:bg-red-700"
+              className="px-4 py-1.5 bg-gray-700 text-white rounded text-xs hover:bg-gray-800"
             >
               검색
             </button>
             <button
               type="button"
               onClick={handleExcelDownload}
-              className="flex items-center gap-1.5 px-4 py-1.5 bg-green-600 text-white rounded text-xs hover:bg-green-700"
+              className="flex items-center gap-1.5 px-4 py-1.5 bg-gray-700 text-white rounded text-xs hover:bg-gray-800"
             >
               <Download className="w-3.5 h-3.5" />
               엑셀
@@ -211,15 +211,15 @@ export default function AuctionResultsPage() {
           </div>
           <div className="flex items-center gap-2">
             <span className="text-sm text-gray-500">총 낙찰</span>
-            <span className="text-sm font-semibold text-green-600">{resultData['합계']['합계'].awarded}건</span>
+            <span className="text-sm font-semibold text-gray-900">{resultData['합계']['합계'].awarded}건</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-sm text-gray-500">총 유찰</span>
-            <span className="text-sm font-semibold text-orange-500">{resultData['합계']['합계'].listed - resultData['합계']['합계'].awarded}건</span>
+            <span className="text-sm font-semibold text-gray-900">{resultData['합계']['합계'].listed - resultData['합계']['합계'].awarded}건</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-sm text-gray-500">평균 낙찰률</span>
-            <span className="text-sm font-semibold text-red-600">{resultData['합계']['합계'].rate}%</span>
+            <span className="text-sm font-semibold text-gray-900">{resultData['합계']['합계'].rate}%</span>
           </div>
         </div>
       </div>
@@ -230,18 +230,18 @@ export default function AuctionResultsPage() {
           <table className="w-full border-collapse">
             <thead className="bg-gray-50">
               <tr>
-                <th rowSpan={2} className={`${thClass} bg-gray-100 min-w-[80px]`}>부위</th>
+                <th rowSpan={2} className={`${thClass} bg-gray-50 min-w-[80px]`}>부위</th>
                 {COMPANIES.map(company => (
-                  <th key={company} colSpan={3} className={`${thClass} bg-gray-100`}>{company}</th>
+                  <th key={company} colSpan={3} className={`${thClass} bg-gray-50`}>{company}</th>
                 ))}
-                <th colSpan={3} className={`${thClass} bg-red-50 text-red-700`}>합계</th>
+                <th colSpan={3} className={`${thClass} bg-gray-100 font-bold`}>합계</th>
               </tr>
               <tr>
                 {[...COMPANIES, '합계'].map((company, idx) => (
                   <React.Fragment key={`header-${company}`}>
-                    <th className={`${thClass} ${idx === COMPANIES.length ? 'bg-red-50' : 'bg-gray-50'} min-w-[50px]`}>상장</th>
-                    <th className={`${thClass} ${idx === COMPANIES.length ? 'bg-red-50' : 'bg-gray-50'} min-w-[50px]`}>낙찰</th>
-                    <th className={`${thClass} ${idx === COMPANIES.length ? 'bg-red-50' : 'bg-gray-50'} min-w-[55px]`}>낙찰률</th>
+                    <th className={`${thClass} ${idx === COMPANIES.length ? 'bg-gray-100' : 'bg-gray-50'} min-w-[50px]`}>상장</th>
+                    <th className={`${thClass} ${idx === COMPANIES.length ? 'bg-gray-100' : 'bg-gray-50'} min-w-[50px]`}>낙찰</th>
+                    <th className={`${thClass} ${idx === COMPANIES.length ? 'bg-gray-100' : 'bg-gray-50'} min-w-[55px]`}>낙찰률</th>
                   </React.Fragment>
                 ))}
               </tr>
@@ -249,19 +249,17 @@ export default function AuctionResultsPage() {
             <tbody>
               {PARTS.map((part, partIdx) => (
                 <tr key={part} className="hover:bg-gray-50">
-                  <td className={`${tdClass} font-medium bg-gray-50`}>{part}</td>
+                  <td className={`${tdClass} font-medium bg-white`}>{part}</td>
                   {[...COMPANIES, '합계'].map((company, idx) => {
                     const d = resultData[part][company];
                     const isTotal = idx === COMPANIES.length;
                     return (
                       <React.Fragment key={`${part}-${company}`}>
-                        <td className={`${tdClass} ${isTotal ? 'bg-red-50/50 font-medium' : ''}`}>{d.listed}</td>
-                        <td className={`${tdClass} ${isTotal ? 'bg-red-50/50 font-medium' : ''} ${d.awarded > 0 ? 'text-green-600' : 'text-gray-400'}`}>
+                        <td className={`${tdClass} ${isTotal ? 'bg-gray-50 font-medium' : ''}`}>{d.listed}</td>
+                        <td className={`${tdClass} ${isTotal ? 'bg-gray-50 font-medium' : ''} ${d.awarded > 0 ? 'text-gray-900' : 'text-gray-400'}`}>
                           {d.awarded}
                         </td>
-                        <td className={`${tdClass} ${isTotal ? 'bg-red-50/50 font-medium' : ''} ${
-                          d.rate === 100 ? 'text-green-600' : d.rate === 0 ? 'text-orange-500' : 'text-gray-600'
-                        }`}>
+                        <td className={`${tdClass} ${isTotal ? 'bg-gray-50 font-medium' : ''} text-gray-600`}>
                           {d.rate}%
                         </td>
                       </React.Fragment>
@@ -270,16 +268,16 @@ export default function AuctionResultsPage() {
                 </tr>
               ))}
               {/* 합계 행 */}
-              <tr className="bg-red-50 font-semibold">
-                <td className={`${tdClass} font-bold bg-red-100`}>합계</td>
+              <tr className="bg-white font-semibold border-t-2 border-gray-200">
+                <td className={`${tdClass} font-bold bg-gray-50`}>합계</td>
                 {[...COMPANIES, '합계'].map((company, idx) => {
                   const d = resultData['합계'][company];
                   const isGrandTotal = idx === COMPANIES.length;
                   return (
                     <React.Fragment key={`total-${company}`}>
-                      <td className={`${tdClass} ${isGrandTotal ? 'bg-red-100' : ''}`}>{d.listed}</td>
-                      <td className={`${tdClass} ${isGrandTotal ? 'bg-red-100' : ''} text-green-600`}>{d.awarded}</td>
-                      <td className={`${tdClass} ${isGrandTotal ? 'bg-red-100 text-red-700' : ''}`}>{d.rate}%</td>
+                      <td className={`${tdClass} ${isGrandTotal ? 'bg-gray-100' : ''}`}>{d.listed}</td>
+                      <td className={`${tdClass} ${isGrandTotal ? 'bg-gray-100' : ''} text-gray-900`}>{d.awarded}</td>
+                      <td className={`${tdClass} ${isGrandTotal ? 'bg-gray-100 font-bold' : ''}`}>{d.rate}%</td>
                     </React.Fragment>
                   );
                 })}

@@ -345,7 +345,7 @@ export default function AuctionDetailPage({ params }: PageProps) {
     const id = parseInt(auctionId);
     const baseOffset = (id - 1) * 20; // 개체별 기본 오프셋
     const listingSeq = baseOffset + partIndex + 1; // 1부터 시작
-    return `${getTodayDateCode()}-${String(id).padStart(3, '0')}-${String(listingSeq).padStart(4, '0')}`;
+    return `${getTodayDateCode()}-${String(id).padStart(3, '0')}-${String(listingSeq).padStart(2, '0')}`;
   };
 
   // 개체별 부위 중량 데이터 생성

@@ -46,7 +46,7 @@ const PARTS_DATA = [
 // 부위별 데이터 생성 함수
 const generateParts = (auctionId: string) => {
   return PARTS_DATA.map((item, index) => ({
-    listingNo: `${auctionId}-${String(index + 1).padStart(4, '0')}`,
+    listingNo: `${auctionId}-${String(index + 1).padStart(2, '0')}`,
     part: item.part,
     weight: `${item.weight}kg`,
     minPrice: item.minPrice,
@@ -80,12 +80,12 @@ function TodayAuctionTable() {
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-100">
+    <div className="bg-white shadow-sm border border-gray-100">
       <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
         <h3 className="font-semibold text-gray-900">오늘의 경매 상장 내역</h3>
         <Link 
           href="/admin/auctions"
-          className="p-1 bg-gray-800 text-white rounded hover:bg-gray-700 transition-colors"
+          className="p-1 bg-gray-700 text-white hover:bg-gray-800 transition-colors"
           title="전체보기"
         >
           <Plus className="w-3.5 h-3.5" />
@@ -93,25 +93,25 @@ function TodayAuctionTable() {
       </div>
       <div className="overflow-x-auto">
         <table className="w-full">
-          <thead className="bg-gray-50">
+          <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
-              <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider w-8"></th>
-              <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">접수번호</th>
-              <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">축종</th>
-              <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">성별</th>
-              <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">등급</th>
-              <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">도체중</th>
-              <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">등지방</th>
-              <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">등심면적</th>
-              <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">근내지방</th>
-              <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">육색</th>
-              <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">지방색</th>
-              <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">조직감</th>
-              <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">성숙도</th>
-              <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">도축일자</th>
-              <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">이력번호</th>
-              <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">상장업체</th>
-              <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">사진</th>
+              <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider w-8"></th>
+              <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">접수번호</th>
+              <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">축종</th>
+              <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">성별</th>
+              <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">등급</th>
+              <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">도체중</th>
+              <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">등지방</th>
+              <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">등심면적</th>
+              <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">근내지방</th>
+              <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">육색</th>
+              <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">지방색</th>
+              <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">조직감</th>
+              <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">성숙도</th>
+              <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">도축일자</th>
+              <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">이력번호</th>
+              <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">상장업체</th>
+              <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">사진</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
@@ -145,7 +145,7 @@ function TodayAuctionTable() {
                   <td className="px-4 py-4 text-sm text-gray-900 text-center">{auction.company}</td>
                   <td className="px-4 py-4 text-center">
                     <button 
-                      className="px-3 py-1 text-xs font-medium text-white bg-blue-600 rounded hover:bg-blue-700 transition-colors"
+                      className="px-3 py-1 text-xs font-medium text-white bg-gray-600 hover:bg-gray-700 transition-colors"
                       onClick={(e) => e.stopPropagation()}
                     >
                       보기
@@ -154,10 +154,10 @@ function TodayAuctionTable() {
                 </tr>
                 {expandedId === auction.id && (
                   <tr>
-                    <td colSpan={17} className="p-0 bg-gray-50">
+                    <td colSpan={17} className="p-0 border-t border-gray-200">
                       <div className="p-4">
                         <table className="w-full bg-white border border-gray-200">
-                          <thead className="bg-gray-100">
+                          <thead className="bg-gray-50">
                             <tr>
                               {[1, 2, 3].map((col) => (
                                 <React.Fragment key={col}>
@@ -191,11 +191,11 @@ function TodayAuctionTable() {
                                     }
                                     return (
                                       <React.Fragment key={colIdx}>
-                                        <td className="px-2 py-2 text-xs text-blue-600 font-medium text-center border-b border-gray-100">{part.listingNo}</td>
+                                        <td className="px-2 py-2 text-xs text-gray-700 font-medium text-center border-b border-gray-100">{part.listingNo}</td>
                                         <td className="px-2 py-2 text-sm text-gray-900 font-medium text-center border-b border-gray-100">{part.part}</td>
                                         <td className="px-2 py-2 text-sm text-gray-600 text-center border-b border-gray-100">{part.weight}</td>
                                         <td className="px-2 py-2 text-sm text-gray-600 text-center border-b border-gray-100">{part.minPrice.toLocaleString()}</td>
-                                        <td className={`px-2 py-2 text-sm font-medium text-center border-b border-gray-100 ${part.bidPrice ? 'text-red-600' : 'text-gray-400'}`}>
+                                        <td className={`px-2 py-2 text-sm font-medium text-center border-b border-gray-100 ${part.bidPrice ? 'text-gray-900' : 'text-gray-400'}`}>
                                           {part.bidPrice ? part.bidPrice.toLocaleString() : '유찰'}
                                         </td>
                                       </React.Fragment>
@@ -252,7 +252,7 @@ export default function AdminDashboardPage() {
           { title: '이번달', showUpdate: false, data: { heads: '312두', auctions: '5,928건', wins: '3,853건', amount: '2,853,420,000원' } },
           { title: '올해', showUpdate: false, data: { heads: '312두', auctions: '5,928건', wins: '3,853건', amount: '2,853,420,000원' } },
         ].map((section) => (
-          <div key={section.title} className="bg-white rounded-xl shadow-sm border border-gray-100">
+          <div key={section.title} className="bg-white shadow-sm border border-gray-100">
             <div className="px-6 py-5 border-b border-gray-100 flex items-center gap-4">
               <h3 className="font-semibold text-gray-900">{section.title}</h3>
               {section.showUpdate && (
@@ -279,14 +279,14 @@ export default function AdminDashboardPage() {
       {/* 순위 섹션 */}
       <div className="grid grid-cols-3 gap-6 mt-8 mb-8">
         {/* 중도매인 경락순위 */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100">
+        <div className="bg-white shadow-sm border border-gray-100">
           <div className="px-6 py-4 border-b border-gray-100 flex items-start justify-between">
             <div>
               <h3 className="font-semibold text-gray-900">중도매인 경락순위</h3>
               <p className="text-xs text-gray-500 mt-1">기간 : &apos;26.1.1. ~ 1.19.</p>
             </div>
             <button 
-              className="p-1 bg-gray-800 text-white rounded hover:bg-gray-700 transition-colors"
+              className="p-1 bg-gray-700 text-white hover:bg-gray-800 transition-colors"
               title="전체보기"
             >
               <Plus className="w-3.5 h-3.5" />
@@ -295,12 +295,12 @@ export default function AdminDashboardPage() {
           <div className="p-4">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-gray-100">
-                  <th className="py-2 text-center text-xs font-semibold text-gray-500">순위</th>
-                  <th className="py-2 text-center text-xs font-semibold text-gray-500">중매인번호</th>
-                  <th className="py-2 text-center text-xs font-semibold text-gray-500">중도매인</th>
-                  <th className="py-2 text-center text-xs font-semibold text-gray-500">경락건수</th>
-                  <th className="py-2 text-center text-xs font-semibold text-gray-500">경락금액</th>
+                <tr className="border-b border-gray-200">
+                  <th className="py-2 text-center text-xs font-semibold text-gray-600">순위</th>
+                  <th className="py-2 text-center text-xs font-semibold text-gray-600">중매인번호</th>
+                  <th className="py-2 text-center text-xs font-semibold text-gray-600">중도매인</th>
+                  <th className="py-2 text-center text-xs font-semibold text-gray-600">경락건수</th>
+                  <th className="py-2 text-center text-xs font-semibold text-gray-600">경락금액</th>
                 </tr>
               </thead>
               <tbody>
@@ -325,14 +325,14 @@ export default function AdminDashboardPage() {
         </div>
 
         {/* 상장업체 상장순위 */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100">
+        <div className="bg-white shadow-sm border border-gray-100">
           <div className="px-6 py-4 border-b border-gray-100 flex items-start justify-between">
             <div>
               <h3 className="font-semibold text-gray-900">상장업체 상장순위</h3>
               <p className="text-xs text-gray-500 mt-1">기간 : &apos;26.1.1. ~ 1.19.</p>
             </div>
             <button 
-              className="p-1 bg-gray-800 text-white rounded hover:bg-gray-700 transition-colors"
+              className="p-1 bg-gray-700 text-white hover:bg-gray-800 transition-colors"
               title="전체보기"
             >
               <Plus className="w-3.5 h-3.5" />
@@ -341,11 +341,11 @@ export default function AdminDashboardPage() {
           <div className="p-4">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-gray-100">
-                  <th className="py-2 text-center text-xs font-semibold text-gray-500">순위</th>
-                  <th className="py-2 text-center text-xs font-semibold text-gray-500">업체명</th>
-                  <th className="py-2 text-center text-xs font-semibold text-gray-500">상장두수</th>
-                  <th className="py-2 text-center text-xs font-semibold text-gray-500">경락금액</th>
+                <tr className="border-b border-gray-200">
+                  <th className="py-2 text-center text-xs font-semibold text-gray-600">순위</th>
+                  <th className="py-2 text-center text-xs font-semibold text-gray-600">업체명</th>
+                  <th className="py-2 text-center text-xs font-semibold text-gray-600">상장두수</th>
+                  <th className="py-2 text-center text-xs font-semibold text-gray-600">경락금액</th>
                 </tr>
               </thead>
               <tbody>

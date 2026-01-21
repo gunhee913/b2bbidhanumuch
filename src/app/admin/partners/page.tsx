@@ -279,7 +279,7 @@ export default function PartnersPage() {
   // 스타일
   const thClass = "px-2 py-2 text-xs font-medium text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50 text-center";
   const tdClass = "px-2 py-2 text-xs border border-gray-200 text-center whitespace-nowrap";
-  const inputClass = "w-full px-2 py-1.5 text-xs border border-gray-200 focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white";
+  const inputClass = "w-full px-2 py-1.5 text-xs border border-gray-200 outline-none bg-white";
 
   return (
     <AdminLayout>
@@ -342,14 +342,14 @@ export default function PartnersPage() {
                 setBusinessTypeFilter('전체');
                 setStatusFilter('all');
               }}
-              className="px-4 py-1.5 border border-gray-200 text-gray-600 text-xs hover:bg-gray-50"
+              className="px-4 py-1.5 border border-gray-300 text-gray-600 text-xs hover:bg-gray-50"
             >
               초기화
             </button>
             <button
               type="button"
               onClick={handleExcelDownload}
-              className="flex items-center gap-1.5 px-4 py-1.5 bg-green-600 text-white text-xs hover:bg-green-700"
+              className="flex items-center gap-1.5 px-4 py-1.5 bg-gray-600 text-white text-xs hover:bg-gray-700"
             >
               <Download className="w-3.5 h-3.5" />
               엑셀
@@ -358,7 +358,7 @@ export default function PartnersPage() {
               type="button"
               onClick={handleAddStart}
               disabled={isAdding || editingId !== null}
-              className="flex items-center gap-1.5 px-4 py-1.5 bg-red-600 text-white text-xs hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center gap-1.5 px-4 py-1.5 bg-gray-700 text-white text-xs hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Plus className="w-3.5 h-3.5" />
               거래처 등록
@@ -376,11 +376,11 @@ export default function PartnersPage() {
           </div>
           <div className="flex items-center gap-2">
             <span className="text-sm text-gray-500">활성</span>
-            <span className="text-sm font-semibold text-green-600">{filteredPartners.filter(p => p.status === 'active').length}개</span>
+            <span className="text-sm font-semibold text-gray-900">{filteredPartners.filter(p => p.status === 'active').length}개</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-sm text-gray-500">비활성</span>
-            <span className="text-sm font-semibold text-gray-400">{filteredPartners.filter(p => p.status === 'inactive').length}개</span>
+            <span className="text-sm font-semibold text-gray-500">{filteredPartners.filter(p => p.status === 'inactive').length}개</span>
           </div>
         </div>
       </div>
@@ -409,7 +409,7 @@ export default function PartnersPage() {
             <tbody>
               {/* 추가 행 */}
               {isAdding && (
-                <tr className="bg-gray-50">
+                <tr>
                   <td className={`${tdClass} text-gray-400`}>자동생성</td>
                   <td className={tdClass}>
                     <input
@@ -521,13 +521,13 @@ export default function PartnersPage() {
                       <button
                         onClick={handleAddSave}
                         disabled={!formData.name || !formData.businessNo || !formData.representative || !formData.phone}
-                        className="px-2 py-1 text-xs bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="px-2 py-1 text-xs bg-gray-700 text-white hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         저장
                       </button>
                       <button
                         onClick={handleAddCancel}
-                        className="px-2 py-1 text-xs border border-gray-300 text-gray-600 hover:bg-gray-100"
+                        className="px-2 py-1 text-xs border border-gray-300 text-gray-600 hover:bg-gray-50"
                       >
                         취소
                       </button>
@@ -538,7 +538,7 @@ export default function PartnersPage() {
               {filteredPartners.map((partner) => (
                 editingId === partner.id ? (
                   // 수정 행
-                  <tr key={partner.id} className="bg-gray-50">
+                  <tr key={partner.id}>
                     <td className={tdClass}>{partner.partnerNo}</td>
                     <td className={tdClass}>
                       <input
@@ -650,13 +650,13 @@ export default function PartnersPage() {
                         <button
                           onClick={handleEditSave}
                           disabled={!formData.name || !formData.businessNo || !formData.representative || !formData.phone}
-                          className="px-2 py-1 text-xs bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="px-2 py-1 text-xs bg-gray-700 text-white hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           저장
                         </button>
                         <button
                           onClick={handleEditCancel}
-                          className="px-2 py-1 text-xs border border-gray-300 text-gray-600 hover:bg-gray-100"
+                          className="px-2 py-1 text-xs border border-gray-300 text-gray-600 hover:bg-gray-50"
                         >
                           취소
                         </button>
@@ -693,7 +693,7 @@ export default function PartnersPage() {
                         <button
                           onClick={() => handleDelete(partner.id)}
                           disabled={isAdding || editingId !== null}
-                          className="p-1 text-red-500 hover:text-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="p-1 text-gray-500 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
                           title="삭제"
                         >
                           <Trash2 className="w-3.5 h-3.5" />

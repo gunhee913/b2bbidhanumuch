@@ -4,9 +4,6 @@ import React, { useState } from 'react';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { 
   Download,
-  ChevronDown,
-  ChevronUp,
-  Calendar,
   Printer,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
@@ -187,19 +184,10 @@ export default function SettlementsPage() {
   const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
   
   const [settlements] = useState<SettlementData[]>(generateDummyData());
-  const [expandedCompanies, setExpandedCompanies] = useState<string[]>([]);
   const [expandedCattle, setExpandedCattle] = useState<string[]>([]);
   const [companyFilter, setCompanyFilter] = useState('all');
   const [startDate, setStartDate] = useState(todayStr);
   const [endDate, setEndDate] = useState(todayStr);
-
-  const toggleCompany = (companyId: string) => {
-    setExpandedCompanies(prev =>
-      prev.includes(companyId)
-        ? prev.filter(id => id !== companyId)
-        : [...prev, companyId]
-    );
-  };
 
   const toggleCattle = (cattleId: string) => {
     setExpandedCattle(prev =>
@@ -276,12 +264,10 @@ export default function SettlementsPage() {
           th, td { border: 1px solid #ccc; padding: 2px 3px; text-align: center; font-size: 8px; }
           th { background: #f5f5f5; font-weight: 600; }
           .text-right { text-align: right; }
-          .text-red { color: #dc2626; }
-          .text-blue { color: #2563eb; }
           .font-bold { font-weight: bold; }
           .cattle-section { margin-bottom: 8px; }
           .parts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; }
-          .total-row { background: #e0f2fe; }
+          .total-row { background: #e5e7eb; }
           .total-row td { font-weight: bold; }
           .page-break { page-break-after: always; }
           @media print {
@@ -302,7 +288,7 @@ export default function SettlementsPage() {
             <p>총 ${totalCattleCount}두</p>
             <p>판매금액: ${totalSaleAmount.toLocaleString()}원</p>
             <p>공제금액: ${totalDeduction.toLocaleString()}원</p>
-            <p class="font-bold text-blue">차인지급액: ${totalNetPayment.toLocaleString()}원</p>
+            <p class="font-bold">차인지급액: ${totalNetPayment.toLocaleString()}원</p>
           </div>
         </div>
         
@@ -339,8 +325,8 @@ export default function SettlementsPage() {
                       <td>${cattle.listingFee.toLocaleString()}</td>
                       <td>${cattle.logisticsFee.toLocaleString()}</td>
                       <td>${cattle.loadingFee.toLocaleString()}</td>
-                      <td class="text-red">${cattle.deductionTotal.toLocaleString()}</td>
-                      <td class="text-blue font-bold">${cattle.netPayment.toLocaleString()}</td>
+                      <td>${cattle.deductionTotal.toLocaleString()}</td>
+                      <td class="font-bold">${cattle.netPayment.toLocaleString()}</td>
                     </tr>
                   </tbody>
                 </table>
@@ -403,8 +389,8 @@ export default function SettlementsPage() {
                 <tr class="total-row">
                   <td colspan="5" style="text-align:left; padding-left: 20px;">${settlement.companyName} 합계</td>
                   <td>판매: ${settlement.totalSaleAmount.toLocaleString()}원</td>
-                  <td colspan="2">공제: <span class="text-red">${settlement.totalDeduction.toLocaleString()}원</span></td>
-                  <td colspan="3">차인지급액: <span class="text-blue font-bold">${settlement.totalNetPayment.toLocaleString()}원</span></td>
+                  <td colspan="2">공제: ${settlement.totalDeduction.toLocaleString()}원</td>
+                  <td colspan="3">차인지급액: <span class="font-bold">${settlement.totalNetPayment.toLocaleString()}원</span></td>
                 </tr>
               </tbody>
             </table>
@@ -422,7 +408,7 @@ export default function SettlementsPage() {
     printWindow.document.close();
   };
 
-  const thClass = "px-2 py-1.5 text-xs font-medium text-gray-700 whitespace-nowrap border border-gray-200 bg-gray-100 text-center";
+  const thClass = "px-2 py-1.5 text-xs font-medium text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50 text-center";
   const tdClass = "px-2 py-1.5 text-xs border border-gray-200 text-center whitespace-nowrap";
 
   return (
@@ -432,14 +418,14 @@ export default function SettlementsPage() {
       </div>
 
       {/* 필터 */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4 mb-4">
+      <div className="bg-white shadow-sm border border-gray-100 p-4 mb-4">
         <div className="flex flex-wrap items-center gap-4">
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium text-gray-600">상장업체</span>
             <select
               value={companyFilter}
               onChange={(e) => setCompanyFilter(e.target.value)}
-              className="px-3 py-1.5 border border-gray-200 rounded text-xs outline-none bg-white min-w-[120px]"
+              className="px-3 py-1.5 border border-gray-200 text-xs outline-none bg-white min-w-[120px]"
             >
               <option value="all">전체</option>
               {settlements.map(s => (
@@ -450,25 +436,19 @@ export default function SettlementsPage() {
 
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium text-gray-600">기간</span>
-            <div className="relative">
-              <input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="px-3 py-1.5 border border-gray-200 rounded text-xs outline-none bg-white w-32"
-              />
-              <Calendar className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
-            </div>
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="px-3 py-1.5 border border-gray-200 text-xs outline-none bg-white"
+            />
             <span className="text-gray-400">~</span>
-            <div className="relative">
-              <input
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="px-3 py-1.5 border border-gray-200 rounded text-xs outline-none bg-white w-32"
-              />
-              <Calendar className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
-            </div>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="px-3 py-1.5 border border-gray-200 text-xs outline-none bg-white"
+            />
           </div>
 
           <div className="flex items-center gap-2 ml-auto">
@@ -479,14 +459,14 @@ export default function SettlementsPage() {
                 setStartDate('');
                 setEndDate('');
               }}
-              className="px-4 py-1.5 border border-gray-200 text-gray-600 rounded text-xs hover:bg-gray-50"
+              className="px-4 py-1.5 border border-gray-300 text-gray-600 text-xs hover:bg-gray-50"
             >
               초기화
             </button>
             <button
               type="button"
               onClick={handleExcelDownload}
-              className="flex items-center gap-1.5 px-4 py-1.5 bg-green-600 text-white rounded text-xs hover:bg-green-700"
+              className="flex items-center gap-1.5 px-4 py-1.5 bg-gray-600 text-white text-xs hover:bg-gray-700"
             >
               <Download className="w-3.5 h-3.5" />
               엑셀
@@ -494,7 +474,7 @@ export default function SettlementsPage() {
             <button
               type="button"
               onClick={handlePrint}
-              className="flex items-center gap-1.5 px-4 py-1.5 bg-gray-600 text-white rounded text-xs hover:bg-gray-700"
+              className="flex items-center gap-1.5 px-4 py-1.5 bg-gray-700 text-white text-xs hover:bg-gray-800"
             >
               <Printer className="w-3.5 h-3.5" />
               인쇄
@@ -540,12 +520,12 @@ export default function SettlementsPage() {
                       <td className={`${tdClass} text-right`}>{cattle.listingFee.toLocaleString()}</td>
                       <td className={`${tdClass} text-right`}>{cattle.logisticsFee.toLocaleString()}</td>
                       <td className={`${tdClass} text-right`}>{cattle.loadingFee.toLocaleString()}</td>
-                      <td className={`${tdClass} text-right text-red-600`}>{cattle.deductionTotal.toLocaleString()}</td>
-                      <td className={`${tdClass} text-right font-semibold text-blue-600`}>{cattle.netPayment.toLocaleString()}</td>
+                      <td className={`${tdClass} text-right`}>{cattle.deductionTotal.toLocaleString()}</td>
+                      <td className={`${tdClass} text-right font-semibold`}>{cattle.netPayment.toLocaleString()}</td>
                       <td className={tdClass}>
                         <button
                           onClick={() => toggleCattle(cattle.id)}
-                          className="text-blue-600 hover:text-blue-700 text-xs"
+                          className="text-gray-600 hover:text-gray-800 text-xs"
                         >
                           {expandedCattle.includes(cattle.id) ? '접기 ▲' : '펼치기 ▼'}
                         </button>
@@ -554,7 +534,7 @@ export default function SettlementsPage() {
                     {/* 부위별 상세 */}
                     {expandedCattle.includes(cattle.id) && (
                       <tr>
-                        <td colSpan={13} className="p-2 bg-gray-50">
+                        <td colSpan={13} className="p-2">
                           <div className="grid grid-cols-2 gap-2">
                             <table className="w-full border-collapse">
                               <thead>
@@ -575,7 +555,7 @@ export default function SettlementsPage() {
                                     <td className={`${tdClass} text-right`}>{part.weight > 0 ? part.weight.toFixed(1) : '-'}</td>
                                     <td className={`${tdClass} text-right`}>{part.unitPrice > 0 ? part.unitPrice.toLocaleString() : '-'}</td>
                                     <td className={`${tdClass} text-right`}>{part.amount > 0 ? part.amount.toLocaleString() : '-'}</td>
-                                    <td className={`${tdClass} text-orange-600`}>{part.amount === 0 ? '반출' : ''}</td>
+                                    <td className={`${tdClass} text-gray-500`}>{part.amount === 0 ? '반출' : ''}</td>
                                   </tr>
                                 ))}
                               </tbody>
@@ -599,7 +579,7 @@ export default function SettlementsPage() {
                                     <td className={`${tdClass} text-right`}>{part.weight > 0 ? part.weight.toFixed(1) : '-'}</td>
                                     <td className={`${tdClass} text-right`}>{part.unitPrice > 0 ? part.unitPrice.toLocaleString() : '-'}</td>
                                     <td className={`${tdClass} text-right`}>{part.amount > 0 ? part.amount.toLocaleString() : '-'}</td>
-                                    <td className={`${tdClass} text-orange-600`}>{part.amount === 0 ? '반출' : ''}</td>
+                                    <td className={`${tdClass} text-gray-500`}>{part.amount === 0 ? '반출' : ''}</td>
                                   </tr>
                                 ))}
                                 {Array(11 - cattle.parts.slice(11).length).fill(0).map((_, idx) => (
@@ -621,15 +601,15 @@ export default function SettlementsPage() {
                   </React.Fragment>
                 ))}
                 {/* 업체별 소계 */}
-                <tr className="bg-blue-50 font-semibold">
+                <tr className="font-semibold border-t-2 border-gray-300">
                   <td className={`${tdClass} text-left`} colSpan={2}>{settlement.companyName} 소계 ({settlement.cattleList.length}두)</td>
                   <td className={tdClass} colSpan={4}></td>
                   <td className={`${tdClass} text-right`}>{settlement.totalSaleAmount.toLocaleString()}</td>
                   <td className={`${tdClass} text-right`}>{settlement.cattleList.reduce((sum, c) => sum + c.listingFee, 0).toLocaleString()}</td>
                   <td className={`${tdClass} text-right`}>{settlement.cattleList.reduce((sum, c) => sum + c.logisticsFee, 0).toLocaleString()}</td>
                   <td className={`${tdClass} text-right`}>{settlement.cattleList.reduce((sum, c) => sum + c.loadingFee, 0).toLocaleString()}</td>
-                  <td className={`${tdClass} text-right text-red-600`}>{settlement.totalDeduction.toLocaleString()}</td>
-                  <td className={`${tdClass} text-right text-blue-600`}>{settlement.totalNetPayment.toLocaleString()}</td>
+                  <td className={`${tdClass} text-right`}>{settlement.totalDeduction.toLocaleString()}</td>
+                  <td className={`${tdClass} text-right`}>{settlement.totalNetPayment.toLocaleString()}</td>
                   <td className={tdClass}></td>
                 </tr>
                 {/* 업체 구분선 */}
@@ -641,7 +621,7 @@ export default function SettlementsPage() {
               </React.Fragment>
             ))}
             {/* 전체 합계 */}
-            <tr className="bg-gray-100 font-bold">
+            <tr className="font-bold border-t-2 border-gray-400">
               <td className={`${tdClass} text-left`} colSpan={2}>
                 전체 합계 ({filteredSettlements.reduce((sum, s) => sum + s.cattleList.length, 0)}두)
               </td>
@@ -650,8 +630,8 @@ export default function SettlementsPage() {
               <td className={`${tdClass} text-right`}>{filteredSettlements.reduce((sum, s) => sum + s.cattleList.reduce((cs, c) => cs + c.listingFee, 0), 0).toLocaleString()}</td>
               <td className={`${tdClass} text-right`}>{filteredSettlements.reduce((sum, s) => sum + s.cattleList.reduce((cs, c) => cs + c.logisticsFee, 0), 0).toLocaleString()}</td>
               <td className={`${tdClass} text-right`}>{filteredSettlements.reduce((sum, s) => sum + s.cattleList.reduce((cs, c) => cs + c.loadingFee, 0), 0).toLocaleString()}</td>
-              <td className={`${tdClass} text-right text-red-600`}>{filteredSettlements.reduce((sum, s) => sum + s.totalDeduction, 0).toLocaleString()}</td>
-              <td className={`${tdClass} text-right text-blue-600`}>{filteredSettlements.reduce((sum, s) => sum + s.totalNetPayment, 0).toLocaleString()}</td>
+              <td className={`${tdClass} text-right`}>{filteredSettlements.reduce((sum, s) => sum + s.totalDeduction, 0).toLocaleString()}</td>
+              <td className={`${tdClass} text-right`}>{filteredSettlements.reduce((sum, s) => sum + s.totalNetPayment, 0).toLocaleString()}</td>
               <td className={tdClass}></td>
             </tr>
           </tbody>

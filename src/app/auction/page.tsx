@@ -440,7 +440,7 @@ function AuctionPageContent() {
             weight: `${weight}kg`,
             price: adjustedPrice,
             auctionNo: `${getTodayDateCode()}-${String(entity.id).padStart(3, '0')}`,
-            listingNo: `${getTodayDateCode()}-${String(entity.id).padStart(3, '0')}-${String(listingNumber).padStart(4, '0')}`,
+            listingNo: `${getTodayDateCode()}-${String(entity.id).padStart(3, '0')}-${String(listingNumber).padStart(2, '0')}`,
             historyNo: entity.historyNo,
             company: entity.company,
             date: '2025.08.05.(화)',

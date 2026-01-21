@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import AdminLayout from '@/components/admin/AdminLayout';
-import { Calendar, Download } from 'lucide-react';
+import { Download } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
 // 오늘 날짜 문자열 (YY.MM.DD)
@@ -152,7 +152,7 @@ const generateBidRecords = (): BidRecord[] => {
         id: String(id++),
         bidDate: isFailed ? '-' : todayString,
         listingDate: todayString,
-        listingNo: `260120-${cattle.auctionNo}-${String(partIdx + 1).padStart(4, '0')}`,
+        listingNo: `260120-${cattle.auctionNo}-${String(partIdx + 1).padStart(2, '0')}`,
         part,
         grade: cattle.grade,
         weight,
@@ -200,8 +200,8 @@ export default function AuctionBidsPage() {
   const totalAmount = successRecords.reduce((sum, r) => sum + (r.totalPrice || 0), 0);
   const totalCommission = successRecords.reduce((sum, r) => sum + (r.commission || 0), 0);
 
-  const thClass = "px-2 py-2 text-center text-xs font-semibold text-gray-500 whitespace-nowrap border-b border-gray-200 border-x border-x-gray-100";
-  const tdClass = "px-2 py-2 text-xs text-gray-600 text-center whitespace-nowrap border-x border-x-gray-100";
+  const thClass = "px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50";
+  const tdClass = "px-2 py-2 text-xs text-gray-600 text-center whitespace-nowrap border border-gray-200";
 
   // 엑셀 다운로드 함수
   const handleExcelDownload = () => {
@@ -273,30 +273,24 @@ export default function AuctionBidsPage() {
       </div>
 
       {/* 필터 섹션 */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4 mb-4">
+      <div className="bg-white shadow-sm border border-gray-100 p-4 mb-4">
         <div className="flex flex-wrap items-center gap-4">
           {/* 기간 선택 */}
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium text-gray-600">기간</span>
-            <div className="relative">
-              <input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="w-36 pl-3 pr-8 py-1.5 border border-gray-200 rounded text-xs outline-none bg-white"
-              />
-              <Calendar className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-            </div>
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="px-3 py-1.5 border border-gray-200 text-xs outline-none bg-white"
+            />
             <span className="text-gray-400">~</span>
-            <div className="relative">
-              <input
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="w-36 pl-3 pr-8 py-1.5 border border-gray-200 rounded text-xs outline-none bg-white"
-              />
-              <Calendar className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-            </div>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="px-3 py-1.5 border border-gray-200 text-xs outline-none bg-white"
+            />
           </div>
 
           {/* 상장업체 필터 */}
@@ -305,7 +299,7 @@ export default function AuctionBidsPage() {
             <select
               value={companyFilter}
               onChange={(e) => setCompanyFilter(e.target.value)}
-              className="px-3 py-1.5 border border-gray-200 rounded text-xs outline-none bg-white"
+              className="px-3 py-1.5 border border-gray-200 text-xs outline-none bg-white"
             >
               <option value="">전체</option>
               <option value="건화">건화</option>
@@ -323,7 +317,7 @@ export default function AuctionBidsPage() {
               value={dealerFilter}
               onChange={(e) => setDealerFilter(e.target.value)}
               placeholder="중도매인명 검색"
-              className="w-32 px-3 py-1.5 border border-gray-200 rounded text-xs outline-none bg-white"
+              className="w-32 px-3 py-1.5 border border-gray-200 text-xs outline-none bg-white"
             />
           </div>
 
@@ -334,14 +328,14 @@ export default function AuctionBidsPage() {
                 type="checkbox"
                 checked={hideFailed}
                 onChange={(e) => setHideFailed(e.target.checked)}
-                className="w-4 h-4 rounded appearance-none bg-white border border-gray-200 checked:bg-red-600 checked:border-red-600 focus:ring-red-500 relative
+                className="w-4 h-4 appearance-none bg-white border border-gray-300 checked:bg-gray-700 checked:border-gray-700 relative
                   after:content-['✓'] after:absolute after:inset-0 after:flex after:items-center after:justify-center after:text-white after:text-xs after:font-bold after:opacity-0 checked:after:opacity-100"
               />
               <span className="text-sm font-medium text-gray-600">유찰분 숨김</span>
             </label>
           </div>
 
-          {/* 검색/초기화/엑셀 버튼 */}
+          {/* 초기화/엑셀 버튼 */}
           <div className="flex items-center gap-2 ml-auto">
             <button
               type="button"
@@ -352,20 +346,14 @@ export default function AuctionBidsPage() {
                 setDealerFilter('');
                 setHideFailed(false);
               }}
-              className="px-4 py-1.5 border border-gray-200 text-gray-600 rounded text-xs hover:bg-gray-50"
+              className="px-4 py-1.5 border border-gray-300 text-gray-600 text-xs hover:bg-gray-50"
             >
               초기화
             </button>
             <button
               type="button"
-              className="px-4 py-1.5 bg-red-600 text-white rounded text-xs hover:bg-red-700"
-            >
-              검색
-            </button>
-            <button
-              type="button"
               onClick={handleExcelDownload}
-              className="flex items-center gap-1.5 px-4 py-1.5 bg-green-600 text-white rounded text-xs hover:bg-green-700"
+              className="flex items-center gap-1.5 px-4 py-1.5 bg-gray-600 text-white text-xs hover:bg-gray-700"
             >
               <Download className="w-3.5 h-3.5" />
               엑셀
@@ -375,7 +363,7 @@ export default function AuctionBidsPage() {
       </div>
 
       {/* 합계 정보 */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4 mb-4">
+      <div className="bg-white shadow-sm border border-gray-100 p-4 mb-4">
         <div className="flex items-center gap-8">
           <div className="flex items-center gap-2">
             <span className="text-sm text-gray-500">총 건수</span>
@@ -383,11 +371,11 @@ export default function AuctionBidsPage() {
           </div>
           <div className="flex items-center gap-2">
             <span className="text-sm text-gray-500">낙찰</span>
-            <span className="text-sm font-semibold text-green-600">{successRecords.length}건</span>
+            <span className="text-sm font-semibold text-gray-900">{successRecords.length}건</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-sm text-gray-500">유찰</span>
-            <span className="text-sm font-semibold text-orange-500">{failedCount}건</span>
+            <span className="text-sm font-semibold text-gray-900">{failedCount}건</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-sm text-gray-500">총 중량</span>
@@ -395,7 +383,7 @@ export default function AuctionBidsPage() {
           </div>
           <div className="flex items-center gap-2">
             <span className="text-sm text-gray-500">총 낙찰금액</span>
-            <span className="text-sm font-semibold text-red-600">{totalAmount.toLocaleString()}원</span>
+            <span className="text-sm font-semibold text-gray-900">{totalAmount.toLocaleString()}원</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-sm text-gray-500">총 수수료</span>
@@ -405,10 +393,10 @@ export default function AuctionBidsPage() {
       </div>
 
       {/* 테이블 */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
+      <div className="bg-white shadow-sm border border-gray-100 overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50">
+          <table className="w-full border-collapse">
+            <thead>
               <tr>
                 <th className={thClass}>낙찰일자</th>
                 <th className={thClass}>상장일자</th>
@@ -428,17 +416,17 @@ export default function AuctionBidsPage() {
                 <th className={thClass} colSpan={2}>거래처</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody>
               {filteredRecords.map((record) => (
-                <tr key={record.id} className={`hover:bg-gray-50 ${record.isFailed ? 'bg-orange-50' : ''}`}>
-                  <td className={tdClass}>{record.isFailed ? <span className="text-orange-500">유찰</span> : record.bidDate}</td>
+                <tr key={record.id} className="hover:bg-gray-50">
+                  <td className={tdClass}>{record.isFailed ? <span className="text-gray-500">유찰</span> : record.bidDate}</td>
                   <td className={tdClass}>{record.listingDate}</td>
                   <td className={`${tdClass} font-medium text-gray-900`}>{record.listingNo}</td>
                   <td className={tdClass}>{record.part}</td>
                   <td className={`${tdClass} font-medium`}>{record.grade}</td>
                   <td className={tdClass}>{record.weight.toFixed(1)}kg</td>
                   <td className={tdClass}>{record.unitPrice ? record.unitPrice.toLocaleString() : '-'}</td>
-                  <td className={`${tdClass} font-medium ${record.isFailed ? 'text-gray-400' : 'text-red-600'}`}>
+                  <td className={`${tdClass} font-medium ${record.isFailed ? 'text-gray-400' : 'text-gray-900'}`}>
                     {record.totalPrice ? record.totalPrice.toLocaleString() : '-'}
                   </td>
                   <td className={tdClass}>{record.commission ? record.commission.toLocaleString() : '-'}</td>

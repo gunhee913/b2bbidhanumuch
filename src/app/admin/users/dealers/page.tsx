@@ -416,14 +416,14 @@ export default function DealersPage() {
         <h1 className="text-2xl font-bold text-gray-900">중도매인 관리</h1>
         <button 
           onClick={handleAddOpen}
-          className="inline-flex items-center gap-2 px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
+          className="inline-flex items-center gap-2 px-4 py-2.5 bg-gray-700 text-white  hover:bg-gray-800 transition-colors font-medium"
         >
           <Plus className="w-5 h-5" />
           중도매인 등록
         </button>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6">
+      <div className="bg-white rounded-none shadow-sm border border-gray-100 p-4 mb-6">
         <div className="flex flex-col lg:flex-row gap-4">
           <div className="flex-1">
             <div className="relative">
@@ -433,12 +433,12 @@ export default function DealersPage() {
                 placeholder="이름, 중매인번호, 전화번호, 경매대리인/직원 검색..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white"
+                className="w-full pl-10 pr-4 py-2.5 border border-gray-100  focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white"
               />
             </div>
           </div>
           <div className="flex flex-wrap gap-3">
-            <button className="inline-flex items-center gap-2 px-4 py-2.5 border border-gray-100 rounded-lg hover:bg-gray-50 text-sm font-medium text-gray-700 bg-white">
+            <button className="inline-flex items-center gap-2 px-4 py-2.5 border border-gray-100  hover:bg-gray-50 text-sm font-medium text-gray-700 bg-white">
               <Download className="w-4 h-4" />
               내보내기
             </button>
@@ -446,7 +446,7 @@ export default function DealersPage() {
         </div>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+      <div className="bg-white rounded-none shadow-sm border border-gray-100 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gray-50 border-b border-gray-100">
@@ -468,7 +468,7 @@ export default function DealersPage() {
             <tbody className="divide-y divide-gray-100">
               {/* 인라인 중도매인 등록 행 */}
               {isAddingDealer && (
-                <tr className="bg-gray-50">
+                <tr>
                   <td className="px-4 py-4 text-center">-</td>
                   <td className="px-4 py-4">
                     <input
@@ -476,7 +476,7 @@ export default function DealersPage() {
                       value={formData.dealerNo}
                       onChange={(e) => setFormData({ ...formData, dealerNo: e.target.value })}
                       placeholder="7000000"
-                      className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                      className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
                     />
                   </td>
                   <td className="px-4 py-4">
@@ -485,7 +485,7 @@ export default function DealersPage() {
                       value={formData.name}
                       onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                       placeholder="중도매인명"
-                      className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                      className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
                     />
                   </td>
                   <td className="px-4 py-4">
@@ -495,7 +495,7 @@ export default function DealersPage() {
                       onChange={(e) => handleDealerPhoneChange(e.target.value)}
                       placeholder="010-0000-0000"
                       maxLength={13}
-                      className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                      className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
                     />
                   </td>
                   <td className="px-4 py-4">
@@ -504,7 +504,7 @@ export default function DealersPage() {
                       value={formData.password}
                       onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                       placeholder="비밀번호"
-                      className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                      className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
                     />
                   </td>
                   <td className="px-4 py-4">
@@ -513,7 +513,7 @@ export default function DealersPage() {
                       value={formData.auctionPassword}
                       onChange={(e) => setFormData({ ...formData, auctionPassword: e.target.value })}
                       placeholder="경매비밀번호"
-                      className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                      className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
                     />
                   </td>
                   <td className="px-4 py-4">
@@ -522,7 +522,7 @@ export default function DealersPage() {
                       value={formData.address}
                       onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                       placeholder="주소"
-                      className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                      className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
                     />
                   </td>
                   <td className="px-4 py-4 text-sm text-gray-400 text-center">-</td>
@@ -533,7 +533,7 @@ export default function DealersPage() {
                       <button
                         onClick={handleAddSave}
                         disabled={!formData.dealerNo || !formData.name || !formData.phone || !formData.password || !formData.auctionPassword}
-                        className="px-3 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="px-3 py-1 text-xs bg-gray-700 text-white rounded hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         저장
                       </button>
@@ -550,7 +550,7 @@ export default function DealersPage() {
               {paginatedDealers.map((dealer) => (
                 <React.Fragment key={dealer.id}>
                   {editingDealerId === dealer.id ? (
-                    <tr className="bg-gray-50">
+                    <tr>
                       <td className="px-4 py-4 text-center">
                         {expandedDealer === dealer.id ? (
                           <ChevronUp className="w-4 h-4 text-gray-500 mx-auto" />
@@ -571,7 +571,7 @@ export default function DealersPage() {
                           type="text"
                           value={formData.name}
                           onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                          className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                          className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
                         />
                       </td>
                       <td className="px-4 py-4">
@@ -580,7 +580,7 @@ export default function DealersPage() {
                           value={formData.phone}
                           onChange={(e) => handleDealerPhoneChange(e.target.value)}
                           maxLength={13}
-                          className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                          className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
                         />
                       </td>
                       <td className="px-4 py-4">
@@ -588,7 +588,7 @@ export default function DealersPage() {
                           type="text"
                           value={formData.password}
                           onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                          className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                          className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
                         />
                       </td>
                       <td className="px-4 py-4">
@@ -596,7 +596,7 @@ export default function DealersPage() {
                           type="text"
                           value={formData.auctionPassword}
                           onChange={(e) => setFormData({ ...formData, auctionPassword: e.target.value })}
-                          className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                          className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
                         />
                       </td>
                       <td className="px-4 py-4">
@@ -604,7 +604,7 @@ export default function DealersPage() {
                           type="text"
                           value={formData.address}
                           onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                          className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                          className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
                         />
                       </td>
                       <td className="px-4 py-4 text-sm text-gray-500 text-center">{dealer.createdAt}</td>
@@ -615,7 +615,7 @@ export default function DealersPage() {
                           <button
                             onClick={handleEditSave}
                             disabled={!formData.name || !formData.phone || !formData.password || !formData.auctionPassword}
-                            className="px-3 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="px-3 py-1 text-xs bg-gray-700 text-white rounded hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             저장
                           </button>
@@ -653,7 +653,7 @@ export default function DealersPage() {
                         <div className="flex items-center justify-center">
                           <button 
                             onClick={(e) => handleEditOpen(dealer, e)}
-                            className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors" 
+                            className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors" 
                             title="수정"
                           >
                             <Edit className="w-4 h-4" />
@@ -670,7 +670,7 @@ export default function DealersPage() {
                                 : d
                             ));
                           }}
-                          className="w-full px-3 py-1.5 text-sm border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                          className="w-full px-3 py-1.5 text-sm border border-gray-100  focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
                         >
                           <option value="active">활성</option>
                           <option value="inactive">비활성</option>
@@ -682,12 +682,12 @@ export default function DealersPage() {
                   {expandedDealer === dealer.id && (
                     <tr>
                       <td colSpan={12} className="p-0">
-                        <div className="bg-gray-50 p-4 border-t border-gray-100">
+                        <div className="p-4 border-t border-gray-100">
                           <div className="flex items-center justify-between mb-3">
                             <h4 className="text-sm font-semibold text-gray-700">경매대리인 / 직원 목록</h4>
                             <button
                               onClick={(e) => handleAddEmployeeOpen(dealer, e)}
-                              className="inline-flex items-center gap-1 px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-xs font-medium"
+                              className="inline-flex items-center gap-1 px-3 py-1.5 bg-gray-700 text-white  hover:bg-gray-800 transition-colors text-xs font-medium"
                             >
                               <Plus className="w-3.5 h-3.5" />
                               직원 추가
@@ -695,7 +695,7 @@ export default function DealersPage() {
                           </div>
                           {(dealer.employees.length > 0 || addingEmployeeToDealerId === dealer.id) ? (
                             <table className="w-full bg-white border border-gray-200 table-fixed">
-                              <thead className="bg-gray-100">
+                              <thead className="bg-gray-50">
                                 <tr>
                                   <th className="px-4 py-2 text-center text-xs font-semibold text-gray-600 w-[100px]">구분</th>
                                   <th className="px-4 py-2 text-center text-xs font-semibold text-gray-600 w-[80px]">직책</th>
@@ -719,7 +719,7 @@ export default function DealersPage() {
                                           value={employeeFormData.role}
                                           onChange={(e) => setEmployeeFormData({ ...employeeFormData, role: e.target.value })}
                                           placeholder="구분"
-                                          className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                                          className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
                                         />
                                       </td>
                                       <td className="px-4 py-2">
@@ -728,7 +728,7 @@ export default function DealersPage() {
                                           value={employeeFormData.position}
                                           onChange={(e) => setEmployeeFormData({ ...employeeFormData, position: e.target.value })}
                                           placeholder="직책"
-                                          className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                                          className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
                                         />
                                       </td>
                                       <td className="px-4 py-2">
@@ -737,7 +737,7 @@ export default function DealersPage() {
                                           value={employeeFormData.name}
                                           onChange={(e) => setEmployeeFormData({ ...employeeFormData, name: e.target.value })}
                                           placeholder="성함"
-                                          className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                                          className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
                                         />
                                       </td>
                                       <td className="px-4 py-2">
@@ -747,7 +747,7 @@ export default function DealersPage() {
                                           onChange={(e) => handlePhoneChange(e.target.value)}
                                           placeholder="010-0000-0000"
                                           maxLength={13}
-                                          className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                                          className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
                                         />
                                       </td>
                                       <td className="px-4 py-2">
@@ -756,7 +756,7 @@ export default function DealersPage() {
                                           value={employeeFormData.password}
                                           onChange={(e) => setEmployeeFormData({ ...employeeFormData, password: e.target.value })}
                                           placeholder="비밀번호"
-                                          className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                                          className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
                                         />
                                       </td>
                                       <td className="px-4 py-2">
@@ -765,7 +765,7 @@ export default function DealersPage() {
                                           value={employeeFormData.address}
                                           onChange={(e) => setEmployeeFormData({ ...employeeFormData, address: e.target.value })}
                                           placeholder="주소"
-                                          className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                                          className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
                                         />
                                       </td>
                                       <td className="px-4 py-2 text-sm text-gray-400 text-center">{employee.createdAt}</td>
@@ -775,7 +775,7 @@ export default function DealersPage() {
                                           <button
                                             onClick={handleEditEmployeeSave}
                                             disabled={!employeeFormData.role || !employeeFormData.name || !employeeFormData.phone || !employeeFormData.password}
-                                            className="px-3 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                            className="px-3 py-1 text-xs bg-gray-700 text-white rounded hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
                                           >
                                             저장
                                           </button>
@@ -802,7 +802,7 @@ export default function DealersPage() {
                                         <div className="flex items-center justify-center">
                                           <button 
                                             onClick={() => handleEditEmployeeOpen(dealer, employee)}
-                                            className="p-1 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors" 
+                                            className="p-1 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors" 
                                             title="수정"
                                           >
                                             <Edit className="w-3.5 h-3.5" />
@@ -826,7 +826,7 @@ export default function DealersPage() {
                                                 : d
                                             ));
                                           }}
-                                          className="w-full px-2 py-1 text-xs border border-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                                          className="w-full px-2 py-1 text-xs border border-gray-100  focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
                                         >
                                           <option value="active">활성</option>
                                           <option value="inactive">비활성</option>
@@ -837,14 +837,14 @@ export default function DealersPage() {
                                 ))}
                                 {/* 인라인 직원 추가 행 */}
                                 {addingEmployeeToDealerId === dealer.id && (
-                                  <tr className="bg-gray-50">
+                                  <tr>
                                     <td className="px-4 py-2">
                                       <input
                                         type="text"
                                         value={employeeFormData.role}
                                         onChange={(e) => setEmployeeFormData({ ...employeeFormData, role: e.target.value })}
                                         placeholder="구분"
-                                        className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                                        className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
                                       />
                                     </td>
                                     <td className="px-4 py-2">
@@ -853,7 +853,7 @@ export default function DealersPage() {
                                         value={employeeFormData.position}
                                         onChange={(e) => setEmployeeFormData({ ...employeeFormData, position: e.target.value })}
                                         placeholder="직책"
-                                        className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                                        className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
                                       />
                                     </td>
                                     <td className="px-4 py-2">
@@ -862,7 +862,7 @@ export default function DealersPage() {
                                         value={employeeFormData.name}
                                         onChange={(e) => setEmployeeFormData({ ...employeeFormData, name: e.target.value })}
                                         placeholder="성함"
-                                        className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                                        className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
                                       />
                                     </td>
                                     <td className="px-4 py-2">
@@ -872,7 +872,7 @@ export default function DealersPage() {
                                         onChange={(e) => handlePhoneChange(e.target.value)}
                                         placeholder="010-0000-0000"
                                         maxLength={13}
-                                        className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                                        className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
                                       />
                                     </td>
                                     <td className="px-4 py-2">
@@ -881,7 +881,7 @@ export default function DealersPage() {
                                         value={employeeFormData.password}
                                         onChange={(e) => setEmployeeFormData({ ...employeeFormData, password: e.target.value })}
                                         placeholder="비밀번호"
-                                        className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                                        className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
                                       />
                                     </td>
                                     <td className="px-4 py-2">
@@ -890,7 +890,7 @@ export default function DealersPage() {
                                         value={employeeFormData.address}
                                         onChange={(e) => setEmployeeFormData({ ...employeeFormData, address: e.target.value })}
                                         placeholder="주소"
-                                        className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white text-center"
+                                        className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
                                       />
                                     </td>
                                     <td className="px-4 py-2 text-sm text-gray-400 text-center">-</td>
@@ -900,7 +900,7 @@ export default function DealersPage() {
                                         <button
                                           onClick={handleAddEmployeeSave}
                                           disabled={!employeeFormData.role || !employeeFormData.name || !employeeFormData.phone || !employeeFormData.password}
-                                          className="px-3 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                          className="px-3 py-1 text-xs bg-gray-700 text-white rounded hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
                                         >
                                           저장
                                         </button>
@@ -939,7 +939,7 @@ export default function DealersPage() {
             <button
               onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
               disabled={currentPage === 1}
-              className="p-2 border border-gray-100 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed bg-white"
+              className="p-2 border border-gray-100  hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed bg-white"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
@@ -947,8 +947,8 @@ export default function DealersPage() {
               <button
                 key={page}
                 onClick={() => setCurrentPage(page)}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                  currentPage === page ? 'bg-red-600 text-white' : 'text-gray-600 hover:bg-gray-100'
+                className={`px-3 py-1.5  text-sm font-medium transition-colors ${
+                  currentPage === page ? 'bg-gray-700 text-white' : 'text-gray-600 hover:bg-gray-100'
                 }`}
               >
                 {page}
@@ -957,7 +957,7 @@ export default function DealersPage() {
             <button
               onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
               disabled={currentPage === totalPages}
-              className="p-2 border border-gray-100 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed bg-white"
+              className="p-2 border border-gray-100  hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed bg-white"
             >
               <ChevronRight className="w-4 h-4" />
             </button>
@@ -969,10 +969,10 @@ export default function DealersPage() {
       {showDeleteModal && selectedDealer && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/50" onClick={() => setShowDeleteModal(false)} />
-          <div className="relative bg-white rounded-xl shadow-xl w-full max-w-sm mx-4 p-6">
+          <div className="relative bg-white rounded-none shadow-xl w-full max-w-sm mx-4 p-6">
             <div className="text-center">
-              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Trash2 className="w-6 h-6 text-red-600" />
+              <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Trash2 className="w-6 h-6 text-gray-700" />
               </div>
               <h3 className="text-lg font-semibold text-gray-900 mb-2">중도매인 삭제</h3>
               <p className="text-sm text-gray-500 mb-6">
@@ -983,13 +983,13 @@ export default function DealersPage() {
             <div className="flex gap-3">
               <button
                 onClick={() => setShowDeleteModal(false)}
-                className="flex-1 px-4 py-2.5 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 font-medium"
+                className="flex-1 px-4 py-2.5 border border-gray-200 text-gray-700  hover:bg-gray-50 font-medium"
               >
                 취소
               </button>
               <button
                 onClick={handleDeleteConfirm}
-                className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium"
+                className="flex-1 px-4 py-2.5 bg-gray-700 text-white  hover:bg-gray-800 font-medium"
               >
                 삭제
               </button>
@@ -1002,10 +1002,10 @@ export default function DealersPage() {
       {showDeleteEmployeeModal && selectedDealer && selectedEmployee && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/50" onClick={() => setShowDeleteEmployeeModal(false)} />
-          <div className="relative bg-white rounded-xl shadow-xl w-full max-w-sm mx-4 p-6">
+          <div className="relative bg-white rounded-none shadow-xl w-full max-w-sm mx-4 p-6">
             <div className="text-center">
-              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Trash2 className="w-6 h-6 text-red-600" />
+              <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Trash2 className="w-6 h-6 text-gray-700" />
               </div>
               <h3 className="text-lg font-semibold text-gray-900 mb-2">직원 삭제</h3>
               <p className="text-sm text-gray-500 mb-6">
@@ -1016,13 +1016,13 @@ export default function DealersPage() {
             <div className="flex gap-3">
               <button
                 onClick={() => setShowDeleteEmployeeModal(false)}
-                className="flex-1 px-4 py-2.5 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 font-medium"
+                className="flex-1 px-4 py-2.5 border border-gray-200 text-gray-700  hover:bg-gray-50 font-medium"
               >
                 취소
               </button>
               <button
                 onClick={handleDeleteEmployeeConfirm}
-                className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium"
+                className="flex-1 px-4 py-2.5 bg-gray-700 text-white  hover:bg-gray-800 font-medium"
               >
                 삭제
               </button>

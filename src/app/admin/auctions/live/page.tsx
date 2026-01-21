@@ -411,7 +411,7 @@ export default function AuctionLivePage() {
   const itemsWithoutBids = filteredItems.filter(item => item.bidCount === 0).length;
   const totalBidAmount = filteredItems.reduce((sum, item) => sum + (item.currentHighestBid * item.weight), 0);
 
-  const thClass = "px-2 py-1.5 text-xs font-medium text-gray-700 whitespace-nowrap border border-gray-200 bg-gray-100 text-center";
+  const thClass = "px-2 py-1.5 text-xs font-medium text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50 text-center";
   const tdClass = "px-2 py-1.5 text-xs border border-gray-200 text-center whitespace-nowrap";
 
   return (
@@ -601,26 +601,26 @@ export default function AuctionLivePage() {
                       {expandedItems.includes(item.id) && item.bids.length > 0 && (
                         <tr>
                           <td colSpan={12} className="p-0">
-                            <div className="bg-gray-50 p-3">
+                            <div className="p-3 border-t border-gray-200">
                               <div className="text-xs font-semibold text-gray-700 mb-2">입찰 내역 ({item.bids.length}건)</div>
                               <table className="w-full border-collapse">
                                 <thead>
                                   <tr>
-                                    <th className="px-2 py-1 text-xs font-medium text-gray-600 bg-gray-100 border border-gray-200 text-center w-[70px]">상태</th>
-                                    <th className="px-2 py-1 text-xs font-medium text-gray-600 bg-gray-100 border border-gray-200 text-center w-[100px]">중도매인번호</th>
-                                    <th className="px-2 py-1 text-xs font-medium text-gray-600 bg-gray-100 border border-gray-200 text-center w-[100px]">중도매인명</th>
-                                    <th className="px-2 py-1 text-xs font-medium text-gray-600 bg-gray-100 border border-gray-200 text-center w-[100px]">입찰가</th>
-                                    <th className="px-2 py-1 text-xs font-medium text-gray-600 bg-gray-100 border border-gray-200 text-center w-[120px]">총입찰금액</th>
-                                    <th className="px-2 py-1 text-xs font-medium text-gray-600 bg-gray-100 border border-gray-200 text-center w-[140px]">입찰시간</th>
-                                    <th className="px-2 py-1 text-xs font-medium text-gray-600 bg-gray-100 border border-gray-200 text-center w-[60px]">수정</th>
-                                    <th className="px-2 py-1 text-xs font-medium text-gray-600 bg-gray-100 border border-gray-200 text-center w-[130px]">관리</th>
+                                    <th className="px-2 py-1 text-xs font-medium text-gray-600 bg-gray-50 border border-gray-200 text-center w-[70px]">상태</th>
+                                    <th className="px-2 py-1 text-xs font-medium text-gray-600 bg-gray-50 border border-gray-200 text-center w-[100px]">중도매인번호</th>
+                                    <th className="px-2 py-1 text-xs font-medium text-gray-600 bg-gray-50 border border-gray-200 text-center w-[100px]">중도매인명</th>
+                                    <th className="px-2 py-1 text-xs font-medium text-gray-600 bg-gray-50 border border-gray-200 text-center w-[100px]">입찰가</th>
+                                    <th className="px-2 py-1 text-xs font-medium text-gray-600 bg-gray-50 border border-gray-200 text-center w-[120px]">총입찰금액</th>
+                                    <th className="px-2 py-1 text-xs font-medium text-gray-600 bg-gray-50 border border-gray-200 text-center w-[140px]">입찰시간</th>
+                                    <th className="px-2 py-1 text-xs font-medium text-gray-600 bg-gray-50 border border-gray-200 text-center w-[60px]">수정</th>
+                                    <th className="px-2 py-1 text-xs font-medium text-gray-600 bg-gray-50 border border-gray-200 text-center w-[130px]">관리</th>
                                   </tr>
                                 </thead>
                                 <tbody>
                                   {item.bids.map((bid) => {
                                     const isEditing = editingBidKey === `${item.id}-${bid.id}`;
                                     return (
-                                      <tr key={bid.id} className={bid.rank === 1 ? 'bg-gray-50' : 'bg-white'}>
+                                      <tr key={bid.id} className="bg-white">
                                         <td className={`px-2 py-1 text-xs border border-gray-200 text-center ${bid.rank === 1 ? 'font-bold text-gray-900' : 'text-gray-500'}`}>
                                           {bid.rank === 1 ? '최고순위' : '차순위'}
                                         </td>
@@ -756,7 +756,7 @@ export default function AuctionLivePage() {
                   ))}
                   {/* 개체별 소계 */}
                   {showSubtotal && (
-                    <tr className="bg-gray-100 font-semibold">
+                    <tr className="font-semibold border-t-2 border-gray-300">
                       <td className={tdClass}></td>
                       <td className={`${tdClass} text-left`} colSpan={2}>
                         개체 {cattleNo} 소계 ({cattleItems.length}부위, 입찰 {itemsWithBidsInCattle}건)
