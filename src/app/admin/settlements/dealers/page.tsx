@@ -144,13 +144,16 @@ export default function DealerSettlementsPage() {
   const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
   
   const [settlements] = useState<DealerSettlement[]>(generateDummyData());
-  const [dealerFilter, setDealerFilter] = useState('all');
+  const [dealerSearch, setDealerSearch] = useState('');
   const [startDate, setStartDate] = useState(todayStr);
   const [endDate, setEndDate] = useState(todayStr);
 
-  const filteredSettlements = settlements.filter(s => 
-    dealerFilter === 'all' || s.id === dealerFilter
-  );
+  const filteredSettlements = settlements.filter(s => {
+    if (!dealerSearch) return true;
+    const searchLower = dealerSearch.toLowerCase();
+    return s.dealerName.toLowerCase().includes(searchLower) || 
+           s.dealerNo.includes(dealerSearch);
+  });
 
   const handleExcelDownload = () => {
     const excelData: Record<string, string | number>[] = [];
@@ -291,16 +294,13 @@ export default function DealerSettlementsPage() {
         <div className="flex flex-wrap items-center gap-4">
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium text-gray-600">중도매인</span>
-            <select
-              value={dealerFilter}
-              onChange={(e) => setDealerFilter(e.target.value)}
-              className="px-3 py-1.5 border border-gray-200 text-xs outline-none bg-white min-w-[120px]"
-            >
-              <option value="all">전체</option>
-              {settlements.map(s => (
-                <option key={s.id} value={s.id}>{s.dealerName}</option>
-              ))}
-            </select>
+            <input
+              type="text"
+              value={dealerSearch}
+              onChange={(e) => setDealerSearch(e.target.value)}
+              placeholder="이름 또는 번호 검색"
+              className="px-3 py-1.5 border border-gray-200 text-xs outline-none bg-white w-40"
+            />
           </div>
 
           <div className="flex items-center gap-2">
@@ -324,7 +324,7 @@ export default function DealerSettlementsPage() {
             <button
               type="button"
               onClick={() => {
-                setDealerFilter('all');
+                setDealerSearch('');
                 setStartDate(todayStr);
                 setEndDate(todayStr);
               }}

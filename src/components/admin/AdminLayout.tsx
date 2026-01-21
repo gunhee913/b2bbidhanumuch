@@ -92,29 +92,35 @@ const menuItems = [
   },
 ];
 
+// 현재 경로에 해당하는 메뉴를 계산하는 함수
+const getInitialExpandedMenus = (currentPathname: string) => {
+  const openMenus: string[] = [];
+  menuItems.forEach(item => {
+    if (item.subItems) {
+      const isSubItemActive = item.subItems.some(subItem => currentPathname.startsWith(subItem.href));
+      if (isSubItemActive || currentPathname.startsWith(item.href)) {
+        openMenus.push(item.href);
+      }
+    }
+  });
+  return openMenus;
+};
+
 export default function AdminLayout({ children }: AdminLayoutProps) {
   const pathname = usePathname();
-  const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
+  // 초기값을 현재 경로 기반으로 설정 (애니메이션 없이 바로 열림)
+  const [expandedMenus, setExpandedMenus] = useState<string[]>(() => getInitialExpandedMenus(pathname));
   const [showNotifications, setShowNotifications] = useState(false);
+  const [isAnimationEnabled, setIsAnimationEnabled] = useState(false);
 
-  // 현재 경로에 해당하는 메뉴를 자동으로 열기
+  // 마운트 후 애니메이션 활성화
   useEffect(() => {
-    const openMenus: string[] = [];
-    menuItems.forEach(item => {
-      if (item.subItems) {
-        const isSubItemActive = item.subItems.some(subItem => pathname.startsWith(subItem.href));
-        if (isSubItemActive || pathname.startsWith(item.href)) {
-          openMenus.push(item.href);
-        }
-      }
-    });
-    if (openMenus.length > 0) {
-      setExpandedMenus(prev => {
-        const newMenus = [...new Set([...prev, ...openMenus])];
-        return newMenus;
-      });
-    }
-  }, [pathname]);
+    // 약간의 지연 후 애니메이션 활성화
+    const timer = setTimeout(() => {
+      setIsAnimationEnabled(true);
+    }, 100);
+    return () => clearTimeout(timer);
+  }, []);
 
   const toggleMenu = (href: string) => {
     setExpandedMenus(prev =>
@@ -137,10 +143,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       <aside className="fixed left-0 top-0 z-40 h-screen bg-gray-900 w-64">
         {/* 로고 영역 */}
         <div className="flex items-center h-14 px-4 border-b border-gray-800">
-          <Link href="/admin" className="flex items-center gap-2">
-            <div className="w-7 h-7 bg-red-600 rounded flex items-center justify-center">
-              <span className="text-white font-bold text-sm">H</span>
-            </div>
+          <Link href="/admin" className="flex items-center">
             <span className="text-white font-bold text-lg">HanuMuch</span>
           </Link>
         </div>
@@ -170,7 +173,15 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                         }`}
                       />
                     </button>
-                    {expandedMenus.includes(item.href) && (
+                    <div
+                      className={`overflow-hidden ${
+                        isAnimationEnabled ? 'transition-all duration-200 ease-in-out' : ''
+                      } ${
+                        expandedMenus.includes(item.href)
+                          ? 'max-h-96'
+                          : 'max-h-0'
+                      }`}
+                    >
                       <ul className="mt-1 ml-4 pl-4 border-l border-gray-700 space-y-1">
                         {item.subItems.map((subItem) => (
                           <li key={subItem.href}>
@@ -187,7 +198,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                           </li>
                         ))}
                       </ul>
-                    )}
+                    </div>
                   </>
                 ) : (
                   <Link

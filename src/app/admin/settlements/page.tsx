@@ -205,25 +205,62 @@ export default function SettlementsPage() {
     const excelData: Record<string, string | number>[] = [];
     
     filteredSettlements.forEach(settlement => {
+      // 개체별 데이터
       settlement.cattleList.forEach(cattle => {
-        cattle.parts.forEach(part => {
-          excelData.push({
-            '업체명': settlement.companyName,
-            '대표자': settlement.representative,
-            '낙찰자': settlement.dealerName,
-            '정산일자': settlement.settlementDate,
-            '축종': cattle.species,
-            '성별': cattle.gender,
-            '등급': cattle.grade,
-            '도체중': cattle.weight,
-            '상장번호': part.listingNo,
-            '부위': part.partName,
-            '중량': part.weight,
-            '단가': part.unitPrice,
-            '금액': part.amount,
-            '비고': part.note,
-          });
+        excelData.push({
+          '업체명': settlement.companyName,
+          '접수번호': cattle.auctionNo,
+          '축종': cattle.species,
+          '성별': cattle.gender,
+          '등급': cattle.grade,
+          '중량': cattle.weight,
+          '판매금액': cattle.saleAmount,
+          '상장수수료': cattle.listingFee,
+          '물류비': cattle.logisticsFee,
+          '상차비': cattle.loadingFee,
+          '공제금액계': cattle.deductionTotal,
+          '차인지급액': cattle.netPayment,
         });
+      });
+      
+      // 업체별 소계
+      const totalWeight = settlement.cattleList.reduce((sum, c) => sum + c.weight, 0);
+      const totalSaleAmount = settlement.cattleList.reduce((sum, c) => sum + c.saleAmount, 0);
+      const totalListingFee = settlement.cattleList.reduce((sum, c) => sum + c.listingFee, 0);
+      const totalLogisticsFee = settlement.cattleList.reduce((sum, c) => sum + c.logisticsFee, 0);
+      const totalLoadingFee = settlement.cattleList.reduce((sum, c) => sum + c.loadingFee, 0);
+      const totalDeduction = settlement.cattleList.reduce((sum, c) => sum + c.deductionTotal, 0);
+      const totalNetPayment = settlement.cattleList.reduce((sum, c) => sum + c.netPayment, 0);
+      
+      excelData.push({
+        '업체명': `${settlement.companyName} 소계`,
+        '접수번호': '',
+        '축종': '',
+        '성별': '',
+        '등급': '',
+        '중량': totalWeight,
+        '판매금액': totalSaleAmount,
+        '상장수수료': totalListingFee,
+        '물류비': totalLogisticsFee,
+        '상차비': totalLoadingFee,
+        '공제금액계': totalDeduction,
+        '차인지급액': totalNetPayment,
+      });
+      
+      // 빈 행 추가 (업체 구분)
+      excelData.push({
+        '업체명': '',
+        '접수번호': '',
+        '축종': '',
+        '성별': '',
+        '등급': '',
+        '중량': '',
+        '판매금액': '',
+        '상장수수료': '',
+        '물류비': '',
+        '상차비': '',
+        '공제금액계': '',
+        '차인지급액': '',
       });
     });
 
