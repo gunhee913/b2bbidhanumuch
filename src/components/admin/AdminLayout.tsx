@@ -81,6 +81,10 @@ const menuItems = [
     title: '배송 관리',
     href: '/admin/delivery',
     icon: Truck,
+    subItems: [
+      { title: '경락내역 거래처 지정', href: '/admin/delivery/partners' },
+      { title: '출고지시서', href: '/admin/delivery/orders' },
+    ],
   },
   {
     title: '시세 관리',
