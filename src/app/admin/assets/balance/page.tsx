@@ -52,49 +52,85 @@ export default function DealerBalancePage() {
     return settlements.map(settlement => {
       const dealerNo = settlement.dealerNo;
       
-      // 해당 날짜의 모든 활성 입금 합계
-      const deposits = allTransactions.filter(tx => 
-        tx.dealerNo === dealerNo && 
-        tx.type === 'deposit' && 
-        tx.status === 'active' &&
-        tx.date.startsWith(selectedDate)
-      ).reduce((sum, tx) => sum + tx.amount, 0);
-      
-      // 해당 날짜 이전의 마지막 잔액 찾기 (전일 마감 후 잔액)
-      const prevDayTransactions = allTransactions.filter(tx =>
-        tx.dealerNo === dealerNo &&
-        tx.status === 'active' &&
-        tx.date < selectedDate
-      ).sort((a, b) => b.date.localeCompare(a.date));
-      
-      const prevBalance = prevDayTransactions.length > 0 ? prevDayTransactions[0].balance : 0;
-      
-      // 해당 날짜의 활성 출금 합계 (새로 추가된 출금만, 낙찰대금 제외)
-      const newWithdraws = allTransactions.filter(tx => 
-        tx.dealerNo === dealerNo && 
-        tx.type === 'withdraw' && 
-        tx.status === 'active' &&
-        tx.date.startsWith(selectedDate) &&
-        tx.id.startsWith('txn-') // 새로 추가된 출금만
-      ).reduce((sum, tx) => sum + tx.amount, 0);
-      
-      // 선수잔액 = 전일 마감 잔액 + 오늘 입금 - 오늘 추가 출금(낙찰대금 제외)
-      const advancePayment = prevBalance + deposits - newWithdraws;
-      
-      // 낙찰대금
-      const unsettledAmount = isPastDate ? 0 : settlement.netPayment;
-      
-      // 판매가능금액 = 선수잔액 - 낙찰대금
-      const availableAmount = advancePayment - unsettledAmount;
-      
-      return {
-        id: dealerNo,
-        dealerNo,
-        dealerName: settlement.dealerName,
-        advancePayment,
-        unsettledAmount,
-        availableAmount,
-      };
+      if (isPastDate) {
+        // 과거 날짜: 판매가능금액 = 다음날(21일) 선수잔액과 동일
+        // 해당 날짜 마감 후 잔액
+        const dayTransactions = allTransactions.filter(tx =>
+          tx.dealerNo === dealerNo &&
+          tx.status === 'active' &&
+          tx.date.startsWith(selectedDate)
+        ).sort((a, b) => b.date.localeCompare(a.date));
+        
+        const dayEndBalance = dayTransactions.length > 0 ? dayTransactions[0].balance : 0;
+        
+        // 다음날(오늘) 입금 합계
+        const todayDeposits = allTransactions.filter(tx => 
+          tx.dealerNo === dealerNo && 
+          tx.type === 'deposit' && 
+          tx.status === 'active' &&
+          tx.date.startsWith(todayStr)
+        ).reduce((sum, tx) => sum + tx.amount, 0);
+        
+        // 다음날(오늘) 새로 추가된 출금 (낙찰대금 제외)
+        const todayNewWithdraws = allTransactions.filter(tx => 
+          tx.dealerNo === dealerNo && 
+          tx.type === 'withdraw' && 
+          tx.status === 'active' &&
+          tx.date.startsWith(todayStr) &&
+          tx.id.startsWith('txn-')
+        ).reduce((sum, tx) => sum + tx.amount, 0);
+        
+        // 판매가능금액 = 다음날 선수잔액 = 마감후잔액 + 다음날입금 - 다음날출금
+        const availableAmount = dayEndBalance + todayDeposits - todayNewWithdraws;
+        
+        return {
+          id: dealerNo,
+          dealerNo,
+          dealerName: settlement.dealerName,
+          advancePayment: availableAmount, // 다음날 선수잔액
+          unsettledAmount: 0, // 마감 완료
+          availableAmount: availableAmount,
+        };
+      } else {
+        // 오늘: 입금 합산 계산
+        const deposits = allTransactions.filter(tx => 
+          tx.dealerNo === dealerNo && 
+          tx.type === 'deposit' && 
+          tx.status === 'active' &&
+          tx.date.startsWith(selectedDate)
+        ).reduce((sum, tx) => sum + tx.amount, 0);
+        
+        // 전일 마감 후 잔액
+        const prevDayTransactions = allTransactions.filter(tx =>
+          tx.dealerNo === dealerNo &&
+          tx.status === 'active' &&
+          tx.date < selectedDate
+        ).sort((a, b) => b.date.localeCompare(a.date));
+        
+        const prevBalance = prevDayTransactions.length > 0 ? prevDayTransactions[0].balance : 0;
+        
+        // 새로 추가된 출금 (낙찰대금 제외)
+        const newWithdraws = allTransactions.filter(tx => 
+          tx.dealerNo === dealerNo && 
+          tx.type === 'withdraw' && 
+          tx.status === 'active' &&
+          tx.date.startsWith(selectedDate) &&
+          tx.id.startsWith('txn-')
+        ).reduce((sum, tx) => sum + tx.amount, 0);
+        
+        const advancePayment = prevBalance + deposits - newWithdraws;
+        const unsettledAmount = settlement.netPayment;
+        const availableAmount = advancePayment - unsettledAmount;
+        
+        return {
+          id: dealerNo,
+          dealerNo,
+          dealerName: settlement.dealerName,
+          advancePayment,
+          unsettledAmount,
+          availableAmount,
+        };
+      }
     });
   }, [selectedDate, isPastDate, allTransactions]);
   
