@@ -65,8 +65,14 @@ export interface DealerSettlementData {
 // 고정된 날짜 코드 (데이터 일관성을 위해)
 const FIXED_DATE_CODE = '260121';
 
+// 전역 상장번호 카운터 (중복 방지)
+let globalListingCounter = 0;
+
 // 중도매인별 낙찰 데이터 생성 (고정된 결과를 위해 결정론적 로직 사용)
 export const generateDealerSettlements = (): DealerSettlementData[] => {
+  // 카운터 초기화
+  globalListingCounter = 0;
+  
   return DEALERS.map((dealer, dealerIdx) => {
     const bidParts: BidPartDetail[] = [];
     
@@ -78,8 +84,11 @@ export const generateDealerSettlements = (): DealerSettlementData[] => {
       const partName = PART_NAMES[partIdx];
       const companyIdx = (dealerIdx + i) % 4;
       const gradeIdx = (dealerIdx * 2 + i) % 6;
-      const cattleNo = 100 * (companyIdx + 1) + Math.floor(i / 19) + 1;
-      const partNo = (i % 19) + 1;
+      
+      // 고유한 상장번호 생성 (전역 카운터 사용)
+      const cattleNo = 100 * (companyIdx + 1) + Math.floor(globalListingCounter / 19) + 1;
+      const partNo = (globalListingCounter % 19) + 1;
+      globalListingCounter++;
       
       const baseWeight = PART_WEIGHTS[partName];
       const weightVariation = ((dealerIdx * 5 + i * 2) % 20 - 10) / 10;

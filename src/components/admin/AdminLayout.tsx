@@ -84,6 +84,7 @@ const menuItems = [
     subItems: [
       { title: '경락내역 거래처 지정', href: '/admin/delivery/partners' },
       { title: '출고지시서', href: '/admin/delivery/orders' },
+      { title: '증명서 조회', href: '/admin/delivery/certificates' },
     ],
   },
   {

@@ -35,7 +35,7 @@ function MainPageContent() {
   const { 
     bids: globalBids, 
     setBid,
-    quickReBidAmount,
+    quickReBidAmount, 
     setQuickReBidAmount,
     isSecondBidNotificationOn,
     setIsSecondBidNotificationOn,
@@ -469,7 +469,7 @@ function MainPageContent() {
                           {formatTime(countdown)}
                         </span>
                       </div>
-                      
+
                       {/* 등급별 경매 두수 현황 */}
                       <h3 className="text-base font-bold text-gray-900 mb-3">등급별 경매 두수 현황</h3>
                       <div className="mb-3 overflow-hidden border border-gray-200">
@@ -706,23 +706,23 @@ function MainPageContent() {
                                 return parseTime(b.time) - parseTime(a.time);
                               })
                               .map(([listingNo, bid]) => {
-                              const productInfo = bid.productInfo;
-                              if (!productInfo) return null;
-                              
-                              return (
+                          const productInfo = bid.productInfo;
+                          if (!productInfo) return null;
+                          
+                          return (
                                 <tr key={listingNo} id={`bid-card-${listingNo}`} className="border-b border-gray-100 hover:bg-gray-50">
                                   {/* 상태 */}
                                   <td className="px-2 py-2.5 text-center">
-                                    {bid.status === 'highest' ? (
+                                            {bid.status === 'highest' ? (
                                       <span className="inline-flex px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-bold rounded">
                                         최고가격
-                                      </span>
-                                    ) : (
+                                              </span>
+                                            ) : (
                                       <span className="inline-flex px-1.5 py-0.5 bg-red-100 text-red-700 text-[10px] font-bold rounded">
-                                        차순위
-                                      </span>
-                                    )}
-                                  </td>
+                                                차순위
+                                              </span>
+                                            )}
+                                    </td>
                                   {/* 일자 */}
                                   <td className="px-2 py-2.5 text-center text-gray-600 text-[11px]">
                                     {bid.time}
@@ -782,21 +782,21 @@ function MainPageContent() {
                                     {bid.status === 'highest' ? (
                                       <span className="text-gray-400 text-[10px]">-</span>
                                     ) : (
-                                      <button
-                                        onClick={() => {
-                                          setSelectedBid({ listingNo, ...bid });
-                                          setCustomBidPrice((bid.highestBid + quickReBidAmount).toLocaleString());
-                                          setShowReBidDialog(true);
-                                        }}
+                                  <button 
+                                    onClick={() => {
+                                        setSelectedBid({ listingNo, ...bid });
+                                        setCustomBidPrice((bid.highestBid + quickReBidAmount).toLocaleString());
+                                        setShowReBidDialog(true);
+                                    }}
                                         className="px-2 py-1 bg-red-600 text-white text-[10px] font-bold rounded hover:bg-red-700 transition-colors"
-                                      >
+                                  >
                                         재입찰
-                                      </button>
+                                  </button>
                                     )}
                                   </td>
                                 </tr>
-                              );
-                            })}
+                          );
+                        })}
                           </tbody>
                         </table>
                       </div>
@@ -866,7 +866,7 @@ function MainPageContent() {
 
             {/* 재입찰 바텀시트 */}
             <AnimatePresence>
-              {showReBidDialog && selectedBid && selectedBid.productInfo && (
+            {showReBidDialog && selectedBid && selectedBid.productInfo && (
                 <>
                   {/* 백드롭 */}
                   <motion.div
@@ -892,8 +892,8 @@ function MainPageContent() {
                     {/* 핸들 */}
                     <div className="flex justify-center py-2">
                       <div className="w-10 h-1 bg-gray-300 rounded-full"></div>
-                    </div>
-                    
+                  </div>
+
                     {/* 헤더 */}
                     <div className="flex items-center justify-between px-4 pb-3">
                       <h3 className="text-lg font-bold">입찰하기</h3>
@@ -944,49 +944,49 @@ function MainPageContent() {
                       </div>
                       
                       {/* 입찰가격 */}
-                      <div className="mb-4">
+                  <div className="mb-4">
                         <div className="flex items-center justify-between mb-1">
                           <div className="text-xs text-gray-500">입찰가격 (원/kg)</div>
                         </div>
                         <div className="relative mb-2">
-                          <input
+                      <input
                             type="text"
-                            inputMode="numeric"
-                            value={customBidPrice}
-                            onChange={(e) => {
-                              const value = e.target.value.replace(/[^0-9]/g, '');
-                              setCustomBidPrice(value ? parseInt(value).toLocaleString() : '');
-                            }}
+                        inputMode="numeric"
+                        value={customBidPrice}
+                        onChange={(e) => {
+                          const value = e.target.value.replace(/[^0-9]/g, '');
+                          setCustomBidPrice(value ? parseInt(value).toLocaleString() : '');
+                        }}
                             placeholder={`최저단가 ${(selectedBid.productInfo.price || 50000).toLocaleString()}`}
                             className="w-full px-3 py-3 pr-10 text-right text-xl font-bold border border-gray-200 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-white text-black placeholder:text-gray-400"
-                          />
+                      />
                           <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-sm text-gray-400">
                             원
-                          </div>
-                        </div>
+                    </div>
+                      </div>
                         {/* 가격 조정 버튼 */}
                         <div className="grid grid-cols-5 gap-1.5">
                           {[100, 1000, 10000, 50000].map((amount) => (
-                            <button
+                    <button
                               key={amount}
-                              onClick={() => {
+                      onClick={() => {
                                 const currentPrice = customBidPrice ? parseInt(customBidPrice.replace(/,/g, '')) : 0;
                                 const newPrice = currentPrice + amount;
                                 setCustomBidPrice(newPrice.toLocaleString());
-                              }}
+                      }}
                               className="py-2.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 font-medium"
-                            >
+                    >
                               +{amount.toLocaleString()}
-                            </button>
+                    </button>
                           ))}
-                          <button
+                    <button
                             onClick={() => setCustomBidPrice('')}
                             className="py-2.5 text-xs bg-gray-100 border border-gray-200 rounded-lg hover:bg-gray-200 text-gray-600 font-medium"
-                          >
+                    >
                             초기화
-                          </button>
-                        </div>
-                      </div>
+                    </button>
+                  </div>
+                </div>
                       
                       {/* 총 입찰금액 */}
                       <div className="bg-gray-50 p-3 rounded-lg border border-gray-200 mb-4">
@@ -1001,7 +1001,7 @@ function MainPageContent() {
                               return `${total.toLocaleString()}원`;
                             })()}
                           </span>
-                        </div>
+              </div>
                       </div>
                       
                       {/* 입찰하기 버튼 */}
@@ -1015,7 +1015,7 @@ function MainPageContent() {
                     </div>
                   </motion.div>
                 </>
-              )}
+            )}
             </AnimatePresence>
 
             {/* 토스트 메시지 */}

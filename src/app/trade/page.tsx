@@ -649,18 +649,18 @@ export default function TradePage() {
     
     // 오늘 날짜인 경우: 진행중
     if (isToday) {
-      return {
-        text: '진행중',
-        className: 'bg-blue-100 text-blue-700',
-      };
+        return {
+          text: '진행중',
+          className: 'bg-blue-100 text-blue-700',
+        };
     }
     
     // 과거 날짜인 경우: myBid와 highestBid 비교로 낙찰/미낙찰 판단
     if (myBid >= highestBid) {
-      return {
-        text: '낙찰',
-        className: 'bg-green-100 text-green-700',
-      };
+        return {
+          text: '낙찰',
+          className: 'bg-green-100 text-green-700',
+        };
     } else {
       return {
         text: '미낙찰',
@@ -816,7 +816,7 @@ export default function TradePage() {
                   }}
                   className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors"
                 >
-                                  {statusFilter === 'all' ? '상태' : 
+                  {statusFilter === 'all' ? '상태' : 
                                    statusFilter === 'ongoing' ? '진행중' : 
                                    statusFilter === 'won' ? '낙찰' : '미낙찰'}
                   <ChevronDown className={`h-3 w-3 transition-transform ${showStatusDropdown ? 'rotate-180' : ''}`} />
@@ -1219,17 +1219,17 @@ export default function TradePage() {
                               
                               if (isWon) {
                                 return (dealerMap[item.id] || item.dealer) ? (
-                                  <div className="text-[11px] text-gray-700 truncate">
-                                    {dealerMap[item.id] || item.dealer}
-                                  </div>
-                                ) : (
-                                  <button
-                                    onClick={(e) => openDealerModal(item, e)}
-                                    className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded transition-colors"
-                                  >
-                                    <Plus className="w-2.5 h-2.5" />
-                                    등록
-                                  </button>
+                                <div className="text-[11px] text-gray-700 truncate">
+                                  {dealerMap[item.id] || item.dealer}
+                                </div>
+                              ) : (
+                                <button
+                                  onClick={(e) => openDealerModal(item, e)}
+                                  className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded transition-colors"
+                                >
+                                  <Plus className="w-2.5 h-2.5" />
+                                  등록
+                                </button>
                                 );
                               }
                               return <div className="text-[11px] text-gray-400">-</div>;
@@ -1586,10 +1586,10 @@ export default function TradePage() {
                       const isWon = !isToday && selectedItem.myBid >= selectedItem.highestBid;
                       
                       return isWon ? (
-                        <div className="mt-2 pt-2 border-t border-gray-200">
-                          <div className="text-gray-500 text-[10px]">경락대금</div>
-                          <div className="font-bold text-base">{calculateTotalPrice(selectedItem).toLocaleString()}원</div>
-                        </div>
+                      <div className="mt-2 pt-2 border-t border-gray-200">
+                        <div className="text-gray-500 text-[10px]">경락대금</div>
+                        <div className="font-bold text-base">{calculateTotalPrice(selectedItem).toLocaleString()}원</div>
+                      </div>
                       ) : null;
                     })()}
                   </div>
