@@ -268,8 +268,8 @@ export const calculateAdvancePayment = (transactions: Transaction[], dealerNo: s
   return deposits - withdraws;
 };
 
-// sessionStorage 키 (탭 닫으면 초기화)
-const TRANSACTIONS_STORAGE_KEY = 'dealer_transactions';
+// sessionStorage 키 (탭 닫으면 초기화) - v2: 가격 변동성 반영
+const TRANSACTIONS_STORAGE_KEY = 'dealer_transactions_v2';
 
 // sessionStorage에서 거래 내역 불러오기
 export const loadTransactions = (): Transaction[] => {

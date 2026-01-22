@@ -18,8 +18,8 @@ interface DealerBalance {
 }
 
 export default function DealerBalancePage() {
-  const today = new Date();
-  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  // 기준일 고정 (2026-01-21)
+  const todayStr = '2026-01-21';
   
   // 공통 거래 내역 데이터 (localStorage 연동)
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
@@ -39,7 +39,7 @@ export default function DealerBalancePage() {
   }, [allTransactions, isLoaded]);
   
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedDate, setSelectedDate] = useState(todayStr);
+  const [selectedDate, setSelectedDate] = useState('2026-01-21');
   const [expandedDealers, setExpandedDealers] = useState<string[]>([]);
   
   // 과거 날짜인지 확인 (마감 완료 여부)

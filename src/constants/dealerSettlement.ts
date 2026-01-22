@@ -7,12 +7,21 @@ export const DEALERS = [
   { no: '7000005', name: '정대호', phone: '010-5678-9012' },
 ];
 
-// 19개 부위
+// 19개 부위 (부위번호 01~19 순서)
 export const PART_NAMES = [
   '등심(좌)', '등심(우)', '안심', '채끝', '갈비(좌)', '갈비(우)',
-  '특수부위', '앞다리', '우둔', '목심', '양지(좌)', '양지(우)',
-  '설도(좌)', '설도(우)', '사태', '꼬리', '족', '사골', '잡뼈'
+  '특수부위', '설도(좌)', '설도(우)', '앞다리', '우둔', '목심', 
+  '양지(좌)', '양지(우)', '사태', '꼬리', '족', '사골', '잡뼈'
 ];
+
+// 부위명 -> 부위번호 매핑
+export const PART_NUMBER_MAP: Record<string, string> = {
+  '등심(좌)': '01', '등심(우)': '02', '안심': '03', '채끝': '04',
+  '갈비(좌)': '05', '갈비(우)': '06', '특수부위': '07',
+  '설도(좌)': '08', '설도(우)': '09', '앞다리': '10', '우둔': '11', '목심': '12',
+  '양지(좌)': '13', '양지(우)': '14', '사태': '15', '꼬리': '16', 
+  '족': '17', '사골': '18', '잡뼈': '19'
+};
 
 // 부위별 기본 단가
 export const PART_PRICES: Record<string, number> = {
@@ -36,7 +45,7 @@ export const PART_WEIGHTS: Record<string, number> = {
 export const COMPANIES = ['건화', '대진엠에스', '안심엘피씨', '정직한고기'];
 
 // 등급
-export const GRADES = ['1++A', '1++B', '1+A', '1+B', '1A', '1B'];
+export const GRADES = ['1++A', '1++B', '1++C', '1+A', '1+B', '1+C', '1A', '1B', '1C', '2A', '2B', '2C'];
 
 // 부위 상세 타입
 export interface BidPartDetail {
@@ -83,11 +92,12 @@ export const generateDealerSettlements = (): DealerSettlementData[] => {
       const partIdx = (dealerIdx * 7 + i * 3) % 19;
       const partName = PART_NAMES[partIdx];
       const companyIdx = (dealerIdx + i) % 4;
-      const gradeIdx = (dealerIdx * 2 + i) % 6;
+      const gradeIdx = (dealerIdx * 3 + i * 5) % GRADES.length;
       
-      // 고유한 상장번호 생성 (전역 카운터 사용)
+      // 개체번호: 업체별로 100번대 시작 (건화:101~, 대진:201~, 안심:301~, 정직:401~)
       const cattleNo = 100 * (companyIdx + 1) + Math.floor(globalListingCounter / 19) + 1;
-      const partNo = (globalListingCounter % 19) + 1;
+      // 부위번호: 부위명에 따라 고정된 번호 (01~19)
+      const partNo = PART_NUMBER_MAP[partName];
       globalListingCounter++;
       
       const baseWeight = PART_WEIGHTS[partName];
@@ -95,12 +105,25 @@ export const generateDealerSettlements = (): DealerSettlementData[] => {
       const weight = Number((baseWeight + weightVariation).toFixed(1));
       
       const basePrice = PART_PRICES[partName];
-      const gradeMultiplier = GRADES[gradeIdx].startsWith('1++') ? 1.0 : GRADES[gradeIdx].startsWith('1+') ? 0.9 : 0.8;
-      const unitPrice = Math.round(basePrice * gradeMultiplier);
+      // 등급별 기본 배수
+      let gradeMultiplier = 1.0;
+      if (GRADES[gradeIdx].startsWith('1++')) {
+        gradeMultiplier = 1.1 + (gradeIdx % 3) * 0.05; // 1.10 ~ 1.20
+      } else if (GRADES[gradeIdx].startsWith('1+')) {
+        gradeMultiplier = 0.95 + (gradeIdx % 3) * 0.03; // 0.95 ~ 1.01
+      } else if (GRADES[gradeIdx].startsWith('1')) {
+        gradeMultiplier = 0.85 + (gradeIdx % 3) * 0.02; // 0.85 ~ 0.89
+      } else {
+        gradeMultiplier = 0.70 + (gradeIdx % 3) * 0.03; // 0.70 ~ 0.76 (2등급)
+      }
+      // 가격 변동 추가 (딜러/부위/인덱스별로 다른 변동)
+      const priceVariation = 1 + ((dealerIdx * 17 + i * 23 + partIdx * 7) % 200 - 100) / 1000; // ±10% 변동
+      const randomFactor = 1 + ((dealerIdx * 31 + i * 13) % 100 - 50) / 500; // 추가 ±10% 변동
+      const unitPrice = Math.round(basePrice * gradeMultiplier * priceVariation * randomFactor);
       const amount = Math.round(weight * unitPrice);
 
       bidParts.push({
-        listingNo: `${FIXED_DATE_CODE}-${cattleNo}-${String(partNo).padStart(2, '0')}`,
+        listingNo: `${FIXED_DATE_CODE}-${cattleNo}-${partNo}`,
         partName,
         companyName: COMPANIES[companyIdx],
         grade: GRADES[gradeIdx],

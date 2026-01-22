@@ -39,8 +39,8 @@ export default function TransactionsPage() {
     return () => window.removeEventListener('focus', handleFocus);
   }, []);
   const [typeFilter, setTypeFilter] = useState('all');
-  const [startDate, setStartDate] = useState(monthAgoStr);
-  const [endDate, setEndDate] = useState(todayStr);
+  const [startDate, setStartDate] = useState('2025-12-22');
+  const [endDate, setEndDate] = useState('2026-01-21');
 
   // 필터링 (활성 거래만)
   const filteredTransactions = transactions.filter(tx => {

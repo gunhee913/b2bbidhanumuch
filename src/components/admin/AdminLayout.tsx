@@ -91,6 +91,11 @@ const menuItems = [
     title: '시세 관리',
     href: '/admin/market',
     icon: TrendingUp,
+    subItems: [
+      { title: '시세 조회', href: '/admin/market' },
+      { title: '시세 등록', href: '/admin/market/new' },
+      { title: '시세 설정', href: '/admin/market/settings' },
+    ],
   },
   {
     title: '리포트',

@@ -1,0 +1,448 @@
+'use client';
+
+import React, { useState, useMemo } from 'react';
+import AdminLayout from '@/components/admin/AdminLayout';
+import { 
+  ChevronDown,
+  ChevronUp,
+  Download,
+} from 'lucide-react';
+import * as XLSX from 'xlsx';
+import { format } from 'date-fns';
+import { ko } from 'date-fns/locale';
+import { generateDealerSettlements, BidPartDetail } from '@/constants/dealerSettlement';
+
+// 부위 매핑 (좌/우 -> 통합)
+const PART_MAPPING: Record<string, string> = {
+  '등심(좌)': '등심',
+  '등심(우)': '등심',
+  '안심': '안심',
+  '채끝': '채끝',
+  '갈비(좌)': '갈비',
+  '갈비(우)': '갈비',
+  '특수부위': '특수부위',
+  '앞다리': '앞다리',
+  '우둔': '우둔',
+  '목심': '목심',
+  '양지(좌)': '양지',
+  '양지(우)': '양지',
+  '설도(좌)': '설도',
+  '설도(우)': '설도',
+  '사태': '사태',
+  '꼬리': '꼬리',
+  '족': '족',
+  '사골': '사골',
+  '잡뼈': '잡뼈',
+};
+
+// 등급 매핑 (세분화)
+const GRADE_MAPPING: Record<string, string> = {
+  '1++A': '1++(9)',
+  '1++B': '1++(8)',
+  '1++C': '1++(7)',
+  '1+A': '1+',
+  '1+B': '1+',
+  '1+C': '1+',
+  '1A': '1',
+  '1B': '1',
+  '1C': '1',
+  '2A': '2',
+  '2B': '2',
+  '2C': '2',
+  '2': '2',
+};
+
+// 부위 목록
+const PARTS = [
+  '등심', '안심', '채끝', '갈비', '특수부위', '앞다리', 
+  '우둔', '목심', '양지', '설도', '사태', '꼬리', '족', '사골', '잡뼈'
+];
+
+// 등급 목록
+const GRADES = ['1++(9)', '1++(8)', '1++(7)', '1+', '1', '2'];
+
+// 낙찰 내역 타입
+interface BidRecord {
+  listingNo: string;
+  partName: string;
+  partNameOriginal: string;
+  grade: string;
+  gradeOriginal: string;
+  dealerNo: string;
+  dealerName: string;
+  companyName: string;
+  weight: number;
+  price: number;
+  totalPrice: number;
+}
+
+// 시세 요약 타입
+interface PriceSummary {
+  partName: string;
+  grade: string;
+  count: number;
+  totalWeight: number;
+  avgPrice: number;
+  minPrice: number;
+  maxPrice: number;
+  records: BidRecord[];
+}
+
+export default function MarketPage() {
+  const [selectedDate, setSelectedDate] = useState<string>('2026-01-21');
+  const [partFilter, setPartFilter] = useState<string>('all');
+  const [gradeFilter, setGradeFilter] = useState<string>('all');
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  
+  // 중도매인별 낙찰 데이터 가져오기
+  const dealerSettlements = useMemo(() => generateDealerSettlements(), []);
+  
+  // 모든 낙찰 내역을 플랫하게 변환
+  const allBidRecords = useMemo(() => {
+    const records: BidRecord[] = [];
+    
+    dealerSettlements.forEach(settlement => {
+      settlement.bidParts.forEach(part => {
+        records.push({
+          listingNo: part.listingNo,
+          partName: PART_MAPPING[part.partName] || part.partName,
+          partNameOriginal: part.partName,
+          grade: GRADE_MAPPING[part.grade] || part.grade,
+          gradeOriginal: part.grade,
+          dealerNo: settlement.dealerNo,
+          dealerName: settlement.dealerName,
+          companyName: part.companyName,
+          weight: part.weight,
+          price: part.unitPrice,
+          totalPrice: part.amount,
+        });
+      });
+    });
+    
+    return records;
+  }, [dealerSettlements]);
+  
+  // 부위/등급별로 그룹핑 (0건인 항목도 포함)
+  const summaryData = useMemo(() => {
+    const groupMap = new Map<string, BidRecord[]>();
+    
+    // 모든 부위/등급 조합 초기화
+    PARTS.forEach(part => {
+      GRADES.forEach(grade => {
+        groupMap.set(`${part}-${grade}`, []);
+      });
+    });
+    
+    // 실제 데이터 추가
+    allBidRecords.forEach(record => {
+      const key = `${record.partName}-${record.grade}`;
+      if (groupMap.has(key)) {
+        groupMap.get(key)!.push(record);
+      }
+    });
+    
+    const summaries: PriceSummary[] = [];
+    
+    groupMap.forEach((records, key) => {
+      const [partName, grade] = key.split('-');
+      
+      if (records.length === 0) {
+        summaries.push({
+          partName,
+          grade,
+          count: 0,
+          totalWeight: 0,
+          avgPrice: 0,
+          minPrice: 0,
+          maxPrice: 0,
+          records: [],
+        });
+      } else {
+        const prices = records.map(r => r.price);
+        const totalWeight = records.reduce((sum, r) => sum + r.weight, 0);
+        
+        summaries.push({
+          partName,
+          grade,
+          count: records.length,
+          totalWeight: Math.round(totalWeight * 10) / 10,
+          avgPrice: Math.round(prices.reduce((a, b) => a + b, 0) / prices.length),
+          minPrice: Math.min(...prices),
+          maxPrice: Math.max(...prices),
+          records: records.sort((a, b) => a.listingNo.localeCompare(b.listingNo)),
+        });
+      }
+    });
+    
+    // 부위 순서, 등급 순서로 정렬
+    return summaries.sort((a, b) => {
+      const partOrderA = PARTS.indexOf(a.partName);
+      const partOrderB = PARTS.indexOf(b.partName);
+      if (partOrderA !== partOrderB) return partOrderA - partOrderB;
+      
+      const gradeOrderA = GRADES.indexOf(a.grade);
+      const gradeOrderB = GRADES.indexOf(b.grade);
+      return gradeOrderA - gradeOrderB;
+    });
+  }, [allBidRecords]);
+  
+  // 필터링된 데이터
+  const filteredData = useMemo(() => {
+    return summaryData.filter(item => {
+      const matchesPart = partFilter === 'all' || item.partName === partFilter;
+      const matchesGrade = gradeFilter === 'all' || item.grade === gradeFilter;
+      return matchesPart && matchesGrade;
+    });
+  }, [summaryData, partFilter, gradeFilter]);
+  
+  // 행 확장/축소
+  const toggleRow = (key: string) => {
+    setExpandedRows(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(key)) {
+        newSet.delete(key);
+      } else {
+        newSet.add(key);
+      }
+      return newSet;
+    });
+  };
+  
+  // 엑셀 다운로드
+  const handleExcelDownload = () => {
+    const excelData: any[] = [];
+    
+    filteredData.forEach(item => {
+      item.records.forEach(record => {
+        excelData.push({
+          '날짜': selectedDate,
+          '상장번호': record.listingNo,
+          '부위': record.partNameOriginal,
+          '등급': record.gradeOriginal,
+          '상장업체': record.companyName,
+          '중도매인명': record.dealerName,
+          '중도매인번호': record.dealerNo,
+          '중량(kg)': record.weight,
+          '낙찰단가(원/kg)': record.price,
+          '낙찰금액(원)': record.totalPrice,
+        });
+      });
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(excelData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, '시세 데이터');
+
+    const fileName = `시세_데이터_${selectedDate.replace(/-/g, '')}.xlsx`;
+    XLSX.writeFile(workbook, fileName);
+  };
+
+  // 필터 초기화
+  const resetFilters = () => {
+    setSelectedDate('2026-01-21');
+    setPartFilter('all');
+    setGradeFilter('all');
+    setExpandedRows(new Set());
+  };
+
+  return (
+    <AdminLayout>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">시세 조회</h1>
+        <p className="text-sm text-gray-500 mt-1">부위별/등급별 당일 시세 데이터를 조회합니다.</p>
+      </div>
+
+      {/* 필터 섹션 */}
+      <div className="bg-white border border-gray-200 p-4 mb-4">
+        <div className="flex flex-wrap items-center gap-4">
+          {/* 날짜 선택 */}
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-gray-600">날짜</span>
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="w-36 px-3 py-1.5 border border-gray-200 text-xs outline-none bg-white"
+            />
+          </div>
+
+          {/* 부위 필터 */}
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-gray-600">부위</span>
+            <select
+              value={partFilter}
+              onChange={(e) => setPartFilter(e.target.value)}
+              className="px-3 py-1.5 border border-gray-200 text-xs outline-none bg-white"
+            >
+              <option value="all">전체</option>
+              {PARTS.map(part => (
+                <option key={part} value={part}>{part}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* 등급 필터 */}
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-gray-600">등급</span>
+            <select
+              value={gradeFilter}
+              onChange={(e) => setGradeFilter(e.target.value)}
+              className="px-3 py-1.5 border border-gray-200 text-xs outline-none bg-white"
+            >
+              <option value="all">전체</option>
+              {GRADES.map(grade => (
+                <option key={grade} value={grade}>{grade}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* 버튼 */}
+          <div className="flex items-center gap-2 ml-auto">
+            <button
+              type="button"
+              onClick={resetFilters}
+              className="px-4 py-1.5 border border-gray-300 text-gray-600 text-xs hover:bg-gray-50"
+            >
+              초기화
+            </button>
+            <button
+              type="button"
+              onClick={handleExcelDownload}
+              className="flex items-center gap-1.5 px-4 py-1.5 bg-gray-700 text-white text-xs hover:bg-gray-800"
+            >
+              <Download className="w-3.5 h-3.5" />
+              엑셀
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* 테이블 */}
+      <div className="bg-white border border-gray-200 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse">
+            <thead>
+              <tr>
+                <th className="w-10 px-2 py-3 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50"></th>
+                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">부위</th>
+                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">등급</th>
+                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">낙찰건수</th>
+                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">총중량(kg)</th>
+                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">평균단가</th>
+                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">최저가</th>
+                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">최고가</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredData.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="px-4 py-8 text-center text-sm text-gray-500 border border-gray-200">
+                    조회된 데이터가 없습니다.
+                  </td>
+                </tr>
+              ) : (
+                filteredData.map((item) => {
+                  const rowKey = `${item.partName}-${item.grade}`;
+                  const isExpanded = expandedRows.has(rowKey);
+                  const hasRecords = item.count > 0;
+                  
+                  return (
+                    <React.Fragment key={rowKey}>
+                      <tr 
+                        className={`transition-colors ${hasRecords ? 'hover:bg-gray-50 cursor-pointer' : 'bg-gray-50/50'}`}
+                        onClick={() => hasRecords && toggleRow(rowKey)}
+                      >
+                        <td className="px-2 py-3 text-center border border-gray-200">
+                          {hasRecords ? (
+                            isExpanded ? (
+                              <ChevronUp className="w-4 h-4 text-gray-400 mx-auto" />
+                            ) : (
+                              <ChevronDown className="w-4 h-4 text-gray-400 mx-auto" />
+                            )
+                          ) : null}
+                        </td>
+                        <td className="px-4 py-3 text-xs text-center border border-gray-200 text-gray-900 font-medium">
+                          {item.partName}
+                        </td>
+                        <td className="px-4 py-3 text-xs text-center border border-gray-200 text-gray-700">
+                          {item.grade}
+                        </td>
+<td className={`px-4 py-3 text-xs text-center border border-gray-200 ${hasRecords ? 'text-gray-900' : 'text-gray-400'}`}>
+                          {item.count}
+                        </td>
+                        <td className={`px-4 py-3 text-xs text-center border border-gray-200 ${hasRecords ? 'text-gray-700' : 'text-gray-400'}`}>
+                          {hasRecords ? item.totalWeight.toLocaleString() : '-'}
+                        </td>
+                        <td className={`px-4 py-3 text-xs text-center border border-gray-200 ${hasRecords ? 'text-gray-900' : 'text-gray-400'}`}>
+                          {hasRecords ? `${item.avgPrice.toLocaleString()}원` : '-'}
+                        </td>
+                        <td className={`px-4 py-3 text-xs text-center border border-gray-200 ${hasRecords ? 'text-gray-700' : 'text-gray-400'}`}>
+                          {hasRecords ? `${item.minPrice.toLocaleString()}원` : '-'}
+                        </td>
+                        <td className={`px-4 py-3 text-xs text-center border border-gray-200 ${hasRecords ? 'text-gray-700' : 'text-gray-400'}`}>
+                          {hasRecords ? `${item.maxPrice.toLocaleString()}원` : '-'}
+                        </td>
+                      </tr>
+                      
+                      {/* 상세 내역 */}
+                      {isExpanded && (
+                        <tr>
+                          <td colSpan={8} className="px-4 py-3 bg-gray-50 border border-gray-200">
+                            <div className="text-xs font-medium text-gray-700 mb-2">
+                              상세 내역 ({item.count}건)
+                            </div>
+                            <table className="w-full border border-gray-200 bg-white">
+                              <thead>
+                                <tr className="bg-gray-100">
+                                  <th className="px-3 py-2 text-xs font-semibold text-gray-600 text-center border-r border-gray-200">상장번호</th>
+                                  <th className="px-3 py-2 text-xs font-semibold text-gray-600 text-center border-r border-gray-200">상장업체</th>
+                                  <th className="px-3 py-2 text-xs font-semibold text-gray-600 text-center border-r border-gray-200">부위</th>
+                                  <th className="px-3 py-2 text-xs font-semibold text-gray-600 text-center border-r border-gray-200">등급</th>
+                                  <th className="px-3 py-2 text-xs font-semibold text-gray-600 text-center border-r border-gray-200">중도매인번호</th>
+                                  <th className="px-3 py-2 text-xs font-semibold text-gray-600 text-center border-r border-gray-200">중도매인명</th>
+                                  <th className="px-3 py-2 text-xs font-semibold text-gray-600 text-center border-r border-gray-200">중량(kg)</th>
+                                  <th className="px-3 py-2 text-xs font-semibold text-gray-600 text-center border-r border-gray-200">낙찰단가</th>
+                                  <th className="px-3 py-2 text-xs font-semibold text-gray-600 text-center">낙찰금액</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {item.records.map((record, idx) => (
+                                  <tr key={`${record.listingNo}-${idx}`} className="border-t border-gray-200 hover:bg-gray-50">
+                                    <td className="px-3 py-2 text-xs text-center text-gray-700 border-r border-gray-200">{record.listingNo}</td>
+                                    <td className="px-3 py-2 text-xs text-center text-gray-700 border-r border-gray-200">{record.companyName}</td>
+                                    <td className="px-3 py-2 text-xs text-center text-gray-700 border-r border-gray-200">{record.partNameOriginal}</td>
+                                    <td className="px-3 py-2 text-xs text-center text-gray-700 border-r border-gray-200">{record.gradeOriginal}</td>
+                                    <td className="px-3 py-2 text-xs text-center text-gray-700 border-r border-gray-200">{record.dealerNo}</td>
+                                    <td className="px-3 py-2 text-xs text-center text-gray-700 border-r border-gray-200">{record.dealerName}</td>
+                                    <td className="px-3 py-2 text-xs text-center text-gray-700 border-r border-gray-200">{record.weight}</td>
+                                    <td className="px-3 py-2 text-xs text-center text-gray-700 border-r border-gray-200">
+                                      {record.price.toLocaleString()}원
+                                    </td>
+                                    <td className="px-3 py-2 text-xs text-center text-gray-700">
+                                      {record.totalPrice.toLocaleString()}원
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* 하단 정보 */}
+        <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
+          <div className="text-sm text-gray-500">
+            총 {filteredData.length}개 항목
+          </div>
+        </div>
+      </div>
+    </AdminLayout>
+  );
+}
