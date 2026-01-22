@@ -105,7 +105,7 @@ const createNewCattle = (id: number, seqNo: string): CattleData => ({
   fatColor: '',
   texture: '',
   maturity: '',
-  slaughterHouse: '음성',
+  slaughterHouse: '음성축산물공판장',
   slaughterDate: '',
   slaughterNo: '',
   processDate: '',
@@ -476,7 +476,7 @@ export default function NewAuctionPage() {
           cattle.fatColor = row['지방색'] || '';
           cattle.texture = row['조직감'] || '';
           cattle.maturity = row['성숙도'] || '';
-          cattle.slaughterHouse = row['도축장'] || '음성';
+          cattle.slaughterHouse = '음성축산물공판장';
           cattle.slaughterDate = row['도축일'] || '';
           cattle.slaughterNo = row['도축번호'] || '';
           cattle.processDate = row['가공일'] || '';
@@ -666,15 +666,15 @@ export default function NewAuctionPage() {
                   <table className="w-full text-xs border-collapse">
                     <thead>
                       <tr>
-                        <th className={thClass}>순번</th>
-                        <th className={thClass}>접수번호</th>
-                        <th className={thClass}>축종</th>
-                        <th className={thClass}>성별</th>
-                        <th className={thClass}>등급</th>
-                        <th className={thClass}>근내지방</th>
-                        <th className={thClass}>개월령</th>
-                        <th className={thClass}>도체중</th>
-                        <th className={thClass}>이력번호</th>
+                        <th className={`${thClass} w-16`}>순번</th>
+                        <th className={`${thClass} w-28`}>접수번호</th>
+                        <th className={`${thClass} w-20`}>축종</th>
+                        <th className={`${thClass} w-20`}>성별</th>
+                        <th className={`${thClass} w-24`}>등급</th>
+                        <th className={`${thClass} w-20`}>근내지방</th>
+                        <th className={`${thClass} w-20`}>개월령</th>
+                        <th className={`${thClass} w-20`}>도체중</th>
+                        <th className={`${thClass} w-36`}>이력번호</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -725,7 +725,10 @@ export default function NewAuctionPage() {
                           <input type="number" value={cattle.carcassWeight} onChange={(e) => updateCattle(cattle.id, 'carcassWeight', e.target.value)} placeholder="520" required className={`w-14 ${inputClass}`} />
                         </td>
                         <td className={tdClass}>
-                          <input type="text" value={cattle.traceNo} onChange={(e) => updateCattle(cattle.id, 'traceNo', e.target.value)} placeholder="0000-0000-0" maxLength={11} required className={`w-28 ${inputClass}`} />
+                          <div className="flex items-center justify-center gap-1">
+                            <span className="text-xs text-gray-500">002-</span>
+                            <input type="text" value={cattle.traceNo} onChange={(e) => updateCattle(cattle.id, 'traceNo', e.target.value)} placeholder="0000-0000-0" maxLength={11} required className={`w-28 ${inputClass}`} />
+                          </div>
                         </td>
                       </tr>
                     </tbody>
@@ -775,9 +778,7 @@ export default function NewAuctionPage() {
                           <input type="number" value={cattle.maturity} onChange={(e) => updateCattle(cattle.id, 'maturity', e.target.value)} placeholder="2" required className={`w-12 ${inputClass}`} />
                         </td>
                         <td className={tdClass}>
-                          <select value={cattle.slaughterHouse} onChange={(e) => updateCattle(cattle.id, 'slaughterHouse', e.target.value)} className={`w-14 ${selectClass}`}>
-                            <option value="음성">음성</option>
-                          </select>
+                          <span className="text-[10px] text-gray-700">음성축산물공판장</span>
                         </td>
                         <td className={tdClass}>
                           <input 
