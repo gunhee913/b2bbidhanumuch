@@ -85,14 +85,15 @@ export const generateDealerSettlements = (): DealerSettlementData[] => {
   return DEALERS.map((dealer, dealerIdx) => {
     const bidParts: BidPartDetail[] = [];
     
-    // 각 중도매인당 15~25개 부위 낙찰
-    const partCount = 15 + (dealerIdx * 3) % 11;
+    // 각 중도매인당 30~50개 부위 낙찰
+    const partCount = 30 + (dealerIdx * 5) % 21;
     
     for (let i = 0; i < partCount; i++) {
       const partIdx = (dealerIdx * 7 + i * 3) % 19;
       const partName = PART_NAMES[partIdx];
       const companyIdx = (dealerIdx + i) % 4;
-      const gradeIdx = (dealerIdx * 3 + i * 5) % GRADES.length;
+      // 등급을 더 다양하게 섞기 (A, B, C 골고루)
+      const gradeIdx = (dealerIdx * 7 + i * 11 + partIdx * 3) % GRADES.length;
       
       // 개체번호: 업체별로 100번대 시작 (건화:101~, 대진:201~, 안심:301~, 정직:401~)
       const cattleNo = 100 * (companyIdx + 1) + Math.floor(globalListingCounter / 19) + 1;
@@ -105,20 +106,25 @@ export const generateDealerSettlements = (): DealerSettlementData[] => {
       const weight = Number((baseWeight + weightVariation).toFixed(1));
       
       const basePrice = PART_PRICES[partName];
-      // 등급별 기본 배수
-      let gradeMultiplier = 1.0;
-      if (GRADES[gradeIdx].startsWith('1++')) {
-        gradeMultiplier = 1.1 + (gradeIdx % 3) * 0.05; // 1.10 ~ 1.20
-      } else if (GRADES[gradeIdx].startsWith('1+')) {
-        gradeMultiplier = 0.95 + (gradeIdx % 3) * 0.03; // 0.95 ~ 1.01
-      } else if (GRADES[gradeIdx].startsWith('1')) {
-        gradeMultiplier = 0.85 + (gradeIdx % 3) * 0.02; // 0.85 ~ 0.89
-      } else {
-        gradeMultiplier = 0.70 + (gradeIdx % 3) * 0.03; // 0.70 ~ 0.76 (2등급)
-      }
+      // 등급별 기본 배수 (1++(9)가 가장 비쌈)
+      const gradeMultipliers: Record<string, number> = {
+        '1++A': 1.25, // 1++(9) - 최고급
+        '1++B': 1.20, // 1++(8)
+        '1++C': 1.15, // 1++(7)
+        '1+A': 1.05,  // 1+
+        '1+B': 1.03,
+        '1+C': 1.00,
+        '1A': 0.90,   // 1등급
+        '1B': 0.88,
+        '1C': 0.85,
+        '2A': 0.75,   // 2등급
+        '2B': 0.72,
+        '2C': 0.70,
+      };
+      const gradeMultiplier = gradeMultipliers[GRADES[gradeIdx]] || 1.0;
       // 가격 변동 추가 (딜러/부위/인덱스별로 다른 변동)
-      const priceVariation = 1 + ((dealerIdx * 17 + i * 23 + partIdx * 7) % 200 - 100) / 1000; // ±10% 변동
-      const randomFactor = 1 + ((dealerIdx * 31 + i * 13) % 100 - 50) / 500; // 추가 ±10% 변동
+      const priceVariation = 1 + ((dealerIdx * 17 + i * 23 + partIdx * 7) % 160 - 80) / 1000; // ±8% 변동
+      const randomFactor = 1 + ((dealerIdx * 31 + i * 13) % 80 - 40) / 500; // 추가 ±8% 변동
       const unitPrice = Math.round(basePrice * gradeMultiplier * priceVariation * randomFactor);
       const amount = Math.round(weight * unitPrice);
 

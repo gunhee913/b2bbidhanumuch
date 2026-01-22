@@ -58,8 +58,11 @@ const PARTS = [
   '우둔', '목심', '양지', '설도', '사태', '꼬리', '족', '사골', '잡뼈'
 ];
 
-// 등급 목록
+// 등급 목록 (육질등급)
 const GRADES = ['1++(9)', '1++(8)', '1++(7)', '1+', '1', '2'];
+
+// 육량등급 목록
+const YIELD_GRADES = ['A', 'B', 'C'];
 
 // 낙찰 내역 타입
 interface BidRecord {
@@ -68,6 +71,7 @@ interface BidRecord {
   partNameOriginal: string;
   grade: string;
   gradeOriginal: string;
+  yieldGrade: string; // 육량등급 (A, B, C)
   dealerNo: string;
   dealerName: string;
   companyName: string;
@@ -89,9 +93,11 @@ interface PriceSummary {
 }
 
 export default function MarketPage() {
-  const [selectedDate, setSelectedDate] = useState<string>('2026-01-21');
+  const [startDate, setStartDate] = useState<string>('2026-01-21');
+  const [endDate, setEndDate] = useState<string>('2026-01-21');
   const [partFilter, setPartFilter] = useState<string>('all');
   const [gradeFilter, setGradeFilter] = useState<string>('all');
+  const [yieldGradeFilter, setYieldGradeFilter] = useState<string>('all');
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   
   // 중도매인별 낙찰 데이터 가져오기
@@ -103,12 +109,16 @@ export default function MarketPage() {
     
     dealerSettlements.forEach(settlement => {
       settlement.bidParts.forEach(part => {
+        // 육량등급 추출 (마지막 글자: A, B, C)
+        const yieldGrade = part.grade.slice(-1);
+        
         records.push({
           listingNo: part.listingNo,
           partName: PART_MAPPING[part.partName] || part.partName,
           partNameOriginal: part.partName,
           grade: GRADE_MAPPING[part.grade] || part.grade,
           gradeOriginal: part.grade,
+          yieldGrade,
           dealerNo: settlement.dealerNo,
           dealerName: settlement.dealerName,
           companyName: part.companyName,
@@ -122,7 +132,7 @@ export default function MarketPage() {
     return records;
   }, [dealerSettlements]);
   
-  // 부위/등급별로 그룹핑 (0건인 항목도 포함)
+  // 부위/등급별로 그룹핑 (0건인 항목도 포함, 육량등급 필터 적용)
   const summaryData = useMemo(() => {
     const groupMap = new Map<string, BidRecord[]>();
     
@@ -133,8 +143,13 @@ export default function MarketPage() {
       });
     });
     
-    // 실제 데이터 추가
+    // 실제 데이터 추가 (육량등급 필터 적용)
     allBidRecords.forEach(record => {
+      // 육량등급 필터 적용
+      if (yieldGradeFilter !== 'all' && record.yieldGrade !== yieldGradeFilter) {
+        return;
+      }
+      
       const key = `${record.partName}-${record.grade}`;
       if (groupMap.has(key)) {
         groupMap.get(key)!.push(record);
@@ -184,7 +199,7 @@ export default function MarketPage() {
       const gradeOrderB = GRADES.indexOf(b.grade);
       return gradeOrderA - gradeOrderB;
     });
-  }, [allBidRecords]);
+  }, [allBidRecords, yieldGradeFilter]);
   
   // 필터링된 데이터
   const filteredData = useMemo(() => {
@@ -215,7 +230,7 @@ export default function MarketPage() {
     filteredData.forEach(item => {
       item.records.forEach(record => {
         excelData.push({
-          '날짜': selectedDate,
+          '기간': startDate === endDate ? startDate : `${startDate} ~ ${endDate}`,
           '상장번호': record.listingNo,
           '부위': record.partNameOriginal,
           '등급': record.gradeOriginal,
@@ -233,15 +248,17 @@ export default function MarketPage() {
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, '시세 데이터');
 
-    const fileName = `시세_데이터_${selectedDate.replace(/-/g, '')}.xlsx`;
+    const fileName = `시세_데이터_${startDate.replace(/-/g, '')}_${endDate.replace(/-/g, '')}.xlsx`;
     XLSX.writeFile(workbook, fileName);
   };
 
   // 필터 초기화
   const resetFilters = () => {
-    setSelectedDate('2026-01-21');
+    setStartDate('2026-01-21');
+    setEndDate('2026-01-21');
     setPartFilter('all');
     setGradeFilter('all');
+    setYieldGradeFilter('all');
     setExpandedRows(new Set());
   };
 
@@ -255,13 +272,20 @@ export default function MarketPage() {
       {/* 필터 섹션 */}
       <div className="bg-white border border-gray-200 p-4 mb-4">
         <div className="flex flex-wrap items-center gap-4">
-          {/* 날짜 선택 */}
+          {/* 기간 선택 */}
           <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-gray-600">날짜</span>
+            <span className="text-sm font-medium text-gray-600">기간</span>
             <input
               type="date"
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="w-36 px-3 py-1.5 border border-gray-200 text-xs outline-none bg-white"
+            />
+            <span className="text-gray-400">~</span>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
               className="w-36 px-3 py-1.5 border border-gray-200 text-xs outline-none bg-white"
             />
           </div>
@@ -292,6 +316,21 @@ export default function MarketPage() {
               <option value="all">전체</option>
               {GRADES.map(grade => (
                 <option key={grade} value={grade}>{grade}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* 육량등급 필터 */}
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-gray-600">육량</span>
+            <select
+              value={yieldGradeFilter}
+              onChange={(e) => setYieldGradeFilter(e.target.value)}
+              className="px-3 py-1.5 border border-gray-200 text-xs outline-none bg-white"
+            >
+              <option value="all">전체</option>
+              {YIELD_GRADES.map(yg => (
+                <option key={yg} value={yg}>{yg}</option>
               ))}
             </select>
           </div>
