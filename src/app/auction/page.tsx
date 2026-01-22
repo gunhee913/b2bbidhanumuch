@@ -412,7 +412,7 @@ function AuctionPageContent() {
           
           // 등급 카테고리별 가격 배수 (1++ 등급의 경우 근내지방도로 세분화)
           if (entity.gradeCategory === '1++') {
-            const marblingMatch = entity.grade.match(/\((\d+)\)/);
+          const marblingMatch = entity.grade.match(/\((\d+)\)/);
             const marblingNo = marblingMatch ? parseInt(marblingMatch[1]) : 8;
             if (marblingNo === 9) gradeMultiplier = 1.20;
             else if (marblingNo === 8) gradeMultiplier = 1.15;
@@ -1602,21 +1602,21 @@ function AuctionPageContent() {
                                 .map(([listingNo, bid]) => {
                                 const productInfo = bid.productInfo;
                                 if (!productInfo) return null;
-                                
-                                return (
+                              
+                              return (
                                   <tr key={listingNo} className="border-b border-gray-100 hover:bg-gray-50">
                                     {/* 상태 */}
                                     <td className="px-2 py-2.5 text-center">
-                                      {bid.status === 'highest' ? (
+                                                {bid.status === 'highest' ? (
                                         <span className="inline-flex px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-bold rounded">
                                           최고가격
-                                        </span>
-                                      ) : (
+                                                  </span>
+                                                ) : (
                                         <span className="inline-flex px-1.5 py-0.5 bg-red-100 text-red-700 text-[10px] font-bold rounded">
-                                          차순위
-                                        </span>
-                                      )}
-                                    </td>
+                                                    차순위
+                                                  </span>
+                                                )}
+                                        </td>
                                     {/* 일자 */}
                                     <td className="px-2 py-2.5 text-center text-gray-600 text-[11px]">
                                       {bid.time}
@@ -1680,30 +1680,30 @@ function AuctionPageContent() {
                                         <span className="text-gray-400 text-[10px]">-</span>
                                       ) : (
                                         <div className="flex items-center justify-center gap-1">
-                                          <button
-                                            onClick={() => {
+                                      <button 
+                                        onClick={() => {
                                               if (productInfo) {
                                                 const product = Object.values(partProducts).flat().find(p => p.listingNo === listingNo);
                                                 if (product) {
-                                                  setSelectedProduct(product);
-                                                  setPartBidPrice(bid.highestBid + quickReBidAmount);
-                                                  setShowPartBidSheet(true);
+                                            setSelectedProduct(product);
+                                            setPartBidPrice(bid.highestBid + quickReBidAmount);
+                                            setShowPartBidSheet(true);
                                                 }
-                                              }
-                                            }}
+                                          }
+                                        }}
                                             className="px-2 py-1 bg-red-600 text-white text-[10px] font-bold rounded hover:bg-red-700 transition-colors"
-                                          >
+                                      >
                                             재입찰
-                                          </button>
-                                        </div>
+                                      </button>
+                                    </div>
                                       )}
                                     </td>
                                   </tr>
-                                );
-                              })}
+                              );
+                            })}
                             </tbody>
                           </table>
-                        </div>
+                          </div>
                       )}
                     </div>
                   </div>
@@ -1761,7 +1761,7 @@ function AuctionPageContent() {
             </div>
 
             {/* 빠른 재입찰 금액 수정 모달 */}
-            {showQuickReBidEdit && (
+              {showQuickReBidEdit && (
               <div className="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-[10000] p-4">
                 <div className="bg-white rounded-lg max-w-sm w-full p-5">
                   <h3 className="text-lg font-bold mb-4">빠른 재입찰 금액 설정</h3>
@@ -1791,34 +1791,34 @@ function AuctionPageContent() {
                     </p>
                   </div>
 
-                  <div className="flex gap-2">
-                    <button
+                    <div className="flex gap-2">
+                      <button
                       onClick={() => {
                         setShowQuickReBidEdit(false);
                         setTempQuickReBidAmount(quickReBidAmount.toLocaleString());
                       }}
                       className="flex-1 bg-white text-gray-700 border-2 border-gray-300 py-2 rounded-lg font-bold hover:bg-gray-50"
-                    >
-                      취소
-                    </button>
-                    <button
-                      onClick={() => {
-                        const value = parseInt(tempQuickReBidAmount.replace(/,/g, '')) || 1000;
+                      >
+                        취소
+                      </button>
+                      <button
+                        onClick={() => {
+                          const value = parseInt(tempQuickReBidAmount.replace(/,/g, '')) || 1000;
                         if (value % 100 !== 0) {
                           return;
                         }
-                        setQuickReBidAmount(value);
-                        setShowQuickReBidEdit(false);
-                      }}
+                          setQuickReBidAmount(value);
+                          setShowQuickReBidEdit(false);
+                        }}
                       disabled={!tempQuickReBidAmount || parseInt(tempQuickReBidAmount.replace(/,/g, '')) <= 0 || parseInt(tempQuickReBidAmount.replace(/,/g, '')) % 100 !== 0}
                       className="flex-1 bg-red-600 text-white py-2 rounded-lg font-bold hover:bg-red-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
-                    >
+                      >
                       저장
-                    </button>
-                  </div>
+                      </button>
+                    </div>
                 </div>
               </div>
-            )}
+              )}
 
             {/* 부위별 입찰 바텀시트 */}
             <AnimatePresence>

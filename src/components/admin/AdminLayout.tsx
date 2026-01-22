@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -25,7 +25,7 @@ interface AdminLayoutProps {
 const menuItems = [
   {
     title: '대시보드',
-    href: '/admin',
+    href: '/admin/reports/sales',
     icon: LayoutDashboard,
   },
   {
@@ -100,7 +100,6 @@ const menuItems = [
     href: '/admin/reports',
     icon: FileText,
     subItems: [
-      { title: '플랫폼 운영 현황', href: '/admin/reports/sales' },
       { title: '중도매인 경매 현황', href: '/admin/reports/dealer-ranking' },
       { title: '상장업체 경매 현황', href: '/admin/reports/company-ranking' },
     ],
@@ -118,9 +117,19 @@ const menuItems = [
 // 현재 경로에 해당하는 메뉴를 계산하는 함수
 const getInitialExpandedMenus = (currentPathname: string) => {
   const openMenus: string[] = [];
+  
+  // 대시보드는 최상위 메뉴이므로 하위 메뉴 열기에서 제외
+  if (currentPathname === '/admin/reports/sales') {
+    return openMenus;
+  }
+  
   menuItems.forEach(item => {
     if (item.subItems) {
       const isSubItemActive = item.subItems.some(subItem => currentPathname.startsWith(subItem.href));
+      // 정산설정 경로일 때 정산관리 메뉴는 열지 않음 (설정 메뉴만 열림)
+      if (currentPathname === '/admin/settlements/settings' && item.href === '/admin/settlements') {
+        return;
+      }
       if (isSubItemActive || currentPathname.startsWith(item.href)) {
         openMenus.push(item.href);
       }
@@ -135,6 +144,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   const [expandedMenus, setExpandedMenus] = useState<string[]>(() => getInitialExpandedMenus(pathname));
   const [showNotifications, setShowNotifications] = useState(false);
   const [isAnimationEnabled, setIsAnimationEnabled] = useState(false);
+  const prevPathnameRef = useRef(pathname);
 
   // 마운트 후 애니메이션 활성화
   useEffect(() => {
@@ -144,6 +154,23 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     }, 100);
     return () => clearTimeout(timer);
   }, []);
+
+  // 경로 변경 시 메뉴 상태 업데이트 (애니메이션 없이)
+  useEffect(() => {
+    if (prevPathnameRef.current !== pathname) {
+      // 애니메이션 일시 비활성화
+      setIsAnimationEnabled(false);
+      // 새 경로에 맞는 메뉴 상태로 업데이트
+      setExpandedMenus(getInitialExpandedMenus(pathname));
+      // 다음 프레임에서 애니메이션 다시 활성화
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          setIsAnimationEnabled(true);
+        });
+      });
+      prevPathnameRef.current = pathname;
+    }
+  }, [pathname]);
 
   const toggleMenu = (href: string) => {
     setExpandedMenus(prev =>
@@ -156,6 +183,14 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   const isActiveLink = (href: string) => {
     if (href === '/admin') {
       return pathname === '/admin';
+    }
+    // 대시보드 경로에서는 리포트 메뉴 비활성화
+    if (pathname === '/admin/reports/sales' && href === '/admin/reports') {
+      return false;
+    }
+    // 정산설정 경로에서는 정산관리 메뉴 비활성화 (설정 메뉴는 활성화)
+    if (pathname === '/admin/settlements/settings' && href === '/admin/settlements') {
+      return false;
     }
     return pathname.startsWith(href);
   };

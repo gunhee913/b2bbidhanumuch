@@ -1222,9 +1222,9 @@ export default function AuctionDetailPage({ params }: PageProps) {
                               {/* 상태 */}
                               <td className="px-2 py-2.5 text-center">
                                 {bid.status === 'highest' ? (
-                                  <span className="inline-flex px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-bold rounded">
+                                <span className="inline-flex px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-bold rounded">
                                     최고가격
-                                  </span>
+                                </span>
                                 ) : (
                                   <span className="inline-flex px-1.5 py-0.5 bg-red-100 text-red-700 text-[10px] font-bold rounded">
                                     차순위
@@ -1241,7 +1241,7 @@ export default function AuctionDetailPage({ params }: PageProps) {
                                   href={`/auction/${parseInt(listingNo.split('-')[1])}`}
                                   className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
                                 >
-                                  {listingNo}
+                                {listingNo}
                                 </Link>
                               </td>
                               {/* 부위 */}
@@ -1266,7 +1266,7 @@ export default function AuctionDetailPage({ params }: PageProps) {
                                   }`}
                                   className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
                                 >
-                                  {productInfo.partName}
+                                {productInfo.partName}
                                 </Link>
                               </td>
                               {/* 등급 */}
@@ -1290,19 +1290,19 @@ export default function AuctionDetailPage({ params }: PageProps) {
                                 {bid.status === 'highest' ? (
                                   <span className="text-gray-400 text-[10px]">-</span>
                                 ) : (
-                                  <button
-                                    onClick={() => {
-                                      if (productInfo) {
-                                        setSelectedPart(productInfo.partName);
-                                        setSelectedWeight(productInfo.weight);
+                                    <button
+                                      onClick={() => {
+                                        if (productInfo) {
+                                          setSelectedPart(productInfo.partName);
+                                          setSelectedWeight(productInfo.weight);
                                         setBidPrice(formatNumber((bid.highestBid + quickReBidAmount).toString()));
-                                        setShowBidSheet(true);
-                                      }
-                                    }}
+                                          setShowBidSheet(true);
+                                        }
+                                      }}
                                     className="px-2 py-1 bg-red-600 text-white text-[10px] font-bold rounded hover:bg-red-700 transition-colors"
-                                  >
+                                    >
                                     재입찰
-                                  </button>
+                                    </button>
                                 )}
                               </td>
                             </tr>

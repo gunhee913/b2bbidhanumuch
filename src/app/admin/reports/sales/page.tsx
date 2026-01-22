@@ -251,7 +251,7 @@ export default function SalesReportPage() {
   return (
     <AdminLayout>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">플랫폼 운영 현황</h1>
+        <h1 className="text-2xl font-bold text-gray-900">대시보드</h1>
       </div>
 
       {/* 필터 섹션 */}
