@@ -110,6 +110,7 @@ const menuItems = [
     icon: Settings,
     subItems: [
       { title: '정산 설정', href: '/admin/settlements/settings' },
+      { title: '문자/알림 설정', href: '/admin/settings/notifications' },
     ],
   },
 ];
