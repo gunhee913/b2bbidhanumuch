@@ -27,6 +27,13 @@ interface PartData {
   isIncluded: boolean; // 등록 포함 여부
 }
 
+// 증명서 데이터 타입
+interface CertificateData {
+  fileName: string;
+  fileData: string; // base64
+  fileType: string; // 'image' | 'pdf'
+}
+
 // 개체 데이터 타입
 interface CattleData {
   id: number;
@@ -52,6 +59,8 @@ interface CattleData {
   processWeight: string;
   parts: PartData[];
   images: string[];
+  slaughterCert: CertificateData | null; // 도축검사증명서
+  gradeCert: CertificateData | null;     // 등급판정확인서
   isExpanded: boolean;
 }
 
@@ -103,6 +112,8 @@ const createNewCattle = (id: number, seqNo: string): CattleData => ({
   processWeight: '',
   parts: createDefaultParts(),
   images: [],
+  slaughterCert: null,
+  gradeCert: null,
   isExpanded: true,
 });
 
@@ -133,6 +144,9 @@ export default function NewAuctionPage() {
   // 공통 정보
   const [listingDate, setListingDate] = useState(tomorrowDateString);
   const [company, setCompany] = useState('');
+  
+  // 이미지 확대 모달
+  const [viewingImage, setViewingImage] = useState<string | null>(null);
   
   // 개체 목록
   const [cattleList, setCattleList] = useState<CattleData[]>([
@@ -296,6 +310,65 @@ export default function NewAuctionPage() {
       if (c.id !== cattleId) return c;
       return { ...c, images: c.images.filter((_, i) => i !== index) };
     }));
+  };
+
+  // 증명서 업로드 ref
+  const slaughterCertInputRefs = useRef<{ [key: number]: HTMLInputElement | null }>({});
+  const gradeCertInputRefs = useRef<{ [key: number]: HTMLInputElement | null }>({});
+
+  // 증명서 업로드 처리
+  const handleCertUpload = (
+    cattleId: number, 
+    certType: 'slaughterCert' | 'gradeCert', 
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // 파일 크기 제한 (5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('파일 크기는 5MB 이하만 가능합니다.');
+      e.target.value = '';
+      return;
+    }
+
+    // 파일 형식 확인 (이미지만)
+    if (!file.type.startsWith('image/')) {
+      alert('이미지 파일만 업로드 가능합니다.');
+      e.target.value = '';
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const fileData = event.target?.result as string;
+      const certData: CertificateData = {
+        fileName: file.name,
+        fileData,
+        fileType: 'image'
+      };
+      
+      setCattleList(prev => prev.map(c => {
+        if (c.id !== cattleId) return c;
+        return { ...c, [certType]: certData };
+      }));
+    };
+    reader.readAsDataURL(file);
+
+    e.target.value = '';
+  };
+
+  // 증명서 삭제
+  const removeCert = (cattleId: number, certType: 'slaughterCert' | 'gradeCert') => {
+    setCattleList(cattleList.map(c => {
+      if (c.id !== cattleId) return c;
+      return { ...c, [certType]: null };
+    }));
+  };
+
+  // 증명서 열기 (모달로 크게 보기)
+  const openCert = (cert: CertificateData) => {
+    setViewingImage(cert.fileData);
   };
 
   // 폼 제출
@@ -821,13 +894,19 @@ export default function NewAuctionPage() {
                   </table>
                 </div>
 
-                {/* 사진 업로드 */}
-                <div className="flex items-center gap-3 pt-2">
+                {/* 사진 및 증명서 업로드 (한 줄) */}
+                <div className="flex items-center gap-3 pt-2 flex-wrap">
+                  {/* 사진 */}
                   <span className="text-xs font-medium text-gray-600">사진:</span>
                   <span className="text-[10px] text-gray-400">({cattle.images.length}/4)</span>
                   {cattle.images.map((img, index) => (
                     <div key={index} className="relative w-14 h-14 border border-gray-200 overflow-hidden bg-gray-50">
-                      <img src={img} alt={`상품 ${index + 1}`} className="w-full h-full object-cover" />
+                      <img 
+                        src={img} 
+                        alt={`상품 ${index + 1}`} 
+                        className="w-full h-full object-cover cursor-pointer hover:opacity-80" 
+                        onClick={() => setViewingImage(img)}
+                      />
                       <button 
                         type="button" 
                         onClick={() => removeImage(cattle.id, index)} 
@@ -853,7 +932,86 @@ export default function NewAuctionPage() {
                         className="w-14 h-14 border border-dashed border-gray-300 flex flex-col items-center justify-center text-gray-400 hover:border-gray-500 hover:text-gray-500 transition-colors bg-white"
                       >
                         <Upload className="w-3.5 h-3.5" />
-                        <span className="text-[9px] mt-0.5">추가</span>
+                        <span className="text-[9px] mt-0.5">업로드</span>
+                      </button>
+                    </>
+                  )}
+
+                  {/* 구분선 */}
+                  <div className="w-px h-10 bg-gray-200 mx-2"></div>
+
+                  {/* 도축검사증명서 */}
+                  <span className="text-xs font-medium text-gray-600">도축검사증명서:</span>
+                  {cattle.slaughterCert ? (
+                    <div className="relative w-14 h-14 border border-gray-200 overflow-hidden bg-gray-50">
+                      <img 
+                        src={cattle.slaughterCert.fileData} 
+                        alt="도축검사증명서" 
+                        className="w-full h-full object-cover cursor-pointer hover:opacity-80"
+                        onClick={() => openCert(cattle.slaughterCert!)}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeCert(cattle.id, 'slaughterCert')}
+                        className="absolute top-0 right-0 w-4 h-4 bg-gray-700 text-white flex items-center justify-center hover:bg-gray-800"
+                      >
+                        <X className="w-2.5 h-2.5" />
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <input
+                        ref={el => { slaughterCertInputRefs.current[cattle.id] = el; }}
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => handleCertUpload(cattle.id, 'slaughterCert', e)}
+                        className="hidden"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => slaughterCertInputRefs.current[cattle.id]?.click()}
+                        className="w-14 h-14 border border-dashed border-gray-300 flex flex-col items-center justify-center text-gray-400 hover:border-gray-500 hover:text-gray-500 transition-colors bg-white"
+                      >
+                        <Upload className="w-3.5 h-3.5" />
+                        <span className="text-[9px] mt-0.5">업로드</span>
+                      </button>
+                    </>
+                  )}
+
+                  {/* 등급판정확인서 */}
+                  <span className="text-xs font-medium text-gray-600">등급판정확인서:</span>
+                  {cattle.gradeCert ? (
+                    <div className="relative w-14 h-14 border border-gray-200 overflow-hidden bg-gray-50">
+                      <img 
+                        src={cattle.gradeCert.fileData} 
+                        alt="등급판정확인서" 
+                        className="w-full h-full object-cover cursor-pointer hover:opacity-80"
+                        onClick={() => openCert(cattle.gradeCert!)}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeCert(cattle.id, 'gradeCert')}
+                        className="absolute top-0 right-0 w-4 h-4 bg-gray-700 text-white flex items-center justify-center hover:bg-gray-800"
+                      >
+                        <X className="w-2.5 h-2.5" />
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <input
+                        ref={el => { gradeCertInputRefs.current[cattle.id] = el; }}
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => handleCertUpload(cattle.id, 'gradeCert', e)}
+                        className="hidden"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => gradeCertInputRefs.current[cattle.id]?.click()}
+                        className="w-14 h-14 border border-dashed border-gray-300 flex flex-col items-center justify-center text-gray-400 hover:border-gray-500 hover:text-gray-500 transition-colors bg-white"
+                      >
+                        <Upload className="w-3.5 h-3.5" />
+                        <span className="text-[9px] mt-0.5">업로드</span>
                       </button>
                     </>
                   )}
@@ -876,6 +1034,29 @@ export default function NewAuctionPage() {
         )}
 
       </form>
+
+      {/* 이미지 확대 모달 */}
+      {viewingImage && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-80"
+          onClick={() => setViewingImage(null)}
+        >
+          <div className="relative max-w-4xl max-h-[90vh]">
+            <img 
+              src={viewingImage} 
+              alt="확대 이미지" 
+              className="max-w-full max-h-[90vh] object-contain"
+            />
+            <button
+              type="button"
+              onClick={() => setViewingImage(null)}
+              className="absolute top-2 right-2 w-8 h-8 bg-white rounded-full flex items-center justify-center text-gray-700 hover:bg-gray-100"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+      )}
     </AdminLayout>
   );
 }
