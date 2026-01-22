@@ -85,15 +85,19 @@ export const generateDealerSettlements = (): DealerSettlementData[] => {
   return DEALERS.map((dealer, dealerIdx) => {
     const bidParts: BidPartDetail[] = [];
     
-    // 각 중도매인당 30~50개 부위 낙찰
-    const partCount = 30 + (dealerIdx * 5) % 21;
+    // 68두 * 19부위 = 1,292건 (경매건수) * 90% 낙찰률 = 1,163건 / 5명 = 약 232건
+    const partCount = 225 + (dealerIdx * 7) % 20;
     
     for (let i = 0; i < partCount; i++) {
       const partIdx = (dealerIdx * 7 + i * 3) % 19;
       const partName = PART_NAMES[partIdx];
       const companyIdx = (dealerIdx + i) % 4;
       // 등급을 더 다양하게 섞기 (A, B, C 골고루)
-      const gradeIdx = (dealerIdx * 7 + i * 11 + partIdx * 3) % GRADES.length;
+      // 육질등급 (1++, 1+, 1, 2) 결정
+      const qualityIdx = (dealerIdx * 3 + i * 7 + partIdx) % 4; // 0~3 -> 1++, 1+, 1, 2
+      // 육량등급 (A, B, C) 결정 - 별도로 섞기
+      const yieldIdx = (dealerIdx * 5 + i * 2 + partIdx * 11) % 3; // 0~2 -> A, B, C
+      const gradeIdx = qualityIdx * 3 + yieldIdx; // 0~11
       
       // 개체번호: 업체별로 100번대 시작 (건화:101~, 대진:201~, 안심:301~, 정직:401~)
       const cattleNo = 100 * (companyIdx + 1) + Math.floor(globalListingCounter / 19) + 1;

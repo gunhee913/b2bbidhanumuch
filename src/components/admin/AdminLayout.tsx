@@ -93,14 +93,17 @@ const menuItems = [
     icon: TrendingUp,
     subItems: [
       { title: '시세 조회', href: '/admin/market' },
-      { title: '시세 등록', href: '/admin/market/new' },
-      { title: '시세 설정', href: '/admin/market/settings' },
     ],
   },
   {
     title: '리포트',
     href: '/admin/reports',
     icon: FileText,
+    subItems: [
+      { title: '플랫폼 운영 현황', href: '/admin/reports/sales' },
+      { title: '중도매인 경매 현황', href: '/admin/reports/dealer-ranking' },
+      { title: '상장업체 경매 현황', href: '/admin/reports/company-ranking' },
+    ],
   },
   {
     title: '설정',

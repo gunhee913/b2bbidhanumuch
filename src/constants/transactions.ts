@@ -268,8 +268,8 @@ export const calculateAdvancePayment = (transactions: Transaction[], dealerNo: s
   return deposits - withdraws;
 };
 
-// sessionStorage 키 (탭 닫으면 초기화) - v4: 등급 A,B,C 골고루 섞기
-const TRANSACTIONS_STORAGE_KEY = 'dealer_transactions_v4';
+// sessionStorage 키 (탭 닫으면 초기화) - v8: 육량등급 A,B,C 골고루 섞기
+const TRANSACTIONS_STORAGE_KEY = 'dealer_transactions_v8';
 
 // sessionStorage에서 거래 내역 불러오기
 export const loadTransactions = (): Transaction[] => {

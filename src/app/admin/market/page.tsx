@@ -64,6 +64,9 @@ const GRADES = ['1++(9)', '1++(8)', '1++(7)', '1+', '1', '2'];
 // 육량등급 목록
 const YIELD_GRADES = ['A', 'B', 'C'];
 
+// 성별 목록
+const GENDERS = ['거세', '암'];
+
 // 낙찰 내역 타입
 interface BidRecord {
   listingNo: string;
@@ -72,6 +75,7 @@ interface BidRecord {
   grade: string;
   gradeOriginal: string;
   yieldGrade: string; // 육량등급 (A, B, C)
+  gender: string; // 성별 (거세, 암)
   dealerNo: string;
   dealerName: string;
   companyName: string;
@@ -89,6 +93,9 @@ interface PriceSummary {
   avgPrice: number;
   minPrice: number;
   maxPrice: number;
+  avgAmount: number;
+  minAmount: number;
+  maxAmount: number;
   records: BidRecord[];
 }
 
@@ -98,6 +105,7 @@ export default function MarketPage() {
   const [partFilter, setPartFilter] = useState<string>('all');
   const [gradeFilter, setGradeFilter] = useState<string>('all');
   const [yieldGradeFilter, setYieldGradeFilter] = useState<string>('all');
+  const [genderFilter, setGenderFilter] = useState<string>('all');
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   
   // 중도매인별 낙찰 데이터 가져오기
@@ -106,11 +114,15 @@ export default function MarketPage() {
   // 모든 낙찰 내역을 플랫하게 변환
   const allBidRecords = useMemo(() => {
     const records: BidRecord[] = [];
+    let idx = 0;
     
     dealerSettlements.forEach(settlement => {
       settlement.bidParts.forEach(part => {
         // 육량등급 추출 (마지막 글자: A, B, C)
         const yieldGrade = part.grade.slice(-1);
+        // 성별 할당 (거세 70%, 암 30% 비율로)
+        const gender = (idx * 3 + 1) % 10 < 7 ? '거세' : '암';
+        idx++;
         
         records.push({
           listingNo: part.listingNo,
@@ -119,6 +131,7 @@ export default function MarketPage() {
           grade: GRADE_MAPPING[part.grade] || part.grade,
           gradeOriginal: part.grade,
           yieldGrade,
+          gender,
           dealerNo: settlement.dealerNo,
           dealerName: settlement.dealerName,
           companyName: part.companyName,
@@ -143,10 +156,14 @@ export default function MarketPage() {
       });
     });
     
-    // 실제 데이터 추가 (육량등급 필터 적용)
+    // 실제 데이터 추가 (육량등급, 성별 필터 적용)
     allBidRecords.forEach(record => {
       // 육량등급 필터 적용
       if (yieldGradeFilter !== 'all' && record.yieldGrade !== yieldGradeFilter) {
+        return;
+      }
+      // 성별 필터 적용
+      if (genderFilter !== 'all' && record.gender !== genderFilter) {
         return;
       }
       
@@ -170,10 +187,14 @@ export default function MarketPage() {
           avgPrice: 0,
           minPrice: 0,
           maxPrice: 0,
+          avgAmount: 0,
+          minAmount: 0,
+          maxAmount: 0,
           records: [],
         });
       } else {
         const prices = records.map(r => r.price);
+        const amounts = records.map(r => r.totalPrice);
         const totalWeight = records.reduce((sum, r) => sum + r.weight, 0);
         
         summaries.push({
@@ -184,6 +205,9 @@ export default function MarketPage() {
           avgPrice: Math.round(prices.reduce((a, b) => a + b, 0) / prices.length),
           minPrice: Math.min(...prices),
           maxPrice: Math.max(...prices),
+          avgAmount: Math.round(amounts.reduce((a, b) => a + b, 0) / amounts.length),
+          minAmount: Math.min(...amounts),
+          maxAmount: Math.max(...amounts),
           records: records.sort((a, b) => a.listingNo.localeCompare(b.listingNo)),
         });
       }
@@ -199,7 +223,7 @@ export default function MarketPage() {
       const gradeOrderB = GRADES.indexOf(b.grade);
       return gradeOrderA - gradeOrderB;
     });
-  }, [allBidRecords, yieldGradeFilter]);
+  }, [allBidRecords, yieldGradeFilter, genderFilter]);
   
   // 필터링된 데이터
   const filteredData = useMemo(() => {
@@ -259,6 +283,7 @@ export default function MarketPage() {
     setPartFilter('all');
     setGradeFilter('all');
     setYieldGradeFilter('all');
+    setGenderFilter('all');
     setExpandedRows(new Set());
   };
 
@@ -288,6 +313,21 @@ export default function MarketPage() {
               onChange={(e) => setEndDate(e.target.value)}
               className="w-36 px-3 py-1.5 border border-gray-200 text-xs outline-none bg-white"
             />
+          </div>
+
+          {/* 성별 필터 */}
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-gray-600">성별</span>
+            <select
+              value={genderFilter}
+              onChange={(e) => setGenderFilter(e.target.value)}
+              className="px-3 py-1.5 border border-gray-200 text-xs outline-none bg-white"
+            >
+              <option value="all">전체</option>
+              {GENDERS.map(g => (
+                <option key={g} value={g}>{g}</option>
+              ))}
+            </select>
           </div>
 
           {/* 부위 필터 */}
@@ -359,23 +399,26 @@ export default function MarketPage() {
       {/* 테이블 */}
       <div className="bg-white border border-gray-200 overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full border-collapse">
+          <table className="w-full border-collapse table-fixed">
             <thead>
               <tr>
                 <th className="w-10 px-2 py-3 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50"></th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">부위</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">등급</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">낙찰건수</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">총중량(kg)</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">평균단가</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">최저가</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">최고가</th>
+                <th className="w-20 px-4 py-3 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">부위</th>
+                <th className="w-16 px-4 py-3 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">등급</th>
+                <th className="w-20 px-4 py-3 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">낙찰건수</th>
+                <th className="w-24 px-4 py-3 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">총중량(kg)</th>
+                <th className="w-28 px-4 py-3 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">평균단가</th>
+                <th className="w-28 px-4 py-3 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">최저단가</th>
+                <th className="w-28 px-4 py-3 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">최고단가</th>
+                <th className="w-32 px-4 py-3 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">평균낙찰금액</th>
+                <th className="w-32 px-4 py-3 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">최저낙찰금액</th>
+                <th className="w-32 px-4 py-3 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">최고낙찰금액</th>
               </tr>
             </thead>
             <tbody>
               {filteredData.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-8 text-center text-sm text-gray-500 border border-gray-200">
+                  <td colSpan={11} className="px-4 py-8 text-center text-sm text-gray-500 border border-gray-200">
                     조회된 데이터가 없습니다.
                   </td>
                 </tr>
@@ -421,12 +464,21 @@ export default function MarketPage() {
                         <td className={`px-4 py-3 text-xs text-center border border-gray-200 ${hasRecords ? 'text-gray-700' : 'text-gray-400'}`}>
                           {hasRecords ? `${item.maxPrice.toLocaleString()}원` : '-'}
                         </td>
+                        <td className={`px-4 py-3 text-xs text-center border border-gray-200 ${hasRecords ? 'text-gray-900' : 'text-gray-400'}`}>
+                          {hasRecords ? `${item.avgAmount.toLocaleString()}원` : '-'}
+                        </td>
+                        <td className={`px-4 py-3 text-xs text-center border border-gray-200 ${hasRecords ? 'text-gray-700' : 'text-gray-400'}`}>
+                          {hasRecords ? `${item.minAmount.toLocaleString()}원` : '-'}
+                        </td>
+                        <td className={`px-4 py-3 text-xs text-center border border-gray-200 ${hasRecords ? 'text-gray-700' : 'text-gray-400'}`}>
+                          {hasRecords ? `${item.maxAmount.toLocaleString()}원` : '-'}
+                        </td>
                       </tr>
                       
                       {/* 상세 내역 */}
                       {isExpanded && (
                         <tr>
-                          <td colSpan={8} className="px-4 py-3 bg-gray-50 border border-gray-200">
+                          <td colSpan={11} className="px-4 py-3 bg-gray-50 border border-gray-200">
                             <div className="text-xs font-medium text-gray-700 mb-2">
                               상세 내역 ({item.count}건)
                             </div>
