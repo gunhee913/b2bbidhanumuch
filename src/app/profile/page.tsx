@@ -11,7 +11,8 @@ import {
   CreditCard,
   Settings,
   LogOut,
-  Gavel
+  Gavel,
+  FileText
 } from 'lucide-react';
 import BottomNav from '@/components/BottomNav';
 
