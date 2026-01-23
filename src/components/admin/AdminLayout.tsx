@@ -96,21 +96,13 @@ const menuItems = [
     ],
   },
   {
-    title: '리포트',
-    href: '/admin/reports',
-    icon: FileText,
-    subItems: [
-      { title: '중도매인 경매 현황', href: '/admin/reports/dealer-ranking' },
-      { title: '상장업체 경매 현황', href: '/admin/reports/company-ranking' },
-    ],
-  },
-  {
     title: '설정',
     href: '/admin/settings',
     icon: Settings,
     subItems: [
       { title: '정산 설정', href: '/admin/settlements/settings' },
       { title: '문자/알림 설정', href: '/admin/settings/notifications' },
+      { title: '경매시간 설정', href: '/admin/settings/auction-time' },
     ],
   },
 ];
