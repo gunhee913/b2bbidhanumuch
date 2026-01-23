@@ -10,7 +10,8 @@ import {
   Building2,
   CreditCard,
   Settings,
-  LogOut
+  LogOut,
+  Gavel
 } from 'lucide-react';
 import BottomNav from '@/components/BottomNav';
 
