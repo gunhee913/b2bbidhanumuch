@@ -1,374 +1,545 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import AdminLayout from '@/components/admin/AdminLayout';
-import { Plus, ChevronDown, ChevronUp } from 'lucide-react';
-import Link from 'next/link';
+import { Download } from 'lucide-react';
+import * as XLSX from 'xlsx';
+import { generateDealerSettlements } from '@/constants/dealerSettlement';
 
-// 통계 카드 컴포넌트
-interface StatCardProps {
-  title: string;
-  value: string;
-}
-
-function StatCard({ title, value }: StatCardProps) {
-  return (
-    <div className="text-center px-1">
-      <p className="text-xs text-gray-500 font-medium whitespace-nowrap">{title}</p>
-      <p className="text-lg font-bold text-gray-900 mt-1 whitespace-nowrap">{value}</p>
-    </div>
-  );
-}
-
-// 부위별 고정 데이터 (https://b2bbidhanumuch.vercel.app/auction/1 참고)
-const PARTS_DATA = [
-  { part: '등심(좌)', weight: '15.2', minPrice: 85000, bidPrice: 92000 },
-  { part: '등심(우)', weight: '15.3', minPrice: 85000, bidPrice: 89000 },
-  { part: '안심', weight: '4.5', minPrice: 95000, bidPrice: 125000 },
-  { part: '채끝', weight: '8.2', minPrice: 82000, bidPrice: null },
-  { part: '갈비(좌)', weight: '12.8', minPrice: 78000, bidPrice: 85000 },
-  { part: '갈비(우)', weight: '12.0', minPrice: 78000, bidPrice: null },
-  { part: '특수부위', weight: '3.2', minPrice: 72000, bidPrice: 78000 },
-  { part: '설도(좌)', weight: '16.5', minPrice: 56000, bidPrice: 62000 },
-  { part: '설도(우)', weight: '16.8', minPrice: 56000, bidPrice: null },
-  { part: '앞다리', weight: '25.4', minPrice: 55000, bidPrice: 58000 },
-  { part: '우둔', weight: '21.7', minPrice: 58000, bidPrice: 65000 },
-  { part: '목심', weight: '14.0', minPrice: 62000, bidPrice: null },
-  { part: '양지(좌)', weight: '12.2', minPrice: 52000, bidPrice: 56000 },
-  { part: '양지(우)', weight: '12.4', minPrice: 52000, bidPrice: 55000 },
-  { part: '사태', weight: '15.1', minPrice: 48000, bidPrice: null },
-  { part: '꼬리', weight: '16.2', minPrice: 35000, bidPrice: 42000 },
-  { part: '족', weight: '10.9', minPrice: 25000, bidPrice: 28000 },
-  { part: '사골', weight: '3.1', minPrice: 20000, bidPrice: null },
-  { part: '잡뼈', weight: '21.5', minPrice: 15000, bidPrice: 18000 },
-];
-
-// 부위별 데이터 생성 함수
-const generateParts = (auctionId: string) => {
-  return PARTS_DATA.map((item, index) => ({
-    listingNo: `${auctionId}-${String(index + 1).padStart(2, '0')}`,
-    part: item.part,
-    weight: `${item.weight}kg`,
-    minPrice: item.minPrice,
-    bidPrice: item.bidPrice,
-  }));
+// 부위 매핑 (좌/우 -> 통합)
+const PART_MAPPING: Record<string, string> = {
+  '등심(좌)': '등심', '등심(우)': '등심',
+  '안심': '안심', '채끝': '채끝',
+  '갈비(좌)': '갈비', '갈비(우)': '갈비',
+  '특수부위': '특수부위', '앞다리': '앞다리',
+  '우둔': '우둔', '목심': '목심',
+  '양지(좌)': '양지', '양지(우)': '양지',
+  '설도(좌)': '설도', '설도(우)': '설도',
+  '사태': '사태', '꼬리': '꼬리',
+  '족': '족', '사골': '사골', '잡뼈': '잡뼈',
 };
 
-// 오늘의 경매 상장 테이블 컴포넌트
-function TodayAuctionTable() {
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+// 등급 매핑 (1++ 세분화)
+const GRADE_MAPPING: Record<string, string> = {
+  '1++A': '1++(9)', '1++B': '1++(8)', '1++C': '1++(7)',
+  '1+A': '1+', '1+B': '1+', '1+C': '1+',
+  '1A': '1', '1B': '1', '1C': '1',
+  '2A': '2', '2B': '2', '2C': '2',
+};
 
-  const auctions = [
-    { id: '260119-001', breed: '한우', gender: '거세', grade: '1++A(9)', carcassWeight: '520', backFat: '15', eyeMuscle: '98', marbling: '9', meatColor: '5', fatColor: '3', texture: '1', maturity: '2', slaughterDate: '2026.01.16', traceNo: '002-1486-7293-1', company: '건화' },
-    { id: '260119-002', breed: '한우', gender: '거세', grade: '1+A', carcassWeight: '498', backFat: '13', eyeMuscle: '92', marbling: '6', meatColor: '5', fatColor: '3', texture: '1', maturity: '2', slaughterDate: '2026.01.16', traceNo: '002-1523-8412-3', company: '건화' },
-    { id: '260119-003', breed: '한우', gender: '암', grade: '1+B', carcassWeight: '465', backFat: '14', eyeMuscle: '88', marbling: '5', meatColor: '4', fatColor: '3', texture: '2', maturity: '2', slaughterDate: '2026.01.16', traceNo: '002-1498-6521-7', company: '건화' },
-    { id: '260119-004', breed: '한우', gender: '거세', grade: '1++B(8)', carcassWeight: '512', backFat: '16', eyeMuscle: '95', marbling: '8', meatColor: '5', fatColor: '3', texture: '1', maturity: '2', slaughterDate: '2026.01.16', traceNo: '002-1512-9834-2', company: '대진엠에스' },
-    { id: '260119-005', breed: '한우', gender: '거세', grade: '1+A', carcassWeight: '488', backFat: '12', eyeMuscle: '90', marbling: '6', meatColor: '5', fatColor: '3', texture: '1', maturity: '2', slaughterDate: '2026.01.16', traceNo: '002-1534-7126-5', company: '대진엠에스' },
-    { id: '260119-006', breed: '한우', gender: '암', grade: '1++A(7)', carcassWeight: '478', backFat: '17', eyeMuscle: '94', marbling: '7', meatColor: '5', fatColor: '3', texture: '1', maturity: '2', slaughterDate: '2026.01.15', traceNo: '002-1478-3945-8', company: '대진엠에스' },
-    { id: '260119-007', breed: '한우', gender: '암', grade: '1+B', carcassWeight: '455', backFat: '14', eyeMuscle: '86', marbling: '5', meatColor: '4', fatColor: '3', texture: '2', maturity: '2', slaughterDate: '2026.01.15', traceNo: '002-1501-6238-4', company: '대진엠에스' },
-    { id: '260119-008', breed: '한우', gender: '거세', grade: '1+A', carcassWeight: '502', backFat: '13', eyeMuscle: '91', marbling: '6', meatColor: '5', fatColor: '3', texture: '1', maturity: '2', slaughterDate: '2026.01.16', traceNo: '002-1489-5127-6', company: '안심엘피씨' },
-    { id: '260119-009', breed: '한우', gender: '거세', grade: '1A', carcassWeight: '495', backFat: '11', eyeMuscle: '85', marbling: '4', meatColor: '5', fatColor: '3', texture: '1', maturity: '2', slaughterDate: '2026.01.16', traceNo: '002-1527-8943-1', company: '안심엘피씨' },
-    { id: '260119-010', breed: '한우', gender: '암', grade: '1+A', carcassWeight: '468', backFat: '15', eyeMuscle: '89', marbling: '6', meatColor: '5', fatColor: '3', texture: '1', maturity: '2', slaughterDate: '2026.01.15', traceNo: '002-1463-2715-9', company: '안심엘피씨' },
-    { id: '260119-011', breed: '한우', gender: '암', grade: '1B', carcassWeight: '452', backFat: '13', eyeMuscle: '82', marbling: '4', meatColor: '4', fatColor: '3', texture: '2', maturity: '2', slaughterDate: '2026.01.15', traceNo: '002-1542-6389-3', company: '안심엘피씨' },
-    { id: '260119-012', breed: '한우', gender: '거세', grade: '1++A(9)', carcassWeight: '528', backFat: '18', eyeMuscle: '99', marbling: '9', meatColor: '5', fatColor: '3', texture: '1', maturity: '2', slaughterDate: '2026.01.16', traceNo: '002-1456-9241-7', company: '정직한고기' },
-    { id: '260119-013', breed: '한우', gender: '거세', grade: '2', carcassWeight: '485', backFat: '10', eyeMuscle: '78', marbling: '2', meatColor: '4', fatColor: '4', texture: '2', maturity: '3', slaughterDate: '2026.01.16', traceNo: '002-1518-4672-5', company: '정직한고기' },
-    { id: '260119-014', breed: '한우', gender: '암', grade: '1+A', carcassWeight: '472', backFat: '14', eyeMuscle: '87', marbling: '6', meatColor: '5', fatColor: '3', texture: '1', maturity: '2', slaughterDate: '2026.01.15', traceNo: '002-1493-7856-2', company: '정직한고기' },
-  ];
+export default function AdminDashboardPage() {
+  const [startDate, setStartDate] = useState('2026-01-16');
+  const [endDate, setEndDate] = useState('2026-01-21');
+  const [searchStartDate, setSearchStartDate] = useState('2026-01-16');
+  const [searchEndDate, setSearchEndDate] = useState('2026-01-21');
 
-  const handleRowClick = (id: string) => {
-    setExpandedId(expandedId === id ? null : id);
+  // 조회 버튼 클릭
+  const handleSearch = () => {
+    setSearchStartDate(startDate);
+    setSearchEndDate(endDate);
+  };
+
+  // 낙찰 데이터 가져오기
+  const settlements = useMemo(() => generateDealerSettlements(), []);
+
+  // 전체 경매 데이터 계산
+  const salesData = useMemo(() => {
+    let totalAmount = 0;
+    let totalWeight = 0;
+    let totalCount = 0;
+    const partSales: Record<string, { amount: number; weight: number; count: number }> = {};
+    const gradeSales: Record<string, { amount: number; weight: number; count: number }> = {};
+    const companySales: Record<string, { amount: number; weight: number; count: number }> = {};
+
+    settlements.forEach(settlement => {
+      settlement.bidParts.forEach(part => {
+        totalAmount += part.amount;
+        totalWeight += part.weight;
+        totalCount += 1;
+
+        // 부위별 집계
+        const partName = PART_MAPPING[part.partName] || part.partName;
+        if (!partSales[partName]) {
+          partSales[partName] = { amount: 0, weight: 0, count: 0 };
+        }
+        partSales[partName].amount += part.amount;
+        partSales[partName].weight += part.weight;
+        partSales[partName].count += 1;
+
+        // 등급별 집계
+        const grade = GRADE_MAPPING[part.grade] || part.grade;
+        if (!gradeSales[grade]) {
+          gradeSales[grade] = { amount: 0, weight: 0, count: 0 };
+        }
+        gradeSales[grade].amount += part.amount;
+        gradeSales[grade].weight += part.weight;
+        gradeSales[grade].count += 1;
+
+        // 상장업체별 집계
+        const companyName = part.companyName;
+        if (!companySales[companyName]) {
+          companySales[companyName] = { amount: 0, weight: 0, count: 0 };
+        }
+        companySales[companyName].amount += part.amount;
+        companySales[companyName].weight += part.weight;
+        companySales[companyName].count += 1;
+      });
+    });
+
+    return { totalAmount, totalWeight, totalCount, partSales, gradeSales, companySales };
+  }, [settlements]);
+
+  // 부위별 순위 (금액 기준)
+  const partRanking = useMemo(() => {
+    return Object.entries(salesData.partSales)
+      .map(([name, data]) => ({
+        name,
+        ...data,
+        ratio: (data.amount / salesData.totalAmount * 100).toFixed(1),
+      }))
+      .sort((a, b) => b.amount - a.amount);
+  }, [salesData]);
+
+  // 전체 경매 두수 (68두 고정)
+  const totalCattleCount = 68;
+  const totalAuctionCount = totalCattleCount * 19; // 1,292건
+
+  // 등급별 순위 (금액 기준)
+  const gradeRanking = useMemo(() => {
+    const gradeOrder = ['1++(9)', '1++(8)', '1++(7)', '1+', '1', '2'];
+    const entries = Object.entries(salesData.gradeSales);
+    
+    // 낙찰 건수 비율로 경매 두수 분배 (합계가 68두가 되도록)
+    const gradeData = entries.map(([name, data]) => {
+      const ratio = data.count / salesData.totalCount;
+      const cattleCount = Math.round(totalCattleCount * ratio);
+      const auctionCount = cattleCount * 19;
+      const bidRate = auctionCount > 0 ? Math.round((data.count / auctionCount) * 100 * 10) / 10 : 0;
+      return {
+        name,
+        ...data,
+        cattleCount,
+        auctionCount,
+        bidRate,
+        ratio: (data.amount / salesData.totalAmount * 100).toFixed(1),
+      };
+    }).sort((a, b) => gradeOrder.indexOf(a.name) - gradeOrder.indexOf(b.name));
+
+    // 합계 보정 (반올림 오차 수정)
+    const cattleSum = gradeData.reduce((sum, g) => sum + g.cattleCount, 0);
+    if (cattleSum !== totalCattleCount && gradeData.length > 0) {
+      // 가장 큰 등급에서 차이를 보정
+      const maxIdx = gradeData.findIndex(g => g.name === '1' || g.name === '1+');
+      if (maxIdx >= 0) {
+        gradeData[maxIdx].cattleCount += (totalCattleCount - cattleSum);
+        gradeData[maxIdx].auctionCount = gradeData[maxIdx].cattleCount * 19;
+        gradeData[maxIdx].bidRate = gradeData[maxIdx].auctionCount > 0 
+          ? Math.round((gradeData[maxIdx].count / gradeData[maxIdx].auctionCount) * 100 * 10) / 10 
+          : 0;
+      }
+    }
+
+    return gradeData;
+  }, [salesData, totalCattleCount]);
+
+  // 상장업체별 순위 (금액 기준)
+  const companyRanking = useMemo(() => {
+    // 업체별 경매 두수 고정 (합계 68두)
+    const companyCattle: Record<string, number> = {
+      '정직한고기': 20,
+      '건화': 18,
+      '안심엘피씨': 16,
+      '대진엠에스': 14,
+    };
+    
+    // 업체별 낙찰률 (85~95% 사이)
+    const companyBidRate: Record<string, number> = {
+      '정직한고기': 0.92,
+      '건화': 0.89,
+      '안심엘피씨': 0.91,
+      '대진엠에스': 0.87,
+    };
+    
+    const entries = Object.entries(salesData.companySales);
+    const totalOriginalAmount = entries.reduce((sum, [, d]) => sum + d.amount, 0);
+    
+    return entries.map(([name, data]) => {
+      const cattleCount = companyCattle[name] || 17;
+      const auctionCount = cattleCount * 19;
+      const bidRate = companyBidRate[name] || 0.90;
+      const bidCount = Math.round(auctionCount * bidRate); // 낙찰 건수 = 경매 건수 * 낙찰률
+      
+      // 낙찰대금 = 경매 두수 비율에 따라 분배
+      const cattleRatio = cattleCount / totalCattleCount;
+      const amount = Math.round(salesData.totalAmount * cattleRatio);
+      
+      return {
+        name,
+        weight: data.weight,
+        cattleCount,
+        auctionCount,
+        count: bidCount,
+        amount,
+        bidRate: Math.round(bidRate * 100 * 10) / 10,
+        ratio: (cattleRatio * 100).toFixed(1),
+      };
+    }).sort((a, b) => b.amount - a.amount);
+  }, [salesData, totalCattleCount]);
+
+  // 일별 경매 데이터 (주말 제외 - 4일: 21수, 20화, 19월, 16금 - 최신순)
+  const dailySales = useMemo(() => {
+    const days = ['01-21', '01-20', '01-19', '01-16'];
+    // 하루 15~20두 기준, 각 날짜별 두수 배분 (최신순)
+    const dailyCattle = [17, 18, 17, 16]; // 총 68두
+    const totalCattle = dailyCattle.reduce((a, b) => a + b, 0);
+    
+    return days.map((day, idx) => {
+      const cattleCount = dailyCattle[idx]; // 경매 두수
+      const auctionCount = cattleCount * 19; // 경매 건수 (1두당 19건)
+      // 낙찰 건수와 금액은 전체 데이터에서 비율로 배분
+      const ratio = cattleCount / totalCattle;
+      const bidCount = Math.round(salesData.totalCount * ratio);
+      const amount = Math.round(salesData.totalAmount * ratio);
+      return {
+        date: `2026-${day}`,
+        cattleCount,
+        auctionCount,
+        bidCount,
+        amount,
+      };
+    });
+  }, [salesData]);
+
+  // 엑셀 다운로드
+  const handleExcelDownload = () => {
+    const wb = XLSX.utils.book_new();
+
+    // 일별 경락
+    const dailySheet = XLSX.utils.json_to_sheet(dailySales.map(d => ({
+      '일자': d.date,
+      '경매 두수': d.cattleCount,
+      '경매 건수': d.auctionCount,
+      '낙찰 건수': d.bidCount,
+      '낙찰대금(원)': d.amount,
+      '상장수수료(원)': Math.round(d.amount * 0.02),
+    })));
+    XLSX.utils.book_append_sheet(wb, dailySheet, '일별경매');
+
+    // 부위별 경매현황
+    const partSheet = XLSX.utils.json_to_sheet(partRanking.map(p => ({
+      '부위': p.name,
+      '낙찰대금(원)': p.amount,
+      '중량(kg)': Math.round(p.weight * 10) / 10,
+      '건수': p.count,
+      '비중(%)': p.ratio,
+    })));
+    XLSX.utils.book_append_sheet(wb, partSheet, '부위별경매');
+
+    // 등급별 경매현황
+    const gradeSheet = XLSX.utils.json_to_sheet(gradeRanking.map(g => ({
+      '등급': g.name,
+      '낙찰대금(원)': g.amount,
+      '중량(kg)': Math.round(g.weight * 10) / 10,
+      '건수': g.count,
+      '비중(%)': g.ratio,
+    })));
+    XLSX.utils.book_append_sheet(wb, gradeSheet, '등급별경매');
+
+    XLSX.writeFile(wb, `플랫폼운영현황_${searchStartDate}_${searchEndDate}.xlsx`);
   };
 
   return (
-    <div className="bg-white shadow-sm border border-gray-100">
-      <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-        <h3 className="font-semibold text-gray-900">오늘의 경매 상장 내역</h3>
-        <Link 
-          href="/admin/auctions"
-          className="p-1 bg-gray-700 text-white hover:bg-gray-800 transition-colors"
-          title="전체보기"
-        >
-          <Plus className="w-3.5 h-3.5" />
-        </Link>
-      </div>
-      <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead className="bg-gray-50 border-b border-gray-200">
-            <tr>
-              <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider w-8"></th>
-              <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">접수번호</th>
-              <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">축종</th>
-              <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">성별</th>
-              <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">등급</th>
-              <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">도체중</th>
-              <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">등지방</th>
-              <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">등심면적</th>
-              <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">근내지방</th>
-              <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">육색</th>
-              <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">지방색</th>
-              <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">조직감</th>
-              <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">성숙도</th>
-              <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">도축일자</th>
-              <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">이력번호</th>
-              <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">상장업체</th>
-              <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">사진</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {auctions.map((auction) => (
-              <React.Fragment key={auction.id}>
-                <tr 
-                  className="hover:bg-gray-50 transition-colors cursor-pointer"
-                  onClick={() => handleRowClick(auction.id)}
-                >
-                  <td className="px-4 py-4 text-center">
-                    {expandedId === auction.id ? (
-                      <ChevronUp className="w-4 h-4 text-gray-500 mx-auto" />
-                    ) : (
-                      <ChevronDown className="w-4 h-4 text-gray-500 mx-auto" />
-                    )}
-                  </td>
-                  <td className="px-4 py-4 text-sm font-medium text-gray-900 text-center">{auction.id}</td>
-                  <td className="px-4 py-4 text-sm text-gray-900 text-center">{auction.breed}</td>
-                  <td className="px-4 py-4 text-sm text-gray-900 text-center">{auction.gender}</td>
-                  <td className="px-4 py-4 text-sm text-gray-900 text-center font-medium">{auction.grade}</td>
-                  <td className="px-4 py-4 text-sm text-gray-600 text-center">{auction.carcassWeight}</td>
-                  <td className="px-4 py-4 text-sm text-gray-600 text-center">{auction.backFat}</td>
-                  <td className="px-4 py-4 text-sm text-gray-600 text-center">{auction.eyeMuscle}</td>
-                  <td className="px-4 py-4 text-sm text-gray-600 text-center">{auction.marbling}</td>
-                  <td className="px-4 py-4 text-sm text-gray-600 text-center">{auction.meatColor}</td>
-                  <td className="px-4 py-4 text-sm text-gray-600 text-center">{auction.fatColor}</td>
-                  <td className="px-4 py-4 text-sm text-gray-600 text-center">{auction.texture}</td>
-                  <td className="px-4 py-4 text-sm text-gray-600 text-center">{auction.maturity}</td>
-                  <td className="px-4 py-4 text-sm text-gray-600 text-center">{auction.slaughterDate}</td>
-                  <td className="px-4 py-4 text-sm text-gray-500 text-center">{auction.traceNo}</td>
-                  <td className="px-4 py-4 text-sm text-gray-900 text-center">{auction.company}</td>
-                  <td className="px-4 py-4 text-center">
-                    <button 
-                      className="px-3 py-1 text-xs font-medium text-white bg-gray-600 hover:bg-gray-700 transition-colors"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      보기
-                    </button>
-                  </td>
-                </tr>
-                {expandedId === auction.id && (
-                  <tr>
-                    <td colSpan={17} className="p-0 border-t border-gray-200">
-                      <div className="p-4">
-                        <table className="w-full bg-white border border-gray-200">
-                          <thead className="bg-gray-50">
-                            <tr>
-                              {[1, 2, 3].map((col) => (
-                                <React.Fragment key={col}>
-                                  <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 border-b border-gray-200">상장번호</th>
-                                  <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 border-b border-gray-200">부위</th>
-                                  <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 border-b border-gray-200">중량</th>
-                                  <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 border-b border-gray-200">최저가격</th>
-                                  <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 border-b border-gray-200">낙찰가격</th>
-                                </React.Fragment>
-                              ))}
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {Array.from({ length: 7 }, (_, rowIdx) => {
-                              const parts = generateParts(auction.id);
-                              return (
-                                <tr key={rowIdx} className="hover:bg-gray-50">
-                                  {[0, 1, 2].map((colIdx) => {
-                                    const partIdx = colIdx * 7 + rowIdx;
-                                    const part = parts[partIdx];
-                                    if (!part) {
-                                      return (
-                                        <React.Fragment key={colIdx}>
-                                          <td className="px-2 py-2 text-center border-b border-gray-100">-</td>
-                                          <td className="px-2 py-2 text-center border-b border-gray-100">-</td>
-                                          <td className="px-2 py-2 text-center border-b border-gray-100">-</td>
-                                          <td className="px-2 py-2 text-center border-b border-gray-100">-</td>
-                                          <td className="px-2 py-2 text-center border-b border-gray-100">-</td>
-                                        </React.Fragment>
-                                      );
-                                    }
-                                    return (
-                                      <React.Fragment key={colIdx}>
-                                        <td className="px-2 py-2 text-xs text-gray-700 font-medium text-center border-b border-gray-100">{part.listingNo}</td>
-                                        <td className="px-2 py-2 text-sm text-gray-900 font-medium text-center border-b border-gray-100">{part.part}</td>
-                                        <td className="px-2 py-2 text-sm text-gray-600 text-center border-b border-gray-100">{part.weight}</td>
-                                        <td className="px-2 py-2 text-sm text-gray-600 text-center border-b border-gray-100">{part.minPrice.toLocaleString()}</td>
-                                        <td className={`px-2 py-2 text-sm font-medium text-center border-b border-gray-100 ${part.bidPrice ? 'text-gray-900' : 'text-gray-400'}`}>
-                                          {part.bidPrice ? part.bidPrice.toLocaleString() : '유찰'}
-                                        </td>
-                                      </React.Fragment>
-                                    );
-                                  })}
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
-                    </td>
-                  </tr>
-                )}
-              </React.Fragment>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
-
-export default function AdminDashboardPage() {
-  const [lastUpdated, setLastUpdated] = useState<string>('');
-
-  useEffect(() => {
-    const updateTime = () => {
-      const now = new Date();
-      const yyyy = now.getFullYear();
-      const MM = String(now.getMonth() + 1).padStart(2, '0');
-      const dd = String(now.getDate()).padStart(2, '0');
-      const hh = String(now.getHours()).padStart(2, '0');
-      const mm = String(now.getMinutes()).padStart(2, '0');
-      setLastUpdated(`${yyyy}.${MM}.${dd} ${hh}:${mm}`);
-    };
-    
-    updateTime();
-    const interval = setInterval(updateTime, 600000); // 10분마다
-    return () => clearInterval(interval);
-  }, []);
-
-  return (
     <AdminLayout>
-      {/* 페이지 헤더 */}
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">대시보드</h1>
       </div>
 
-      {/* 경매현황 */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-        {[
-          { title: '오늘', showUpdate: true, data: { heads: '14두', auctions: '266건', wins: '173건', amount: '124,350,000원' } },
-          { title: '이번달', showUpdate: false, data: { heads: '312두', auctions: '5,928건', wins: '3,853건', amount: '2,853,420,000원' } },
-          { title: '올해', showUpdate: false, data: { heads: '312두', auctions: '5,928건', wins: '3,853건', amount: '2,853,420,000원' } },
-        ].map((section) => (
-          <div key={section.title} className="bg-white shadow-sm border border-gray-100">
-            <div className="px-6 py-5 border-b border-gray-100 flex items-center gap-4">
-              <h3 className="font-semibold text-gray-900">{section.title}</h3>
-              {section.showUpdate && (
-                <span className="text-xs text-gray-500">최종 업데이트 : {lastUpdated}</span>
-              )}
-            </div>
-            <div className="px-6 py-6">
-              <div className="grid grid-cols-3 divide-x divide-gray-100 mb-4">
-                <StatCard title="경매 두수" value={section.data.heads} />
-                <StatCard title="경매 건수" value={section.data.auctions} />
-                <StatCard title="낙찰 건수" value={section.data.wins} />
-              </div>
-              <div className="pt-4 border-t border-gray-100">
-                <StatCard title="총 낙찰대금" value={section.data.amount} />
-              </div>
-            </div>
+      {/* 필터 섹션 */}
+      <div className="bg-white border border-gray-200 p-4 mb-4">
+        <div className="flex flex-wrap items-center gap-4">
+          {/* 기간 선택 */}
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-gray-600">기간</span>
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="w-36 px-3 py-1.5 border border-gray-200 text-xs outline-none bg-white"
+            />
+            <span className="text-gray-400">~</span>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="w-36 px-3 py-1.5 border border-gray-200 text-xs outline-none bg-white"
+            />
+            <button
+              type="button"
+              onClick={handleSearch}
+              className="px-4 py-1.5 bg-gray-900 text-white text-xs hover:bg-gray-800"
+            >
+              조회
+            </button>
           </div>
-        ))}
+
+          {/* 엑셀 다운로드 */}
+          <div className="ml-auto">
+            <button
+              type="button"
+              onClick={handleExcelDownload}
+              className="flex items-center gap-1.5 px-4 py-1.5 bg-gray-700 text-white text-xs hover:bg-gray-800"
+            >
+              <Download className="w-3.5 h-3.5" />
+              엑셀
+            </button>
+          </div>
+        </div>
       </div>
 
-      {/* 오늘의 경매 상장 내역 */}
-      <TodayAuctionTable />
-
-      {/* 순위 섹션 */}
-      <div className="grid grid-cols-3 gap-6 mt-8 mb-8">
-        {/* 중도매인 경락순위 */}
-        <div className="bg-white shadow-sm border border-gray-100">
-          <div className="px-6 py-4 border-b border-gray-100 flex items-start justify-between">
-            <div>
-              <h3 className="font-semibold text-gray-900">중도매인 경락순위</h3>
-              <p className="text-xs text-gray-500 mt-1">기간 : &apos;26.1.1. ~ 1.19.</p>
-            </div>
-            <button 
-              className="p-1 bg-gray-700 text-white hover:bg-gray-800 transition-colors"
-              title="전체보기"
-            >
-              <Plus className="w-3.5 h-3.5" />
-            </button>
+      {/* 요약 카드 */}
+      <div className="grid grid-cols-5 gap-4 mb-6">
+        <div className="bg-white border border-gray-200 p-4">
+          <div className="text-sm text-gray-500 mb-1">경매 두수</div>
+          <div className="text-2xl font-bold text-gray-900">
+            {totalCattleCount}두
           </div>
-          <div className="p-4">
-            <table className="w-full">
+        </div>
+        <div className="bg-white border border-gray-200 p-4">
+          <div className="text-sm text-gray-500 mb-1">경매 건수</div>
+          <div className="text-2xl font-bold text-gray-900">
+            {totalAuctionCount.toLocaleString()}건
+          </div>
+        </div>
+        <div className="bg-white border border-gray-200 p-4">
+          <div className="text-sm text-gray-500 mb-1">낙찰 건수</div>
+          <div className="text-2xl font-bold text-gray-900">
+            {salesData.totalCount.toLocaleString()}건
+          </div>
+        </div>
+        <div className="bg-white border border-gray-200 p-4">
+          <div className="text-sm text-gray-500 mb-1">낙찰대금</div>
+          <div className="text-2xl font-bold text-gray-900">
+            {salesData.totalAmount.toLocaleString()}원
+          </div>
+        </div>
+        <div className="bg-white border border-gray-200 p-4">
+          <div className="text-sm text-gray-500 mb-1">상장수수료</div>
+          <div className="text-2xl font-bold text-gray-900">
+            {Math.round(salesData.totalAmount * 0.02).toLocaleString()}원
+          </div>
+        </div>
+      </div>
+
+      {/* 일별 경매 추이 */}
+      <div className="bg-white border border-gray-200 p-4 mb-6">
+        <h2 className="text-sm font-bold text-gray-800 mb-4">일별 경매 추이</h2>
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse">
+            <thead>
+              <tr>
+                <th className="px-4 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">일자</th>
+                <th className="px-4 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">경매 두수</th>
+                <th className="px-4 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">경매 건수</th>
+                <th className="px-4 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">낙찰 건수</th>
+                <th className="px-4 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">낙찰대금</th>
+                <th className="px-4 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">상장수수료</th>
+              </tr>
+            </thead>
+            <tbody>
+              {dailySales.map((day) => (
+                <tr key={day.date} className="hover:bg-gray-50">
+                  <td className="px-4 py-2 text-xs text-center border border-gray-200">{day.date}</td>
+                  <td className="px-4 py-2 text-xs text-center border border-gray-200">{day.cattleCount}두</td>
+                  <td className="px-4 py-2 text-xs text-center border border-gray-200">{day.auctionCount}건</td>
+                  <td className="px-4 py-2 text-xs text-center border border-gray-200">{day.bidCount}건</td>
+                  <td className="px-4 py-2 text-xs text-center border border-gray-200 font-medium">
+                    {day.amount.toLocaleString()}원
+                  </td>
+                  <td className="px-4 py-2 text-xs text-center border border-gray-200">
+                    {Math.round(day.amount * 0.02).toLocaleString()}원
+                  </td>
+                </tr>
+              ))}
+              <tr className="bg-gray-50 font-bold">
+                <td className="px-4 py-2 text-xs text-center border border-gray-200">합계</td>
+                <td className="px-4 py-2 text-xs text-center border border-gray-200">
+                  {totalCattleCount}두
+                </td>
+                <td className="px-4 py-2 text-xs text-center border border-gray-200">
+                  {totalAuctionCount.toLocaleString()}건
+                </td>
+                <td className="px-4 py-2 text-xs text-center border border-gray-200">
+                  {salesData.totalCount.toLocaleString()}건
+                </td>
+                <td className="px-4 py-2 text-xs text-center border border-gray-200">
+                  {salesData.totalAmount.toLocaleString()}원
+                </td>
+                <td className="px-4 py-2 text-xs text-center border border-gray-200">
+                  {Math.round(salesData.totalAmount * 0.02).toLocaleString()}원
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-6">
+        {/* 부위별 경매현황 */}
+        <div className="bg-white border border-gray-200 p-4">
+          <h2 className="text-sm font-bold text-gray-800 mb-4">부위별 경매현황</h2>
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse">
               <thead>
-                <tr className="border-b border-gray-200">
-                  <th className="py-2 text-center text-xs font-semibold text-gray-600">순위</th>
-                  <th className="py-2 text-center text-xs font-semibold text-gray-600">중매인번호</th>
-                  <th className="py-2 text-center text-xs font-semibold text-gray-600">중도매인</th>
-                  <th className="py-2 text-center text-xs font-semibold text-gray-600">경락건수</th>
-                  <th className="py-2 text-center text-xs font-semibold text-gray-600">경락금액</th>
+                <tr>
+                  <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">순위</th>
+                  <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">부위</th>
+                  <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">낙찰 건수</th>
+                  <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">낙찰대금</th>
+                  <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">비중</th>
                 </tr>
               </thead>
               <tbody>
-                {[
-                  { rank: 1, no: '001', name: '김철수', count: 28, amount: 45200000 },
-                  { rank: 2, no: '002', name: '이영희', count: 24, amount: 38500000 },
-                  { rank: 3, no: '003', name: '박민수', count: 21, amount: 32100000 },
-                  { rank: 4, no: '004', name: '최지현', count: 18, amount: 28700000 },
-                  { rank: 5, no: '005', name: '정대호', count: 15, amount: 24300000 },
-                ].map((item) => (
-                  <tr key={item.rank} className="border-b border-gray-50 hover:bg-gray-50">
-                    <td className="py-3 text-center text-sm font-medium text-gray-900">{item.rank}</td>
-                    <td className="py-3 text-center text-sm text-gray-700">{item.no}</td>
-                    <td className="py-3 text-center text-sm text-gray-700">{item.name}</td>
-                    <td className="py-3 text-center text-sm text-gray-700">{item.count}건</td>
-                    <td className="py-3 text-center text-sm text-gray-700">{item.amount.toLocaleString()}원</td>
+                {partRanking.map((part, idx) => (
+                  <tr key={part.name} className="hover:bg-gray-50">
+                    <td className="px-3 py-2 text-xs text-center border border-gray-200">{idx + 1}</td>
+                    <td className="px-3 py-2 text-xs text-center border border-gray-200 font-medium">{part.name}</td>
+                    <td className="px-3 py-2 text-xs text-center border border-gray-200">{part.count}건</td>
+                    <td className="px-3 py-2 text-xs text-center border border-gray-200">
+                      {part.amount.toLocaleString()}원
+                    </td>
+                    <td className="px-3 py-2 text-xs text-center border border-gray-200">{part.ratio}%</td>
                   </tr>
                 ))}
+                <tr className="bg-gray-50 font-bold">
+                  <td colSpan={2} className="px-3 py-2 text-xs text-center border border-gray-200">합계</td>
+                  <td className="px-3 py-2 text-xs text-center border border-gray-200">
+                    {partRanking.reduce((sum, p) => sum + p.count, 0)}건
+                  </td>
+                  <td className="px-3 py-2 text-xs text-center border border-gray-200">
+                    {partRanking.reduce((sum, p) => sum + p.amount, 0).toLocaleString()}원
+                  </td>
+                  <td className="px-3 py-2 text-xs text-center border border-gray-200">100%</td>
+                </tr>
               </tbody>
             </table>
           </div>
         </div>
 
-        {/* 상장업체 상장순위 */}
-        <div className="bg-white shadow-sm border border-gray-100">
-          <div className="px-6 py-4 border-b border-gray-100 flex items-start justify-between">
-            <div>
-              <h3 className="font-semibold text-gray-900">상장업체 상장순위</h3>
-              <p className="text-xs text-gray-500 mt-1">기간 : &apos;26.1.1. ~ 1.19.</p>
-            </div>
-            <button 
-              className="p-1 bg-gray-700 text-white hover:bg-gray-800 transition-colors"
-              title="전체보기"
-            >
-              <Plus className="w-3.5 h-3.5" />
-            </button>
-          </div>
-          <div className="p-4">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-gray-200">
-                  <th className="py-2 text-center text-xs font-semibold text-gray-600">순위</th>
-                  <th className="py-2 text-center text-xs font-semibold text-gray-600">업체명</th>
-                  <th className="py-2 text-center text-xs font-semibold text-gray-600">상장두수</th>
-                  <th className="py-2 text-center text-xs font-semibold text-gray-600">경락금액</th>
-                </tr>
-              </thead>
-              <tbody>
-                {[
-                  { rank: 1, name: '건화', count: 5, amount: 52300000 },
-                  { rank: 2, name: '대진엠에스', count: 4, amount: 41800000 },
-                  { rank: 3, name: '안심엘피씨', count: 3, amount: 31500000 },
-                  { rank: 4, name: '정직한고기', count: 2, amount: 22100000 },
-                ].map((item) => (
-                  <tr key={item.rank} className="border-b border-gray-50 hover:bg-gray-50">
-                    <td className="py-3 text-center text-sm font-medium text-gray-900">{item.rank}</td>
-                    <td className="py-3 text-center text-sm text-gray-700">{item.name}</td>
-                    <td className="py-3 text-center text-sm text-gray-700">{item.count}두</td>
-                    <td className="py-3 text-center text-sm text-gray-700">{item.amount.toLocaleString()}원</td>
+        {/* 오른쪽: 등급별 + 상장업체별 */}
+        <div className="flex flex-col gap-6">
+          {/* 등급별 경매현황 */}
+          <div className="bg-white border border-gray-200 p-4">
+            <h2 className="text-sm font-bold text-gray-800 mb-4">등급별 경매현황</h2>
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr>
+                    <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">등급</th>
+                    <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">경매 두수</th>
+                    <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">경매 건수</th>
+                    <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">낙찰 건수</th>
+                    <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">낙찰대금</th>
+                    <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">낙찰률</th>
+                    <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">비중</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {gradeRanking.map((grade) => (
+                    <tr key={grade.name} className="hover:bg-gray-50">
+                      <td className="px-3 py-2 text-xs text-center border border-gray-200 font-medium">{grade.name}</td>
+                      <td className="px-3 py-2 text-xs text-center border border-gray-200">{grade.cattleCount}두</td>
+                      <td className="px-3 py-2 text-xs text-center border border-gray-200">{grade.auctionCount}건</td>
+                      <td className="px-3 py-2 text-xs text-center border border-gray-200">{grade.count}건</td>
+                      <td className="px-3 py-2 text-xs text-center border border-gray-200">
+                        {grade.amount.toLocaleString()}원
+                      </td>
+                      <td className="px-3 py-2 text-xs text-center border border-gray-200">{grade.bidRate}%</td>
+                      <td className="px-3 py-2 text-xs text-center border border-gray-200">{grade.ratio}%</td>
+                    </tr>
+                  ))}
+                  <tr className="bg-gray-50 font-bold">
+                    <td className="px-3 py-2 text-xs text-center border border-gray-200">합계</td>
+                    <td className="px-3 py-2 text-xs text-center border border-gray-200">
+                      {totalCattleCount}두
+                    </td>
+                    <td className="px-3 py-2 text-xs text-center border border-gray-200">
+                      {totalAuctionCount.toLocaleString()}건
+                    </td>
+                    <td className="px-3 py-2 text-xs text-center border border-gray-200">
+                      {salesData.totalCount.toLocaleString()}건
+                    </td>
+                    <td className="px-3 py-2 text-xs text-center border border-gray-200">
+                      {salesData.totalAmount.toLocaleString()}원
+                    </td>
+                    <td className="px-3 py-2 text-xs text-center border border-gray-200">
+                      {Math.round((salesData.totalCount / totalAuctionCount) * 100 * 10) / 10}%
+                    </td>
+                    <td className="px-3 py-2 text-xs text-center border border-gray-200">100%</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
 
-        {/* 빈 공간 */}
-        <div></div>
+          {/* 상장업체별 경매현황 */}
+          <div className="bg-white border border-gray-200 p-4">
+        <h2 className="text-sm font-bold text-gray-800 mb-4">상장업체별 경매현황</h2>
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse">
+            <thead>
+              <tr>
+                <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">순위</th>
+                <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">상장업체</th>
+                <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">경매 두수</th>
+                <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">경매 건수</th>
+                <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">낙찰 건수</th>
+                <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">낙찰대금</th>
+                <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">낙찰률</th>
+                <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">비중</th>
+              </tr>
+            </thead>
+            <tbody>
+              {companyRanking.map((company, idx) => (
+                <tr key={company.name} className="hover:bg-gray-50">
+                  <td className="px-3 py-2 text-xs text-center border border-gray-200">{idx + 1}</td>
+                  <td className="px-3 py-2 text-xs text-center border border-gray-200 font-medium">{company.name}</td>
+                  <td className="px-3 py-2 text-xs text-center border border-gray-200">{company.cattleCount}두</td>
+                  <td className="px-3 py-2 text-xs text-center border border-gray-200">{company.auctionCount}건</td>
+                  <td className="px-3 py-2 text-xs text-center border border-gray-200">{company.count}건</td>
+                  <td className="px-3 py-2 text-xs text-center border border-gray-200">
+                    {company.amount.toLocaleString()}원
+                  </td>
+                  <td className="px-3 py-2 text-xs text-center border border-gray-200">{company.bidRate}%</td>
+                  <td className="px-3 py-2 text-xs text-center border border-gray-200">{company.ratio}%</td>
+                </tr>
+              ))}
+              <tr className="bg-gray-50 font-bold">
+                <td colSpan={2} className="px-3 py-2 text-xs text-center border border-gray-200">합계</td>
+                <td className="px-3 py-2 text-xs text-center border border-gray-200">
+                  {totalCattleCount}두
+                </td>
+                <td className="px-3 py-2 text-xs text-center border border-gray-200">
+                  {totalAuctionCount.toLocaleString()}건
+                </td>
+                <td className="px-3 py-2 text-xs text-center border border-gray-200">
+                  {companyRanking.reduce((sum, c) => sum + c.count, 0).toLocaleString()}건
+                </td>
+                <td className="px-3 py-2 text-xs text-center border border-gray-200">
+                  {companyRanking.reduce((sum, c) => sum + c.amount, 0).toLocaleString()}원
+                </td>
+                <td className="px-3 py-2 text-xs text-center border border-gray-200">
+                  {(() => {
+                    const totalBid = companyRanking.reduce((sum, c) => sum + c.count, 0);
+                    return Math.round((totalBid / totalAuctionCount) * 100 * 10) / 10;
+                  })()}%
+                </td>
+                <td className="px-3 py-2 text-xs text-center border border-gray-200">100%</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+        </div>
       </div>
     </AdminLayout>
   );

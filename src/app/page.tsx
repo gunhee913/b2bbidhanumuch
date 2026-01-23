@@ -1,29 +1,30 @@
 'use client';
 
-import { useState, useEffect, useRef, Suspense } from 'react';
+import React, { useState, useEffect, useRef, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  Home as HomeIcon,
   ShoppingCart,
-  BarChart3,
   ArrowRight,
-  FileText,
-  Gavel,
-  User,
   RefreshCw,
   Eye,
   EyeOff,
-  AlertCircle,
   Edit2,
   X,
   Copy,
   Check
 } from 'lucide-react';
+import BottomNav from '@/components/BottomNav';
 import { Button } from '@/components/ui/button';
+import DatePicker, { registerLocale } from 'react-datepicker';
+import { ko } from 'date-fns/locale';
+import 'react-datepicker/dist/react-datepicker.css';
 import { useBidStore } from '@/stores/bidStore';
 import { GRADES, getCompanyAuctionSummary, calcTotal, getTodayDateCode } from '@/constants/auction';
+
+// 한국어 로케일 등록
+registerLocale('ko', ko);
 
 // 업체별 경매 두수 데이터 (공통 상수에서 계산)
 const COMPANY_AUCTION_DATA = getCompanyAuctionSummary();
@@ -49,9 +50,7 @@ function MainPageContent() {
   
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isBalanceVisible, setIsBalanceVisible] = useState(true);
-  const [activeTab, setActiveTab] = useState('경매 정보');
-  const [countdown, setCountdown] = useState(3600); // 01시간 00분 00초 = 3600초
-  const [showAuctionInfo, setShowAuctionInfo] = useState(false);
+  const [activeTab, setActiveTab] = useState('상장 정보');
   const [showReBidDialog, setShowReBidDialog] = useState(false);
   const [selectedBid, setSelectedBid] = useState<any>(null);
   const [customBidPrice, setCustomBidPrice] = useState('');
@@ -59,8 +58,8 @@ function MainPageContent() {
   const [tempQuickReBidAmount, setTempQuickReBidAmount] = useState('1,000');
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
+  const [selectedDate, setSelectedDate] = useState(new Date());
   const [toastType, setToastType] = useState<'warning' | 'success'>('success');
-  const tooltipRef = useRef<HTMLDivElement>(null);
   
   // 토스트 표시 함수
   const showToastMessage = (message: string, type: 'warning' | 'success' = 'success') => {
@@ -108,14 +107,13 @@ function MainPageContent() {
   const currentBalance = 20000000; // 현재 잔고 (추후 Zustand로 관리)
   const depositAccountNumber = '351-0123-4567-23';
 
-  // 오늘 날짜 포맷팅
-  const getTodayFormatted = () => {
-    const today = new Date();
-    const year = String(today.getFullYear()).slice(2);
-    const month = String(today.getMonth() + 1).padStart(2, '0');
-    const day = String(today.getDate()).padStart(2, '0');
+  // 날짜 포맷팅
+  const formatDateForDisplay = (date: Date) => {
+    const year = String(date.getFullYear()).slice(2);
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
     const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
-    const dayName = dayNames[today.getDay()];
+    const dayName = dayNames[date.getDay()];
     return `${year}.${month}.${day}.(${dayName})`;
   };
 
@@ -156,7 +154,7 @@ function MainPageContent() {
     const bidId = searchParams.get('bidId');
     
     if (tab === 'myBids') {
-      setActiveTab('내 입찰내역(진행중)');
+      setActiveTab('입찰내역(진행중)');
       
       // 탭 전환 후 스크롤 실행
       if (bidId) {
@@ -169,57 +167,6 @@ function MainPageContent() {
       }
     }
   }, [searchParams]);
-
-  // 카운트다운
-  useEffect(() => {
-    if (countdown <= 0) return;
-
-    const timer = setInterval(() => {
-      setCountdown((prev) => (prev > 0 ? prev - 1 : 0));
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, [countdown]);
-
-  // 툴팁 외부 클릭 감지
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as HTMLElement;
-      // 버튼이나 툴팁 영역이 아닌 곳을 클릭했을 때만 닫기
-      if (
-        showAuctionInfo &&
-        tooltipRef.current &&
-        !tooltipRef.current.contains(target) &&
-        !target.closest('button')
-      ) {
-        setShowAuctionInfo(false);
-      }
-    };
-
-    if (showAuctionInfo) {
-      // 약간의 딜레이를 주어 버튼 클릭 이벤트와 충돌 방지
-      setTimeout(() => {
-        document.addEventListener('mousedown', handleClickOutside);
-      }, 0);
-    }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [showAuctionInfo]);
-
-  // 시간 포맷팅
-  const formatTime = (seconds: number) => {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
-    
-    if (hours > 0) {
-      return `${hours}시간 ${String(minutes).padStart(2, '0')}분 ${String(secs).padStart(2, '0')}초`;
-    } else {
-      return `${minutes}분 ${String(secs).padStart(2, '0')}초`;
-    }
-  };
 
   // 잔고 가리기/보이기 토글
   const toggleBalanceVisibility = () => {
@@ -359,166 +306,232 @@ function MainPageContent() {
                 </div>
               </div>
 
-              {/* 잔고 섹션 */}
-              <div className="mx-4 mt-3 rounded-lg bg-white border border-gray-200 shadow-sm">
-                <div className="px-4 py-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-gray-600 text-sm font-bold">내 잔고</p>
-                    <div className="flex items-center gap-1">
-                      <button 
-                        onClick={toggleBalanceVisibility}
-                        className="p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-all active:scale-95"
-                      >
-                        {isBalanceVisible ? (
-                          <EyeOff className="h-4 w-4" />
-                        ) : (
-                          <Eye className="h-4 w-4" />
-                        )}
-                      </button>
-                      <button 
-                        onClick={handleRefresh}
-                        disabled={isRefreshing}
-                        className="p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-all disabled:opacity-50 active:scale-95"
-                      >
-                        <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-                      </button>
-                    </div>
-                  </div>
-                  <p className="text-black text-2xl font-bold mb-3" style={{ letterSpacing: '-0.02em' }}>
-                    {isBalanceVisible ? '₩20,000,000원' : '₩********원'}
-                  </p>
-                  <div className="flex gap-2">
-                    <button 
-                      onClick={() => {
-                        setShowBalanceModal(true);
-                        setBalanceAmount('');
-                      }}
-                      className="flex-1 bg-red-600 text-white px-3 py-2 rounded-lg font-bold text-xs hover:bg-red-700 active:bg-red-800 transition-colors flex items-center justify-center gap-1.5 active:scale-[0.98]"
-                    >
-                      <span className="text-white text-base">↓</span>
-                      입금신청
-                    </button>
-                    <Link href="/profile/balance?from=main" className="flex-1 bg-white text-red-600 border-2 border-red-600 px-3 py-2 rounded-lg font-bold text-xs hover:bg-red-50 active:bg-red-100 transition-colors flex items-center justify-center active:scale-[0.98]">
-                      잔고 내역
-                    </Link>
-                  </div>
-                </div>
+              {/* 내 잔고 섹션 */}
+              <div className="mx-4 mt-3 bg-gradient-to-br from-gray-50 to-white border border-gray-200 shadow-sm px-5 py-5 rounded-lg">
+                <p className="text-gray-600 text-xs font-medium mb-1">내 잔고</p>
+                <p className="text-red-600 text-2xl font-bold tracking-tight text-right">-8,280,000<span className="text-lg ml-0.5">원</span></p>
+              </div>
+
+              {/* 버튼 */}
+              <div className="mx-4 mt-2">
+                <Link href="/profile/balance?from=main" className="block">
+                  <button className="w-full bg-gray-900 hover:bg-gray-800 active:bg-black text-white font-bold text-sm py-3 rounded-lg transition-all shadow-sm hover:shadow-md active:shadow-sm flex items-center justify-center gap-2 active:scale-[0.98]">
+                    잔고내역
+                    <ArrowRight className="h-4 w-4" />
+                  </button>
+                </Link>
               </div>
 
               {/* 탭 메뉴 */}
               <div className="mt-4 bg-white">
                 <div className="flex border-b border-gray-200 px-4">
                   <button
-                    onClick={() => setActiveTab('경매 정보')}
-                    className={`flex-1 py-3 text-sm font-bold transition-colors ${
-                      activeTab === '경매 정보'
-                        ? 'text-red-600 border-b-2 border-red-600'
+                    onClick={() => setActiveTab('상장 정보')}
+                    className={`flex-1 py-3 text-xs font-bold transition-colors ${
+                      activeTab === '상장 정보'
+                        ? 'text-gray-900 border-b-2 border-gray-900'
                         : 'text-gray-500'
                     }`}
                   >
-                    경매 정보
+                    상장 정보
                   </button>
                   <button
-                    onClick={() => setActiveTab('내 입찰내역(진행중)')}
-                    className={`flex-1 py-3 text-sm font-bold transition-colors ${
-                      activeTab === '내 입찰내역(진행중)'
-                      
-                        ? 'text-red-600 border-b-2 border-red-600'
+                    onClick={() => setActiveTab('입찰내역(진행중)')}
+                    className={`flex-1 py-3 text-xs font-bold transition-colors ${
+                      activeTab === '입찰내역(진행중)'
+                        ? 'text-gray-900 border-b-2 border-gray-900'
                         : 'text-gray-500'
                     }`}
                   >
-                    내 입찰내역(진행중)
+                    입찰내역(진행중)
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('경매 결과')}
+                    className={`flex-1 py-3 text-xs font-bold transition-colors ${
+                      activeTab === '경매 결과'
+                        ? 'text-gray-900 border-b-2 border-gray-900'
+                        : 'text-gray-500'
+                    }`}
+                  >
+                    경매 결과
                   </button>
                 </div>
               </div>
 
               {/* 탭 컨텐츠 */}
               <div className="pb-24 bg-white">
-                {activeTab === '경매 정보' ? (
+                {activeTab === '상장 정보' ? (
                   <div className="px-4 pt-4">
-                    {/* 경매 요약 카드 */}
+                    {/* 날짜 조회 */}
                     <div className="mb-4">
-                      <div className="mb-2 relative">
-                        <div className="flex items-center gap-2">
-                          <h3 className="text-base font-bold text-gray-900">{getTodayFormatted()} 경매 현황</h3>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setShowAuctionInfo(!showAuctionInfo);
-                            }}
-                            className="text-gray-500 hover:text-gray-700 transition-colors"
-                          >
-                            <AlertCircle className="h-4 w-4" />
-                          </button>
-                        </div>
-                        {showAuctionInfo && (
-                          <div 
-                            ref={tooltipRef}
-                            className="absolute top-8 left-0 z-10 bg-gray-800 text-white text-xs rounded-lg py-2 px-3 shadow-lg min-w-[200px]"
-                          >
-                            <div className="absolute -top-1.5 left-6 w-3 h-3 bg-gray-800 rotate-45"></div>
-                            <p className="text-center leading-relaxed relative z-10">
-                              경매는 오전 10시에 일괄 종료되며,<br />최고가가 낙찰됩니다.
-                            </p>
-                          </div>
-                        )}
+                      <div className="flex items-center gap-2 mb-4">
+                        <span className="text-sm text-gray-600">조회일자 :</span>
+                        <DatePicker
+                          selected={selectedDate}
+                          onChange={(date: Date | null) => date && setSelectedDate(date)}
+                          locale="ko"
+                          dateFormat="yyyy.MM.dd (eee)"
+                          dateFormatCalendar="yyyy년 M월"
+                          className="px-3 py-2 text-sm font-semibold text-gray-900 bg-gray-50 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors text-center w-[150px]"
+                          calendarClassName="!border-gray-200 !rounded-lg !shadow-lg"
+                          showPopperArrow={false}
+                          popperPlacement="bottom-start"
+                        />
                       </div>
-                      <div className="flex items-center justify-end gap-1.5 mb-3">
-                        <span className="text-xs font-medium text-gray-600">마감까지</span>
-                        <span className="text-xs font-bold text-gray-900" style={{ letterSpacing: '-0.02em' }}>
-                          {formatTime(countdown)}
-                        </span>
-                      </div>
-
-                      {/* 등급별 경매 두수 현황 */}
-                      <h3 className="text-base font-bold text-gray-900 mb-3">등급별 경매 두수 현황</h3>
-                      <div className="mb-3 overflow-hidden border border-gray-200">
-                        <table className="w-full text-xs">
+                      {/* 등급별 경매 두수 */}
+                      <h3 className="text-base font-bold text-gray-900 mb-3">등급별 경매 두수</h3>
+                      <div className="mb-3 border border-gray-200 rounded-lg overflow-hidden">
+                        <table className="w-full text-xs table-fixed">
                           <thead>
                             <tr className="bg-gray-50 border-b border-gray-200">
-                              <th className="py-2.5 px-3 text-left font-bold text-gray-700">구분</th>
-                              {GRADES.map((grade) => (
-                                <th key={grade} className="py-2.5 px-3 text-center font-bold text-gray-700">{grade}</th>
-                              ))}
-                              <th className="py-2.5 px-3 text-right font-bold text-gray-700">합계</th>
+                              <th className="py-2 text-center font-medium text-gray-500 w-[12.5%] border-r border-gray-200">성별</th>
+                              <th className="py-2 text-center font-medium text-gray-500 w-[12.5%] border-r border-gray-200">1++(9)</th>
+                              <th className="py-2 text-center font-medium text-gray-500 w-[12.5%] border-r border-gray-200">1++(8)</th>
+                              <th className="py-2 text-center font-medium text-gray-500 w-[12.5%] border-r border-gray-200">1++(7)</th>
+                              <th className="py-2 text-center font-medium text-gray-500 w-[12.5%] border-r border-gray-200">1+</th>
+                              <th className="py-2 text-center font-medium text-gray-500 w-[12.5%] border-r border-gray-200">1</th>
+                              <th className="py-2 text-center font-medium text-gray-500 w-[12.5%] border-r border-gray-200">2</th>
+                              <th className="py-2 text-center font-medium text-gray-500 w-[12.5%]">합계</th>
                             </tr>
                           </thead>
                           <tbody>
-                            <tr className="border-b border-gray-200">
-                              <td className="py-3 px-3 font-bold text-gray-900">한우 거세</td>
-                              {GRADES.map((grade) => {
-                                const count = COMPANY_AUCTION_DATA.reduce((sum, company) => sum + company.steer[grade], 0);
-                                return <td key={grade} className="py-3 px-3 text-center font-bold text-gray-900">{count}두</td>;
-                              })}
-                              <td className="py-3 px-3 text-right font-bold text-gray-600">
-                                {COMPANY_AUCTION_DATA.reduce((sum, company) => sum + calcTotal(company.steer), 0)}두
-                              </td>
-                            </tr>
-                            <tr className="border-b border-gray-200">
-                              <td className="py-3 px-3 font-bold text-gray-900">한우 암</td>
-                              {GRADES.map((grade) => {
-                                const count = COMPANY_AUCTION_DATA.reduce((sum, company) => sum + company.cow[grade], 0);
-                                return <td key={grade} className="py-3 px-3 text-center font-bold text-gray-900">{count}두</td>;
-                              })}
-                              <td className="py-3 px-3 text-right font-bold text-gray-600">
-                                {COMPANY_AUCTION_DATA.reduce((sum, company) => sum + calcTotal(company.cow), 0)}두
-                              </td>
-                            </tr>
-                            <tr className="bg-gray-50">
-                              <td className="py-3 px-3 font-bold text-gray-900">합계</td>
-                              {GRADES.map((grade) => {
-                                const count = COMPANY_AUCTION_DATA.reduce((sum, company) => sum + company.steer[grade] + company.cow[grade], 0);
-                                return <td key={grade} className="py-3 px-3 text-center font-bold text-gray-900">{count}두</td>;
-                              })}
-                              <td className="py-3 px-3 text-right font-bold text-gray-600">
-                                {COMPANY_AUCTION_DATA.reduce((sum, company) => sum + calcTotal(company.steer) + calcTotal(company.cow), 0)}두
-                              </td>
-                            </tr>
+                            {(() => {
+                              // 1++ 등급을 (9), (8), (7)로 분배
+                              const steerTotal1pp = COMPANY_AUCTION_DATA.reduce((sum, company) => sum + company.steer['1++'], 0);
+                              const steer9 = Math.floor(steerTotal1pp * 0.3);
+                              const steer8 = Math.floor(steerTotal1pp * 0.4);
+                              const steer7 = steerTotal1pp - steer9 - steer8;
+                              const steer1p = COMPANY_AUCTION_DATA.reduce((sum, company) => sum + company.steer['1+'], 0);
+                              const steer1 = COMPANY_AUCTION_DATA.reduce((sum, company) => sum + company.steer['1'], 0);
+                              const steer2 = COMPANY_AUCTION_DATA.reduce((sum, company) => sum + company.steer['2'], 0);
+                              const steerSum = COMPANY_AUCTION_DATA.reduce((sum, company) => sum + calcTotal(company.steer), 0);
+
+                              const cowTotal1pp = COMPANY_AUCTION_DATA.reduce((sum, company) => sum + company.cow['1++'], 0);
+                              const cow9 = Math.floor(cowTotal1pp * 0.25);
+                              const cow8 = Math.floor(cowTotal1pp * 0.35);
+                              const cow7 = cowTotal1pp - cow9 - cow8;
+                              const cow1p = COMPANY_AUCTION_DATA.reduce((sum, company) => sum + company.cow['1+'], 0);
+                              const cow1 = COMPANY_AUCTION_DATA.reduce((sum, company) => sum + company.cow['1'], 0);
+                              const cow2 = COMPANY_AUCTION_DATA.reduce((sum, company) => sum + company.cow['2'], 0);
+                              const cowSum = COMPANY_AUCTION_DATA.reduce((sum, company) => sum + calcTotal(company.cow), 0);
+
+                              return (
+                                <>
+                                  <tr className="border-b border-gray-100">
+                                    <td className="py-2.5 text-center text-gray-600 border-r border-gray-100">거세</td>
+                                    <td className="py-2.5 text-center text-gray-900 border-r border-gray-100">{steer9}</td>
+                                    <td className="py-2.5 text-center text-gray-900 border-r border-gray-100">{steer8}</td>
+                                    <td className="py-2.5 text-center text-gray-900 border-r border-gray-100">{steer7}</td>
+                                    <td className="py-2.5 text-center text-gray-900 border-r border-gray-100">{steer1p}</td>
+                                    <td className="py-2.5 text-center text-gray-900 border-r border-gray-100">{steer1}</td>
+                                    <td className="py-2.5 text-center text-gray-900 border-r border-gray-100">{steer2}</td>
+                                    <td className="py-2.5 text-center font-semibold text-gray-900">{steerSum}</td>
+                                  </tr>
+                                  <tr className="border-b border-gray-100">
+                                    <td className="py-2.5 text-center text-gray-600 border-r border-gray-100">암</td>
+                                    <td className="py-2.5 text-center text-gray-900 border-r border-gray-100">{cow9}</td>
+                                    <td className="py-2.5 text-center text-gray-900 border-r border-gray-100">{cow8}</td>
+                                    <td className="py-2.5 text-center text-gray-900 border-r border-gray-100">{cow7}</td>
+                                    <td className="py-2.5 text-center text-gray-900 border-r border-gray-100">{cow1p}</td>
+                                    <td className="py-2.5 text-center text-gray-900 border-r border-gray-100">{cow1}</td>
+                                    <td className="py-2.5 text-center text-gray-900 border-r border-gray-100">{cow2}</td>
+                                    <td className="py-2.5 text-center font-semibold text-gray-900">{cowSum}</td>
+                                  </tr>
+                                  <tr className="bg-gray-50">
+                                    <td className="py-2.5 text-center font-semibold text-gray-700 border-r border-gray-100">합계</td>
+                                    <td className="py-2.5 text-center font-semibold text-gray-900 border-r border-gray-100">{steer9 + cow9}</td>
+                                    <td className="py-2.5 text-center font-semibold text-gray-900 border-r border-gray-100">{steer8 + cow8}</td>
+                                    <td className="py-2.5 text-center font-semibold text-gray-900 border-r border-gray-100">{steer7 + cow7}</td>
+                                    <td className="py-2.5 text-center font-semibold text-gray-900 border-r border-gray-100">{steer1p + cow1p}</td>
+                                    <td className="py-2.5 text-center font-semibold text-gray-900 border-r border-gray-100">{steer1 + cow1}</td>
+                                    <td className="py-2.5 text-center font-semibold text-gray-900 border-r border-gray-100">{steer2 + cow2}</td>
+                                    <td className="py-2.5 text-center font-bold text-gray-900">{steerSum + cowSum}</td>
+                                  </tr>
+                                </>
+                              );
+                            })()}
                           </tbody>
                         </table>
                       </div>
+                    </div>
 
-                      {/* 경매 참가하기 버튼 */}
+                    {/* 업체별 경매 두수 */}
+                    <div className="mt-6 mb-4">
+                      <div className="mb-3">
+                        <h3 className="text-base font-bold text-gray-900">업체별 경매 두수</h3>
+                      </div>
+                      
+                      <div className="border border-gray-200 rounded-lg overflow-hidden">
+                        <table className="w-full text-xs table-fixed">
+                          <thead>
+                            <tr className="bg-gray-50 border-b border-gray-200">
+                              <th className="py-2 text-center font-medium text-gray-500 w-[22%] border-r border-gray-200">업체</th>
+                              <th className="py-2 text-center font-medium text-gray-500 w-[11%] border-r border-gray-200">1++(9)</th>
+                              <th className="py-2 text-center font-medium text-gray-500 w-[11%] border-r border-gray-200">1++(8)</th>
+                              <th className="py-2 text-center font-medium text-gray-500 w-[11%] border-r border-gray-200">1++(7)</th>
+                              <th className="py-2 text-center font-medium text-gray-500 w-[11%] border-r border-gray-200">1+</th>
+                              <th className="py-2 text-center font-medium text-gray-500 w-[11%] border-r border-gray-200">1</th>
+                              <th className="py-2 text-center font-medium text-gray-500 w-[11%] border-r border-gray-200">2</th>
+                              <th className="py-2 text-center font-medium text-gray-500 w-[12%]">합계</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                          {COMPANY_AUCTION_DATA.map((company, idx) => {
+                            const companyTotal = calcTotal(company.steer) + calcTotal(company.cow);
+                            // 1++ 분배 (거세 + 암 합산)
+                            const total1pp = company.steer['1++'] + company.cow['1++'];
+                            const grade9 = Math.floor(total1pp * 0.28);
+                            const grade8 = Math.floor(total1pp * 0.38);
+                            const grade7 = total1pp - grade9 - grade8;
+                            const grade1p = company.steer['1+'] + company.cow['1+'];
+                            const grade1 = company.steer['1'] + company.cow['1'];
+                            const grade2 = company.steer['2'] + company.cow['2'];
+                            return (
+                              <tr key={company.name} className={`border-b border-gray-100 cursor-pointer hover:bg-gray-50 ${idx > 0 ? 'border-t border-gray-100' : ''}`} onClick={() => window.location.href = `/auction?company=${company.name}`}>
+                                <td className="py-2 text-center text-gray-900 font-semibold border-r border-gray-100">
+                                  {company.name}
+                                </td>
+                                <td className="py-2 text-center text-gray-900 border-r border-gray-100">{grade9}</td>
+                                <td className="py-2 text-center text-gray-900 border-r border-gray-100">{grade8}</td>
+                                <td className="py-2 text-center text-gray-900 border-r border-gray-100">{grade7}</td>
+                                <td className="py-2 text-center text-gray-900 border-r border-gray-100">{grade1p}</td>
+                                <td className="py-2 text-center text-gray-900 border-r border-gray-100">{grade1}</td>
+                                <td className="py-2 text-center text-gray-900 border-r border-gray-100">{grade2}</td>
+                                <td className="py-2 text-center font-semibold text-gray-900">{companyTotal}</td>
+                              </tr>
+                            );
+                          })}
+                          </tbody>
+                          <tfoot>
+                            {(() => {
+                              const total1pp = COMPANY_AUCTION_DATA.reduce((sum, c) => sum + c.steer['1++'] + c.cow['1++'], 0);
+                              const total9 = Math.floor(total1pp * 0.28);
+                              const total8 = Math.floor(total1pp * 0.38);
+                              const total7 = total1pp - total9 - total8;
+                              const total1p = COMPANY_AUCTION_DATA.reduce((sum, c) => sum + c.steer['1+'] + c.cow['1+'], 0);
+                              const total1 = COMPANY_AUCTION_DATA.reduce((sum, c) => sum + c.steer['1'] + c.cow['1'], 0);
+                              const total2 = COMPANY_AUCTION_DATA.reduce((sum, c) => sum + c.steer['2'] + c.cow['2'], 0);
+                              const grandTotal = COMPANY_AUCTION_DATA.reduce((sum, c) => sum + calcTotal(c.steer) + calcTotal(c.cow), 0);
+                              return (
+                                <tr className="bg-gray-50 border-t border-gray-300">
+                                  <td className="py-2.5 text-center font-semibold text-gray-700 border-r border-gray-100">합계</td>
+                                  <td className="py-2.5 text-center font-semibold text-gray-900 border-r border-gray-100">{total9}</td>
+                                  <td className="py-2.5 text-center font-semibold text-gray-900 border-r border-gray-100">{total8}</td>
+                                  <td className="py-2.5 text-center font-semibold text-gray-900 border-r border-gray-100">{total7}</td>
+                                  <td className="py-2.5 text-center font-semibold text-gray-900 border-r border-gray-100">{total1p}</td>
+                                  <td className="py-2.5 text-center font-semibold text-gray-900 border-r border-gray-100">{total1}</td>
+                                  <td className="py-2.5 text-center font-semibold text-gray-900 border-r border-gray-100">{total2}</td>
+                                  <td className="py-2.5 text-center font-bold text-gray-900">{grandTotal}</td>
+                                </tr>
+                              );
+                            })()}
+                          </tfoot>
+                        </table>
+                      </div>
+                    </div>
+
+                    {/* 경매 참가하기 버튼 */}
+                    <div className="mt-6">
                       <Link href="/auction" className="block">
                         <button className="w-full bg-gray-900 hover:bg-gray-800 active:bg-black text-white font-bold text-sm py-3 rounded-lg transition-all shadow-sm hover:shadow-md active:shadow-sm flex items-center justify-center gap-2 active:scale-[0.98]">
                           경매 참가하기
@@ -527,83 +540,8 @@ function MainPageContent() {
                       </Link>
                     </div>
 
-                    {/* 업체별 경매 두수 현황 */}
-                    <div className="mt-6 mb-4">
-                      <div className="mb-3">
-                        <h3 className="text-base font-bold text-gray-900">업체별 경매 두수 현황</h3>
-                      </div>
-                      
-                      <div className="overflow-hidden border border-gray-200">
-                        <table className="w-full text-sm">
-                          <thead>
-                            <tr className="bg-gray-50 border-b border-gray-200">
-                              <th className="py-2 px-1.5 text-center font-bold text-gray-700 w-16">업체명</th>
-                              <th className="py-2 px-1.5 text-center font-bold text-gray-700 w-10">성별</th>
-                              {GRADES.map((grade) => (
-                                <th key={grade} className="py-2 px-2 text-center font-bold text-gray-700 w-10">{grade}</th>
-                              ))}
-                              <th className="py-2 px-2 text-center font-bold text-gray-700 w-10">소계</th>
-                              <th className="py-2 px-2 text-center font-bold text-gray-700 w-10">합계</th>
-                            </tr>
-                          </thead>
-                          {COMPANY_AUCTION_DATA.map((company, idx) => {
-                            const companyTotal = calcTotal(company.steer) + calcTotal(company.cow);
-                            return (
-                              <tbody key={company.name} className="group cursor-pointer hover:bg-gray-50" onClick={() => window.location.href = `/auction?company=${company.name}`}>
-                                <tr className={`border-b border-gray-100 ${idx > 0 ? 'border-t border-gray-200' : ''}`}>
-                                  <td rowSpan={2} className="py-2 px-1.5 text-center font-bold text-gray-900 align-middle border-r border-gray-100">
-                                    {company.name}
-                                  </td>
-                                  <td className="py-1.5 px-1.5 text-center text-gray-600">거세</td>
-                                  {GRADES.map((grade) => (
-                                    <td key={grade} className={`py-1.5 px-2 text-center font-bold ${company.steer[grade] > 0 ? 'text-gray-900' : 'text-gray-300'}`}>
-                                      {company.steer[grade]}
-                                    </td>
-                                  ))}
-                                  <td className="py-1.5 px-2 text-center font-bold text-gray-600">{calcTotal(company.steer)}</td>
-                                  <td rowSpan={2} className="py-1.5 px-2 text-center font-bold text-gray-900 align-middle border-l border-gray-100 bg-gray-50 group-hover:bg-gray-100">
-                                    {companyTotal}
-                                  </td>
-                                </tr>
-                                <tr className="border-b border-gray-200">
-                                  <td className="py-1.5 px-1.5 text-center text-gray-600">암</td>
-                                  {GRADES.map((grade) => (
-                                    <td key={grade} className={`py-1.5 px-2 text-center font-bold ${company.cow[grade] > 0 ? 'text-gray-900' : 'text-gray-300'}`}>
-                                      {company.cow[grade]}
-                                    </td>
-                                  ))}
-                                  <td className="py-1.5 px-2 text-center font-bold text-gray-600">{calcTotal(company.cow)}</td>
-                                </tr>
-                              </tbody>
-                            );
-                          })}
-                          <tfoot>
-                            <tr className="bg-gray-100 border-t-2 border-gray-300">
-                              <td colSpan={2} className="py-2 px-1.5 text-center font-bold text-gray-900">총합계</td>
-                              {GRADES.map((grade) => {
-                                const gradeTotal = COMPANY_AUCTION_DATA.reduce(
-                                  (sum, company) => sum + company.steer[grade] + company.cow[grade], 0
-                                );
-                                return (
-                                  <td key={grade} className="py-2 px-2 text-center font-bold text-gray-900">
-                                    {gradeTotal}
-                                  </td>
-                                );
-                              })}
-                              <td className="py-2 px-2 text-center font-bold text-gray-600">
-                                {COMPANY_AUCTION_DATA.reduce((sum, company) => sum + calcTotal(company.steer) + calcTotal(company.cow), 0)}
-                              </td>
-                              <td className="py-2 px-2 text-center font-bold text-gray-900">
-                                {COMPANY_AUCTION_DATA.reduce((sum, company) => sum + calcTotal(company.steer) + calcTotal(company.cow), 0)}두
-                              </td>
-                            </tr>
-                          </tfoot>
-                        </table>
-                      </div>
-                    </div>
-
                   </div>
-                ) : (
+                ) : activeTab === '입찰내역(진행중)' ? (
                   <div className="px-4 pt-4">
                     {/* 전체내역 버튼 */}
                     <div className="flex justify-end mb-2">
@@ -622,7 +560,7 @@ function MainPageContent() {
                           onClick={() => setIsSecondBidNotificationOn(!isSecondBidNotificationOn)}
                           className={`relative inline-flex h-6 w-12 items-center rounded-full transition-colors ${
                             isSecondBidNotificationOn 
-                              ? 'bg-red-600' 
+                              ? 'bg-gray-900' 
                               : 'bg-gray-300'
                           }`}
                         >
@@ -718,7 +656,7 @@ function MainPageContent() {
                                         최고가격
                                               </span>
                                             ) : (
-                                      <span className="inline-flex px-1.5 py-0.5 bg-red-100 text-red-700 text-[10px] font-bold rounded">
+                                      <span className="inline-flex px-1.5 py-0.5 bg-gray-200 text-gray-700 text-[10px] font-bold rounded">
                                                 차순위
                                               </span>
                                             )}
@@ -788,7 +726,7 @@ function MainPageContent() {
                                         setCustomBidPrice((bid.highestBid + quickReBidAmount).toLocaleString());
                                         setShowReBidDialog(true);
                                     }}
-                                        className="px-2 py-1 bg-red-600 text-white text-[10px] font-bold rounded hover:bg-red-700 transition-colors"
+                                        className="px-2 py-1 bg-gray-900 text-white text-[10px] font-bold rounded hover:bg-gray-800 transition-colors"
                                   >
                                         재입찰
                                   </button>
@@ -801,6 +739,13 @@ function MainPageContent() {
                         </table>
                       </div>
                     )}
+                  </div>
+                ) : (
+                  <div className="px-4 pt-4">
+                    {/* 경매 결과 탭 컨텐츠 */}
+                    <div className="text-center py-12">
+                      <p className="text-gray-500 text-sm">경매 결과가 없습니다.</p>
+                    </div>
                   </div>
                 )}
               </div>
@@ -828,7 +773,7 @@ function MainPageContent() {
                           setTempQuickReBidAmount('');
                         }}
                         placeholder="증액할 금액을 입력하세요 (100원 단위)"
-                        className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 bg-white text-gray-900"
+                        className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500 bg-white text-gray-900"
                       />
                       <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">원</span>
                     </div>
@@ -836,7 +781,7 @@ function MainPageContent() {
                       현재 최고가에 이 금액을 더해 빠른 재입찰합니다.
                     </p>
                     {tempQuickReBidAmount && parseInt(tempQuickReBidAmount.replace(/,/g, '')) % 100 !== 0 && (
-                      <p className="text-xs text-red-600 mt-1">
+                      <p className="text-xs text-gray-500 mt-1">
                         ⚠️ 100원 단위로 입력해주세요
                       </p>
                     )}
@@ -855,7 +800,7 @@ function MainPageContent() {
                     <button
                       onClick={saveQuickReBidAmount}
                       disabled={!tempQuickReBidAmount || parseInt(tempQuickReBidAmount.replace(/,/g, '')) <= 0 || parseInt(tempQuickReBidAmount.replace(/,/g, '')) % 100 !== 0}
-                      className="flex-1 bg-red-600 text-white py-2 rounded-lg font-bold hover:bg-red-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                      className="flex-1 bg-gray-900 text-white py-2 rounded-lg font-bold hover:bg-gray-800 disabled:bg-gray-300 disabled:cursor-not-allowed"
                     >
                       저장
                     </button>
@@ -958,7 +903,7 @@ function MainPageContent() {
                           setCustomBidPrice(value ? parseInt(value).toLocaleString() : '');
                         }}
                             placeholder={`최저단가 ${(selectedBid.productInfo.price || 50000).toLocaleString()}`}
-                            className="w-full px-3 py-3 pr-10 text-right text-xl font-bold border border-gray-200 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-white text-black placeholder:text-gray-400"
+                            className="w-full px-3 py-3 pr-10 text-right text-xl font-bold border border-gray-200 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500 bg-white text-black placeholder:text-gray-400"
                       />
                           <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-sm text-gray-400">
                             원
@@ -992,7 +937,7 @@ function MainPageContent() {
                       <div className="bg-gray-50 p-3 rounded-lg border border-gray-200 mb-4">
                         <div className="flex justify-between items-center">
                           <span className="text-sm font-bold text-gray-700">총 입찰금액</span>
-                          <span className="text-xl font-bold text-red-600">
+                          <span className="text-xl font-bold text-gray-900">
                             {(() => {
                               if (!customBidPrice) return '-';
                               const price = parseInt(customBidPrice.replace(/,/g, ''));
@@ -1008,7 +953,7 @@ function MainPageContent() {
                       <button
                         onClick={confirmReBid}
                         disabled={!customBidPrice}
-                        className="w-full py-3.5 bg-red-600 hover:bg-red-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-bold text-base rounded-lg"
+                        className="w-full py-3.5 bg-gray-900 hover:bg-gray-800 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-bold text-base rounded-lg"
                       >
                         입찰하기
                       </button>
@@ -1085,7 +1030,7 @@ function MainPageContent() {
                           <div className="text-xs text-gray-600 font-medium">입금 계좌</div>
                           <button
                             onClick={copyAccountNumber}
-                            className="flex items-center gap-1 text-[10px] text-red-600 hover:text-red-700 transition-colors"
+                            className="flex items-center gap-1 text-[10px] text-gray-600 hover:text-gray-700 transition-colors"
                           >
                             {isCopied ? (
                               <>
@@ -1127,7 +1072,7 @@ function MainPageContent() {
                             value={balanceAmount}
                             onChange={(e) => handleBalanceAmountChange(e.target.value)}
                             placeholder="0"
-                            className="w-full pl-8 pr-4 py-3 border border-gray-300 rounded-lg text-right text-lg font-bold focus:outline-none focus:border-red-500 bg-white"
+                            className="w-full pl-8 pr-4 py-3 border border-gray-300 rounded-lg text-right text-lg font-bold focus:outline-none focus:border-gray-500 bg-white"
                           />
                         </div>
                       </div>
@@ -1172,7 +1117,7 @@ function MainPageContent() {
                         disabled={!balanceAmount || balanceAmount === '0'}
                         className={`w-full py-3 rounded-lg font-bold text-sm transition-colors ${
                           balanceAmount && balanceAmount !== '0'
-                            ? 'bg-red-600 text-white hover:bg-red-700'
+                            ? 'bg-gray-900 text-white hover:bg-gray-800'
                             : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                         }`}
                       >
@@ -1185,39 +1130,7 @@ function MainPageContent() {
             </AnimatePresence>
 
             {/* 하단 네비게이션 */}
-            <div className="flex-shrink-0 bg-white border-t border-gray-200 px-2 md:px-4 py-2 safe-area-pb">
-              <div className="flex items-center justify-around">
-                {/* 홈 */}
-                <div className="flex-1 flex flex-col items-center py-2 text-red-600 cursor-pointer">
-                  <HomeIcon className="h-6 w-6 mb-1" />
-                  <span className="text-xs font-medium">홈</span>
-                </div>
-                
-                {/* 경매 */}
-                <Link href="/auction" className="flex-1 flex flex-col items-center py-2 text-gray-600 cursor-pointer">
-                  <Gavel className="h-6 w-6 mb-1" />
-                  <span className="text-xs font-medium">경매</span>
-                </Link>
-                
-                {/* 시세 */}
-                <Link href="/market" className="flex-1 flex flex-col items-center py-2 text-gray-600">
-                  <BarChart3 className="h-6 w-6 mb-1" />
-                  <span className="text-xs font-medium">시세</span>
-                </Link>
-                
-                {/* 거래 */}
-                <Link href="/trade" className="flex-1 flex flex-col items-center py-2 text-gray-600">
-                  <FileText className="h-6 w-6 mb-1" />
-                  <span className="text-xs font-medium">거래</span>
-                </Link>
-                
-                {/* 내정보 */}
-                <Link href="/profile" className="flex-1 flex flex-col items-center py-2 text-gray-600">
-                  <User className="h-6 w-6 mb-1" />
-                  <span className="text-xs font-medium">내정보</span>
-                </Link>
-              </div>
-            </div>
+            <BottomNav />
           </div>
         </div>
     </div>

@@ -3,11 +3,6 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { 
-  Home as HomeIcon,
-  BarChart3,
-  FileText,
-  User,
-  Gavel,
   TrendingUp,
   TrendingDown,
   Minus,
@@ -17,6 +12,7 @@ import {
   ZoomOut,
   RotateCcw
 } from 'lucide-react';
+import BottomNav from '@/components/BottomNav';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
@@ -929,39 +925,7 @@ export default function MarketPage() {
           </div>
 
           {/* 하단 네비게이션 */}
-          <div className="flex-shrink-0 bg-white border-t border-gray-200 px-2 md:px-4 py-2 safe-area-pb">
-            <div className="flex items-center justify-around">
-              {/* 홈 */}
-              <Link href="/" className="flex-1 flex flex-col items-center py-2 text-gray-600 cursor-pointer">
-                <HomeIcon className="h-6 w-6 mb-1" />
-                <span className="text-xs font-medium">홈</span>
-              </Link>
-              
-              {/* 경매 */}
-              <Link href="/auction" className="flex-1 flex flex-col items-center py-2 text-gray-600 cursor-pointer">
-                <Gavel className="h-6 w-6 mb-1" />
-                <span className="text-xs font-medium">경매</span>
-              </Link>
-              
-              {/* 시세 */}
-              <div className="flex-1 flex flex-col items-center py-2 text-red-600">
-                <BarChart3 className="h-6 w-6 mb-1" />
-                <span className="text-xs font-medium">시세</span>
-              </div>
-              
-              {/* 거래 */}
-              <Link href="/trade" className="flex-1 flex flex-col items-center py-2 text-gray-600">
-                <FileText className="h-6 w-6 mb-1" />
-                <span className="text-xs font-medium">거래</span>
-              </Link>
-              
-              {/* 내정보 */}
-              <Link href="/profile" className="flex-1 flex flex-col items-center py-2 text-gray-600">
-                <User className="h-6 w-6 mb-1" />
-                <span className="text-xs font-medium">내정보</span>
-              </Link>
-            </div>
-          </div>
+          <BottomNav />
         </div>
       </div>
     </div>

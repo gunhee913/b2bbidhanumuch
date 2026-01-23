@@ -4,11 +4,6 @@ import { useState, useMemo, useEffect, Suspense, useRef } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { 
-  Home as HomeIcon,
-  BarChart3,
-  FileText,
-  User,
-  Gavel,
   ChevronLeft,
   Search,
   Plus,
@@ -27,6 +22,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useDealerStore, type Dealer } from '@/features/dealers/store';
+import BottomNav from '@/components/BottomNav';
 
 // 첨부파일 타입
 interface AttachedFile {
@@ -392,30 +388,7 @@ function DealersContent() {
         </div>
 
         {/* 하단 네비게이션 */}
-        <div className="flex-shrink-0 bg-white border-t border-gray-200 px-2 py-2">
-          <div className="flex items-center justify-around">
-            <Link href="/" className="flex-1 flex flex-col items-center py-2 text-gray-600">
-              <HomeIcon className="h-6 w-6 mb-1" />
-              <span className="text-xs font-medium">홈</span>
-            </Link>
-            <Link href="/auction" className="flex-1 flex flex-col items-center py-2 text-gray-600">
-              <Gavel className="h-6 w-6 mb-1" />
-              <span className="text-xs font-medium">경매</span>
-            </Link>
-            <Link href="/market" className="flex-1 flex flex-col items-center py-2 text-gray-600">
-              <BarChart3 className="h-6 w-6 mb-1" />
-              <span className="text-xs font-medium">시세</span>
-            </Link>
-            <Link href="/trade" className="flex-1 flex flex-col items-center py-2 text-red-600">
-              <FileText className="h-6 w-6 mb-1" />
-              <span className="text-xs font-medium">거래</span>
-            </Link>
-            <Link href="/profile" className="flex-1 flex flex-col items-center py-2 text-gray-600">
-              <User className="h-6 w-6 mb-1" />
-              <span className="text-xs font-medium">내정보</span>
-            </Link>
-          </div>
-        </div>
+        <BottomNav />
 
         {/* 추가 모달 */}
         <AnimatePresence>

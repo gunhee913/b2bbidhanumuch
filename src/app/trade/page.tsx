@@ -3,19 +3,16 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { 
-  Home as HomeIcon,
-  BarChart3,
-  FileText,
-  User,
-  Gavel,
   ChevronDown,
   ChevronRight,
   ExternalLink,
   Search,
   X,
   Calendar as CalendarIcon,
-  Plus
+  Plus,
+  FileText
 } from 'lucide-react';
+import BottomNav from '@/components/BottomNav';
 import { useBidStore } from '@/stores/bidStore';
 import { useDealerStore } from '@/features/dealers/store';
 import { getTodayDateCode } from '@/constants/auction';
@@ -1485,39 +1482,7 @@ export default function TradePage() {
           </AnimatePresence>
 
           {/* 하단 네비게이션 */}
-          <div className="flex-shrink-0 bg-white border-t border-gray-200 px-2 md:px-4 py-2 safe-area-pb">
-            <div className="flex items-center justify-around">
-              {/* 홈 */}
-              <Link href="/" className="flex-1 flex flex-col items-center py-2 text-gray-600 cursor-pointer">
-                <HomeIcon className="h-6 w-6 mb-1" />
-                <span className="text-xs font-medium">홈</span>
-              </Link>
-              
-              {/* 경매 */}
-              <Link href="/auction" className="flex-1 flex flex-col items-center py-2 text-gray-600 cursor-pointer">
-                <Gavel className="h-6 w-6 mb-1" />
-                <span className="text-xs font-medium">경매</span>
-              </Link>
-              
-              {/* 시세 */}
-              <Link href="/market" className="flex-1 flex flex-col items-center py-2 text-gray-600">
-                <BarChart3 className="h-6 w-6 mb-1" />
-                <span className="text-xs font-medium">시세</span>
-              </Link>
-              
-              {/* 거래 */}
-              <div className="flex-1 flex flex-col items-center py-2 text-red-600">
-                <FileText className="h-6 w-6 mb-1" />
-                <span className="text-xs font-medium">거래</span>
-              </div>
-              
-              {/* 내정보 */}
-              <Link href="/profile" className="flex-1 flex flex-col items-center py-2 text-gray-600">
-                <User className="h-6 w-6 mb-1" />
-                <span className="text-xs font-medium">내정보</span>
-              </Link>
-            </div>
-          </div>
+          <BottomNav />
 
           {/* 상세보기 모달 - 모바일 영역 내부 */}
           <AnimatePresence>

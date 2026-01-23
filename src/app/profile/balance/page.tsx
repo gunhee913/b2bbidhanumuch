@@ -1,18 +1,14 @@
 'use client';
 
-import { useState, useEffect, useMemo, useRef, Suspense } from 'react';
+import { useState, useEffect, useMemo, useRef, Suspense, useCallback } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { 
-  Home as HomeIcon,
-  BarChart3,
-  FileText,
-  Gavel,
-  User,
   ChevronLeft,
   ChevronDown,
   Calendar as CalendarIcon
 } from 'lucide-react';
+import BottomNav from '@/components/BottomNav';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -22,29 +18,16 @@ import { ko } from 'date-fns/locale';
 // 잔고 내역 타입
 interface BalanceHistory {
   id: string;
-  date: string;           // '26.01.06'
-  type: 'deposit' | 'auction' | 'withdraw';  // 입금 / 경락대금 / 출금
-  description: string;    // 내용
-  amount: number;         // 금액 (양수: 입금, 음수: 경락대금/출금)
-  balanceAfter: number;   // 변동 후 잔고
+  date: string;           // '2026-01-06 09:30'
+  type: 'deposit' | 'auction';
+  deposit: number;        // 입금액
+  withdraw: number;       // 출금(차감)액
+  balance: number;        // 거래가능금액
+  description: string;    // 비고
 }
 
-// 구분 라벨
-const typeLabels: Record<BalanceHistory['type'], string> = {
-  deposit: '입금',
-  auction: '경락대금',
-  withdraw: '출금',
-};
-
-// 구분 색상
-const typeColors: Record<BalanceHistory['type'], string> = {
-  deposit: 'text-blue-600',
-  auction: 'text-red-600',
-  withdraw: 'text-gray-600',
-};
-
 // 구분 필터 타입
-type TypeFilter = 'all' | 'deposit' | 'auction' | 'withdraw';
+type TypeFilter = 'all' | 'deposit' | 'auction';
 
 // 기간 필터 타입
 type PeriodFilter = 'all' | 'today' | 'week' | 'month' | 'custom';
@@ -62,8 +45,6 @@ function BalanceHistoryContent() {
   const from = searchParams.get('from');
   const backUrl = from === 'main' ? '/' : '/profile';
   
-  const currentBalance = 20000000;
-
   // 필터 상태
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
   const [periodFilter, setPeriodFilter] = useState<PeriodFilter>('all');
@@ -93,27 +74,33 @@ function BalanceHistoryContent() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // 페이지네이션
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  // 무한 스크롤용 상태
+  const [displayCount, setDisplayCount] = useState(20);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  // 더미 데이터
+  // 더미 데이터 - 낙찰대금차감 후 입금하는 패턴
   const [balanceHistory] = useState<BalanceHistory[]>([
-    { id: '1', date: '26.01.06', type: 'deposit', description: '계좌이체', amount: 5000000, balanceAfter: 20000000 },
-    { id: '2', date: '26.01.06', type: 'auction', description: '260106 총 경락대금', amount: -1200000, balanceAfter: 15000000 },
-    { id: '3', date: '26.01.05', type: 'withdraw', description: '정산출금', amount: -3000000, balanceAfter: 16200000 },
-    { id: '4', date: '26.01.05', type: 'auction', description: '260105 총 경락대금', amount: -800000, balanceAfter: 19200000 },
-    { id: '5', date: '26.01.04', type: 'deposit', description: '계좌이체', amount: 10000000, balanceAfter: 20000000 },
-    { id: '6', date: '26.01.04', type: 'auction', description: '260104 총 경락대금', amount: -2500000, balanceAfter: 10000000 },
-    { id: '7', date: '26.01.03', type: 'deposit', description: '계좌이체', amount: 8000000, balanceAfter: 12500000 },
-    { id: '8', date: '26.01.03', type: 'auction', description: '260103 총 경락대금', amount: -1500000, balanceAfter: 4500000 },
-    { id: '9', date: '26.01.02', type: 'withdraw', description: '정산출금', amount: -2000000, balanceAfter: 6000000 },
-    { id: '10', date: '26.01.02', type: 'deposit', description: '계좌이체', amount: 3000000, balanceAfter: 8000000 },
-    { id: '11', date: '26.01.01', type: 'auction', description: '260101 총 경락대금', amount: -1800000, balanceAfter: 5000000 },
-    { id: '12', date: '26.01.01', type: 'deposit', description: '계좌이체', amount: 5000000, balanceAfter: 6800000 },
-    { id: '13', date: '25.12.31', type: 'withdraw', description: '정산출금', amount: -1000000, balanceAfter: 1800000 },
-    { id: '14', date: '25.12.31', type: 'auction', description: '251231 총 경락대금', amount: -2200000, balanceAfter: 2800000 },
-    { id: '15', date: '25.12.30', type: 'deposit', description: '계좌이체', amount: 3000000, balanceAfter: 5000000 },
+    { id: '1', date: '2026-01-21 09:00', type: 'auction', deposit: 0, withdraw: 8520000, balance: -8280000, description: '낙찰대금차감' },
+    { id: '2', date: '2026-01-20 15:00', type: 'deposit', deposit: 12000000, withdraw: 0, balance: 240000, description: '계좌이체' },
+    { id: '3', date: '2026-01-20 09:00', type: 'auction', deposit: 0, withdraw: 11760000, balance: -11760000, description: '낙찰대금차감' },
+    { id: '4', date: '2026-01-17 14:00', type: 'deposit', deposit: 9500000, withdraw: 0, balance: 0, description: '계좌이체' },
+    { id: '5', date: '2026-01-17 09:00', type: 'auction', deposit: 0, withdraw: 9500000, balance: -9500000, description: '낙찰대금차감' },
+    { id: '6', date: '2026-01-16 15:00', type: 'deposit', deposit: 14200000, withdraw: 0, balance: 0, description: '계좌이체' },
+    { id: '7', date: '2026-01-16 09:00', type: 'auction', deposit: 0, withdraw: 14200000, balance: -14200000, description: '낙찰대금차감' },
+    { id: '8', date: '2026-01-15 14:00', type: 'deposit', deposit: 8800000, withdraw: 0, balance: 0, description: '계좌이체' },
+    { id: '9', date: '2026-01-15 09:00', type: 'auction', deposit: 0, withdraw: 8800000, balance: -8800000, description: '낙찰대금차감' },
+    { id: '10', date: '2026-01-14 15:00', type: 'deposit', deposit: 10500000, withdraw: 0, balance: 0, description: '계좌이체' },
+    { id: '11', date: '2026-01-14 09:00', type: 'auction', deposit: 0, withdraw: 10500000, balance: -10500000, description: '낙찰대금차감' },
+    { id: '12', date: '2026-01-13 14:00', type: 'deposit', deposit: 12300000, withdraw: 0, balance: 0, description: '계좌이체' },
+    { id: '13', date: '2026-01-13 09:00', type: 'auction', deposit: 0, withdraw: 12300000, balance: -12300000, description: '낙찰대금차감' },
+    { id: '14', date: '2026-01-10 15:00', type: 'deposit', deposit: 9200000, withdraw: 0, balance: 0, description: '계좌이체' },
+    { id: '15', date: '2026-01-10 09:00', type: 'auction', deposit: 0, withdraw: 9200000, balance: -9200000, description: '낙찰대금차감' },
+    { id: '16', date: '2026-01-09 14:00', type: 'deposit', deposit: 13500000, withdraw: 0, balance: 0, description: '계좌이체' },
+    { id: '17', date: '2026-01-09 09:00', type: 'auction', deposit: 0, withdraw: 13500000, balance: -13500000, description: '낙찰대금차감' },
+    { id: '18', date: '2026-01-08 15:00', type: 'deposit', deposit: 11000000, withdraw: 0, balance: 0, description: '계좌이체' },
+    { id: '19', date: '2026-01-08 09:00', type: 'auction', deposit: 0, withdraw: 11000000, balance: -11000000, description: '낙찰대금차감' },
+    { id: '20', date: '2026-01-07 14:00', type: 'deposit', deposit: 8500000, withdraw: 0, balance: 0, description: '계좌이체' },
+    { id: '21', date: '2026-01-07 09:00', type: 'auction', deposit: 0, withdraw: 8500000, balance: -8500000, description: '낙찰대금차감' },
   ]);
 
   // 동적 viewport 높이 설정
@@ -133,8 +120,9 @@ function BalanceHistoryContent() {
 
   // 날짜 파싱 함수
   const parseDate = (dateStr: string): Date => {
-    const [year, month, day] = dateStr.split('.').map(Number);
-    return new Date(2000 + year, month - 1, day);
+    const [datePart] = dateStr.split(' ');
+    const [year, month, day] = datePart.split('-').map(Number);
+    return new Date(year, month - 1, day);
   };
 
   // 필터링된 데이터
@@ -185,30 +173,38 @@ function BalanceHistoryContent() {
     return filtered;
   }, [balanceHistory, typeFilter, periodFilter, customDateRange]);
 
-  // 페이지네이션 데이터
-  const totalPages = Math.ceil(filteredHistory.length / itemsPerPage);
-  const paginatedHistory = useMemo(() => {
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    return filteredHistory.slice(startIndex, startIndex + itemsPerPage);
-  }, [filteredHistory, currentPage, itemsPerPage]);
+  // 표시할 데이터 (무한 스크롤)
+  const displayedHistory = useMemo(() => {
+    return filteredHistory.slice(0, displayCount);
+  }, [filteredHistory, displayCount]);
 
-  // 필터 변경 시 페이지 초기화
+  // 필터 변경 시 초기화
   useEffect(() => {
-    setCurrentPage(1);
+    setDisplayCount(20);
   }, [typeFilter, periodFilter, customDateRange]);
+
+  // 무한 스크롤 핸들러
+  const handleScroll = useCallback(() => {
+    if (!scrollContainerRef.current) return;
+    
+    const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current;
+    
+    // 스크롤이 하단 100px 이내에 도달하면 더 로드
+    if (scrollHeight - scrollTop - clientHeight < 100) {
+      if (displayCount < filteredHistory.length) {
+        setDisplayCount(prev => Math.min(prev + 20, filteredHistory.length));
+      }
+    }
+  }, [displayCount, filteredHistory.length]);
 
   // 금액 포맷팅
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('ko-KR').format(Math.abs(amount));
   };
 
-  // 금액 표시 (부호 포함)
-  const formatAmount = (amount: number) => {
-    const formatted = formatCurrency(amount);
-    if (amount > 0) {
-      return `+${formatted}`;
-    }
-    return `-${formatted}`;
+  // 날짜 포맷
+  const formatDate = (dateStr: string) => {
+    return dateStr; // 2026-01-21 10:00 형식 그대로 사용
   };
 
   return (
@@ -250,23 +246,15 @@ function BalanceHistoryContent() {
             </div>
           </div>
 
-            {/* 페이지 제목 & 현재 잔고 */}
+            {/* 페이지 제목 */}
             <div className="flex-shrink-0 px-4 py-3 bg-white border-b border-gray-200">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Link href={backUrl}>
-                    <button className="p-1 hover:bg-gray-100 rounded transition-colors">
-                      <ChevronLeft className="h-5 w-5 text-gray-600" />
-                    </button>
-                  </Link>
-                  <h1 className="text-lg font-bold text-gray-900">잔고 내역</h1>
-                </div>
-                <div className="text-right">
-                  <p className="text-[10px] text-gray-500">현재 잔고</p>
-                  <p className="text-sm font-bold text-gray-900">
-                    ₩{formatCurrency(currentBalance)}
-                  </p>
-                </div>
+              <div className="flex items-center gap-2">
+                <Link href={backUrl}>
+                  <button className="p-1 hover:bg-gray-100 rounded transition-colors">
+                    <ChevronLeft className="h-5 w-5 text-gray-600" />
+                  </button>
+                </Link>
+                <h1 className="text-lg font-bold text-gray-900">잔고 내역</h1>
               </div>
             </div>
 
@@ -282,7 +270,8 @@ function BalanceHistoryContent() {
                     }}
                     className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors"
                   >
-                    {typeFilter === 'all' ? '구분' : typeLabels[typeFilter]}
+                    {typeFilter === 'all' ? '구분' : 
+                     typeFilter === 'deposit' ? '입금' : '낙찰대금차감'}
                     <ChevronDown className={`h-3 w-3 transition-transform ${showTypeDropdown ? 'rotate-180' : ''}`} />
                   </button>
                   
@@ -297,8 +286,7 @@ function BalanceHistoryContent() {
                         {[
                           { value: 'all', label: '전체' },
                           { value: 'deposit', label: '입금' },
-                          { value: 'auction', label: '경락대금' },
-                          { value: 'withdraw', label: '출금' },
+                          { value: 'auction', label: '낙찰대금차감' },
                         ].map((option) => (
                           <button
                             key={option.value}
@@ -307,7 +295,7 @@ function BalanceHistoryContent() {
                               setShowTypeDropdown(false);
                             }}
                             className={`block w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 transition-colors whitespace-nowrap ${
-                              typeFilter === option.value ? 'bg-red-50 text-red-600 font-medium' : 'text-gray-700'
+                              typeFilter === option.value ? 'bg-gray-100 text-gray-900 font-medium' : 'text-gray-700'
                             }`}
                           >
                             {option.label}
@@ -359,7 +347,7 @@ function BalanceHistoryContent() {
                               }
                             }}
                             className={`block w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 transition-colors whitespace-nowrap ${
-                              periodFilter === option.value ? 'bg-red-50 text-red-600 font-medium' : 'text-gray-700'
+                              periodFilter === option.value ? 'bg-gray-100 text-gray-900 font-medium' : 'text-gray-700'
                             }`}
                           >
                             {option.label}
@@ -455,141 +443,77 @@ function BalanceHistoryContent() {
               </div>
             </div>
 
-            {/* 테이블 헤더 */}
-            <div className="flex-shrink-0 bg-gray-50 border-b border-gray-200">
-              <div className="flex items-center px-3 py-2.5 text-[11px] font-semibold text-gray-500">
-                <div className="w-[72px] flex-shrink-0 text-center">일자</div>
-                <div className="w-[60px] flex-shrink-0 text-center">구분</div>
-                <div className="flex-1 text-center">금액</div>
-                <div className="flex-1 text-center">잔고</div>
-              </div>
-            </div>
-
-            {/* 테이블 바디 */}
-            <div className="flex-1 min-h-0 overflow-y-auto bg-white">
-              {paginatedHistory.length === 0 ? (
-                <div className="text-center py-20">
-                  <p className="text-sm text-gray-500">조회된 내역이 없습니다.</p>
+            {/* 테이블 - 무한 스크롤 */}
+            <div 
+              ref={scrollContainerRef}
+              onScroll={handleScroll}
+              className="flex-1 min-h-0 overflow-y-auto bg-white"
+            >
+              <table className="w-full border-collapse table-fixed">
+                <colgroup>
+                  <col className="w-[115px]" />
+                  <col className="w-[75px]" />
+                  <col className="w-[75px]" />
+                  <col className="w-[85px]" />
+                  <col className="w-[75px]" />
+                </colgroup>
+                <thead className="sticky top-0 bg-gray-50 border-b border-gray-200">
+                  <tr>
+                    <th className="px-2 py-2 text-[10px] font-semibold text-gray-500 text-center border-r border-gray-200">거래일시</th>
+                    <th className="px-2 py-2 text-[10px] font-semibold text-gray-500 text-center border-r border-gray-200">입금</th>
+                    <th className="px-2 py-2 text-[10px] font-semibold text-gray-500 text-center border-r border-gray-200">출금(차감)</th>
+                    <th className="px-2 py-2 text-[10px] font-semibold text-gray-500 text-center border-r border-gray-200">거래가능금액</th>
+                    <th className="px-2 py-2 text-[10px] font-semibold text-gray-500 text-center">비고</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {displayedHistory.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="text-center py-20">
+                        <p className="text-sm text-gray-500">조회된 내역이 없습니다.</p>
+                      </td>
+                    </tr>
+                  ) : (
+                    displayedHistory.map((item) => (
+                      <tr key={item.id} className="hover:bg-gray-50">
+                        <td className="px-2 py-2.5 text-[10px] text-gray-600 text-center border-r border-gray-100">
+                          {formatDate(item.date)}
+                        </td>
+                        <td className="px-2 py-2.5 text-[11px] text-right font-medium text-gray-900 border-r border-gray-100">
+                          {item.deposit > 0 ? `+${formatCurrency(item.deposit)}` : ''}
+                        </td>
+                        <td className="px-2 py-2.5 text-[11px] text-right font-medium text-gray-900 border-r border-gray-100">
+                          {item.withdraw > 0 ? `-${formatCurrency(item.withdraw)}` : ''}
+                        </td>
+                        <td className={`px-2 py-2.5 text-[11px] text-right font-semibold border-r border-gray-100 ${item.balance < 0 ? 'text-red-600' : 'text-gray-900'}`}>
+                          {item.balance < 0 ? `-${formatCurrency(item.balance)}` : formatCurrency(item.balance)}
+                        </td>
+                        <td className="px-2 py-2.5 text-[10px] text-gray-600 text-center truncate">
+                          {item.description}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+              
+              {/* 더 불러오기 표시 */}
+              {displayCount < filteredHistory.length && (
+                <div className="py-4 text-center text-xs text-gray-400">
+                  스크롤하여 더 보기...
                 </div>
-              ) : (
-                <div className="divide-y divide-gray-100">
-                  {paginatedHistory.map((item) => (
-                    <div 
-                      key={item.id} 
-                      className="flex items-center px-3 py-3 hover:bg-gray-50 transition-colors"
-                    >
-                      <div className="w-[72px] flex-shrink-0 text-center text-[11px] text-gray-600">
-                        {item.date}
-                      </div>
-                      <div className="w-[60px] flex-shrink-0 text-center">
-                        <span className={`text-[11px] font-medium ${typeColors[item.type]}`}>
-                          {typeLabels[item.type]}
-                        </span>
-                      </div>
-                      <div className={`flex-1 text-center text-[12px] font-semibold ${
-                        item.amount > 0 ? 'text-blue-600' : 'text-gray-900'
-                      }`}>
-                        {formatAmount(item.amount)}
-                      </div>
-                      <div className="flex-1 text-center text-[12px] text-gray-700 font-medium">
-                        {formatCurrency(item.balanceAfter)}
-                      </div>
-                    </div>
-                  ))}
+              )}
+              
+              {/* 전체 건수 표시 */}
+              {displayedHistory.length > 0 && displayCount >= filteredHistory.length && (
+                <div className="py-4 text-center text-xs text-gray-400">
+                  총 {filteredHistory.length}건
                 </div>
               )}
             </div>
 
-            {/* 페이지네이션 */}
-            {filteredHistory.length > 0 && (
-              <div className="flex-shrink-0 bg-white border-t border-gray-200 px-4 py-2.5">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <select
-                      value={itemsPerPage}
-                      onChange={(e) => {
-                        setItemsPerPage(Number(e.target.value));
-                        setCurrentPage(1);
-                      }}
-                      className="text-xs bg-white border border-gray-300 rounded px-2 py-1 focus:outline-none focus:border-gray-400"
-                    >
-                      {[10, 20, 50, 100].map(option => (
-                        <option key={option} value={option}>{option}개</option>
-                      ))}
-                    </select>
-                    <span className="text-xs text-gray-400">/ 총 {filteredHistory.length}건</span>
-                  </div>
-
-                  {/* 페이지 이동 */}
-                  {totalPages > 1 && (
-                    <div className="flex items-center gap-3">
-                      <button
-                        onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                        disabled={currentPage === 1}
-                        className={`text-xs transition-colors ${
-                          currentPage === 1
-                            ? 'text-gray-300 cursor-not-allowed'
-                            : 'text-gray-600 hover:text-gray-900'
-                        }`}
-                      >
-                        ← 이전
-                      </button>
-                      
-                      <span className="text-xs text-gray-900 font-medium">
-                        {currentPage} / {totalPages}
-                      </span>
-                      
-                      <button
-                        onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                        disabled={currentPage === totalPages}
-                        className={`text-xs transition-colors ${
-                          currentPage === totalPages
-                            ? 'text-gray-300 cursor-not-allowed'
-                            : 'text-gray-600 hover:text-gray-900'
-                        }`}
-                      >
-                        다음 →
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
             {/* 하단 네비게이션 */}
-            <div className="flex-shrink-0 bg-white border-t border-gray-200 px-2 md:px-4 py-2 safe-area-pb">
-              <div className="flex items-center justify-around">
-                {/* 홈 */}
-                <Link href="/" className="flex-1 flex flex-col items-center py-2 text-gray-600 cursor-pointer">
-                  <HomeIcon className="h-6 w-6 mb-1" />
-                  <span className="text-xs font-medium">홈</span>
-                </Link>
-                
-                {/* 경매 */}
-                <Link href="/auction" className="flex-1 flex flex-col items-center py-2 text-gray-600 cursor-pointer">
-                  <Gavel className="h-6 w-6 mb-1" />
-                  <span className="text-xs font-medium">경매</span>
-                </Link>
-                
-                {/* 시세 */}
-                <Link href="/market" className="flex-1 flex flex-col items-center py-2 text-gray-600">
-                  <BarChart3 className="h-6 w-6 mb-1" />
-                  <span className="text-xs font-medium">시세</span>
-                </Link>
-                
-                {/* 거래 */}
-                <Link href="/trade" className="flex-1 flex flex-col items-center py-2 text-gray-600">
-                  <FileText className="h-6 w-6 mb-1" />
-                  <span className="text-xs font-medium">거래</span>
-                </Link>
-                
-                {/* 내정보 */}
-                <Link href="/profile" className="flex-1 flex flex-col items-center py-2 text-red-600 cursor-pointer">
-                  <User className="h-6 w-6 mb-1" />
-                  <span className="text-xs font-medium">내정보</span>
-                </Link>
-              </div>
-            </div>
+            <BottomNav />
           </div>
         </div>
     </div>
