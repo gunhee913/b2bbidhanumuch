@@ -14,7 +14,8 @@ import {
   ChevronLeft,
   ChevronRight,
   X,
-  ExternalLink
+  ExternalLink,
+  Star
 } from 'lucide-react';
 import BottomNav from '@/components/BottomNav';
 import { Button } from '@/components/ui/button';
@@ -25,11 +26,53 @@ interface PageProps {
   params: Promise<{ id: string }>;
 }
 
+// 개체 데이터
+const cattleData = [
+  // 건화 (101~)
+  { id: '260126-101', type: '한우', gender: '암', grade: '1++(9)', months: 32, company: '건화' },
+  { id: '260126-102', type: '한우', gender: '거세', grade: '1+', months: 30, company: '건화' },
+  { id: '260126-103', type: '한우', gender: '암', grade: '1++(8)', months: 34, company: '건화' },
+  { id: '260126-104', type: '한우', gender: '거세', grade: '1', months: 28, company: '건화' },
+  { id: '260126-105', type: '한우', gender: '암', grade: '1++(7)', months: 31, company: '건화' },
+  { id: '260126-106', type: '한우', gender: '거세', grade: '1+', months: 29, company: '건화' },
+  // 대진엠이스 (201~)
+  { id: '260126-201', type: '한우', gender: '암', grade: '1++(9)', months: 33, company: '대진엠이스' },
+  { id: '260126-202', type: '한우', gender: '거세', grade: '1++(8)', months: 31, company: '대진엠이스' },
+  { id: '260126-203', type: '한우', gender: '암', grade: '1+', months: 30, company: '대진엠이스' },
+  { id: '260126-204', type: '한우', gender: '거세', grade: '1', months: 27, company: '대진엠이스' },
+  { id: '260126-205', type: '한우', gender: '암', grade: '1++(7)', months: 32, company: '대진엠이스' },
+  { id: '260126-206', type: '한우', gender: '거세', grade: '1+', months: 29, company: '대진엠이스' },
+  // 안심엘피시 (301~)
+  { id: '260126-301', type: '한우', gender: '암', grade: '1++(9)', months: 34, company: '안심엘피시' },
+  { id: '260126-302', type: '한우', gender: '거세', grade: '1+', months: 30, company: '안심엘피시' },
+  { id: '260126-303', type: '한우', gender: '암', grade: '1++(8)', months: 33, company: '안심엘피시' },
+  { id: '260126-304', type: '한우', gender: '거세', grade: '1', months: 28, company: '안심엘피시' },
+  { id: '260126-305', type: '한우', gender: '암', grade: '1++(7)', months: 31, company: '안심엘피시' },
+  { id: '260126-306', type: '한우', gender: '거세', grade: '1+', months: 29, company: '안심엘피시' },
+  // 정직한고기 (401~)
+  { id: '260126-401', type: '한우', gender: '암', grade: '1++(9)', months: 35, company: '정직한고기' },
+  { id: '260126-402', type: '한우', gender: '거세', grade: '1++(8)', months: 32, company: '정직한고기' },
+  { id: '260126-403', type: '한우', gender: '암', grade: '1+', months: 30, company: '정직한고기' },
+  { id: '260126-404', type: '한우', gender: '거세', grade: '1', months: 26, company: '정직한고기' },
+  { id: '260126-405', type: '한우', gender: '암', grade: '1++(7)', months: 33, company: '정직한고기' },
+  { id: '260126-406', type: '한우', gender: '거세', grade: '1+', months: 28, company: '정직한고기' },
+];
+
 export default function AuctionDetailPage({ params }: PageProps) {
   const resolvedParams = use(params);
   const router = useRouter();
   const searchParams = useSearchParams();
   const fromMyBids = searchParams.get('from') === 'myBids';
+
+  // URL에서 접수번호 가져와서 개체 정보 찾기
+  const currentCattle = cattleData.find(c => c.id === resolvedParams.id) || {
+    id: resolvedParams.id,
+    type: '한우',
+    gender: '거세',
+    grade: '1++(9)',
+    months: 30,
+    company: '건화'
+  };
   
   // zustand 스토어에서 입찰 관련 상태 가져오기
   const { 
@@ -38,8 +81,36 @@ export default function AuctionDetailPage({ params }: PageProps) {
     quickReBidAmount, 
     setQuickReBidAmount,
     isSecondBidNotificationOn,
-    setIsSecondBidNotificationOn
+    setIsSecondBidNotificationOn,
+    toggleFavorite,
+    isFavorite
   } = useBidStore();
+  
+  // hydration 완료 여부
+  const [isHydrated, setIsHydrated] = useState(false);
+  
+  useEffect(() => {
+    setIsHydrated(true);
+    
+    // 샘플 차순위 데이터 추가 (디자인 확인용)
+    const sampleListingNo = `${getTodayDateCode()}-101-02`; // 등심(우)
+    if (!globalBids[sampleListingNo]) {
+      setBid(sampleListingNo, {
+        myBid: 90000,
+        highestBid: 95000,
+        status: 'secondHighest',
+        time: '26.01.26.(일) 10:30',
+        productInfo: {
+          listingNo: sampleListingNo,
+          partName: '등심(우)',
+          weight: '15.6',
+          type: '한우거세',
+          grade: '1++(9)',
+          price: 85000
+        }
+      });
+    }
+  }, []);
   
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);
@@ -61,6 +132,13 @@ export default function AuctionDetailPage({ params }: PageProps) {
   const [showReBidDialog, setShowReBidDialog] = useState(false);
   const [selectedBid, setSelectedBid] = useState<any>(null);
   const [customBidPrice, setCustomBidPrice] = useState('');
+  const [showSecondBidDialog, setShowSecondBidDialog] = useState(false);
+  const [secondBidInfo, setSecondBidInfo] = useState<any>(null);
+  
+  // 스크롤 방향에 따른 헤더 숨김/표시
+  const [isHeaderVisible, setIsHeaderVisible] = useState(true);
+  const [lastScrollY, setLastScrollY] = useState(0);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   // 입찰내역 테이블 드래그 스크롤
   const bidTableRef = useRef<HTMLDivElement>(null);
@@ -308,20 +386,22 @@ export default function AuctionDetailPage({ params }: PageProps) {
     { id: 1, src: "/등심1.png", alt: "등심1" },
     { id: 2, src: "/등심2.png", alt: "등심2" },
     { id: 3, src: "/등심3.png", alt: "등심3" },
-    { id: 4, src: "/등심4.png", alt: "등심4" }
+    { id: 4, src: "/등심4.png", alt: "등심4" },
+    { id: 5, src: "grade-certificate", alt: "등급판정확인서", isDocument: true },
+    { id: 6, src: "slaughter-certificate", alt: "도축검사증명서", isDocument: true }
   ];
 
   // 개체 ID에 따라 이미지 순서 변경
   const getImagesForAuction = (auctionId: string) => {
     const id = parseInt(auctionId);
     
-    // 각 개체별로 다른 이미지 순서 패턴
+    // 각 개체별로 다른 이미지 순서 패턴 (4개 등심 이미지 + 2개 서류)
     const patterns: number[][] = [
-      [0, 1, 2, 3], // 개체 1: 등심1, 등심2, 등심3, 등심4
-      [1, 3, 0, 2], // 개체 2: 등심2, 등심4, 등심1, 등심3
-      [2, 0, 3, 1], // 개체 3: 등심3, 등심1, 등심4, 등심2
-      [3, 2, 1, 0], // 개체 4: 등심4, 등심3, 등심2, 등심1
-      [1, 0, 3, 2], // 개체 5: 등심2, 등심1, 등심4, 등심3
+      [0, 1, 2, 3, 4, 5], // 개체 1: 등심1, 등심2, 등심3, 등심4, 등급판정확인서, 도축검사증명서
+      [1, 3, 0, 2, 4, 5], // 개체 2
+      [2, 0, 3, 1, 4, 5], // 개체 3
+      [3, 2, 1, 0, 4, 5], // 개체 4
+      [1, 0, 3, 2, 4, 5], // 개체 5
     ];
     
     const patternIndex = (id - 1) % patterns.length;
@@ -336,12 +416,13 @@ export default function AuctionDetailPage({ params }: PageProps) {
   const mainImages = getImagesForAuction(resolvedParams.id);
 
   // 상장번호 생성 함수
-  // 개체당 20개씩 할당: 접수번호 1은 0001~0019, 접수번호 2는 0021~0039, ...
+  // 형식: 260126-{접수번호 뒷3자리}-{부위번호(01~19)}
   const getListingNumber = (auctionId: string, partIndex: number) => {
-    const id = parseInt(auctionId);
-    const baseOffset = (id - 1) * 20; // 개체별 기본 오프셋
-    const listingSeq = baseOffset + partIndex + 1; // 1부터 시작
-    return `${getTodayDateCode()}-${String(id).padStart(3, '0')}-${String(listingSeq).padStart(2, '0')}`;
+    // auctionId가 "260126-101" 형식일 경우 뒷 3자리 추출
+    const idParts = auctionId.split('-');
+    const idSuffix = idParts.length > 1 ? idParts[1] : auctionId;
+    const partNumber = String(partIndex + 1).padStart(2, '0'); // 01부터 시작
+    return `${getTodayDateCode()}-${idSuffix}-${partNumber}`;
   };
 
   // 개체별 부위 중량 데이터 생성
@@ -688,80 +769,37 @@ export default function AuctionDetailPage({ params }: PageProps) {
               }
             `}</style>
             
-            {/* 모바일 메인 헤더 */}
-            <div className="flex-shrink-0 bg-white border-b border-gray-200">
-              <div className="px-4 py-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center">
-                    {fromMyBids ? (
-                      <Link 
-                        href={`/?tab=myBids&bidId=${searchParams.get('bidId')}`}
-                        className="mr-2 p-1 text-gray-600 hover:text-gray-800 transition-colors"
-                      >
-                        <ArrowLeft className="h-5 w-5" />
-                      </Link>
-                    ) : (
-                      <Link 
-                        href="/auction" 
-                        className="mr-2 p-1 text-gray-600 hover:text-gray-800 transition-colors"
-                      >
-                        <ArrowLeft className="h-5 w-5" />
-                      </Link>
-                    )}
-                    <Link href="/" className="flex items-center">
-                      <img 
-                        src="/Mainlogo.png" 
-                        alt="HanuMuch" 
-                        className="h-7 w-auto"
-                      />
-                    </Link>
-                  </div>
-                  <div className="flex items-center">
-                    <img 
-                      src="/음성축산물공판장.png" 
-                      alt="음성축산물공판장" 
-                      className="h-5 w-auto border border-gray-300 rounded px-1.5 py-0.5 bg-gradient-to-br from-white to-gray-50 shadow-sm"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-
             {/* 메인 콘텐츠 */}
             <div className="flex-1 min-h-0 overflow-y-auto">
-              {/* 경매번호 및 네비게이션 */}
-              <div className="px-4 py-1 bg-white border-b border-gray-200 flex items-center justify-between sticky top-0 z-20">
-                <button
-                  onClick={goToPrevAuction}
-                  disabled={parseInt(resolvedParams.id) <= 1}
-                  className={`p-1 rounded transition-colors ${
-                    parseInt(resolvedParams.id) <= 1
-                      ? 'opacity-30 cursor-not-allowed'
-                      : 'hover:bg-gray-100'
-                  }`}
-                  aria-label="이전 개체"
-                >
-                  <ChevronLeft className="h-6 w-6 text-gray-700" strokeWidth={1.5} />
-                </button>
-                
-                <div className="text-center">
-                  <p className="text-base font-bold text-gray-900">{getTodayDateCode()}-{String(resolvedParams.id).padStart(3, '0')}</p>
-                  <p className="text-[11px] text-gray-500">
-                    {currentAuctionInfo.breed.includes('거세') ? '거세' : '암'} / {currentAuctionInfo.grade} / 30개월
-                  </p>
+              {/* 경매번호 및 뒤로가기 */}
+              <div className="px-4 py-2 bg-white border-b border-gray-200 flex items-center justify-between sticky top-0 z-20">
+                <div className="flex items-center">
+                  <button
+                    onClick={() => router.back()}
+                    className="p-1 rounded transition-colors hover:bg-gray-100 mr-3"
+                    aria-label="뒤로가기"
+                  >
+                    <ArrowLeft className="h-5 w-5 text-gray-700" />
+                  </button>
+                  
+                  <div>
+                    <p className="text-base font-bold text-gray-900">{currentCattle.id}</p>
+                    <p className="text-[11px] text-gray-500">
+                      {currentCattle.type} / {currentCattle.gender} / {currentCattle.grade} / {currentCattle.months}개월
+                    </p>
+                  </div>
                 </div>
                 
                 <button
-                  onClick={goToNextAuction}
-                  disabled={parseInt(resolvedParams.id) >= MAX_AUCTION_ID}
-                  className={`p-1 rounded transition-colors ${
-                    parseInt(resolvedParams.id) >= MAX_AUCTION_ID
-                      ? 'opacity-30 cursor-not-allowed'
-                      : 'hover:bg-gray-100'
+                  onClick={() => toggleFavorite(currentCattle.id)}
+                  className={`p-2 rounded transition-colors ${
+                    isHydrated && isFavorite(currentCattle.id)
+                      ? 'text-gray-900'
+                      : 'text-gray-400 hover:text-gray-700'
                   }`}
-                  aria-label="다음 개체"
+                  aria-label="관심 등록"
                 >
-                  <ChevronRight className="h-6 w-6 text-gray-700" strokeWidth={1.5} />
+                  <Star className={`w-5 h-5 ${isHydrated && isFavorite(currentCattle.id) ? 'fill-current' : ''}`} />
                 </button>
               </div>
 
@@ -778,12 +816,74 @@ export default function AuctionDetailPage({ params }: PageProps) {
                 onMouseLeave={handleMouseLeave}
               >
                 <div className="w-full aspect-square bg-gray-200">
-                  <img 
-                    src={mainImages[currentImageIndex].src}
-                    alt={mainImages[currentImageIndex].alt}
-                    className="w-full h-full object-cover select-none pointer-events-none"
-                    draggable="false"
-                  />
+                  {(mainImages[currentImageIndex] as any).isDocument ? (
+                    // 서류 이미지 (A4 양식)
+                    <div className="w-full h-full flex items-center justify-center bg-gray-100 p-4">
+                      <div className="w-full max-w-[280px] bg-white shadow-lg border border-gray-300 p-4 aspect-[1/1.414]">
+                        {mainImages[currentImageIndex].src === 'grade-certificate' ? (
+                          // 등급판정확인서
+                          <div className="h-full flex flex-col text-[8px] text-gray-700">
+                            <div className="text-center border-b border-gray-400 pb-2 mb-2">
+                              <p className="text-[12px] font-bold text-gray-900">등급판정확인서</p>
+                              <p className="text-gray-500 mt-1">Grade Certification</p>
+                            </div>
+                            <div className="flex-1 space-y-1.5">
+                              <div className="flex"><span className="w-16 text-gray-500">접수번호:</span><span className="font-medium">{currentCattle.id}</span></div>
+                              <div className="flex"><span className="w-16 text-gray-500">축종:</span><span>{currentCattle.type}</span></div>
+                              <div className="flex"><span className="w-16 text-gray-500">성별:</span><span>{currentCattle.gender}</span></div>
+                              <div className="flex"><span className="w-16 text-gray-500">등급:</span><span className="font-bold text-gray-900">{currentCattle.grade}</span></div>
+                              <div className="flex"><span className="w-16 text-gray-500">개월령:</span><span>{currentCattle.months}개월</span></div>
+                              <div className="flex"><span className="w-16 text-gray-500">도체중량:</span><span>520kg</span></div>
+                              <div className="flex"><span className="w-16 text-gray-500">등지방:</span><span>15mm</span></div>
+                              <div className="flex"><span className="w-16 text-gray-500">등심면적:</span><span>98㎠</span></div>
+                              <div className="flex"><span className="w-16 text-gray-500">근내지방:</span><span>9</span></div>
+                              <div className="flex"><span className="w-16 text-gray-500">육색:</span><span>5</span></div>
+                              <div className="flex"><span className="w-16 text-gray-500">지방색:</span><span>3</span></div>
+                              <div className="flex"><span className="w-16 text-gray-500">조직감:</span><span>1</span></div>
+                              <div className="flex"><span className="w-16 text-gray-500">성숙도:</span><span>2</span></div>
+                            </div>
+                            <div className="border-t border-gray-300 pt-2 mt-2 text-center">
+                              <p className="text-gray-500">축산물품질평가원</p>
+                              <p className="text-[6px] text-gray-400 mt-1">본 확인서는 법적 효력이 있습니다</p>
+                            </div>
+                          </div>
+                        ) : (
+                          // 도축검사증명서
+                          <div className="h-full flex flex-col text-[8px] text-gray-700">
+                            <div className="text-center border-b border-gray-400 pb-2 mb-2">
+                              <p className="text-[12px] font-bold text-gray-900">도축검사증명서</p>
+                              <p className="text-gray-500 mt-1">Slaughter Inspection Certificate</p>
+                            </div>
+                            <div className="flex-1 space-y-1.5">
+                              <div className="flex"><span className="w-16 text-gray-500">접수번호:</span><span className="font-medium">{currentCattle.id}</span></div>
+                              <div className="flex"><span className="w-16 text-gray-500">도축일:</span><span>2026.01.16</span></div>
+                              <div className="flex"><span className="w-16 text-gray-500">도축장:</span><span>음성축산물공판장</span></div>
+                              <div className="flex"><span className="w-16 text-gray-500">도축번호:</span><span>201</span></div>
+                              <div className="flex"><span className="w-16 text-gray-500">이력번호:</span><span>002-1486-7293-1</span></div>
+                              <div className="flex"><span className="w-16 text-gray-500">출하농가:</span><span>{currentCattle.company}</span></div>
+                              <div className="flex"><span className="w-16 text-gray-500">검사결과:</span><span className="font-bold text-green-600">적합</span></div>
+                              <div className="flex"><span className="w-16 text-gray-500">검사항목:</span><span>일반검사</span></div>
+                              <div className="flex"><span className="w-16 text-gray-500">생체중량:</span><span>720kg</span></div>
+                              <div className="flex"><span className="w-16 text-gray-500">도체중량:</span><span>520kg</span></div>
+                              <div className="flex"><span className="w-16 text-gray-500">지육율:</span><span>72.2%</span></div>
+                            </div>
+                            <div className="border-t border-gray-300 pt-2 mt-2 text-center">
+                              <p className="text-gray-500">농림축산검역본부</p>
+                              <p className="text-[6px] text-gray-400 mt-1">본 증명서는 법적 효력이 있습니다</p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    // 일반 이미지
+                    <img 
+                      src={mainImages[currentImageIndex].src}
+                      alt={mainImages[currentImageIndex].alt}
+                      className="w-full h-full object-cover select-none pointer-events-none"
+                      draggable="false"
+                    />
+                  )}
                 </div>
                 
                 {/* 이미지 인디케이터 */}
@@ -801,43 +901,38 @@ export default function AuctionDetailPage({ params }: PageProps) {
                 </div>
               </div>
 
-              {/* 사이드 이미지 박스 4개 */}
-              <div className="px-3 py-3">
-                <div className="flex gap-1.5 justify-start">
+              {/* 사이드 이미지 박스 6개 */}
+              <div className="px-3 pt-2 pb-1">
+                <div className="flex gap-1.5 justify-start overflow-x-auto">
                   {mainImages.map((image, index) => (
                     <button
                       key={image.id}
                       onClick={() => setCurrentImageIndex(index)}
-                      className={`w-16 h-16 rounded overflow-hidden transition-all ${
+                      className={`w-14 h-14 flex-shrink-0 rounded overflow-hidden transition-all ${
                         currentImageIndex === index 
-                          ? 'border-2 border-black' 
+                          ? 'border-2 border-gray-400' 
                           : 'border-2 border-transparent hover:border-gray-300'
                       }`}
                     >
-                      <img 
-                        src={image.src}
-                        alt={image.alt}
-                        className="w-full h-full object-cover"
-                      />
+                      {(image as any).isDocument ? (
+                        // 서류 썸네일
+                        <div className="w-full h-full bg-gray-100 flex items-center justify-center">
+                          <div className="w-8 h-10 bg-white border border-gray-300"></div>
+                        </div>
+                      ) : (
+                        <img 
+                          src={image.src}
+                          alt={image.alt}
+                          className="w-full h-full object-cover"
+                        />
+                      )}
                     </button>
                   ))}
                 </div>
               </div>
 
-
-
-              {/* 개체정보 버튼 영역 */}
-              <div className="px-3 py-2 border-t border-gray-200 bg-white flex items-center gap-2">
-                <button
-                  onClick={() => setShowInfoPanel(!showInfoPanel)}
-                  className={`px-3 py-1.5 text-xs font-bold rounded-lg border transition-colors ${
-                    showInfoPanel 
-                      ? 'bg-red-600 text-white border-red-600' 
-                      : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                  }`}
-                >
-                  개체정보 {showInfoPanel ? '닫기' : '보기'}
-                </button>
+              {/* 버튼 영역 (항상 고정) */}
+              <div className="px-3 pt-2 pb-2 bg-white flex items-center justify-end gap-2">
                 <a
                   href="https://aunit.mtrace.go.kr/mtracesearch/cattleNoSearch.do?btsProgNo=0109008401&btsActionMethod=SELECT&cattleNo=002189438539"
                   target="_blank"
@@ -847,144 +942,94 @@ export default function AuctionDetailPage({ params }: PageProps) {
                   축산물 이력정보
                   <ExternalLink className="w-3 h-3" />
                 </a>
-                
-                {/* 마감시간 카운트다운 */}
-                <div className="ml-auto flex items-center gap-1.5">
-                  <span className="text-xs text-gray-500">마감까지</span>
-                  <span className={`text-sm font-bold ${remainingTime <= 300 ? 'text-red-600' : 'text-gray-900'}`}>
-                    {formatTime(remainingTime)}
-                  </span>
-                </div>
+                <button
+                  onClick={() => setShowInfoPanel(!showInfoPanel)}
+                  className="px-3 py-1.5 text-xs font-medium rounded-lg bg-gray-800 text-white hover:bg-gray-900 transition-colors"
+                >
+                  {showInfoPanel ? '개체정보 닫기' : '개체정보 보기'}
+                </button>
               </div>
 
-              {/* 개체정보 패널 - 버튼 바로 아래 */}
-              {showInfoPanel && (
-                <div className="bg-gray-50 px-3 py-2 border-t border-gray-200">
-                  <div className="space-y-2">
-                    {/* 품질정보 - 1줄로 표시 */}
-                    <div className="bg-white px-2 py-2.5 rounded border">
-                      <div className="grid grid-cols-7 gap-1 text-[11px]">
-                        <div className="text-center">
-                          <div className="text-gray-500">등지방</div>
-                          <div className="font-bold text-sm">16</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="text-gray-500">등심면적</div>
-                          <div className="font-bold text-sm">123</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="text-gray-500">근내지방</div>
-                          <div className="font-bold text-sm">9</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="text-gray-500">육색</div>
-                          <div className="font-bold text-sm">5</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="text-gray-500">지방색</div>
-                          <div className="font-bold text-sm">3</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="text-gray-500">조직감</div>
-                          <div className="font-bold text-sm">1</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="text-gray-500">성숙도</div>
-                          <div className="font-bold text-sm">2</div>
-                        </div>
-                      </div>
+              {/* 등급 정보 테이블 (애니메이션) */}
+              <AnimatePresence>
+                {showInfoPanel && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.2, ease: 'easeInOut' }}
+                    className="overflow-hidden"
+                  >
+                    <div className="mx-3 bg-white border border-gray-200 rounded overflow-hidden">
+                      <table className="w-full text-[11px]">
+                        <thead>
+                          <tr className="bg-gray-100/80 border-b border-gray-200">
+                            <th className="py-1.5 px-2 text-center font-medium text-gray-500">등급</th>
+                            <th className="py-1.5 px-2 text-center font-medium text-gray-500">개월령</th>
+                            <th className="py-1.5 px-2 text-center font-medium text-gray-500">등지방</th>
+                            <th className="py-1.5 px-2 text-center font-medium text-gray-500">등심면적</th>
+                            <th className="py-1.5 px-2 text-center font-medium text-gray-500">근내지방</th>
+                            <th className="py-1.5 px-2 text-center font-medium text-gray-500">육색</th>
+                            <th className="py-1.5 px-2 text-center font-medium text-gray-500">지방색</th>
+                            <th className="py-1.5 px-2 text-center font-medium text-gray-500">조직감</th>
+                            <th className="py-1.5 px-2 text-center font-medium text-gray-500">성숙도</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr>
+                            <td className="py-2 px-2 text-center text-gray-700">{currentCattle.grade}</td>
+                            <td className="py-2 px-2 text-center text-gray-700">{currentCattle.months}</td>
+                            <td className="py-2 px-2 text-center text-gray-700">16</td>
+                            <td className="py-2 px-2 text-center text-gray-700">123</td>
+                            <td className="py-2 px-2 text-center text-gray-700">9</td>
+                            <td className="py-2 px-2 text-center text-gray-700">5</td>
+                            <td className="py-2 px-2 text-center text-gray-700">3</td>
+                            <td className="py-2 px-2 text-center text-gray-700">1</td>
+                            <td className="py-2 px-2 text-center text-gray-700">2</td>
+                          </tr>
+                        </tbody>
+                      </table>
                     </div>
 
-                    {/* 개체 기본정보 & 도축/가공정보 */}
-                    <div className="grid grid-cols-2 gap-2">
-                      {/* 개체 기본정보 - 왼쪽 */}
-                      <div className="bg-white px-3 py-2.5 rounded border">
-                        <h4 className="text-xs font-bold text-gray-700 mb-2">개체 기본정보</h4>
-                        <div className="space-y-1.5 text-xs">
-                          <div className="flex justify-between">
-                            <span className="text-gray-500">품종</span>
-                            <span className="text-gray-900 font-medium">한우</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-gray-500">성별</span>
-                            <span className="text-gray-900 font-medium">{currentAuctionInfo.breed.includes('거세') ? '거세' : '암'}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-gray-500">등급</span>
-                            <span className="text-gray-900 font-medium">{currentAuctionInfo.grade}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-gray-500">개월령</span>
-                            <span className="text-gray-900 font-medium">{currentAuctionInfo.months}개월</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-gray-500">접수번호</span>
-                            <span className="text-gray-900 font-medium">{currentAuctionInfo.auctionNumber}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-gray-500">이력번호</span>
-                            <span className="text-gray-900 font-medium">002-1894-3853-9</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* 도축정보 & 가공정보 - 오른쪽 */}
-                      <div className="bg-white px-3 py-2.5 rounded border">
-                        <div className="space-y-2.5">
-                          {/* 도축정보 */}
-                          <div>
-                            <h4 className="text-xs font-bold text-gray-700 mb-1.5">도축정보</h4>
-                            <div className="space-y-1 text-xs">
-                              <div className="flex justify-between">
-                                <span className="text-gray-500">도축장</span>
-                                <span className="text-gray-900 font-medium">농협 음성축산물공판장</span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span className="text-gray-500">도축일</span>
-                                <span className="text-gray-900 font-medium">2025.08.04.</span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span className="text-gray-500">지육번호</span>
-                                <span className="text-gray-900 font-medium">201</span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span className="text-gray-500">도체중량</span>
-                                <span className="text-gray-900 font-medium">468kg</span>
-                              </div>
-                            </div>
-                          </div>
-                          {/* 가공정보 */}
-                          <div className="pt-2 border-t border-gray-100">
-                            <h4 className="text-xs font-bold text-gray-700 mb-1.5">가공정보</h4>
-                            <div className="space-y-1 text-xs">
-                              <div className="flex justify-between">
-                                <span className="text-gray-500">가공업체</span>
-                                <span className="text-gray-900 font-medium">송정가공</span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span className="text-gray-500">가공일</span>
-                                <span className="text-gray-900 font-medium">2025.08.05.</span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span className="text-gray-500">가공중량</span>
-                                <span className="text-gray-900 font-medium">312kg</span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
+                    {/* 도축/가공 정보 테이블 */}
+                    <div className="mx-3 mt-2 mb-2 bg-white border border-gray-200 rounded overflow-hidden">
+                      <table className="w-full text-[11px]">
+                        <thead>
+                          <tr className="bg-gray-100/80 border-b border-gray-200">
+                            <th className="py-1.5 px-2 text-center font-medium text-gray-500">이력번호</th>
+                            <th className="py-1.5 px-2 text-center font-medium text-gray-500">도축장</th>
+                            <th className="py-1.5 px-2 text-center font-medium text-gray-500">도축번호</th>
+                            <th className="py-1.5 px-2 text-center font-medium text-gray-500">도체중</th>
+                            <th className="py-1.5 px-2 text-center font-medium text-gray-500">상장업체</th>
+                            <th className="py-1.5 px-2 text-center font-medium text-gray-500">가공일</th>
+                            <th className="py-1.5 px-2 text-center font-medium text-gray-500">가공중량</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr>
+                            <td className="py-2 px-2 text-center text-gray-700">002-1486-7293-1</td>
+                            <td className="py-2 px-2 text-center text-gray-700">음성</td>
+                            <td className="py-2 px-2 text-center text-gray-700">201</td>
+                            <td className="py-2 px-2 text-center text-gray-700">520</td>
+                            <td className="py-2 px-2 text-center text-gray-700">{currentCattle.company}</td>
+                            <td className="py-2 px-2 text-center text-gray-700">26.01.17</td>
+                            <td className="py-2 px-2 text-center text-gray-700">312</td>
+                          </tr>
+                        </tbody>
+                      </table>
                     </div>
-                  </div>
-                </div>
-              )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
 
               {/* 호가창 */}
               <div id="bid-order-section" className="border-t border-gray-200">
                 {/* 호가창 */}
                 <div className="w-full flex flex-col border-b border-gray-200">
                   {/* 호가창 헤더 */}
-                  <div className="bg-gray-100 border-b border-gray-300 flex-shrink-0 h-10 flex items-center">
-                    <div className="grid px-2 text-xs font-bold text-gray-600 w-full" style={{gridTemplateColumns: '0.9fr 0.7fr 0.9fr 1fr 1fr 0.7fr'}}>
+                  <div className="bg-gray-100 border-b border-gray-200 flex-shrink-0 h-7 flex items-center sticky top-[56px] z-10">
+                    <div className="grid px-2 text-[11px] font-medium text-gray-500 w-full" style={{gridTemplateColumns: '0.9fr 0.7fr 0.9fr 1fr 1fr 0.7fr'}}>
                       <div className="text-center">부위</div>
                       <div className="text-center">중량</div>
                       <div className="text-center">최저단가</div>
@@ -1008,27 +1053,21 @@ export default function AuctionDetailPage({ params }: PageProps) {
                         <div 
                           key={`sell-${index}`}
                           className={`grid px-2 py-2 border-b border-gray-100 transition-colors ${
-                            hasBid 
-                              ? bidInfo.status === 'highest'
-                                ? 'bg-blue-50/50' 
-                                : 'bg-red-50/50'
-                              : hasMarketBid
-                                ? 'bg-yellow-50/50'
-                                : 'bg-white'
+                            index % 2 === 1 ? 'bg-gray-50/50' : 'bg-white'
                           }`}
                           style={{gridTemplateColumns: '0.9fr 0.7fr 0.9fr 1fr 1fr 0.7fr'}}
                         >
-                          <div className="text-center text-xs font-semibold text-gray-900 flex items-center justify-center">
+                          <div className="text-center text-[11px] text-gray-700 flex items-center justify-center">
                             {item.part}
                           </div>
-                          <div className="text-center text-xs font-medium text-gray-700 flex items-center justify-center">
+                          <div className="text-center text-[11px] text-gray-700 flex items-center justify-center">
                             {item.weight}kg
                           </div>
-                          <div className="text-center text-xs font-medium text-gray-500 flex items-center justify-center">
+                          <div className="text-center text-[11px] text-gray-700 flex items-center justify-center">
                             {minPrice.toLocaleString()}
                           </div>
-                          <div className={`text-center text-xs font-semibold flex items-center justify-center ${
-                            hasBid || hasMarketBid ? 'text-gray-800' : 'text-gray-400'
+                          <div className={`text-center text-[11px] flex items-center justify-center ${
+                            hasBid || hasMarketBid ? 'text-gray-900 font-medium' : 'text-gray-400'
                           }`}>
                             {displayHighestBid ? `${displayHighestBid.toLocaleString()}` : '-'}
                           </div>
@@ -1040,11 +1079,11 @@ export default function AuctionDetailPage({ params }: PageProps) {
                                     if (bidInfo.status !== 'highest') {
                                       setSelectedPart(item.part);
                                       setSelectedWeight(item.weight);
-                                      setBidPrice(formatNumber((bidInfo.highestBid + quickReBidAmount).toString()));
+                                      setBidPrice('');
                                       setShowBidSheet(true);
                                     }
                                   }}
-                                  className={`text-xs font-bold text-red-600 leading-none ${bidInfo.status !== 'highest' ? 'cursor-pointer' : ''}`}
+                                  className={`text-[11px] font-medium text-gray-900 leading-none ${bidInfo.status !== 'highest' ? 'cursor-pointer' : ''}`}
                                 >
                                   {bidInfo.myBid.toLocaleString()}
                                 </span>
@@ -1053,10 +1092,10 @@ export default function AuctionDetailPage({ params }: PageProps) {
                                     onClick={() => {
                                       setSelectedPart(item.part);
                                       setSelectedWeight(item.weight);
-                                      setBidPrice(formatNumber((bidInfo.highestBid + quickReBidAmount).toString()));
+                                      setBidPrice('');
                                       setShowBidSheet(true);
                                     }}
-                                    className="mt-1 px-2 py-0.5 text-[10px] font-bold text-white bg-red-600 rounded hover:bg-red-700 transition-colors"
+                                    className="mt-1 px-2 py-0.5 text-[10px] font-medium text-white bg-gray-800 rounded hover:bg-gray-900 transition-colors"
                                   >
                                     재입찰
                                   </button>
@@ -1067,14 +1106,10 @@ export default function AuctionDetailPage({ params }: PageProps) {
                                 onClick={() => {
                                   setSelectedPart(item.part);
                                   setSelectedWeight(item.weight);
-                                  if (item.marketHighestBid) {
-                                    setBidPrice(formatNumber((item.marketHighestBid + quickReBidAmount).toString()));
-                                  } else {
-                                    setBidPrice('');
-                                  }
+                                  setBidPrice('');
                                   setShowBidSheet(true);
                                 }}
-                                className="px-2 py-1 text-[10px] font-bold text-white bg-red-600 rounded hover:bg-red-700 transition-colors"
+                                className="px-2 py-1 text-[10px] font-medium text-white bg-gray-800 rounded hover:bg-gray-900 transition-colors"
                               >
                                 입찰하기
                               </button>
@@ -1082,15 +1117,15 @@ export default function AuctionDetailPage({ params }: PageProps) {
                           </div>
                           <div className="flex items-center justify-center">
                             {hasBid ? (
-                              <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded ${
+                              <span className={`text-[10px] font-medium ${
                                 bidInfo.status === 'highest'
-                                  ? 'bg-blue-100 text-blue-700' 
-                                  : 'bg-red-100 text-red-600'
+                                  ? 'text-blue-600' 
+                                  : 'text-red-500'
                               }`}>
-                                {bidInfo.status === 'highest' ? '최고순위' : '차순위'}
+                                {bidInfo.status === 'highest' ? '최고' : '차순위'}
                               </span>
                             ) : (
-                              <span className="text-xs text-gray-400">-</span>
+                              <span className="text-[11px] text-gray-400">-</span>
                             )}
                           </div>
                         </div>
@@ -1105,64 +1140,6 @@ export default function AuctionDetailPage({ params }: PageProps) {
               <div className="px-4 pt-4 pb-24 border-t border-gray-200 bg-white">
                 <h3 className="text-sm font-bold text-gray-900 mb-3">내 입찰내역(진행중)</h3>
                 
-                {/* 전체내역 버튼 */}
-                <div className="flex justify-end mb-2">
-                  <Link href="/trade" className="flex items-center gap-0.5 text-xs font-medium text-gray-700 hover:text-gray-900 transition-colors">
-                    전체내역
-                    <ArrowRight className="h-3.5 w-3.5" />
-                  </Link>
-                </div>
-
-                {/* 차순위 알림 & 빠른 재입찰 설정 */}
-                <div className="flex items-center gap-3 mb-3">
-                  {/* 차순위 알림 */}
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-medium text-gray-700">차순위 알림 받기</span>
-                    <button
-                      onClick={() => setIsSecondBidNotificationOn(!isSecondBidNotificationOn)}
-                      className={`relative inline-flex h-6 w-12 items-center rounded-full transition-colors ${
-                        isSecondBidNotificationOn 
-                          ? 'bg-red-600' 
-                          : 'bg-gray-300'
-                      }`}
-                    >
-                      <span className={`absolute text-[8px] font-bold transition-opacity ${
-                        isSecondBidNotificationOn 
-                          ? 'left-1.5 text-white opacity-100' 
-                          : 'left-1.5 text-white opacity-0'
-                      }`}>
-                        ON
-                      </span>
-                      <span className={`absolute text-[8px] font-bold transition-opacity ${
-                        !isSecondBidNotificationOn 
-                          ? 'right-1.5 text-gray-600 opacity-100' 
-                          : 'right-1.5 text-gray-600 opacity-0'
-                      }`}>
-                        OFF
-                      </span>
-                      <span
-                        className={`inline-block h-5 w-5 rounded-full bg-white shadow-md transition-transform relative z-10 ${
-                          isSecondBidNotificationOn ? 'translate-x-[26px]' : 'translate-x-[2px]'
-                        }`}
-                      />
-                    </button>
-                  </div>
-
-                  {/* 빠른 재입찰 설정 */}
-                  <button
-                    onClick={() => {
-                      setShowQuickReBidEdit(true);
-                      setTempQuickReBidAmount(quickReBidAmount.toLocaleString());
-                    }}
-                    className="flex items-center gap-1.5 text-xs font-medium text-gray-700 hover:text-gray-900 transition-colors"
-                  >
-                    <span>빠른 재입찰</span>
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-100 text-gray-700 rounded">
-                      +{quickReBidAmount.toLocaleString()}원
-                      <Edit2 className="h-3 w-3" />
-                    </span>
-                  </button>
-                </div>
                 
                 {Object.keys(globalBids).length === 0 ? (
                   <div className="text-center py-12">
@@ -1291,11 +1268,11 @@ export default function AuctionDetailPage({ params }: PageProps) {
                                         if (productInfo) {
                                           setSelectedPart(productInfo.partName);
                                           setSelectedWeight(productInfo.weight);
-                                        setBidPrice(formatNumber((bid.highestBid + quickReBidAmount).toString()));
+                                          setBidPrice('');
                                           setShowBidSheet(true);
                                         }
                                       }}
-                                    className="px-2 py-1 bg-red-600 text-white text-[10px] font-bold rounded hover:bg-red-700 transition-colors"
+                                    className="px-2 py-1 bg-gray-800 text-white text-[10px] font-bold rounded hover:bg-gray-900 transition-colors"
                                     >
                                     재입찰
                                     </button>
@@ -1349,41 +1326,43 @@ export default function AuctionDetailPage({ params }: PageProps) {
                         <X className="h-5 w-5 text-gray-500" />
                       </button>
                     </div>
-                    <div className="flex items-center gap-1 mt-1 flex-wrap">
-                      {selectedPart && (
-                        <span className="text-xs px-1.5 py-0.5 bg-gray-100 border border-gray-300 text-gray-700 rounded font-medium">
-                          {partsData.find(p => p.part === selectedPart)?.listingNo || '-'}
-                        </span>
-                      )}
-                      <span className="text-xs px-1.5 py-0.5 bg-gray-100 border border-gray-300 text-gray-700 rounded font-medium">{currentAuctionInfo.breed}</span>
-                      <span className="text-xs px-1.5 py-0.5 bg-gray-100 border border-gray-300 text-gray-700 rounded font-medium">{currentAuctionInfo.grade}</span>
-                      <span className="text-xs px-1.5 py-0.5 bg-gray-100 border border-gray-300 text-gray-700 rounded font-medium">{currentAuctionInfo.months}개월</span>
-                    </div>
                   </div>
 
                   {/* 입찰 내용 */}
-                  <div className="p-4 space-y-3">
-                    {/* 선택된 부위 & 중량 */}
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <div className="text-xs text-gray-500 mb-1">선택된 부위</div>
-                        <div className="w-full px-3 py-2.5 text-sm font-bold border border-gray-200 rounded-lg bg-gray-50 text-center">
-                          {selectedPart || '-'}
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-xs text-gray-500 mb-1">중량</div>
-                        <div className="w-full px-3 py-2.5 text-sm font-bold border border-gray-200 rounded-lg bg-gray-50 text-center">
-                          {selectedWeight ? `${selectedWeight}kg` : '-'}
-                        </div>
-                      </div>
+                  <div className="p-4 space-y-4">
+                    {/* 개체 정보 테이블 */}
+                    <div className="border border-gray-200 rounded overflow-hidden overflow-x-auto">
+                      <table className="w-full text-[11px]">
+                        <thead>
+                          <tr className="bg-gray-100 border-b border-gray-200">
+                            <th className="py-2 px-1.5 text-center font-medium text-gray-500 whitespace-nowrap">상장번호</th>
+                            <th className="py-2 px-1.5 text-center font-medium text-gray-500">축종</th>
+                            <th className="py-2 px-1.5 text-center font-medium text-gray-500">성별</th>
+                            <th className="py-2 px-1.5 text-center font-medium text-gray-500">등급</th>
+                            <th className="py-2 px-1.5 text-center font-medium text-gray-500">개월령</th>
+                            <th className="py-2 px-1.5 text-center font-medium text-gray-500">부위</th>
+                            <th className="py-2 px-1.5 text-center font-medium text-gray-500">중량</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr>
+                            <td className="py-2.5 px-1.5 text-center text-gray-700 whitespace-nowrap">
+                              {selectedPart ? partsData.find(p => p.part === selectedPart)?.listingNo || '-' : '-'}
+                            </td>
+                            <td className="py-2.5 px-1.5 text-center text-gray-700">{currentCattle.type}</td>
+                            <td className="py-2.5 px-1.5 text-center text-gray-700">{currentCattle.gender}</td>
+                            <td className="py-2.5 px-1.5 text-center text-gray-700">{currentCattle.grade}</td>
+                            <td className="py-2.5 px-1.5 text-center text-gray-700">{currentCattle.months}</td>
+                            <td className="py-2.5 px-1.5 text-center font-medium text-gray-900">{selectedPart || '-'}</td>
+                            <td className="py-2.5 px-1.5 text-center font-medium text-gray-900">{selectedWeight ? `${selectedWeight}kg` : '-'}</td>
+                          </tr>
+                        </tbody>
+                      </table>
                     </div>
 
-                    {/* 입찰가격 */}
+                    {/* 입찰가격 입력 */}
                     <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <div className="text-xs text-gray-500">입찰가격 (원/kg)</div>
-                      </div>
+                      <div className="text-xs text-gray-500 mb-2">입찰가격 (원/kg)</div>
                       <div className="relative mb-2">
                         <input
                           type="text"
@@ -1393,14 +1372,22 @@ export default function AuctionDetailPage({ params }: PageProps) {
                             const formattedValue = formatNumber(e.target.value);
                             setBidPrice(formattedValue);
                           }}
-                          placeholder={selectedPart ? `최저단가 ${(baseMinPrices[selectedPart] || 50000).toLocaleString()}` : '0'}
-                          className="w-full px-3 py-3 pr-10 text-right text-xl font-bold border border-gray-200 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-white text-black placeholder:text-gray-400"
+                          placeholder={selectedPart ? (() => {
+                            const partData = partsData.find(p => p.part === selectedPart);
+                            const bidInfo = partData ? globalBids[partData.listingNo] : null;
+                            const highestBid = bidInfo?.highestBid || partData?.marketHighestBid;
+                            if (highestBid) {
+                              return `최고입찰가 ${highestBid.toLocaleString()}`;
+                            }
+                            return `최저단가 ${(baseMinPrices[selectedPart] || 50000).toLocaleString()}`;
+                          })() : '0'}
+                          className="w-full px-4 py-3.5 pr-12 text-right text-xl font-bold border border-gray-200 rounded focus:ring-2 focus:ring-gray-400 focus:border-gray-400 bg-white text-black placeholder:text-gray-400"
                         />
-                        <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-sm text-gray-400">
+                        <div className="absolute right-4 top-1/2 transform -translate-y-1/2 text-sm text-gray-400">
                           원
                         </div>
                       </div>
-                      {/* 가격 조정 버튼 */}
+                      {/* 금액 조정 버튼 */}
                       <div className="grid grid-cols-5 gap-1.5">
                         {[100, 1000, 10000, 50000].map((amount) => (
                           <button
@@ -1410,14 +1397,14 @@ export default function AuctionDetailPage({ params }: PageProps) {
                               const newPrice = currentPrice + amount;
                               setBidPrice(formatNumber(newPrice.toString()));
                             }}
-                            className="py-2.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 font-medium"
+                            className="py-2 text-xs border border-gray-200 rounded hover:bg-gray-50 font-medium text-gray-700"
                           >
                             +{amount.toLocaleString()}
                           </button>
                         ))}
                         <button
                           onClick={() => setBidPrice('')}
-                          className="py-2.5 text-xs bg-gray-100 border border-gray-200 rounded-lg hover:bg-gray-200 text-gray-600 font-medium"
+                          className="py-2 text-xs bg-gray-100 border border-gray-200 rounded hover:bg-gray-200 text-gray-600 font-medium"
                         >
                           초기화
                         </button>
@@ -1425,10 +1412,10 @@ export default function AuctionDetailPage({ params }: PageProps) {
                     </div>
 
                     {/* 총 입찰금액 */}
-                    <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                    <div className="bg-gray-50 p-3 rounded border border-gray-200">
                       <div className="flex justify-between items-center">
                         <span className="text-sm font-bold text-gray-700">총 입찰금액</span>
-                        <span className="text-xl font-bold text-red-600">
+                        <span className="text-xl font-bold text-gray-900">
                           {(() => {
                             if (!bidPrice || !selectedWeight) return '-';
                             const price = parseFloat(removeCommas(bidPrice));
@@ -1447,7 +1434,7 @@ export default function AuctionDetailPage({ params }: PageProps) {
                         setShowBidSheet(false);
                       }}
                       disabled={!bidPrice || !selectedPart}
-                      className="w-full py-3.5 bg-red-600 hover:bg-red-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-bold text-base rounded-lg"
+                      className="w-full py-3.5 bg-gray-800 hover:bg-gray-900 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-bold text-base rounded"
                     >
                       입찰하기
                     </button>
@@ -1462,7 +1449,7 @@ export default function AuctionDetailPage({ params }: PageProps) {
         {/* 입찰 확인 다이얼로그 */}
         {showBidDialog && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[10000] p-4">
-            <div className="bg-white rounded-lg w-full max-w-md mx-4">
+            <div className="bg-white rounded w-full max-w-md mx-4">
               {/* 다이얼로그 헤더 */}
               <div className="px-6 py-4 border-b border-gray-200">
                 <h3 className="text-lg font-bold text-gray-900">입찰 내용을 확인해 주세요</h3>
@@ -1470,44 +1457,53 @@ export default function AuctionDetailPage({ params }: PageProps) {
               
               {/* 다이얼로그 내용 */}
               <div className="px-6 py-4">
-                <div className="space-y-3">
-                  <div className="bg-gray-50 p-3 rounded border">
-                    <div className="space-y-2">
-                      <div className="flex justify-between">
-                        <span className="text-sm text-gray-600">접수번호</span>
-                        <span className="text-sm text-gray-900">{currentAuctionInfo.auctionNumber}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-sm text-gray-600">개체정보</span>
-                        <span className="text-sm text-gray-900">{currentAuctionInfo.breed} / {currentAuctionInfo.grade}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-sm text-gray-600">부위</span>
-                        <span className="text-sm text-gray-900">{selectedPart || "-"}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-sm text-gray-600">중량</span>
-                        <span className="text-sm text-gray-900">{selectedWeight ? `${selectedWeight}kg` : "-"}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-sm text-gray-600">입찰가격</span>
-                        <span className="text-sm text-gray-900">{bidPrice && bidPrice !== '0' ? `${formatNumber(bidPrice)}원/kg` : "-"}</span>
-                      </div>
-                      <div className="border-t border-gray-200 pt-2 mt-2">
-                        <div className="flex justify-between">
-                          <span className="text-sm font-bold text-gray-900">총 입찰금액</span>
-                          <span className="text-base font-bold text-red-600">
-                            {(() => {
-                              if (!bidPrice || !selectedWeight) return '-';
-                              const price = parseFloat(removeCommas(bidPrice));
-                              const weight = parseFloat(selectedWeight);
-                              const total = Math.round(price * weight);
-                              return `${formatNumber(total.toString())}원`;
-                            })()}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
+                {/* 개체 정보 테이블 */}
+                <div className="border border-gray-200 rounded overflow-hidden overflow-x-auto mb-4">
+                  <table className="w-full text-[11px]">
+                    <thead>
+                      <tr className="bg-gray-100 border-b border-gray-200">
+                        <th className="py-2 px-1.5 text-center font-medium text-gray-500 whitespace-nowrap">상장번호</th>
+                        <th className="py-2 px-1.5 text-center font-medium text-gray-500">축종</th>
+                        <th className="py-2 px-1.5 text-center font-medium text-gray-500">성별</th>
+                        <th className="py-2 px-1.5 text-center font-medium text-gray-500">등급</th>
+                        <th className="py-2 px-1.5 text-center font-medium text-gray-500">개월령</th>
+                        <th className="py-2 px-1.5 text-center font-medium text-gray-500">부위</th>
+                        <th className="py-2 px-1.5 text-center font-medium text-gray-500">중량</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td className="py-2.5 px-1.5 text-center text-gray-700 whitespace-nowrap">
+                          {selectedPart ? partsData.find(p => p.part === selectedPart)?.listingNo || '-' : '-'}
+                        </td>
+                        <td className="py-2.5 px-1.5 text-center text-gray-700">{currentCattle.type}</td>
+                        <td className="py-2.5 px-1.5 text-center text-gray-700">{currentCattle.gender}</td>
+                        <td className="py-2.5 px-1.5 text-center text-gray-700">{currentCattle.grade}</td>
+                        <td className="py-2.5 px-1.5 text-center text-gray-700">{currentCattle.months}</td>
+                        <td className="py-2.5 px-1.5 text-center font-medium text-gray-900">{selectedPart || '-'}</td>
+                        <td className="py-2.5 px-1.5 text-center font-medium text-gray-900">{selectedWeight ? `${selectedWeight}kg` : '-'}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* 입찰 금액 정보 */}
+                <div className="bg-gray-50 p-3 rounded border border-gray-200">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-sm text-gray-600">입찰가격</span>
+                    <span className="text-sm font-medium text-gray-900">{bidPrice && bidPrice !== '0' ? `${formatNumber(bidPrice)}원/kg` : "-"}</span>
+                  </div>
+                  <div className="flex justify-between items-center pt-2 border-t border-gray-200">
+                    <span className="text-sm font-bold text-gray-900">총 입찰금액</span>
+                    <span className="text-lg font-bold text-gray-900">
+                      {(() => {
+                        if (!bidPrice || !selectedWeight) return '-';
+                        const price = parseFloat(removeCommas(bidPrice));
+                        const weight = parseFloat(selectedWeight);
+                        const total = Math.round(price * weight);
+                        return `${formatNumber(total.toString())}원`;
+                      })()}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -1516,13 +1512,13 @@ export default function AuctionDetailPage({ params }: PageProps) {
               <div className="px-6 py-4 border-t border-gray-200 flex gap-3">
                 <button
                   onClick={() => setShowBidDialog(false)}
-                  className="flex-1 py-2 px-4 border border-gray-300 text-gray-700 rounded hover:bg-gray-50 transition-colors"
+                  className="flex-1 py-2.5 px-4 border border-gray-300 text-gray-700 rounded hover:bg-gray-50 transition-colors font-medium"
                 >
                   취소
                 </button>
                 <button
                   onClick={addNewBid}
-                  className="flex-1 py-2 px-4 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+                  className="flex-1 py-2.5 px-4 bg-gray-800 text-white rounded hover:bg-gray-900 transition-colors font-medium"
                 >
                   입찰하기
                 </button>
