@@ -327,35 +327,43 @@ function AuctionPageContent() {
 
   // 개체 정보 (메인 페이지 cattleData와 동일한 24두 기준)
   // 부위별 데이터 생성용
-  const auctionEntities = [
+  const auctionEntities: Array<{
+    id: number;
+    type: string;
+    grade: string;
+    gradeCategory: '1++' | '1+' | '1' | '2' | '3';
+    historyNo: string;
+    company: string;
+    image: string;
+  }> = [
     // 건화 (101~106) - 거세 5, 암 1
-    { id: 101, type: '한우거세', grade: '1++A(9)', gradeCategory: '1++' as const, historyNo: '002-1486-7293-101', company: '건화', image: '/등심1.png' },
-    { id: 102, type: '한우거세', grade: '1+A', gradeCategory: '1+' as const, historyNo: '002-1486-7293-102', company: '건화', image: '/등심2.png' },
-    { id: 103, type: '한우거세', grade: '1++B(8)', gradeCategory: '1++' as const, historyNo: '002-1486-7293-103', company: '건화', image: '/등심3.png' },
-    { id: 104, type: '한우거세', grade: '1B', gradeCategory: '1' as const, historyNo: '002-1486-7293-104', company: '건화', image: '/등심4.png' },
-    { id: 105, type: '한우거세', grade: '1++A(7)', gradeCategory: '1++' as const, historyNo: '002-1486-7293-105', company: '건화', image: '/등심1.png' },
-    { id: 106, type: '한우암', grade: '1+B', gradeCategory: '1+' as const, historyNo: '002-1486-7293-106', company: '건화', image: '/등심2.png' },
+    { id: 101, type: '한우거세', grade: '1++A(9)', gradeCategory: '1++', historyNo: '002-1486-7293-101', company: '건화', image: '/등심1.png' },
+    { id: 102, type: '한우거세', grade: '1+A', gradeCategory: '1+', historyNo: '002-1486-7293-102', company: '건화', image: '/등심2.png' },
+    { id: 103, type: '한우거세', grade: '1++B(8)', gradeCategory: '1++', historyNo: '002-1486-7293-103', company: '건화', image: '/등심3.png' },
+    { id: 104, type: '한우거세', grade: '1B', gradeCategory: '1', historyNo: '002-1486-7293-104', company: '건화', image: '/등심4.png' },
+    { id: 105, type: '한우거세', grade: '1++A(7)', gradeCategory: '1++', historyNo: '002-1486-7293-105', company: '건화', image: '/등심1.png' },
+    { id: 106, type: '한우암', grade: '1+B', gradeCategory: '1+', historyNo: '002-1486-7293-106', company: '건화', image: '/등심2.png' },
     // 대진엠이스 (201~206) - 거세 5, 암 1
-    { id: 201, type: '한우거세', grade: '1++A(9)', gradeCategory: '1++' as const, historyNo: '002-1486-7293-201', company: '대진엠이스', image: '/등심3.png' },
-    { id: 202, type: '한우거세', grade: '1++A(8)', gradeCategory: '1++' as const, historyNo: '002-1486-7293-202', company: '대진엠이스', image: '/등심4.png' },
-    { id: 203, type: '한우거세', grade: '1+B', gradeCategory: '1+' as const, historyNo: '002-1486-7293-203', company: '대진엠이스', image: '/등심1.png' },
-    { id: 204, type: '한우거세', grade: '1A', gradeCategory: '1' as const, historyNo: '002-1486-7293-204', company: '대진엠이스', image: '/등심2.png' },
-    { id: 205, type: '한우거세', grade: '1++B(7)', gradeCategory: '1++' as const, historyNo: '002-1486-7293-205', company: '대진엠이스', image: '/등심3.png' },
-    { id: 206, type: '한우암', grade: '1+A', gradeCategory: '1+' as const, historyNo: '002-1486-7293-206', company: '대진엠이스', image: '/등심4.png' },
+    { id: 201, type: '한우거세', grade: '1++A(9)', gradeCategory: '1++', historyNo: '002-1486-7293-201', company: '대진엠이스', image: '/등심3.png' },
+    { id: 202, type: '한우거세', grade: '1++A(8)', gradeCategory: '1++', historyNo: '002-1486-7293-202', company: '대진엠이스', image: '/등심4.png' },
+    { id: 203, type: '한우거세', grade: '1+B', gradeCategory: '1+', historyNo: '002-1486-7293-203', company: '대진엠이스', image: '/등심1.png' },
+    { id: 204, type: '한우거세', grade: '1A', gradeCategory: '1', historyNo: '002-1486-7293-204', company: '대진엠이스', image: '/등심2.png' },
+    { id: 205, type: '한우거세', grade: '1++B(7)', gradeCategory: '1++', historyNo: '002-1486-7293-205', company: '대진엠이스', image: '/등심3.png' },
+    { id: 206, type: '한우암', grade: '1+A', gradeCategory: '1+', historyNo: '002-1486-7293-206', company: '대진엠이스', image: '/등심4.png' },
     // 안심엘피시 (301~306) - 거세 5, 암 1
-    { id: 301, type: '한우거세', grade: '1++B(9)', gradeCategory: '1++' as const, historyNo: '002-1486-7293-301', company: '안심엘피시', image: '/등심1.png' },
-    { id: 302, type: '한우거세', grade: '1+A', gradeCategory: '1+' as const, historyNo: '002-1486-7293-302', company: '안심엘피시', image: '/등심2.png' },
-    { id: 303, type: '한우거세', grade: '1++A(8)', gradeCategory: '1++' as const, historyNo: '002-1486-7293-303', company: '안심엘피시', image: '/등심3.png' },
-    { id: 304, type: '한우거세', grade: '1B', gradeCategory: '1' as const, historyNo: '002-1486-7293-304', company: '안심엘피시', image: '/등심4.png' },
-    { id: 305, type: '한우거세', grade: '1++C(7)', gradeCategory: '1++' as const, historyNo: '002-1486-7293-305', company: '안심엘피시', image: '/등심1.png' },
-    { id: 306, type: '한우암', grade: '1+C', gradeCategory: '1+' as const, historyNo: '002-1486-7293-306', company: '안심엘피시', image: '/등심2.png' },
+    { id: 301, type: '한우거세', grade: '1++B(9)', gradeCategory: '1++', historyNo: '002-1486-7293-301', company: '안심엘피시', image: '/등심1.png' },
+    { id: 302, type: '한우거세', grade: '1+A', gradeCategory: '1+', historyNo: '002-1486-7293-302', company: '안심엘피시', image: '/등심2.png' },
+    { id: 303, type: '한우거세', grade: '1++A(8)', gradeCategory: '1++', historyNo: '002-1486-7293-303', company: '안심엘피시', image: '/등심3.png' },
+    { id: 304, type: '한우거세', grade: '1B', gradeCategory: '1', historyNo: '002-1486-7293-304', company: '안심엘피시', image: '/등심4.png' },
+    { id: 305, type: '한우거세', grade: '1++C(7)', gradeCategory: '1++', historyNo: '002-1486-7293-305', company: '안심엘피시', image: '/등심1.png' },
+    { id: 306, type: '한우암', grade: '1+C', gradeCategory: '1+', historyNo: '002-1486-7293-306', company: '안심엘피시', image: '/등심2.png' },
     // 정직한고기 (401~406) - 거세 5, 암 1
-    { id: 401, type: '한우거세', grade: '1++C(9)', gradeCategory: '1++' as const, historyNo: '002-1486-7293-401', company: '정직한고기', image: '/등심3.png' },
-    { id: 402, type: '한우거세', grade: '1++C(8)', gradeCategory: '1++' as const, historyNo: '002-1486-7293-402', company: '정직한고기', image: '/등심4.png' },
-    { id: 403, type: '한우거세', grade: '1+C', gradeCategory: '1+' as const, historyNo: '002-1486-7293-403', company: '정직한고기', image: '/등심1.png' },
-    { id: 404, type: '한우거세', grade: '1C', gradeCategory: '1' as const, historyNo: '002-1486-7293-404', company: '정직한고기', image: '/등심2.png' },
-    { id: 405, type: '한우거세', grade: '1++A(7)', gradeCategory: '1++' as const, historyNo: '002-1486-7293-405', company: '정직한고기', image: '/등심3.png' },
-    { id: 406, type: '한우암', grade: '1+A', gradeCategory: '1+' as const, historyNo: '002-1486-7293-406', company: '정직한고기', image: '/등심4.png' },
+    { id: 401, type: '한우거세', grade: '1++C(9)', gradeCategory: '1++', historyNo: '002-1486-7293-401', company: '정직한고기', image: '/등심3.png' },
+    { id: 402, type: '한우거세', grade: '1++C(8)', gradeCategory: '1++', historyNo: '002-1486-7293-402', company: '정직한고기', image: '/등심4.png' },
+    { id: 403, type: '한우거세', grade: '1+C', gradeCategory: '1+', historyNo: '002-1486-7293-403', company: '정직한고기', image: '/등심1.png' },
+    { id: 404, type: '한우거세', grade: '1C', gradeCategory: '1', historyNo: '002-1486-7293-404', company: '정직한고기', image: '/등심2.png' },
+    { id: 405, type: '한우거세', grade: '1++A(7)', gradeCategory: '1++', historyNo: '002-1486-7293-405', company: '정직한고기', image: '/등심3.png' },
+    { id: 406, type: '한우암', grade: '1+A', gradeCategory: '1+', historyNo: '002-1486-7293-406', company: '정직한고기', image: '/등심4.png' },
   ];
 
   // 부위별 세부 부위 매핑 (좌/우 포함)
