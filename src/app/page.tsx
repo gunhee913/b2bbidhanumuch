@@ -71,37 +71,43 @@ function MainPageContent() {
   const [toastMessage, setToastMessage] = useState('');
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [toastType, setToastType] = useState<'warning' | 'success'>('success');
+  const [selectedGrade, setSelectedGrade] = useState<string>('전체');
+  const [showGradeDropdown, setShowGradeDropdown] = useState(false);
+  const gradeDropdownRef = useRef<HTMLDivElement>(null);
+  const [selectedCompany, setSelectedCompany] = useState<string>('전체');
+  const [showCompanyDropdown, setShowCompanyDropdown] = useState(false);
+  const companyDropdownRef = useRef<HTMLDivElement>(null);
 
-  // 개체 데이터
+  // 개체 데이터 (거세 20두, 암 4두)
   const cattleData = [
-    // 건화 (101~)
-    { id: '260126-101', type: '한우', gender: '암', grade: '1++(9)', months: 32, company: '건화' },
-    { id: '260126-102', type: '한우', gender: '거세', grade: '1+', months: 30, company: '건화' },
-    { id: '260126-103', type: '한우', gender: '암', grade: '1++(8)', months: 34, company: '건화' },
-    { id: '260126-104', type: '한우', gender: '거세', grade: '1', months: 28, company: '건화' },
-    { id: '260126-105', type: '한우', gender: '암', grade: '1++(7)', months: 31, company: '건화' },
-    { id: '260126-106', type: '한우', gender: '거세', grade: '1+', months: 29, company: '건화' },
-    // 대진엠이스 (201~)
-    { id: '260126-201', type: '한우', gender: '암', grade: '1++(9)', months: 33, company: '대진엠이스' },
-    { id: '260126-202', type: '한우', gender: '거세', grade: '1++(8)', months: 31, company: '대진엠이스' },
-    { id: '260126-203', type: '한우', gender: '암', grade: '1+', months: 30, company: '대진엠이스' },
-    { id: '260126-204', type: '한우', gender: '거세', grade: '1', months: 27, company: '대진엠이스' },
-    { id: '260126-205', type: '한우', gender: '암', grade: '1++(7)', months: 32, company: '대진엠이스' },
-    { id: '260126-206', type: '한우', gender: '거세', grade: '1+', months: 29, company: '대진엠이스' },
-    // 안심엘피시 (301~)
-    { id: '260126-301', type: '한우', gender: '암', grade: '1++(9)', months: 34, company: '안심엘피시' },
-    { id: '260126-302', type: '한우', gender: '거세', grade: '1+', months: 30, company: '안심엘피시' },
-    { id: '260126-303', type: '한우', gender: '암', grade: '1++(8)', months: 33, company: '안심엘피시' },
-    { id: '260126-304', type: '한우', gender: '거세', grade: '1', months: 28, company: '안심엘피시' },
-    { id: '260126-305', type: '한우', gender: '암', grade: '1++(7)', months: 31, company: '안심엘피시' },
-    { id: '260126-306', type: '한우', gender: '거세', grade: '1+', months: 29, company: '안심엘피시' },
-    // 정직한고기 (401~)
-    { id: '260126-401', type: '한우', gender: '암', grade: '1++(9)', months: 35, company: '정직한고기' },
-    { id: '260126-402', type: '한우', gender: '거세', grade: '1++(8)', months: 32, company: '정직한고기' },
-    { id: '260126-403', type: '한우', gender: '암', grade: '1+', months: 30, company: '정직한고기' },
-    { id: '260126-404', type: '한우', gender: '거세', grade: '1', months: 26, company: '정직한고기' },
-    { id: '260126-405', type: '한우', gender: '암', grade: '1++(7)', months: 33, company: '정직한고기' },
-    { id: '260126-406', type: '한우', gender: '거세', grade: '1+', months: 28, company: '정직한고기' },
+    // 건화 (101~) - 거세 5, 암 1
+    { id: '260126-101', type: '한우', gender: '거세', grade: '1++A(9)', months: 32, company: '건화' },
+    { id: '260126-102', type: '한우', gender: '거세', grade: '1+A', months: 30, company: '건화' },
+    { id: '260126-103', type: '한우', gender: '거세', grade: '1++B(8)', months: 34, company: '건화' },
+    { id: '260126-104', type: '한우', gender: '거세', grade: '1B', months: 28, company: '건화' },
+    { id: '260126-105', type: '한우', gender: '거세', grade: '1++A(7)', months: 31, company: '건화' },
+    { id: '260126-106', type: '한우', gender: '암', grade: '1+B', months: 29, company: '건화' },
+    // 대진엠이스 (201~) - 거세 5, 암 1
+    { id: '260126-201', type: '한우', gender: '거세', grade: '1++A(9)', months: 33, company: '대진엠이스' },
+    { id: '260126-202', type: '한우', gender: '거세', grade: '1++A(8)', months: 31, company: '대진엠이스' },
+    { id: '260126-203', type: '한우', gender: '거세', grade: '1+B', months: 30, company: '대진엠이스' },
+    { id: '260126-204', type: '한우', gender: '거세', grade: '1A', months: 27, company: '대진엠이스' },
+    { id: '260126-205', type: '한우', gender: '거세', grade: '1++B(7)', months: 32, company: '대진엠이스' },
+    { id: '260126-206', type: '한우', gender: '암', grade: '1+A', months: 29, company: '대진엠이스' },
+    // 안심엘피시 (301~) - 거세 5, 암 1
+    { id: '260126-301', type: '한우', gender: '거세', grade: '1++B(9)', months: 34, company: '안심엘피시' },
+    { id: '260126-302', type: '한우', gender: '거세', grade: '1+A', months: 30, company: '안심엘피시' },
+    { id: '260126-303', type: '한우', gender: '거세', grade: '1++A(8)', months: 33, company: '안심엘피시' },
+    { id: '260126-304', type: '한우', gender: '거세', grade: '1B', months: 28, company: '안심엘피시' },
+    { id: '260126-305', type: '한우', gender: '거세', grade: '1++C(7)', months: 31, company: '안심엘피시' },
+    { id: '260126-306', type: '한우', gender: '암', grade: '1+C', months: 29, company: '안심엘피시' },
+    // 정직한고기 (401~) - 거세 5, 암 1
+    { id: '260126-401', type: '한우', gender: '거세', grade: '1++C(9)', months: 35, company: '정직한고기' },
+    { id: '260126-402', type: '한우', gender: '거세', grade: '1++C(8)', months: 32, company: '정직한고기' },
+    { id: '260126-403', type: '한우', gender: '거세', grade: '1+C', months: 30, company: '정직한고기' },
+    { id: '260126-404', type: '한우', gender: '거세', grade: '1C', months: 26, company: '정직한고기' },
+    { id: '260126-405', type: '한우', gender: '거세', grade: '1++A(7)', months: 33, company: '정직한고기' },
+    { id: '260126-406', type: '한우', gender: '암', grade: '1+A', months: 28, company: '정직한고기' },
   ];
 
   // 토스트 표시 함수
@@ -208,6 +214,13 @@ function MainPageContent() {
           }
         }, 100);
       }
+    } else if (tab === '개체별' || tab === '부위별') {
+      // 부위별도 개체별 탭으로 이동
+      setActiveTab('개체별');
+    } else if (tab === '경매정보') {
+      setActiveTab('경매정보');
+    } else if (tab === '관심') {
+      setActiveTab('관심');
     }
   }, [searchParams]);
 
@@ -291,6 +304,36 @@ function MainPageContent() {
     };
   }, []);
 
+  // 드롭다운 외부 클릭 시 닫기
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (gradeDropdownRef.current && !gradeDropdownRef.current.contains(event.target as Node)) {
+        setShowGradeDropdown(false);
+      }
+      if (companyDropdownRef.current && !companyDropdownRef.current.contains(event.target as Node)) {
+        setShowCompanyDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // 등급 옵션 목록
+  const gradeOptions = ['전체', '1++(9)', '1++(8)', '1++(7)', '1+', '1', '2'];
+
+  // 상장업체 옵션 목록 (cattleData에서 추출)
+  const companyOptions = ['전체', ...Array.from(new Set(cattleData.map(item => item.company)))];
+
+  // 필터링된 개체 데이터
+  // 육량 지수(A,B,C)를 제외하고 등급 비교
+  const filteredCattleData = cattleData.filter(item => {
+    const gradeWithoutYukryang = item.grade.replace(/[ABC]/, ''); // 육량 지수 제거
+    const gradeMatch = selectedGrade === '전체' || gradeWithoutYukryang === selectedGrade;
+    const companyMatch = selectedCompany === '전체' || item.company === selectedCompany;
+    return gradeMatch && companyMatch;
+  });
+
   return (
     <div className="fixed inset-0 bg-white flex justify-center items-center z-[9999] overflow-hidden">
       <div className="w-full md:flex md:justify-center md:items-center bg-white">
@@ -353,7 +396,7 @@ function MainPageContent() {
                 <span className="text-sm font-semibold text-gray-900">-8,280,000원</span>
               </Link>
 
-              {/* 개체별/부위별/관심/기타 탭 */}
+              {/* 개체별/부위별/경매정보/관심 탭 */}
               <div className="mt-4 px-4">
                 <div className="flex items-center gap-4">
                   <button
@@ -377,6 +420,16 @@ function MainPageContent() {
                     부위별
                   </button>
                   <button
+                    onClick={() => setActiveTab('경매정보')}
+                    className={`text-sm font-semibold pb-1 transition-colors ${
+                      activeTab === '경매정보'
+                        ? 'text-gray-900 border-b-2 border-gray-900'
+                        : 'text-gray-400 hover:text-gray-600'
+                    }`}
+                  >
+                    경매정보
+                  </button>
+                  <button
                     onClick={() => setActiveTab('관심')}
                     className={`text-sm font-semibold pb-1 transition-colors ${
                       activeTab === '관심'
@@ -386,21 +439,11 @@ function MainPageContent() {
                   >
                     관심
                   </button>
-                  <button
-                    onClick={() => setActiveTab('정보')}
-                    className={`text-sm font-semibold pb-1 transition-colors ${
-                      activeTab === '정보'
-                        ? 'text-gray-900 border-b-2 border-gray-900'
-                        : 'text-gray-400 hover:text-gray-600'
-                    }`}
-                  >
-                    정보
-                  </button>
                 </div>
               </div>
 
-              {/* 기준일자 - 정보 탭에서만 표시 */}
-              {activeTab === '정보' && (
+              {/* 기준일자 - 경매정보 탭에서만 표시 */}
+              {activeTab === '경매정보' && (
                 <div className="mt-4 px-4">
                   <div className="bg-white border border-gray-200 rounded px-4 py-3 shadow-sm">
                     <div className="flex items-center gap-2">
@@ -419,85 +462,242 @@ function MainPageContent() {
               {/* 탭 컨텐츠 */}
               <div className="pb-24 bg-white">
                 {activeTab === '개체별' ? (
-                  <div className="pt-4">
-                    {/* 개체별 테이블 */}
-                    <div className="bg-white border-y border-gray-200">
-                      <table className="w-full text-[11px]">
-                        <thead className="sticky top-0 z-10">
-                          <tr className="bg-gray-100 border-b border-gray-200">
-                            <th className="py-1.5 px-3 text-center font-medium text-gray-500">접수번호</th>
-                            <th className="py-1.5 pl-10 pr-3 text-center font-medium text-gray-500">축종</th>
-                            <th className="py-1.5 px-3 text-center font-medium text-gray-500">성별</th>
-                            <th className="py-1.5 px-3 text-center font-medium text-gray-500">등급</th>
-                            <th className="py-1.5 px-3 text-center font-medium text-gray-500">개월령</th>
-                            <th className="py-1.5 px-3 text-center font-medium text-gray-500">상장업체</th>
-                            <th className="py-1.5 px-3 text-center font-medium text-gray-500">관심</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {cattleData.map((item, index) => (
-                            <tr 
-                              key={item.id}
-                              onClick={() => window.location.href = `/auction/${item.id}`}
-                              className={`border-b border-gray-100 hover:bg-gray-50 cursor-pointer active:bg-gray-100 transition-colors ${index % 2 === 1 ? 'bg-gray-50/50' : ''}`}
+                  <div className="pt-3">
+                    {/* 필터 - 드롭다운 + 칩 조합 */}
+                    <div className="px-4 pb-3">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {/* 등급 필터 */}
+                        <span className="text-xs text-gray-500">등급</span>
+                        <div className="relative" ref={gradeDropdownRef}>
+                          <button
+                            onClick={() => {
+                              setShowGradeDropdown(!showGradeDropdown);
+                              setShowCompanyDropdown(false);
+                            }}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full border transition-all ${
+                              selectedGrade !== '전체'
+                                ? 'bg-gray-900 text-white border-gray-900'
+                                : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'
+                            }`}
+                          >
+                            {selectedGrade}
+                            <svg 
+                              className={`w-3 h-3 transition-transform ${showGradeDropdown ? 'rotate-180' : ''}`} 
+                              fill="none" 
+                              stroke="currentColor" 
+                              viewBox="0 0 24 24"
                             >
-                              <td className="py-2 px-3 text-center font-medium text-gray-900">{item.id}</td>
-                              <td className="py-2 pl-10 pr-3 text-center text-gray-700">{item.type}</td>
-                              <td className="py-2 px-3 text-center text-gray-700">{item.gender}</td>
-                              <td className="py-2 px-3 text-center text-gray-700">{item.grade}</td>
-                              <td className="py-2 px-3 text-center text-gray-700">{item.months}</td>
-                              <td className="py-2 px-3 text-center text-gray-700">{item.company}</td>
-                              <td className="py-2 px-3 text-center">
-                                <button 
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    toggleFavorite(item.id);
-                                  }}
-                                  className={`p-1.5 transition-colors ${
-                                    isHydrated && isFavorite(item.id) 
-                                      ? 'text-gray-900' 
-                                      : 'text-gray-400 hover:text-gray-700'
-                                  }`}
-                                >
-                                  <Star className={`w-4 h-4 ${isHydrated && isFavorite(item.id) ? 'fill-current' : ''}`} />
-                                </button>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                          </button>
+                          
+                          {/* 등급 드롭다운 메뉴 */}
+                          <AnimatePresence>
+                            {showGradeDropdown && (
+                              <motion.div
+                                initial={{ opacity: 0, y: -4 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -4 }}
+                                transition={{ duration: 0.15 }}
+                                className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-20 min-w-[100px] overflow-hidden"
+                              >
+                                {gradeOptions.map((grade) => (
+                                  <button
+                                    key={grade}
+                                    onClick={() => {
+                                      setSelectedGrade(grade);
+                                      setShowGradeDropdown(false);
+                                    }}
+                                    className={`w-full px-3 py-2 text-xs text-left transition-colors ${
+                                      selectedGrade === grade
+                                        ? 'bg-gray-100 text-gray-900 font-medium'
+                                        : 'text-gray-600 hover:bg-gray-50'
+                                    }`}
+                                  >
+                                    {grade}
+                                  </button>
+                                ))}
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </div>
+
+                        {/* 구분선 */}
+                        <div className="w-px h-4 bg-gray-200"></div>
+                        
+                        {/* 상장업체 필터 */}
+                        <span className="text-xs text-gray-500">업체</span>
+                        <div className="relative" ref={companyDropdownRef}>
+                          <button
+                            onClick={() => {
+                              setShowCompanyDropdown(!showCompanyDropdown);
+                              setShowGradeDropdown(false);
+                            }}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full border transition-all ${
+                              selectedCompany !== '전체'
+                                ? 'bg-gray-900 text-white border-gray-900'
+                                : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'
+                            }`}
+                          >
+                            {selectedCompany}
+                            <svg 
+                              className={`w-3 h-3 transition-transform ${showCompanyDropdown ? 'rotate-180' : ''}`} 
+                              fill="none" 
+                              stroke="currentColor" 
+                              viewBox="0 0 24 24"
+                            >
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                          </button>
+                          
+                          {/* 상장업체 드롭다운 메뉴 */}
+                          <AnimatePresence>
+                            {showCompanyDropdown && (
+                              <motion.div
+                                initial={{ opacity: 0, y: -4 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -4 }}
+                                transition={{ duration: 0.15 }}
+                                className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-20 min-w-[100px] overflow-hidden"
+                              >
+                                {companyOptions.map((company) => (
+                                  <button
+                                    key={company}
+                                    onClick={() => {
+                                      setSelectedCompany(company);
+                                      setShowCompanyDropdown(false);
+                                    }}
+                                    className={`w-full px-3 py-2 text-xs text-left transition-colors whitespace-nowrap ${
+                                      selectedCompany === company
+                                        ? 'bg-gray-100 text-gray-900 font-medium'
+                                        : 'text-gray-600 hover:bg-gray-50'
+                                    }`}
+                                  >
+                                    {company}
+                                  </button>
+                                ))}
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </div>
+                        
+                        {/* 선택된 필터가 있을 때 초기화 버튼 */}
+                        {(selectedGrade !== '전체' || selectedCompany !== '전체') && (
+                          <button
+                            onClick={() => {
+                              setSelectedGrade('전체');
+                              setSelectedCompany('전체');
+                            }}
+                            className="flex items-center gap-1 px-2 py-1 text-[10px] text-gray-500 hover:text-gray-700 transition-colors"
+                          >
+                            <X className="w-3 h-3" />
+                            초기화
+                          </button>
+                        )}
+                        
+                        {/* 필터 결과 카운트 */}
+                        <span className="ml-auto text-xs text-gray-400">
+                          {filteredCattleData.length}두
+                        </span>
+                      </div>
                     </div>
+                    
+                    {/* 개체별 테이블 */}
+                    {filteredCattleData.length === 0 ? (
+                      <div className="text-center py-12">
+                        <div className="text-gray-400 mb-2">
+                          <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                        </div>
+                        <p className="text-gray-500 text-sm">해당 조건의 개체가 없습니다.</p>
+                        <button
+                          onClick={() => {
+                            setSelectedGrade('전체');
+                            setSelectedCompany('전체');
+                          }}
+                          className="mt-3 text-xs text-gray-600 underline hover:text-gray-800"
+                        >
+                          전체 보기
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="bg-white border-y border-gray-200">
+                        <table className="w-full text-[11px]">
+                          <thead className="sticky top-0 z-10">
+                            <tr className="bg-gray-100 border-b border-gray-200">
+                              <th className="py-1.5 pl-4 pr-8 text-center font-medium text-gray-500 whitespace-nowrap">접수번호</th>
+                              <th className="py-1.5 px-2 text-center font-medium text-gray-500 whitespace-nowrap">성별</th>
+                              <th className="py-1.5 px-2 text-center font-medium text-gray-500 whitespace-nowrap">등급</th>
+                              <th className="py-1.5 px-2 text-center font-medium text-gray-500 whitespace-nowrap">개월령</th>
+                              <th className="py-1.5 px-2 text-center font-medium text-gray-500 whitespace-nowrap">상장업체</th>
+                              <th className="py-1.5 px-2 text-center font-medium text-gray-500 whitespace-nowrap">관심</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {filteredCattleData.map((item, index) => (
+                              <tr 
+                                key={item.id}
+                                onClick={() => window.location.href = `/auction/${item.id}`}
+                                className={`border-b border-gray-100 hover:bg-gray-50 cursor-pointer active:bg-gray-100 transition-colors ${index % 2 === 1 ? 'bg-gray-50/50' : ''}`}
+                              >
+                                <td className="py-2 pl-4 pr-8 text-center font-medium text-gray-900 whitespace-nowrap">{item.id}</td>
+                                <td className="py-2 px-2 text-center text-gray-700 whitespace-nowrap">{item.gender}</td>
+                                <td className="py-2 px-2 text-center text-gray-700 whitespace-nowrap">{item.grade}</td>
+                                <td className="py-2 px-2 text-center text-gray-700 whitespace-nowrap">{item.months}</td>
+                                <td className="py-2 px-2 text-center text-gray-700 whitespace-nowrap">{item.company}</td>
+                                <td className="py-2 px-2 text-center">
+                                  <button 
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      toggleFavorite(item.id);
+                                    }}
+                                    className={`p-1.5 transition-colors ${
+                                      isHydrated && isFavorite(item.id) 
+                                        ? 'text-gray-900' 
+                                        : 'text-gray-400 hover:text-gray-700'
+                                    }`}
+                                  >
+                                    <Star className={`w-4 h-4 ${isHydrated && isFavorite(item.id) ? 'fill-current' : ''}`} />
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
                   </div>
                 ) : activeTab === '부위별' ? (
                   <div className="px-4 pt-4">
                     {/* 부위별 카드 그리드 */}
                     <div className="grid grid-cols-3 gap-2">
                       {[
-                        { name: '등심', count: cattleData.length * 2 },
-                        { name: '채끝', count: cattleData.length },
-                        { name: '목심', count: cattleData.length },
-                        { name: '꽃등심', count: cattleData.length },
-                        { name: '부채살', count: cattleData.length },
-                        { name: '앞다리', count: cattleData.length },
-                        { name: '갈비', count: cattleData.length },
-                        { name: '갈비살', count: cattleData.length },
-                        { name: '토시살', count: cattleData.length },
-                        { name: '업진살', count: cattleData.length },
-                        { name: '치마살', count: cattleData.length },
-                        { name: '양지', count: cattleData.length },
-                        { name: '설도', count: cattleData.length },
-                        { name: '우둔', count: cattleData.length },
-                        { name: '사태', count: cattleData.length },
+                        { name: '등심', slug: 'sirloin', count: cattleData.length * 2 },
+                        { name: '안심', slug: 'tenderloin', count: cattleData.length },
+                        { name: '채끝', slug: 'striploin', count: cattleData.length },
+                        { name: '갈비', slug: 'ribs', count: cattleData.length * 2 },
+                        { name: '특수부위', slug: 'special', count: cattleData.length },
+                        { name: '앞다리', slug: 'foreleg', count: cattleData.length },
+                        { name: '우둔', slug: 'rump', count: cattleData.length },
+                        { name: '목심', slug: 'chuck', count: cattleData.length },
+                        { name: '양지', slug: 'brisket', count: cattleData.length * 2 },
+                        { name: '설도', slug: 'round', count: cattleData.length * 2 },
+                        { name: '사태', slug: 'shank', count: cattleData.length },
+                        { name: '꼬리', slug: 'tail', count: cattleData.length },
+                        { name: '족', slug: 'feet', count: cattleData.length },
+                        { name: '사골', slug: 'bone', count: cattleData.length },
+                        { name: '잡뼈', slug: 'misc', count: cattleData.length },
                       ].map((part) => (
                         <div
                           key={part.name}
                           className="bg-white border border-gray-200 rounded p-3 cursor-pointer hover:bg-gray-50 active:bg-gray-100 transition-colors"
                           onClick={() => {
-                            // TODO: 부위 상세 목록으로 이동
+                            window.location.href = `/auction?tab=part&part=${part.slug}`;
                           }}
                         >
                           <p className="text-sm font-semibold text-gray-900 mb-1">{part.name}</p>
-                          <p className="text-xs text-gray-500">{part.count}건</p>
+                          <p className="text-xs text-gray-500">{part.count}개</p>
                         </div>
                       ))}
                     </div>
@@ -515,13 +715,12 @@ function MainPageContent() {
                         <table className="w-full text-[11px]">
                           <thead className="sticky top-0 z-10">
                             <tr className="bg-gray-100 border-b border-gray-200">
-                              <th className="py-1.5 px-3 text-center font-medium text-gray-500">접수번호</th>
-                              <th className="py-1.5 pl-10 pr-3 text-center font-medium text-gray-500">축종</th>
-                              <th className="py-1.5 px-3 text-center font-medium text-gray-500">성별</th>
-                              <th className="py-1.5 px-3 text-center font-medium text-gray-500">등급</th>
-                              <th className="py-1.5 px-3 text-center font-medium text-gray-500">개월령</th>
-                              <th className="py-1.5 px-3 text-center font-medium text-gray-500">상장업체</th>
-                              <th className="py-1.5 px-3 text-center font-medium text-gray-500">관심</th>
+                              <th className="py-1.5 pl-4 pr-8 text-center font-medium text-gray-500 whitespace-nowrap">접수번호</th>
+                              <th className="py-1.5 px-2 text-center font-medium text-gray-500 whitespace-nowrap">성별</th>
+                              <th className="py-1.5 px-2 text-center font-medium text-gray-500 whitespace-nowrap">등급</th>
+                              <th className="py-1.5 px-2 text-center font-medium text-gray-500 whitespace-nowrap">개월령</th>
+                              <th className="py-1.5 px-2 text-center font-medium text-gray-500 whitespace-nowrap">상장업체</th>
+                              <th className="py-1.5 px-2 text-center font-medium text-gray-500 whitespace-nowrap">관심</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -531,13 +730,12 @@ function MainPageContent() {
                                 onClick={() => window.location.href = `/auction/${item.id}`}
                                 className={`border-b border-gray-100 hover:bg-gray-50 cursor-pointer active:bg-gray-100 transition-colors ${index % 2 === 1 ? 'bg-gray-50/50' : ''}`}
                               >
-                                <td className="py-2 px-3 text-center font-medium text-gray-900">{item.id}</td>
-                                <td className="py-2 pl-10 pr-3 text-center text-gray-700">{item.type}</td>
-                                <td className="py-2 px-3 text-center text-gray-700">{item.gender}</td>
-                                <td className="py-2 px-3 text-center text-gray-700">{item.grade}</td>
-                                <td className="py-2 px-3 text-center text-gray-700">{item.months}</td>
-                                <td className="py-2 px-3 text-center text-gray-700">{item.company}</td>
-                                <td className="py-2 px-3 text-center">
+                                <td className="py-2 pl-4 pr-8 text-center font-medium text-gray-900 whitespace-nowrap">{item.id}</td>
+                                <td className="py-2 px-2 text-center text-gray-700 whitespace-nowrap">{item.gender}</td>
+                                <td className="py-2 px-2 text-center text-gray-700 whitespace-nowrap">{item.grade}</td>
+                                <td className="py-2 px-2 text-center text-gray-700 whitespace-nowrap">{item.months}</td>
+                                <td className="py-2 px-2 text-center text-gray-700 whitespace-nowrap">{item.company}</td>
+                                <td className="py-2 px-2 text-center">
                                   <button 
                                     onClick={(e) => {
                                       e.stopPropagation();
@@ -555,7 +753,7 @@ function MainPageContent() {
                       </div>
                     )}
                   </div>
-                ) : activeTab === '정보' ? (
+                ) : activeTab === '경매정보' ? (
                   <div className="px-4 pt-4">
                     <div className="mb-4">
                       {/* 등급별 경매 두수 */}

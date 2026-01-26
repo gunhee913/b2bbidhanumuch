@@ -202,15 +202,17 @@ function AuctionPageContent() {
     return `${mins}분 ${secs.toString().padStart(2, '0')}초`;
   };
   
-  // 다음/이전 이미지 이동 함수
+  // 다음/이전 이미지 이동 함수 (이미지 4개 + 서류 2개 = 총 6개)
+  const TOTAL_IMAGES = 6;
+  
   const nextImage = (productId: string) => {
     const currentIndex = expandedImageIndex[productId] || 0;
-    setExpandedImageIndex(prev => ({ ...prev, [productId]: (currentIndex + 1) % 4 }));
+    setExpandedImageIndex(prev => ({ ...prev, [productId]: (currentIndex + 1) % TOTAL_IMAGES }));
   };
   
   const prevImage = (productId: string) => {
     const currentIndex = expandedImageIndex[productId] || 0;
-    setExpandedImageIndex(prev => ({ ...prev, [productId]: (currentIndex - 1 + 4) % 4 }));
+    setExpandedImageIndex(prev => ({ ...prev, [productId]: (currentIndex - 1 + TOTAL_IMAGES) % TOTAL_IMAGES }));
   };
 
   // 터치 핸들러 (모바일)
@@ -319,17 +321,38 @@ function AuctionPageContent() {
   // 경매 상품 데이터 (공통 상수에서 가져옴)
   const products = AUCTION_PRODUCTS;
 
-  // 개체 정보 (공통 상수 기반, 부위별 데이터 생성용)
-  // 근내지방도는 1++ 등급에만 표시됨 (AUCTION_PRODUCTS의 grade에 이미 포함)
-  const auctionEntities = AUCTION_PRODUCTS.map(product => ({
-    id: product.id,
-    type: product.type,
-    grade: product.grade,
-    gradeCategory: product.gradeCategory,
-    historyNo: product.historyNo,
-    company: product.company,
-    image: product.image,
-  }));
+  // 개체 정보 (메인 페이지 cattleData와 동일한 24두 기준)
+  // 부위별 데이터 생성용
+  const auctionEntities = [
+    // 건화 (101~106) - 거세 5, 암 1
+    { id: 101, type: '한우거세', grade: '1++A(9)', gradeCategory: '1++' as const, historyNo: '002-1486-7293-101', company: '건화', image: '/등심1.png' },
+    { id: 102, type: '한우거세', grade: '1+A', gradeCategory: '1+' as const, historyNo: '002-1486-7293-102', company: '건화', image: '/등심2.png' },
+    { id: 103, type: '한우거세', grade: '1++B(8)', gradeCategory: '1++' as const, historyNo: '002-1486-7293-103', company: '건화', image: '/등심3.png' },
+    { id: 104, type: '한우거세', grade: '1B', gradeCategory: '1' as const, historyNo: '002-1486-7293-104', company: '건화', image: '/등심4.png' },
+    { id: 105, type: '한우거세', grade: '1++A(7)', gradeCategory: '1++' as const, historyNo: '002-1486-7293-105', company: '건화', image: '/등심1.png' },
+    { id: 106, type: '한우암', grade: '1+B', gradeCategory: '1+' as const, historyNo: '002-1486-7293-106', company: '건화', image: '/등심2.png' },
+    // 대진엠이스 (201~206) - 거세 5, 암 1
+    { id: 201, type: '한우거세', grade: '1++A(9)', gradeCategory: '1++' as const, historyNo: '002-1486-7293-201', company: '대진엠이스', image: '/등심3.png' },
+    { id: 202, type: '한우거세', grade: '1++A(8)', gradeCategory: '1++' as const, historyNo: '002-1486-7293-202', company: '대진엠이스', image: '/등심4.png' },
+    { id: 203, type: '한우거세', grade: '1+B', gradeCategory: '1+' as const, historyNo: '002-1486-7293-203', company: '대진엠이스', image: '/등심1.png' },
+    { id: 204, type: '한우거세', grade: '1A', gradeCategory: '1' as const, historyNo: '002-1486-7293-204', company: '대진엠이스', image: '/등심2.png' },
+    { id: 205, type: '한우거세', grade: '1++B(7)', gradeCategory: '1++' as const, historyNo: '002-1486-7293-205', company: '대진엠이스', image: '/등심3.png' },
+    { id: 206, type: '한우암', grade: '1+A', gradeCategory: '1+' as const, historyNo: '002-1486-7293-206', company: '대진엠이스', image: '/등심4.png' },
+    // 안심엘피시 (301~306) - 거세 5, 암 1
+    { id: 301, type: '한우거세', grade: '1++B(9)', gradeCategory: '1++' as const, historyNo: '002-1486-7293-301', company: '안심엘피시', image: '/등심1.png' },
+    { id: 302, type: '한우거세', grade: '1+A', gradeCategory: '1+' as const, historyNo: '002-1486-7293-302', company: '안심엘피시', image: '/등심2.png' },
+    { id: 303, type: '한우거세', grade: '1++A(8)', gradeCategory: '1++' as const, historyNo: '002-1486-7293-303', company: '안심엘피시', image: '/등심3.png' },
+    { id: 304, type: '한우거세', grade: '1B', gradeCategory: '1' as const, historyNo: '002-1486-7293-304', company: '안심엘피시', image: '/등심4.png' },
+    { id: 305, type: '한우거세', grade: '1++C(7)', gradeCategory: '1++' as const, historyNo: '002-1486-7293-305', company: '안심엘피시', image: '/등심1.png' },
+    { id: 306, type: '한우암', grade: '1+C', gradeCategory: '1+' as const, historyNo: '002-1486-7293-306', company: '안심엘피시', image: '/등심2.png' },
+    // 정직한고기 (401~406) - 거세 5, 암 1
+    { id: 401, type: '한우거세', grade: '1++C(9)', gradeCategory: '1++' as const, historyNo: '002-1486-7293-401', company: '정직한고기', image: '/등심3.png' },
+    { id: 402, type: '한우거세', grade: '1++C(8)', gradeCategory: '1++' as const, historyNo: '002-1486-7293-402', company: '정직한고기', image: '/등심4.png' },
+    { id: 403, type: '한우거세', grade: '1+C', gradeCategory: '1+' as const, historyNo: '002-1486-7293-403', company: '정직한고기', image: '/등심1.png' },
+    { id: 404, type: '한우거세', grade: '1C', gradeCategory: '1' as const, historyNo: '002-1486-7293-404', company: '정직한고기', image: '/등심2.png' },
+    { id: 405, type: '한우거세', grade: '1++A(7)', gradeCategory: '1++' as const, historyNo: '002-1486-7293-405', company: '정직한고기', image: '/등심3.png' },
+    { id: 406, type: '한우암', grade: '1+A', gradeCategory: '1+' as const, historyNo: '002-1486-7293-406', company: '정직한고기', image: '/등심4.png' },
+  ];
 
   // 부위별 세부 부위 매핑 (좌/우 포함)
   const partSubParts: Record<string, string[]> = {
@@ -397,9 +420,9 @@ function AuctionPageContent() {
           const variation = ((entity.id) * 0.17) % 1;
           const weight = (minW + (maxW - minW) * variation).toFixed(1);
           
-          // 상장번호 계산: 개체별 20개씩, 부위 인덱스에 따라 +1
+          // 상장번호 계산: 개체별로 부위 인덱스에 따라 01부터 시작
           const partIndex = allSubPartsOrder.indexOf(subPart);
-          const listingNumber = (entity.id - 1) * 20 + partIndex + 1;
+          const listingNumber = partIndex + 1;
           
           // 등급에 따른 가격 조정 (근내지방도 기준)
           // 근내지방도: 7,8,9 = 1++등급 / 6 = 1+등급 / 4,5 = 1등급 / 2,3 = 2등급 / 1 = 3등급
@@ -426,6 +449,7 @@ function AuctionPageContent() {
           // 최종 가격 계산 (1000원 단위로 반올림)
           const adjustedPrice = Math.round((basePrice * gradeMultiplier) / 1000) * 1000;
           
+          // 개체별 페이지와 연동: entity.id가 이미 101, 201 등 형식
           products.push({
             id: `${partId}-${entity.id}-${subPart}`,
             partId,
@@ -475,13 +499,17 @@ function AuctionPageContent() {
     
     // 등급 필터
     if (partFilterGrade !== '등급' && partFilterGrade !== '전체') {
-      if (partFilterGrade === '1++등급') {
-        filtered = filtered.filter(p => p.grade.startsWith('1++'));
-      } else if (partFilterGrade === '1+등급') {
+      if (partFilterGrade === '1++(9)') {
+        filtered = filtered.filter(p => p.grade.includes('1++') && p.grade.includes('(9)'));
+      } else if (partFilterGrade === '1++(8)') {
+        filtered = filtered.filter(p => p.grade.includes('1++') && p.grade.includes('(8)'));
+      } else if (partFilterGrade === '1++(7)') {
+        filtered = filtered.filter(p => p.grade.includes('1++') && p.grade.includes('(7)'));
+      } else if (partFilterGrade === '1+') {
         filtered = filtered.filter(p => p.grade.startsWith('1+') && !p.grade.startsWith('1++'));
-      } else if (partFilterGrade === '1등급') {
-        filtered = filtered.filter(p => p.grade.startsWith('1') && !p.grade.startsWith('1++') && !p.grade.startsWith('1+'));
-      } else if (partFilterGrade === '2등급') {
+      } else if (partFilterGrade === '1') {
+        filtered = filtered.filter(p => p.grade === '1' || (p.grade.startsWith('1') && !p.grade.startsWith('1++')));
+      } else if (partFilterGrade === '2') {
         filtered = filtered.filter(p => p.grade.startsWith('2'));
       }
     }
@@ -561,90 +589,6 @@ function AuctionPageContent() {
               }
             `}</style>
             
-            {/* 모바일 메인 헤더 */}
-            <div className="flex-shrink-0 bg-white border-b border-gray-200">
-              <div className="px-4 py-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center">
-                    {selectedPartId && activeTab === 'part' && (
-                      <button
-                        onClick={handleBackToPartList}
-                        className="mr-1 p-1 text-gray-600 hover:text-gray-900 transition-colors"
-                      >
-                        <ChevronLeft className="h-5 w-5" />
-                      </button>
-                    )}
-                    <Link href="/" className="flex items-center">
-                      <img 
-                        src="/Mainlogo.png" 
-                        alt="HanuMuch" 
-                        className="h-7 w-auto"
-                      />
-                    </Link>
-                  </div>
-                  <div className="flex items-center">
-                    <img 
-                      src="/음성축산물공판장.png" 
-                      alt="음성축산물공판장" 
-                      className="h-5 w-auto border border-gray-300 rounded px-1.5 py-0.5 bg-gradient-to-br from-white to-gray-50 shadow-sm"
-                    />
-                  </div>
-                </div>
-              </div>
-              
-              {/* 서브 메뉴 - 부위별 상세에서는 숨김 */}
-              {!(activeTab === 'part' && selectedPartId) && (
-                <div className="px-2 md:px-4 pb-1">
-                  <div className="flex items-center ml-2 space-x-8">
-                    <div className="relative">
-                      <Button 
-                        variant="ghost" 
-                        onClick={() => setActiveTab('individual')}
-                        className={`text-base font-medium px-0 h-auto pb-2 hover:bg-transparent ${
-                          activeTab === 'individual' ? 'text-black hover:text-black' : 'text-gray-500 hover:text-gray-700'
-                        }`}
-                      >
-                        개체별
-                      </Button>
-                      {activeTab === 'individual' && (
-                        <div className="absolute bottom-0 left-0 right-0 h-1 bg-red-600"></div>
-                      )}
-                    </div>
-                    <div className="relative">
-                      <Button 
-                        variant="ghost" 
-                        onClick={() => setActiveTab('part')}
-                        className={`text-base font-medium px-0 h-auto pb-2 hover:bg-transparent ${
-                          activeTab === 'part' ? 'text-black hover:text-black' : 'text-gray-500 hover:text-gray-700'
-                        }`}
-                      >
-                        부위별
-                      </Button>
-                      {activeTab === 'part' && (
-                        <div className="absolute bottom-0 left-0 right-0 h-1 bg-red-600"></div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
-              
-              {/* 안내 문구 박스 - 부위별 상세에서는 숨김 */}
-              {showNotice && !(activeTab === 'part' && selectedPartId) && (
-                <div className="px-4 py-1 bg-gray-100 border-b border-gray-200 relative">
-                  <p className="text-xs text-gray-600 text-center pr-6">
-                    경매는 오전 10시에 일괄 종료되며, 최고입찰가가 낙찰됩니다.
-                  </p>
-                  <button
-                    onClick={() => setShowNotice(false)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-gray-200 rounded transition-colors"
-                    aria-label="닫기"
-                  >
-                    <X className="h-4 w-4 text-gray-500" />
-                  </button>
-                </div>
-              )}
-            </div>
-
             {/* 메인 콘텐츠 */}
             <div className="flex-1 min-h-0 overflow-y-auto">
               {/* 섹션 제목 - 부위별 상세에서는 숨김 */}
@@ -905,249 +849,149 @@ function AuctionPageContent() {
                 </>
               ) : selectedPartId && selectedPart ? (
                 <>
-                  {/* 부위별 상세 목록 헤더 */}
-                  <div className="px-3 py-2 bg-white border-b border-gray-100 sticky top-0 z-20">
-                    <div className="flex items-center justify-between">
-                      <button
-                        onClick={() => {
-                          const currentIndex = partsData.findIndex(p => p.id === selectedPartId);
-                          const prevIndex = currentIndex > 0 ? currentIndex - 1 : partsData.length - 1;
-                          const prevPart = partsData[prevIndex];
-                          setSelectedPartId(prevPart.id);
-                          router.push(`/auction?tab=part&part=${prevPart.id}`);
-                        }}
-                        className="p-1 text-gray-400 hover:text-gray-700 transition-colors"
-                      >
-                        <ChevronLeft className="h-5 w-5" />
-                      </button>
-                      <div className="text-center">
-                        <h3 className="text-sm font-bold text-gray-900">{selectedPart.name}</h3>
-                        <p className="text-[10px] text-gray-500">
-                          {filteredPartProducts.length}개 상품
-                        </p>
-                      </div>
-                      <button
-                        onClick={() => {
-                          const currentIndex = partsData.findIndex(p => p.id === selectedPartId);
-                          const nextIndex = currentIndex < partsData.length - 1 ? currentIndex + 1 : 0;
-                          const nextPart = partsData[nextIndex];
-                          setSelectedPartId(nextPart.id);
-                          router.push(`/auction?tab=part&part=${nextPart.id}`);
-                        }}
-                        className="p-1 text-gray-400 hover:text-gray-700 transition-colors"
-                      >
-                        <ChevronRight className="h-5 w-5" />
-                      </button>
+                  {/* 부위별 상세 목록 헤더 - sticky */}
+                  <div className="px-3 h-11 bg-white sticky top-0 z-30 flex items-center">
+                    <button
+                      onClick={() => router.push('/?tab=부위별')}
+                      className="p-1 text-gray-600 hover:text-gray-900 transition-colors"
+                    >
+                      <ChevronLeft className="h-5 w-5" />
+                    </button>
+                    <div className="flex-1 text-center pr-6">
+                      <h3 className="text-sm font-bold text-gray-900">{selectedPart.name}</h3>
                     </div>
                   </div>
                   
-                  {/* 마감시간 - 고정되지 않음 */}
-                  <div className="px-4 py-2 bg-white border-b border-gray-100">
-                    <div className="flex justify-end">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-xs text-gray-500">마감까지</span>
-                        <span className={`text-sm font-bold ${remainingTime <= 300 ? 'text-red-600' : 'text-gray-900'}`}>
-                          {formatTime(remainingTime)}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
 
-                  {/* 부위별 필터 및 정렬 */}
-                  <div className="px-3 py-2 bg-white">
-                    <div className="flex gap-1.5 relative filter-dropdown">
-                      {/* 업체명 필터 */}
-                      <div className="flex-1 relative">
-                        <button
-                          onClick={() => setOpenDropdown(openDropdown === 'partCompany' ? null : 'partCompany')}
-                          className="w-full h-8 px-2 text-[11px] border border-gray-300 rounded-lg bg-white transition-colors flex items-center justify-between"
-                        >
-                          <span className="text-gray-700 truncate">{partFilterCompany}</span>
-                          <motion.div
-                            animate={{ rotate: openDropdown === 'partCompany' ? 180 : 0 }}
-                            transition={{ duration: 0.2 }}
-                          >
-                            <ChevronDown className="h-3.5 w-3.5 text-gray-500 flex-shrink-0" />
-                          </motion.div>
-                        </button>
-                        
-                        <AnimatePresence>
-                          {openDropdown === 'partCompany' && (
-                            <motion.div
-                              initial={{ opacity: 0, y: -10 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              exit={{ opacity: 0, y: -10 }}
-                              transition={{ duration: 0.2 }}
-                              className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden z-50 max-h-40 overflow-y-auto"
-                            >
-                              {['전체', '건화', '대진엠에스', '안심엘피씨', '정직한고기'].map((option) => (
-                                <motion.button
-                                  key={option}
-                                  onClick={() => {
-                                    setPartFilterCompany(option);
-                                    setOpenDropdown(null);
-                                  }}
-                                  whileHover={{ backgroundColor: '#fef2f2' }}
-                                  className={`w-full px-2.5 py-1.5 text-[11px] text-left transition-colors ${
-                                    partFilterCompany === option ? 'bg-red-50 text-red-600 font-medium' : 'text-gray-700'
-                                  }`}
-                                >
-                                  {option}
-                                </motion.button>
-                              ))}
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
-                      </div>
-                      
-                      {/* 성별 필터 */}
-                      <div className="flex-1 relative">
-                        <button
-                          onClick={() => setOpenDropdown(openDropdown === 'partType' ? null : 'partType')}
-                          className="w-full h-8 px-2 text-[11px] border border-gray-300 rounded-lg bg-white transition-colors flex items-center justify-between"
-                        >
-                          <span className="text-gray-700 truncate">{partFilterType}</span>
-                          <motion.div
-                            animate={{ rotate: openDropdown === 'partType' ? 180 : 0 }}
-                            transition={{ duration: 0.2 }}
-                          >
-                            <ChevronDown className="h-3.5 w-3.5 text-gray-500 flex-shrink-0" />
-                          </motion.div>
-                        </button>
-                        
-                        <AnimatePresence>
-                          {openDropdown === 'partType' && (
-                            <motion.div
-                              initial={{ opacity: 0, y: -10 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              exit={{ opacity: 0, y: -10 }}
-                              transition={{ duration: 0.2 }}
-                              className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden z-50"
-                            >
-                              {['전체', '한우거세', '한우암'].map((option) => (
-                                <motion.button
-                                  key={option}
-                                  onClick={() => {
-                                    setPartFilterType(option);
-                                    setOpenDropdown(null);
-                                  }}
-                                  whileHover={{ backgroundColor: '#fef2f2' }}
-                                  className={`w-full px-2.5 py-1.5 text-[11px] text-left transition-colors ${
-                                    partFilterType === option ? 'bg-red-50 text-red-600 font-medium' : 'text-gray-700'
-                                  }`}
-                                >
-                                  {option}
-                                </motion.button>
-                              ))}
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
-                      </div>
-                      
+                  {/* 부위별 필터 - 드롭다운 + 칩 조합 */}
+                  <div className="px-4 py-3 bg-white border-b border-gray-100">
+                    <div className="flex items-center gap-2 flex-wrap">
                       {/* 등급 필터 */}
-                      <div className="flex-1 relative">
+                      <span className="text-xs text-gray-500">등급</span>
+                      <div className="relative">
                         <button
                           onClick={() => setOpenDropdown(openDropdown === 'partGrade' ? null : 'partGrade')}
-                          className="w-full h-8 px-2 text-[11px] border border-gray-300 rounded-lg bg-white transition-colors flex items-center justify-between"
+                          className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full border transition-all ${
+                            partFilterGrade !== '등급' && partFilterGrade !== '전체'
+                              ? 'bg-gray-900 text-white border-gray-900'
+                              : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'
+                          }`}
                         >
-                          <span className="text-gray-700 truncate">{partFilterGrade}</span>
-                          <motion.div
-                            animate={{ rotate: openDropdown === 'partGrade' ? 180 : 0 }}
-                            transition={{ duration: 0.2 }}
+                          {partFilterGrade === '등급' ? '전체' : partFilterGrade}
+                          <svg 
+                            className={`w-3 h-3 transition-transform ${openDropdown === 'partGrade' ? 'rotate-180' : ''}`} 
+                            fill="none" 
+                            stroke="currentColor" 
+                            viewBox="0 0 24 24"
                           >
-                            <ChevronDown className="h-3.5 w-3.5 text-gray-500 flex-shrink-0" />
-                          </motion.div>
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
                         </button>
                         
                         <AnimatePresence>
                           {openDropdown === 'partGrade' && (
                             <motion.div
-                              initial={{ opacity: 0, y: -10 }}
+                              initial={{ opacity: 0, y: -4 }}
                               animate={{ opacity: 1, y: 0 }}
-                              exit={{ opacity: 0, y: -10 }}
-                              transition={{ duration: 0.2 }}
-                              className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden z-50"
+                              exit={{ opacity: 0, y: -4 }}
+                              transition={{ duration: 0.15 }}
+                              className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-20 min-w-[100px] overflow-hidden"
                             >
-                              {['전체', '1++등급', '1+등급', '1등급', '2등급'].map((option) => (
-                                <motion.button
+                              {['전체', '1++(9)', '1++(8)', '1++(7)', '1+', '1', '2'].map((option) => (
+                                <button
                                   key={option}
                                   onClick={() => {
                                     setPartFilterGrade(option);
                                     setOpenDropdown(null);
                                   }}
-                                  whileHover={{ backgroundColor: '#fef2f2' }}
-                                  className={`w-full px-2.5 py-1.5 text-[11px] text-left transition-colors ${
-                                    partFilterGrade === option ? 'bg-red-50 text-red-600 font-medium' : 'text-gray-700'
+                                  className={`w-full px-3 py-2 text-xs text-left transition-colors ${
+                                    partFilterGrade === option
+                                      ? 'bg-gray-100 text-gray-900 font-medium'
+                                      : 'text-gray-600 hover:bg-gray-50'
                                   }`}
                                 >
                                   {option}
-                                </motion.button>
+                                </button>
                               ))}
                             </motion.div>
                           )}
                         </AnimatePresence>
                       </div>
+
+                      {/* 구분선 */}
+                      <div className="w-px h-4 bg-gray-200"></div>
                       
-                      {/* 근내지방도 필터 */}
-                      <div className="flex-1 relative">
+                      {/* 업체 필터 */}
+                      <span className="text-xs text-gray-500">업체</span>
+                      <div className="relative">
                         <button
-                          onClick={() => setOpenDropdown(openDropdown === 'partMarbling' ? null : 'partMarbling')}
-                          className="w-full h-8 px-2 text-[11px] border border-gray-300 rounded-lg bg-white transition-colors flex items-center justify-between"
+                          onClick={() => setOpenDropdown(openDropdown === 'partCompany' ? null : 'partCompany')}
+                          className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full border transition-all ${
+                            partFilterCompany !== '업체명' && partFilterCompany !== '전체'
+                              ? 'bg-gray-900 text-white border-gray-900'
+                              : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'
+                          }`}
                         >
-                          <span className="text-gray-700 truncate">{partFilterMarbling}</span>
-                          <motion.div
-                            animate={{ rotate: openDropdown === 'partMarbling' ? 180 : 0 }}
-                            transition={{ duration: 0.2 }}
+                          {partFilterCompany === '업체명' ? '전체' : partFilterCompany}
+                          <svg 
+                            className={`w-3 h-3 transition-transform ${openDropdown === 'partCompany' ? 'rotate-180' : ''}`} 
+                            fill="none" 
+                            stroke="currentColor" 
+                            viewBox="0 0 24 24"
                           >
-                            <ChevronDown className="h-3.5 w-3.5 text-gray-500 flex-shrink-0" />
-                          </motion.div>
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
                         </button>
                         
                         <AnimatePresence>
-                          {openDropdown === 'partMarbling' && (
+                          {openDropdown === 'partCompany' && (
                             <motion.div
-                              initial={{ opacity: 0, y: -10 }}
+                              initial={{ opacity: 0, y: -4 }}
                               animate={{ opacity: 1, y: 0 }}
-                              exit={{ opacity: 0, y: -10 }}
-                              transition={{ duration: 0.2 }}
-                              className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden z-50"
+                              exit={{ opacity: 0, y: -4 }}
+                              transition={{ duration: 0.15 }}
+                              className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-20 min-w-[100px] overflow-hidden"
                             >
-                              {['전체', 'No.9', 'No.8', 'No.7', 'No.6', 'No.5', 'No.4'].map((option) => (
-                                <motion.button
+                              {['전체', '건화', '대진엠에스', '안심엘피씨', '정직한고기'].map((option) => (
+                                <button
                                   key={option}
                                   onClick={() => {
-                                    setPartFilterMarbling(option);
+                                    setPartFilterCompany(option);
                                     setOpenDropdown(null);
                                   }}
-                                  whileHover={{ backgroundColor: '#fef2f2' }}
-                                  className={`w-full px-2.5 py-1.5 text-[11px] text-left transition-colors ${
-                                    partFilterMarbling === option ? 'bg-red-50 text-red-600 font-medium' : 'text-gray-700'
+                                  className={`w-full px-3 py-2 text-xs text-left transition-colors whitespace-nowrap ${
+                                    partFilterCompany === option
+                                      ? 'bg-gray-100 text-gray-900 font-medium'
+                                      : 'text-gray-600 hover:bg-gray-50'
                                   }`}
                                 >
                                   {option}
-                                </motion.button>
+                                </button>
                               ))}
                             </motion.div>
                           )}
                         </AnimatePresence>
                       </div>
                       
+                      {/* 필터 결과 카운트 */}
+                      <span className="ml-auto text-xs text-gray-400">
+                        {filteredPartProducts.length}개
+                      </span>
                     </div>
                   </div>
 
 
                   {/* 부위별 상품 테이블 */}
-                  <div className="flex-1 overflow-y-auto pb-24" data-scroll-container>
-                    {/* 테이블 헤더 */}
-                    <div className="bg-gray-100 border-b border-gray-300 h-10 flex items-center sticky top-0 z-10">
-                      <div className="grid px-3 text-xs font-bold text-gray-600 w-full" style={{gridTemplateColumns: '1fr 0.8fr 1fr 1.1fr 1.1fr 0.9fr 0.4fr'}}>
-                        <div className="text-center">구분</div>
+                  <div className="flex-1 pb-24" data-scroll-container>
+                    {/* 테이블 헤더 - sticky */}
+                    <div className="bg-gray-100 border-b border-gray-200 h-7 flex items-center sticky top-11 z-10">
+                      <div className="grid px-2 text-[11px] font-medium text-gray-500 w-full" style={{gridTemplateColumns: '0.9fr 0.7fr 0.9fr 1fr 1fr 0.7fr'}}>
+                        <div className="text-center">부위</div>
                         <div className="text-center">중량</div>
                         <div className="text-center">최저단가</div>
                         <div className="text-center">최고입찰가</div>
                         <div className="text-center">나의입찰가</div>
                         <div className="text-center">상태</div>
-                        <div className="text-center"></div>
                       </div>
                     </div>
 
@@ -1164,14 +1008,14 @@ function AuctionPageContent() {
                         return (
                           <div key={product.id} id={`product-row-${product.id}`} className={`${isHighlighted ? 'border-2 border-red-500' : ''}`}>
                             <div 
-                              className={`grid px-3 py-2.5 border-b border-gray-100 cursor-pointer transition-colors items-center ${
+                              className={`grid px-2 py-2 border-b border-gray-100 cursor-pointer transition-colors items-center ${
                                 bid?.status === 'highest' 
                                   ? 'bg-blue-50/50' 
                                   : bid?.status === 'secondHighest'
                                     ? 'bg-red-50/50'
                                     : 'bg-white hover:bg-gray-50'
                               }`}
-                              style={{gridTemplateColumns: '1fr 0.8fr 1fr 1.1fr 1.1fr 0.9fr 0.4fr'}}
+                              style={{gridTemplateColumns: '0.9fr 0.7fr 0.9fr 1fr 1fr 0.7fr'}}
                               onClick={() => {
                                 if (!isExpanded) {
                                   setHighlightedProductId(product.id);
@@ -1180,16 +1024,16 @@ function AuctionPageContent() {
                               }}
                             >
                               <div className="text-center">
-                                <div className="text-sm font-semibold text-gray-900">{product.partName}</div>
+                                <div className="text-[11px] font-medium text-gray-900">{product.partName}</div>
                                 <div className="text-[10px] text-gray-500 whitespace-nowrap">{product.type.includes('거세') ? '거세' : '암'} / {product.grade}</div>
                               </div>
-                              <div className="text-center text-sm font-medium text-gray-600">
+                              <div className="text-center text-[11px] text-gray-700">
                                 {product.weight}
                               </div>
-                              <div className="text-center text-sm font-medium text-gray-500">
+                              <div className="text-center text-[11px] text-gray-700">
                                 {product.price.toLocaleString()}
                               </div>
-                              <div className="text-center text-sm font-bold text-gray-800">
+                              <div className="text-center text-[11px] font-medium text-gray-900">
                                 {bid?.highestBid ? bid.highestBid.toLocaleString() : '-'}
                               </div>
                               <div 
@@ -1206,7 +1050,7 @@ function AuctionPageContent() {
                                           setShowPartBidSheet(true);
                                         }
                                       }}
-                                      className={`text-xs font-bold text-red-600 leading-none ${bid.status !== 'highest' ? 'cursor-pointer' : ''}`}
+                                      className={`text-[11px] font-medium text-gray-900 leading-none ${bid.status !== 'highest' ? 'cursor-pointer' : ''}`}
                                     >
                                       {bid.myBid.toLocaleString()}
                                     </span>
@@ -1217,7 +1061,7 @@ function AuctionPageContent() {
                                           setPartBidPrice(bid.highestBid + quickReBidAmount);
                                           setShowPartBidSheet(true);
                                         }}
-                                        className="mt-1 px-2 py-0.5 text-[10px] font-bold text-white bg-red-600 rounded hover:bg-red-700 transition-colors"
+                                        className="mt-1 px-2 py-0.5 text-[10px] font-medium text-white bg-gray-800 rounded hover:bg-gray-900 transition-colors"
                                       >
                                         재입찰
                                       </button>
@@ -1230,23 +1074,20 @@ function AuctionPageContent() {
                                       setPartBidPrice(0);
                                       setShowPartBidSheet(true);
                                     }}
-                                    className="px-2 py-1 text-[10px] font-bold text-white bg-red-600 rounded hover:bg-red-700 transition-colors"
+                                    className="px-2 py-1 text-[10px] font-medium text-white bg-gray-800 rounded hover:bg-gray-900 transition-colors"
                                   >
                                     입찰하기
                                   </button>
                                 )}
                               </div>
-                              <div className="text-center">
-                                {bid?.status === 'highest' ? (
-                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-700">최고순위</span>
-                                ) : bid?.status === 'secondHighest' ? (
-                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-600">차순위</span>
-                                ) : (
-                                  <span className="text-sm text-gray-400">-</span>
-                                )}
-                              </div>
                               <div className="text-center flex items-center justify-center">
-                                <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
+                                {bid?.status === 'highest' ? (
+                                  <span className="text-[10px] font-medium text-blue-600">최고</span>
+                                ) : bid?.status === 'secondHighest' ? (
+                                  <span className="text-[10px] font-medium text-red-500">차순위</span>
+                                ) : (
+                                  <span className="text-[11px] text-gray-400">-</span>
+                                )}
                               </div>
                             </div>
                             
@@ -1272,17 +1113,80 @@ function AuctionPageContent() {
                                     onMouseLeave={handleImageMouseLeave}
                                   >
                                     <div className="w-full aspect-square bg-gray-200">
-                                      <img 
-                                        src={`/등심${((expandedImageIndex[product.id] || 0) % 4) + 1}.png`}
-                                        alt="개체 이미지"
-                                        className="w-full h-full object-cover select-none pointer-events-none"
-                                        draggable="false"
-                                      />
+                                      {(expandedImageIndex[product.id] || 0) === 4 ? (
+                                        // 등급판정확인서
+                                        <div className="w-full h-full flex items-center justify-center bg-gray-100 p-4">
+                                          <div className="w-full max-w-[280px] bg-white shadow-lg border border-gray-300 p-4 aspect-[1/1.414]">
+                                            <div className="h-full flex flex-col text-[8px] text-gray-700">
+                                              <div className="text-center border-b border-gray-400 pb-2 mb-2">
+                                                <p className="text-[12px] font-bold text-gray-900">등급판정확인서</p>
+                                                <p className="text-gray-500 mt-1">Grade Certification</p>
+                                              </div>
+                                              <div className="flex-1 space-y-1.5">
+                                                <div className="flex"><span className="w-16 text-gray-500">접수번호:</span><span className="font-medium">{product.auctionNo}</span></div>
+                                                <div className="flex"><span className="w-16 text-gray-500">축종:</span><span>한우</span></div>
+                                                <div className="flex"><span className="w-16 text-gray-500">성별:</span><span>{product.type.includes('거세') ? '거세' : '암'}</span></div>
+                                                <div className="flex"><span className="w-16 text-gray-500">등급:</span><span className="font-bold text-gray-900">{product.grade}</span></div>
+                                                <div className="flex"><span className="w-16 text-gray-500">개월령:</span><span>32개월</span></div>
+                                                <div className="flex"><span className="w-16 text-gray-500">도체중량:</span><span>520kg</span></div>
+                                                <div className="flex"><span className="w-16 text-gray-500">등지방:</span><span>16mm</span></div>
+                                                <div className="flex"><span className="w-16 text-gray-500">등심면적:</span><span>123㎠</span></div>
+                                                <div className="flex"><span className="w-16 text-gray-500">근내지방:</span><span>9</span></div>
+                                                <div className="flex"><span className="w-16 text-gray-500">육색:</span><span>5</span></div>
+                                                <div className="flex"><span className="w-16 text-gray-500">지방색:</span><span>3</span></div>
+                                                <div className="flex"><span className="w-16 text-gray-500">조직감:</span><span>1</span></div>
+                                                <div className="flex"><span className="w-16 text-gray-500">성숙도:</span><span>2</span></div>
+                                              </div>
+                                              <div className="border-t border-gray-300 pt-2 mt-2 text-center">
+                                                <p className="text-gray-500">축산물품질평가원</p>
+                                                <p className="text-[6px] text-gray-400 mt-1">본 확인서는 법적 효력이 있습니다</p>
+                                              </div>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      ) : (expandedImageIndex[product.id] || 0) === 5 ? (
+                                        // 도축검사증명서
+                                        <div className="w-full h-full flex items-center justify-center bg-gray-100 p-4">
+                                          <div className="w-full max-w-[280px] bg-white shadow-lg border border-gray-300 p-4 aspect-[1/1.414]">
+                                            <div className="h-full flex flex-col text-[8px] text-gray-700">
+                                              <div className="text-center border-b border-gray-400 pb-2 mb-2">
+                                                <p className="text-[12px] font-bold text-gray-900">도축검사증명서</p>
+                                                <p className="text-gray-500 mt-1">Slaughter Inspection Certificate</p>
+                                              </div>
+                                              <div className="flex-1 space-y-1.5">
+                                                <div className="flex"><span className="w-16 text-gray-500">접수번호:</span><span className="font-medium">{product.auctionNo}</span></div>
+                                                <div className="flex"><span className="w-16 text-gray-500">도축일:</span><span>2026.01.16</span></div>
+                                                <div className="flex"><span className="w-16 text-gray-500">도축장:</span><span>음성축산물공판장</span></div>
+                                                <div className="flex"><span className="w-16 text-gray-500">도축번호:</span><span>201</span></div>
+                                                <div className="flex"><span className="w-16 text-gray-500">이력번호:</span><span>002-1486-7293-1</span></div>
+                                                <div className="flex"><span className="w-16 text-gray-500">출하농가:</span><span>건화</span></div>
+                                                <div className="flex"><span className="w-16 text-gray-500">검사결과:</span><span className="font-bold text-green-600">적합</span></div>
+                                                <div className="flex"><span className="w-16 text-gray-500">검사항목:</span><span>일반검사</span></div>
+                                                <div className="flex"><span className="w-16 text-gray-500">생체중량:</span><span>720kg</span></div>
+                                                <div className="flex"><span className="w-16 text-gray-500">도체중량:</span><span>520kg</span></div>
+                                                <div className="flex"><span className="w-16 text-gray-500">지육율:</span><span>72.2%</span></div>
+                                              </div>
+                                              <div className="border-t border-gray-300 pt-2 mt-2 text-center">
+                                                <p className="text-gray-500">농림축산검역본부</p>
+                                                <p className="text-[6px] text-gray-400 mt-1">본 증명서는 법적 효력이 있습니다</p>
+                                              </div>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      ) : (
+                                        // 일반 이미지
+                                        <img 
+                                          src={`/등심${((expandedImageIndex[product.id] || 0) % 4) + 1}.png`}
+                                          alt="개체 이미지"
+                                          className="w-full h-full object-cover select-none pointer-events-none"
+                                          draggable="false"
+                                        />
+                                      )}
                                     </div>
                                     
                                     {/* 이미지 인디케이터 */}
                                     <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2">
-                                      {[0,1,2,3].map((index) => (
+                                      {[0,1,2,3,4,5].map((index) => (
                                         <button
                                           key={index}
                                           onClick={(e) => {
@@ -1298,8 +1202,9 @@ function AuctionPageContent() {
                                   </div>
 
                                   {/* 썸네일 이미지 */}
-                                  <div className="px-3 py-3">
-                                    <div className="flex gap-1.5 justify-start">
+                                  <div className="px-3 py-2">
+                                    <div className="flex gap-1.5 justify-start overflow-x-auto">
+                                      {/* 등심 이미지 4개 */}
                                       {[1,2,3,4].map((num, index) => (
                                         <button
                                           key={index}
@@ -1307,9 +1212,9 @@ function AuctionPageContent() {
                                             e.stopPropagation();
                                             setExpandedImageIndex(prev => ({ ...prev, [product.id]: index }));
                                           }}
-                                          className={`w-16 h-16 rounded overflow-hidden transition-all ${
+                                          className={`w-14 h-14 flex-shrink-0 rounded overflow-hidden transition-all ${
                                             (expandedImageIndex[product.id] || 0) === index 
-                                              ? 'border-2 border-black' 
+                                              ? 'border-2 border-gray-400' 
                                               : 'border-2 border-transparent hover:border-gray-300'
                                           }`}
                                         >
@@ -1320,125 +1225,101 @@ function AuctionPageContent() {
                                           />
                                         </button>
                                       ))}
+                                      {/* 등급판정확인서 썸네일 */}
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setExpandedImageIndex(prev => ({ ...prev, [product.id]: 4 }));
+                                        }}
+                                        className={`w-14 h-14 flex-shrink-0 rounded overflow-hidden transition-all ${
+                                          (expandedImageIndex[product.id] || 0) === 4 
+                                            ? 'border-2 border-gray-400' 
+                                            : 'border-2 border-transparent hover:border-gray-300'
+                                        }`}
+                                      >
+                                        <div className="w-full h-full bg-gray-100 flex items-center justify-center">
+                                          <div className="w-8 h-10 bg-white border border-gray-300"></div>
+                                        </div>
+                                      </button>
+                                      {/* 도축검사증명서 썸네일 */}
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setExpandedImageIndex(prev => ({ ...prev, [product.id]: 5 }));
+                                        }}
+                                        className={`w-14 h-14 flex-shrink-0 rounded overflow-hidden transition-all ${
+                                          (expandedImageIndex[product.id] || 0) === 5 
+                                            ? 'border-2 border-gray-400' 
+                                            : 'border-2 border-transparent hover:border-gray-300'
+                                        }`}
+                                      >
+                                        <div className="w-full h-full bg-gray-100 flex items-center justify-center">
+                                          <div className="w-8 h-10 bg-white border border-gray-300"></div>
+                                        </div>
+                                      </button>
                                     </div>
                                   </div>
 
-                                  {/* 개체정보 패널 */}
-                                  <div className="bg-gray-50 px-3 py-2 border-t border-gray-200">
-                                    <div className="space-y-2">
-                                      {/* 품질정보 - 1줄로 표시 */}
-                                      <div className="bg-white px-2 py-2.5 rounded border">
-                                        <div className="grid grid-cols-7 gap-1 text-[11px]">
-                                          <div className="text-center">
-                                            <div className="text-gray-500">등지방</div>
-                                            <div className="font-bold text-sm">16</div>
-                                          </div>
-                                          <div className="text-center">
-                                            <div className="text-gray-500">등심면적</div>
-                                            <div className="font-bold text-sm">123</div>
-                                          </div>
-                                          <div className="text-center">
-                                            <div className="text-gray-500">근내지방</div>
-                                            <div className="font-bold text-sm">9</div>
-                                          </div>
-                                          <div className="text-center">
-                                            <div className="text-gray-500">육색</div>
-                                            <div className="font-bold text-sm">5</div>
-                                          </div>
-                                          <div className="text-center">
-                                            <div className="text-gray-500">지방색</div>
-                                            <div className="font-bold text-sm">3</div>
-                                          </div>
-                                          <div className="text-center">
-                                            <div className="text-gray-500">조직감</div>
-                                            <div className="font-bold text-sm">1</div>
-                                          </div>
-                                          <div className="text-center">
-                                            <div className="text-gray-500">성숙도</div>
-                                            <div className="font-bold text-sm">2</div>
-                                          </div>
-                                        </div>
-                                      </div>
+                                  {/* 개체정보 패널 - 테이블 형식 */}
+                                  <div className="px-3 py-3 border-t border-gray-200">
+                                    {/* 첫 번째 테이블: 등급 정보 */}
+                                    <div className="bg-white border border-gray-200 rounded overflow-hidden mb-2">
+                                      <table className="w-full text-[11px]">
+                                        <thead>
+                                          <tr className="bg-gray-100/80 border-b border-gray-200">
+                                            <th className="py-1.5 px-1 text-center font-medium text-gray-500">등급</th>
+                                            <th className="py-1.5 px-1 text-center font-medium text-gray-500">개월령</th>
+                                            <th className="py-1.5 px-1 text-center font-medium text-gray-500">등지방</th>
+                                            <th className="py-1.5 px-1 text-center font-medium text-gray-500">등심면적</th>
+                                            <th className="py-1.5 px-1 text-center font-medium text-gray-500">근내지방</th>
+                                            <th className="py-1.5 px-1 text-center font-medium text-gray-500">육색</th>
+                                            <th className="py-1.5 px-1 text-center font-medium text-gray-500">지방색</th>
+                                            <th className="py-1.5 px-1 text-center font-medium text-gray-500">조직감</th>
+                                            <th className="py-1.5 px-1 text-center font-medium text-gray-500">성숙도</th>
+                                          </tr>
+                                        </thead>
+                                        <tbody>
+                                          <tr>
+                                            <td className="py-2 px-1 text-center text-gray-700">{product.grade}</td>
+                                            <td className="py-2 px-1 text-center text-gray-700">32</td>
+                                            <td className="py-2 px-1 text-center text-gray-700">16</td>
+                                            <td className="py-2 px-1 text-center text-gray-700">123</td>
+                                            <td className="py-2 px-1 text-center text-gray-700">9</td>
+                                            <td className="py-2 px-1 text-center text-gray-700">5</td>
+                                            <td className="py-2 px-1 text-center text-gray-700">3</td>
+                                            <td className="py-2 px-1 text-center text-gray-700">1</td>
+                                            <td className="py-2 px-1 text-center text-gray-700">2</td>
+                                          </tr>
+                                        </tbody>
+                                      </table>
+                                    </div>
 
-                                      {/* 개체 기본정보 & 도축/가공정보 */}
-                                      <div className="grid grid-cols-2 gap-2">
-                                        {/* 개체 기본정보 - 왼쪽 */}
-                                        <div className="bg-white px-3 py-2.5 rounded border">
-                                          <h4 className="text-sm font-bold text-gray-700 mb-2">개체 기본정보</h4>
-                                          <div className="space-y-1.5 text-sm">
-                                            <div className="flex justify-between">
-                                              <span className="text-gray-500">품종</span>
-                                              <span className="text-gray-900 font-medium">한우</span>
-                                            </div>
-                                            <div className="flex justify-between">
-                                              <span className="text-gray-500">성별</span>
-                                              <span className="text-gray-900 font-medium">{product.type.includes('거세') ? '거세' : '암'}</span>
-                                            </div>
-                                            <div className="flex justify-between">
-                                              <span className="text-gray-500">등급</span>
-                                              <span className="text-gray-900 font-medium">{product.grade}</span>
-                                            </div>
-                                            <div className="flex justify-between">
-                                              <span className="text-gray-500">개월령</span>
-                                              <span className="text-gray-900 font-medium">30개월</span>
-                                            </div>
-                                            <div className="flex justify-between">
-                                              <span className="text-gray-500">접수번호</span>
-                                              <span className="text-gray-900 font-medium">{product.auctionNo}</span>
-                                            </div>
-                                            <div className="flex justify-between">
-                                              <span className="text-gray-500">이력번호</span>
-                                              <span className="text-gray-900 font-medium">002-1894-3853-9</span>
-                                            </div>
-                                          </div>
-                                        </div>
-
-                                        {/* 도축정보 & 가공정보 - 오른쪽 */}
-                                        <div className="bg-white px-3 py-2.5 rounded border">
-                                          <div className="space-y-2.5">
-                                            {/* 도축정보 */}
-                                            <div>
-                                              <h4 className="text-sm font-bold text-gray-700 mb-1.5">도축정보</h4>
-                                              <div className="space-y-1 text-sm">
-                                                <div className="flex justify-between">
-                                                  <span className="text-gray-500">도축장</span>
-                                                  <span className="text-gray-900 font-medium">농협 음성축산물공판장</span>
-                                                </div>
-                                                <div className="flex justify-between">
-                                                  <span className="text-gray-500">도축일</span>
-                                                  <span className="text-gray-900 font-medium">2025.08.04.</span>
-                                                </div>
-                                                <div className="flex justify-between">
-                                                  <span className="text-gray-500">지육번호</span>
-                                                  <span className="text-gray-900 font-medium">201</span>
-                                                </div>
-                                                <div className="flex justify-between">
-                                                  <span className="text-gray-500">도체중량</span>
-                                                  <span className="text-gray-900 font-medium">468kg</span>
-                                                </div>
-                                              </div>
-                                            </div>
-                                            {/* 가공정보 */}
-                                            <div className="pt-2 border-t border-gray-100">
-                                              <h4 className="text-sm font-bold text-gray-700 mb-1.5">가공정보</h4>
-                                              <div className="space-y-1 text-sm">
-                                                <div className="flex justify-between">
-                                                  <span className="text-gray-500">가공업체</span>
-                                                  <span className="text-gray-900 font-medium">송정가공</span>
-                                                </div>
-                                                <div className="flex justify-between">
-                                                  <span className="text-gray-500">가공일</span>
-                                                  <span className="text-gray-900 font-medium">2025.08.05.</span>
-                                                </div>
-                                                <div className="flex justify-between">
-                                                  <span className="text-gray-500">가공중량</span>
-                                                  <span className="text-gray-900 font-medium">312kg</span>
-                                                </div>
-                                              </div>
-                                            </div>
-                                          </div>
-                                        </div>
-                                      </div>
+                                    {/* 두 번째 테이블: 도축/가공 정보 */}
+                                    <div className="bg-white border border-gray-200 rounded overflow-hidden">
+                                      <table className="w-full text-[11px]">
+                                        <thead>
+                                          <tr className="bg-gray-100/80 border-b border-gray-200">
+                                            <th className="py-1.5 px-1 text-center font-medium text-gray-500">이력번호</th>
+                                            <th className="py-1.5 px-1 text-center font-medium text-gray-500">도축장</th>
+                                            <th className="py-1.5 px-1 text-center font-medium text-gray-500">도축번호</th>
+                                            <th className="py-1.5 px-1 text-center font-medium text-gray-500">도체중</th>
+                                            <th className="py-1.5 px-1 text-center font-medium text-gray-500">상장업체</th>
+                                            <th className="py-1.5 px-1 text-center font-medium text-gray-500">가공일</th>
+                                            <th className="py-1.5 px-1 text-center font-medium text-gray-500">가공중량</th>
+                                          </tr>
+                                        </thead>
+                                        <tbody>
+                                          <tr>
+                                            <td className="py-2 px-1 text-center text-gray-700">002-1486-7293-1</td>
+                                            <td className="py-2 px-1 text-center text-gray-700">음성</td>
+                                            <td className="py-2 px-1 text-center text-gray-700">201</td>
+                                            <td className="py-2 px-1 text-center text-gray-700">520</td>
+                                            <td className="py-2 px-1 text-center text-gray-700">건화</td>
+                                            <td className="py-2 px-1 text-center text-gray-700">26.01.17</td>
+                                            <td className="py-2 px-1 text-center text-gray-700">312</td>
+                                          </tr>
+                                        </tbody>
+                                      </table>
                                     </div>
                                   </div>
                                   
@@ -1448,7 +1329,7 @@ function AuctionPageContent() {
                                       href="https://aunit.mtrace.go.kr/mtracesearch/cattleNoSearch.do?btsProgNo=0109008401&btsActionMethod=SELECT&cattleNo=002189438539"
                                       target="_blank"
                                       rel="noopener noreferrer"
-                                      className="px-3 py-1.5 text-xs font-bold rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-1"
+                                      className="px-3 py-1.5 text-xs font-bold rounded border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-1"
                                       onClick={(e) => e.stopPropagation()}
                                     >
                                       축산물 이력정보
@@ -1462,7 +1343,7 @@ function AuctionPageContent() {
                                         setPartBidPrice(product.price);
                                         setShowPartBidSheet(true);
                                       }}
-                                      className="px-3 py-1.5 text-xs font-bold rounded-lg border bg-red-600 text-white border-red-600 hover:bg-red-700 transition-colors"
+                                      className="px-3 py-1.5 text-xs font-bold rounded bg-gray-800 text-white hover:bg-gray-900 transition-colors"
                                     >
                                       입찰하기
                                     </button>
@@ -1478,7 +1359,7 @@ function AuctionPageContent() {
                                           }, 300);
                                         }
                                       }}
-                                      className="px-3 py-1.5 text-xs font-bold rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 transition-colors"
+                                      className="px-3 py-1.5 text-xs font-bold rounded border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 transition-colors"
                                     >
                                       개체정보 닫기
                                     </button>
@@ -1704,56 +1585,7 @@ function AuctionPageContent() {
                     </div>
                   </div>
                 </>
-              ) : (
-                <>
-                  {/* 부위별 탭 콘텐츠 */}
-                  <div className="px-3 py-2 bg-white">
-                    <p className="text-xs text-gray-500">
-                      총 <span className="font-bold text-red-600">{partsData.reduce((sum, part) => sum + part.count, 0)}</span>개 부위 경매 진행 중
-                    </p>
-                  </div>
-
-                  {/* 부위별 카드 목록 */}
-                  <div className="px-3 pb-24 pt-2">
-                    <div className="grid grid-cols-2 gap-2">
-                      {partsData.map((part) => (
-                        <div 
-                          key={part.id} 
-                          onClick={() => {
-                            setSelectedPartId(part.id);
-                            router.push(`/auction?tab=part&part=${part.id}`);
-                          }}
-                          className="block cursor-pointer"
-                        >
-                          <motion.div 
-                            whileHover={{ scale: 1.02 }}
-                            whileTap={{ scale: 0.98 }}
-                            className="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow"
-                          >
-                            {/* 부위 이미지 */}
-                            <div className="relative h-24 bg-gray-100">
-                              <img 
-                                src={part.image} 
-                                alt={part.name} 
-                                className="w-full h-full object-cover"
-                              />
-                              {/* 경매 수량 뱃지 */}
-                              <div className="absolute top-2 right-2 bg-red-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">
-                                {part.count}건
-                              </div>
-                            </div>
-                            
-                            {/* 부위 정보 */}
-                            <div className="p-2.5">
-                              <h3 className="text-sm font-bold text-gray-900">{part.name}</h3>
-                            </div>
-                          </motion.div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </>
-              )}
+              ) : null}
             </div>
 
             {/* 빠른 재입찰 금액 수정 모달 */}
@@ -1835,126 +1667,118 @@ function AuctionPageContent() {
                     animate={{ y: 0 }}
                     exit={{ y: '100%' }}
                     transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                    className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl z-50 max-h-[85%] overflow-y-auto"
+                    className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-2xl max-h-[70vh] overflow-y-auto z-[100]"
                   >
                     {/* 핸들 */}
-                    <div className="flex justify-center pt-2 pb-1">
+                    <div className="flex justify-center pt-3 pb-2">
                       <div className="w-10 h-1 bg-gray-300 rounded-full" />
                     </div>
                     
                     {/* 헤더 */}
-                    <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-                      <h3 className="text-lg font-bold">입찰하기</h3>
-                      <button onClick={() => setShowPartBidSheet(false)} className="p-1">
-                        <X className="w-5 h-5 text-gray-500" />
-                      </button>
-                    </div>
-                    
-                    {/* 개체 정보 */}
-                    <div className="px-4 py-3 border-b border-gray-100">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="text-xs px-2 py-0.5 bg-gray-100 border border-gray-300 text-gray-700 rounded font-medium">
-                          {selectedProduct.listingNo}
-                        </span>
-                        <span className="text-xs px-2 py-0.5 bg-gray-100 border border-gray-300 text-gray-700 rounded font-medium">
-                          {selectedProduct.type}
-                        </span>
-                        <span className="text-xs px-2 py-0.5 bg-gray-100 border border-gray-300 text-gray-700 rounded font-medium">
-                          {selectedProduct.grade}
-                        </span>
-                        <span className="text-xs px-2 py-0.5 bg-gray-100 border border-gray-300 text-gray-700 rounded font-medium">
-                          30개월
-                        </span>
-                      </div>
-                    </div>
-                    
-                    {/* 선택된 부위 & 중량 */}
-                    <div className="px-4 py-4">
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <p className="text-xs text-gray-500 mb-1">선택된 부위</p>
-                          <div className="bg-gray-100 rounded-lg py-2.5 px-3 text-center">
-                            <span className="font-bold text-gray-900">{selectedProduct.partName}</span>
-                          </div>
-                        </div>
-                        <div>
-                          <p className="text-xs text-gray-500 mb-1">중량</p>
-                          <div className="bg-gray-100 rounded-lg py-2.5 px-3 text-center">
-                            <span className="font-bold text-gray-900">{selectedProduct.weight}</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    {/* 입찰가격 입력 */}
-                    <div className="px-4 pb-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <p className="text-sm text-gray-700">입찰가격 (원/kg)</p>
-                      </div>
-                      <div className="flex items-center border border-gray-300 rounded-lg px-3 py-2.5 bg-white">
-                        <input
-                          type="text"
-                          inputMode="numeric"
-                          value={partBidPrice > 0 ? partBidPrice.toLocaleString('ko-KR') : ''}
-                          onChange={(e) => {
-                            const value = e.target.value.replace(/,/g, '').replace(/[^0-9]/g, '');
-                            setPartBidPrice(value ? parseInt(value) : 0);
-                          }}
-                          className="flex-1 text-right text-xl font-bold outline-none bg-transparent text-gray-900 placeholder:text-gray-400"
-                          placeholder={selectedProduct?.price ? `최저단가 ${selectedProduct.price.toLocaleString()}` : '0'}
-                        />
-                        <span className="ml-2 text-gray-500">원</span>
-                      </div>
-                      
-                      {/* 버튼 */}
-                      <div className="flex gap-2 mt-3">
-                        {['+100', '+1,000', '+10,000', '+50,000'].map((amount) => (
-                          <button
-                            key={amount}
-                            onClick={() => setPartBidPrice(prev => prev + parseInt(amount.replace(/[+,]/g, '')))}
-                            className="flex-1 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
-                          >
-                            {amount}
-                          </button>
-                        ))}
-                        <button
-                          onClick={() => setPartBidPrice(0)}
-                          className="flex-1 py-2 text-sm font-medium text-gray-500 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                    <div className="px-4 pb-3 border-b border-gray-200">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-lg font-bold text-gray-900">입찰하기</h3>
+                        <button 
+                          onClick={() => setShowPartBidSheet(false)}
+                          className="p-1 hover:bg-gray-100 rounded-full"
                         >
-                          초기화
+                          <X className="h-5 w-5 text-gray-500" />
                         </button>
                       </div>
                     </div>
                     
-                    {/* 총 입찰금액 */}
-                    <div className="px-4 pb-4">
-                      <div className="flex items-center justify-between bg-gray-50 rounded-lg px-4 py-3">
-                        <span className="text-sm font-medium text-gray-700">총 입찰금액</span>
-                        <span className="text-lg font-bold text-red-600">
-                          {partBidPrice > 0 && selectedProduct.weight 
-                            ? (partBidPrice * parseFloat(selectedProduct.weight)).toLocaleString() 
-                            : '-'}
-                        </span>
+                    {/* 입찰 내용 */}
+                    <div className="p-4 space-y-4">
+                      {/* 개체 정보 테이블 */}
+                      <div className="border border-gray-200 rounded overflow-hidden overflow-x-auto">
+                        <table className="w-full text-[11px]">
+                          <thead>
+                            <tr className="bg-gray-100 border-b border-gray-200">
+                              <th className="py-2 px-1.5 text-center font-medium text-gray-500 whitespace-nowrap">상장번호</th>
+                              <th className="py-2 px-1.5 text-center font-medium text-gray-500">축종</th>
+                              <th className="py-2 px-1.5 text-center font-medium text-gray-500">성별</th>
+                              <th className="py-2 px-1.5 text-center font-medium text-gray-500">등급</th>
+                              <th className="py-2 px-1.5 text-center font-medium text-gray-500">개월령</th>
+                              <th className="py-2 px-1.5 text-center font-medium text-gray-500">부위</th>
+                              <th className="py-2 px-1.5 text-center font-medium text-gray-500">중량</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            <tr>
+                              <td className="py-2.5 px-1.5 text-center text-gray-700 whitespace-nowrap">{selectedProduct.listingNo}</td>
+                              <td className="py-2.5 px-1.5 text-center text-gray-700">한우</td>
+                              <td className="py-2.5 px-1.5 text-center text-gray-700">{selectedProduct.type?.includes('거세') ? '거세' : '암'}</td>
+                              <td className="py-2.5 px-1.5 text-center text-gray-700">{selectedProduct.grade}</td>
+                              <td className="py-2.5 px-1.5 text-center text-gray-700">30</td>
+                              <td className="py-2.5 px-1.5 text-center font-medium text-gray-900">{selectedProduct.partName}</td>
+                              <td className="py-2.5 px-1.5 text-center font-medium text-gray-900">{selectedProduct.weight}</td>
+                            </tr>
+                          </tbody>
+                        </table>
                       </div>
-                    </div>
-                    
-                    {/* 입찰하기 버튼 */}
-                    <div className="px-4 pb-6">
+
+                      {/* 입찰가격 입력 */}
+                      <div>
+                        <div className="text-xs text-gray-500 mb-2">입찰가격 (원/kg)</div>
+                        <div className="relative mb-2">
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            value={partBidPrice > 0 ? partBidPrice.toLocaleString('ko-KR') : ''}
+                            onChange={(e) => {
+                              const value = e.target.value.replace(/,/g, '').replace(/[^0-9]/g, '');
+                              setPartBidPrice(value ? parseInt(value) : 0);
+                            }}
+                            className="w-full px-4 py-3.5 pr-12 text-right text-xl font-bold border border-gray-200 rounded focus:ring-2 focus:ring-gray-400 focus:border-gray-400 bg-white text-black placeholder:text-gray-400"
+                            placeholder={selectedProduct?.price ? `최저단가 ${selectedProduct.price.toLocaleString()}` : '0'}
+                          />
+                          <div className="absolute right-4 top-1/2 transform -translate-y-1/2 text-sm text-gray-400">
+                            원
+                          </div>
+                        </div>
+                        {/* 금액 조정 버튼 */}
+                        <div className="grid grid-cols-5 gap-1.5">
+                          {[100, 1000, 10000, 50000].map((amount) => (
+                            <button
+                              key={amount}
+                              onClick={() => setPartBidPrice(prev => prev + amount)}
+                              className="py-2 text-xs border border-gray-200 rounded hover:bg-gray-50 font-medium text-gray-700"
+                            >
+                              +{amount.toLocaleString()}
+                            </button>
+                          ))}
+                          <button
+                            onClick={() => setPartBidPrice(0)}
+                            className="py-2 text-xs bg-gray-100 border border-gray-200 rounded hover:bg-gray-200 text-gray-600 font-medium"
+                          >
+                            초기화
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* 총 입찰금액 */}
+                      <div className="bg-gray-50 p-3 rounded border border-gray-200">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm font-bold text-gray-700">총 입찰금액</span>
+                          <span className="text-xl font-bold text-gray-900">
+                            {partBidPrice > 0 && selectedProduct.weight 
+                              ? `${(partBidPrice * parseFloat(selectedProduct.weight)).toLocaleString()}원`
+                              : '-'}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* 입찰하기 버튼 */}
                       <button
                         onClick={() => {
                           if (partBidPrice < selectedProduct.price) {
                             alert(`최저단가(${selectedProduct.price.toLocaleString()}원) 이상으로 입찰해주세요.`);
                             return;
                           }
-                          // 확인 다이얼로그 표시
                           setShowPartBidDialog(true);
                         }}
                         disabled={partBidPrice === 0}
-                        className={`w-full py-4 rounded-xl text-base font-bold transition-colors ${
-                          partBidPrice > 0 
-                            ? 'bg-red-600 text-white hover:bg-red-700' 
-                            : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                        }`}
+                        className="w-full py-3.5 bg-gray-800 hover:bg-gray-900 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-bold text-base rounded"
                       >
                         입찰하기
                       </button>
@@ -1967,7 +1791,7 @@ function AuctionPageContent() {
             {/* 부위별 입찰 확인 다이얼로그 */}
             {showPartBidDialog && selectedProduct && (
               <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[10000] p-4">
-                <div className="bg-white rounded-lg w-full max-w-md mx-4">
+                <div className="bg-white rounded w-full max-w-md mx-4">
                   {/* 다이얼로그 헤더 */}
                   <div className="px-6 py-4 border-b border-gray-200">
                     <h3 className="text-lg font-bold text-gray-900">입찰 내용을 확인해 주세요</h3>
@@ -1975,38 +1799,45 @@ function AuctionPageContent() {
                   
                   {/* 다이얼로그 내용 */}
                   <div className="px-6 py-4">
-                    <div className="space-y-3">
-                      <div className="bg-gray-50 p-3 rounded border">
-                        <div className="space-y-2">
-                          <div className="flex justify-between">
-                            <span className="text-sm text-gray-600">상장번호</span>
-                            <span className="text-sm text-gray-900">{selectedProduct.listingNo}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-sm text-gray-600">개체정보</span>
-                            <span className="text-sm text-gray-900">{selectedProduct.type} / {selectedProduct.grade}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-sm text-gray-600">부위</span>
-                            <span className="text-sm text-gray-900">{selectedProduct.partName}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-sm text-gray-600">중량</span>
-                            <span className="text-sm text-gray-900">{selectedProduct.weight}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-sm text-gray-600">입찰가격</span>
-                            <span className="text-sm text-gray-900">{partBidPrice.toLocaleString()}원/kg</span>
-                          </div>
-                          <div className="border-t border-gray-200 pt-2 mt-2">
-                            <div className="flex justify-between">
-                              <span className="text-sm font-bold text-gray-900">총 입찰금액</span>
-                              <span className="text-base font-bold text-red-600">
-                                {(partBidPrice * parseFloat(selectedProduct.weight)).toLocaleString()}원
-                              </span>
-                            </div>
-                          </div>
-                        </div>
+                    {/* 개체 정보 테이블 */}
+                    <div className="border border-gray-200 rounded overflow-hidden overflow-x-auto mb-4">
+                      <table className="w-full text-[11px]">
+                        <thead>
+                          <tr className="bg-gray-100 border-b border-gray-200">
+                            <th className="py-2 px-1.5 text-center font-medium text-gray-500 whitespace-nowrap">상장번호</th>
+                            <th className="py-2 px-1.5 text-center font-medium text-gray-500">축종</th>
+                            <th className="py-2 px-1.5 text-center font-medium text-gray-500">성별</th>
+                            <th className="py-2 px-1.5 text-center font-medium text-gray-500">등급</th>
+                            <th className="py-2 px-1.5 text-center font-medium text-gray-500">개월령</th>
+                            <th className="py-2 px-1.5 text-center font-medium text-gray-500">부위</th>
+                            <th className="py-2 px-1.5 text-center font-medium text-gray-500">중량</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr>
+                            <td className="py-2.5 px-1.5 text-center text-gray-700 whitespace-nowrap">{selectedProduct.listingNo}</td>
+                            <td className="py-2.5 px-1.5 text-center text-gray-700">한우</td>
+                            <td className="py-2.5 px-1.5 text-center text-gray-700">{selectedProduct.type?.includes('거세') ? '거세' : '암'}</td>
+                            <td className="py-2.5 px-1.5 text-center text-gray-700">{selectedProduct.grade}</td>
+                            <td className="py-2.5 px-1.5 text-center text-gray-700">30</td>
+                            <td className="py-2.5 px-1.5 text-center font-medium text-gray-900">{selectedProduct.partName}</td>
+                            <td className="py-2.5 px-1.5 text-center font-medium text-gray-900">{selectedProduct.weight}</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* 입찰 금액 정보 */}
+                    <div className="bg-gray-50 p-3 rounded border border-gray-200">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-sm text-gray-600">입찰가격</span>
+                        <span className="text-sm font-medium text-gray-900">{partBidPrice.toLocaleString()}원/kg</span>
+                      </div>
+                      <div className="flex justify-between items-center pt-2 border-t border-gray-200">
+                        <span className="text-sm font-bold text-gray-900">총 입찰금액</span>
+                        <span className="text-lg font-bold text-gray-900">
+                          {(partBidPrice * parseFloat(selectedProduct.weight)).toLocaleString()}원
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -2015,7 +1846,7 @@ function AuctionPageContent() {
                   <div className="px-6 py-4 border-t border-gray-200 flex gap-3">
                     <button
                       onClick={() => setShowPartBidDialog(false)}
-                      className="flex-1 py-2 px-4 border border-gray-300 text-gray-700 rounded hover:bg-gray-50 transition-colors"
+                      className="flex-1 py-2.5 px-4 border border-gray-300 text-gray-700 rounded font-medium hover:bg-gray-50 transition-colors"
                     >
                       취소
                     </button>
@@ -2043,7 +1874,7 @@ function AuctionPageContent() {
                         setShowPartBidSheet(false);
                         showToastMessage('입찰이 완료되었습니다.', 'success');
                       }}
-                      className="flex-1 py-2 px-4 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+                      className="flex-1 py-2.5 px-4 bg-gray-800 text-white rounded font-medium hover:bg-gray-900 transition-colors"
                     >
                       입찰하기
                     </button>

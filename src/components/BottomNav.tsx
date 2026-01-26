@@ -17,12 +17,12 @@ export default function BottomNav() {
 
   const isActive = (href: string) => {
     if (href === '/') {
-      // 메인 페이지 또는 /auction/[id] 상세 페이지일 때 '경매' 활성화
-      return pathname === '/' || (pathname.startsWith('/auction/') && pathname !== '/auction');
+      // 메인 페이지 또는 /auction 관련 페이지일 때 '경매장' 활성화
+      return pathname === '/' || pathname.startsWith('/auction');
     }
     if (href === '/auction') {
-      // /auction 정확히 일치할 때만 '기타' 활성화
-      return pathname === '/auction';
+      // '기타'는 별도 조건 없이 비활성화 (경매장에서 처리)
+      return false;
     }
     return pathname.startsWith(href);
   };

@@ -775,7 +775,7 @@ export default function AuctionDetailPage({ params }: PageProps) {
               <div className="px-4 py-2 bg-white border-b border-gray-200 flex items-center justify-between sticky top-0 z-20">
                 <div className="flex items-center">
                   <button
-                    onClick={() => router.back()}
+                    onClick={() => router.push('/?tab=개체별')}
                     className="p-1 rounded transition-colors hover:bg-gray-100 mr-3"
                     aria-label="뒤로가기"
                   >
@@ -937,14 +937,14 @@ export default function AuctionDetailPage({ params }: PageProps) {
                   href="https://aunit.mtrace.go.kr/mtracesearch/cattleNoSearch.do?btsProgNo=0109008401&btsActionMethod=SELECT&cattleNo=002189438539"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="px-3 py-1.5 text-xs font-bold rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-1"
+                  className="px-3 py-1.5 text-xs font-bold rounded border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-1"
                 >
                   축산물 이력정보
                   <ExternalLink className="w-3 h-3" />
                 </a>
                 <button
                   onClick={() => setShowInfoPanel(!showInfoPanel)}
-                  className="px-3 py-1.5 text-xs font-medium rounded-lg bg-gray-800 text-white hover:bg-gray-900 transition-colors"
+                  className="px-3 py-1.5 text-xs font-medium rounded bg-gray-800 text-white hover:bg-gray-900 transition-colors"
                 >
                   {showInfoPanel ? '개체정보 닫기' : '개체정보 보기'}
                 </button>
