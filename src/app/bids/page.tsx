@@ -35,20 +35,24 @@ export default function BidsPage() {
   const [resultFilter, setResultFilter] = useState<'전체' | '낙찰' | '유찰'>('전체');
   const { bids: globalBids, cleanOldBids, setBid, auctionResults } = useBidStore();
   
-  // 조회기간 (기본값: 어제)
-  const getYesterdayDate = () => {
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    return yesterday;
-  };
-  const [startDate, setStartDate] = useState<Date>(getYesterdayDate());
-  const [endDate, setEndDate] = useState<Date>(getYesterdayDate());
+  // 조회기간 (기본값: 오늘)
+  const getTodayDate = () => new Date();
+  const [startDate, setStartDate] = useState<Date>(getTodayDate());
+  const [endDate, setEndDate] = useState<Date>(getTodayDate());
+  // 실제 조회에 사용되는 날짜 (조회 버튼 클릭 시 업데이트)
+  const [searchStartDate, setSearchStartDate] = useState<Date>(getTodayDate());
+  const [searchEndDate, setSearchEndDate] = useState<Date>(getTodayDate());
   
   const formatDateDisplay = (date: Date) => {
     const yy = String(date.getFullYear()).slice(2);
     const mm = String(date.getMonth() + 1).padStart(2, '0');
     const dd = String(date.getDate()).padStart(2, '0');
     return `${yy}.${mm}.${dd}`;
+  };
+  
+  const handleSearch = () => {
+    setSearchStartDate(startDate);
+    setSearchEndDate(endDate);
   };
   
   // 테이블 드래그 스크롤
@@ -196,6 +200,17 @@ export default function BidsPage() {
   // 경매결과 필터 적용
   const filteredResults = auctionResults
     .filter((result) => {
+      // 날짜 필터링
+      const match = result.time.match(/(\d{2})\.(\d{2})\.(\d{2})/);
+      if (match) {
+        const resultDate = new Date(2000 + parseInt(match[1]), parseInt(match[2]) - 1, parseInt(match[3]));
+        const startDateOnly = new Date(searchStartDate.getFullYear(), searchStartDate.getMonth(), searchStartDate.getDate());
+        const endDateOnly = new Date(searchEndDate.getFullYear(), searchEndDate.getMonth(), searchEndDate.getDate());
+        if (resultDate < startDateOnly || resultDate > endDateOnly) {
+          return false;
+        }
+      }
+      // 결과 필터링
       if (resultFilter === '전체') return true;
       if (resultFilter === '낙찰') return result.result === 'won';
       if (resultFilter === '유찰') return result.result === 'lost';
@@ -218,13 +233,27 @@ export default function BidsPage() {
     });
 
   // 경매결과 요약 계산
+  // 날짜 필터링된 결과 (결과 타입 필터 제외)
+  const dateFilteredResults = auctionResults.filter((result) => {
+    const match = result.time.match(/(\d{2})\.(\d{2})\.(\d{2})/);
+    if (match) {
+      const resultDate = new Date(2000 + parseInt(match[1]), parseInt(match[2]) - 1, parseInt(match[3]));
+      const startDateOnly = new Date(searchStartDate.getFullYear(), searchStartDate.getMonth(), searchStartDate.getDate());
+      const endDateOnly = new Date(searchEndDate.getFullYear(), searchEndDate.getMonth(), searchEndDate.getDate());
+      if (resultDate < startDateOnly || resultDate > endDateOnly) {
+        return false;
+      }
+    }
+    return true;
+  });
+
   const resultSummary = React.useMemo(() => {
     let wonCount = 0;
     let wonTotal = 0;
     let lostCount = 0;
     let lostTotal = 0;
 
-    auctionResults.forEach((result) => {
+    dateFilteredResults.forEach((result) => {
       const weight = parseFloat(result.productInfo.weight.replace('kg', ''));
       const totalPrice = result.myBid * weight;
 
@@ -238,7 +267,7 @@ export default function BidsPage() {
     });
 
     return { wonCount, wonTotal, lostCount, lostTotal };
-  }, [auctionResults]);
+  }, [dateFilteredResults]);
 
   return (
     <div className="fixed inset-0 bg-white flex justify-center items-center z-[9999] overflow-hidden">
@@ -524,10 +553,10 @@ export default function BidsPage() {
                     </div>
                   </div>
 
-                  {/* 조회일 */}
+                  {/* 일자 */}
                   <div className="bg-white px-4 py-2">
                     <div className="flex items-center gap-2">
-                      <span className="text-xs text-gray-500">조회일</span>
+                      <span className="text-xs text-gray-500">일자</span>
                       <input
                         type="date"
                         value={`20${formatDateDisplay(startDate).replace(/\./g, '-')}`}
@@ -541,6 +570,12 @@ export default function BidsPage() {
                         onChange={(e) => setEndDate(new Date(e.target.value))}
                         className="text-xs text-gray-700 bg-white border border-gray-200 rounded px-2 py-1 [&::-webkit-calendar-picker-indicator]:dark:invert-0 [&::-webkit-calendar-picker-indicator]:brightness-0"
                       />
+                      <button
+                        onClick={handleSearch}
+                        className="px-3 py-1 text-xs font-medium text-white bg-gray-800 rounded hover:bg-gray-900 transition-colors"
+                      >
+                        조회
+                      </button>
                     </div>
                   </div>
 
