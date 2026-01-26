@@ -187,6 +187,11 @@ export default function BidsPage() {
       return true;
     })
     .sort(([, a], [, b]) => {
+      // 최고순위가 먼저 오도록 정렬
+      if (a.status !== b.status) {
+        return a.status === 'highest' ? -1 : 1;
+      }
+      // 같은 상태 내에서는 시간순 (최신순)
       const parseTime = (time: string) => {
         const match = time.match(/(\d{2})\.(\d{2})\.(\d{2}).*?(\d{2}):(\d{2})/);
         if (match) {

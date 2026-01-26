@@ -123,32 +123,32 @@ export default function ProfilePage() {
 
               {/* 공지사항 */}
               <div className="mx-4 mt-3 rounded-lg bg-gray-100 overflow-hidden">
-                <div className="px-4 py-3 flex items-center justify-between">
-                  <span className="text-sm font-bold text-gray-900">공지사항</span>
-                  <Link href="/notice" className="text-xs text-gray-500 hover:text-gray-700">
+                <div className="px-4 py-3.5 flex items-center justify-between">
+                  <span className="text-[15px] font-bold text-gray-900">공지사항</span>
+                  <Link href="/notice" className="text-sm text-gray-500 hover:text-gray-700">
                     더보기
                   </Link>
                 </div>
-                <div>
-                  <Link href="/notice/1" className="flex items-center justify-between px-4 py-1.5 hover:bg-gray-200 transition-colors">
-                    <span className="text-xs text-gray-900 truncate flex-1">1월 경매 일정 안내드립니다.</span>
-                    <span className="text-[11px] text-gray-400 ml-2 flex-shrink-0">01.26</span>
+                <div className="pb-1">
+                  <Link href="/notice/1" className="flex items-center justify-between px-4 py-2.5 hover:bg-gray-200 transition-colors">
+                    <span className="text-sm text-gray-900 truncate flex-1">1월 경매 일정 안내드립니다.</span>
+                    <span className="text-xs text-gray-400 ml-3 flex-shrink-0">01.26</span>
                   </Link>
-                  <Link href="/notice/2" className="flex items-center justify-between px-4 py-1.5 hover:bg-gray-200 transition-colors">
-                    <span className="text-xs text-gray-900 truncate flex-1">설 연휴 경매장 운영 안내</span>
-                    <span className="text-[11px] text-gray-400 ml-2 flex-shrink-0">01.24</span>
+                  <Link href="/notice/2" className="flex items-center justify-between px-4 py-2.5 hover:bg-gray-200 transition-colors">
+                    <span className="text-sm text-gray-900 truncate flex-1">설 연휴 경매장 운영 안내</span>
+                    <span className="text-xs text-gray-400 ml-3 flex-shrink-0">01.24</span>
                   </Link>
-                  <Link href="/notice/3" className="flex items-center justify-between px-4 py-1.5 hover:bg-gray-200 transition-colors">
-                    <span className="text-xs text-gray-900 truncate flex-1">2026년 1월 시세 동향 안내</span>
-                    <span className="text-[11px] text-gray-400 ml-2 flex-shrink-0">01.20</span>
+                  <Link href="/notice/3" className="flex items-center justify-between px-4 py-2.5 hover:bg-gray-200 transition-colors">
+                    <span className="text-sm text-gray-900 truncate flex-1">2026년 1월 시세 동향 안내</span>
+                    <span className="text-xs text-gray-400 ml-3 flex-shrink-0">01.20</span>
                   </Link>
-                  <Link href="/notice/4" className="flex items-center justify-between px-4 py-1.5 hover:bg-gray-200 transition-colors">
-                    <span className="text-xs text-gray-900 truncate flex-1">앱 업데이트 안내 (v1.2.0)</span>
-                    <span className="text-[11px] text-gray-400 ml-2 flex-shrink-0">01.15</span>
+                  <Link href="/notice/4" className="flex items-center justify-between px-4 py-2.5 hover:bg-gray-200 transition-colors">
+                    <span className="text-sm text-gray-900 truncate flex-1">앱 업데이트 안내 (v1.2.0)</span>
+                    <span className="text-xs text-gray-400 ml-3 flex-shrink-0">01.15</span>
                   </Link>
-                  <Link href="/notice/5" className="flex items-center justify-between px-4 py-1.5 hover:bg-gray-200 transition-colors">
-                    <span className="text-xs text-gray-900 truncate flex-1">정산 계좌 변경 안내</span>
-                    <span className="text-[11px] text-gray-400 ml-2 flex-shrink-0">01.10</span>
+                  <Link href="/notice/5" className="flex items-center justify-between px-4 py-2.5 hover:bg-gray-200 transition-colors">
+                    <span className="text-sm text-gray-900 truncate flex-1">정산 계좌 변경 안내</span>
+                    <span className="text-xs text-gray-400 ml-3 flex-shrink-0">01.10</span>
                   </Link>
                 </div>
               </div>

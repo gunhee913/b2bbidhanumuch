@@ -862,127 +862,88 @@ function AuctionPageContent() {
               ) : selectedPartId && selectedPart ? (
                 <>
                   {/* 부위별 상세 목록 헤더 - sticky */}
-                  <div className="px-3 h-11 bg-white sticky top-0 z-30 flex items-center">
+                  <div className="px-3 h-12 bg-white sticky top-0 z-30 flex items-center">
                     <button
                       onClick={() => router.push('/?tab=부위별')}
                       className="p-1 text-gray-600 hover:text-gray-900 transition-colors"
                     >
-                      <ChevronLeft className="h-5 w-5" />
+                      <ChevronLeft className="h-6 w-6" />
                     </button>
                     <div className="flex-1 text-center pr-6">
-                      <h3 className="text-sm font-bold text-gray-900">{selectedPart.name}</h3>
+                      <h3 className="text-[17px] font-bold text-gray-900">{selectedPart.name}</h3>
                     </div>
                   </div>
                   
 
-                  {/* 부위별 필터 - 드롭다운 + 칩 조합 */}
+                  {/* 부위별 필터 - 메인 페이지 개체별과 동일한 스타일 */}
                   <div className="px-4 py-3 bg-white border-b border-gray-100">
                     <div className="flex items-center gap-2.5 flex-wrap">
                       {/* 등급 필터 */}
-                      <span className="text-[13px] text-gray-500">등급</span>
                       <div className="relative">
                         <button
                           onClick={() => setOpenDropdown(openDropdown === 'partGrade' ? null : 'partGrade')}
-                          className={`flex items-center gap-1.5 px-3.5 py-2 text-[13px] font-medium rounded-full border transition-all ${
-                            partFilterGrade !== '등급' && partFilterGrade !== '전체'
-                              ? 'bg-gray-900 text-white border-gray-900'
-                              : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'
-                          }`}
+                          className="flex items-center gap-1.5 px-3.5 py-2 bg-gray-100 rounded text-[13px] font-medium text-gray-700 hover:bg-gray-200 transition-colors"
                         >
-                          {partFilterGrade === '등급' ? '전체' : partFilterGrade}
-                          <svg 
-                            className={`w-3.5 h-3.5 transition-transform ${openDropdown === 'partGrade' ? 'rotate-180' : ''}`} 
-                            fill="none" 
-                            stroke="currentColor" 
-                            viewBox="0 0 24 24"
-                          >
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                          </svg>
+                          등급: {partFilterGrade === '등급' ? '전체' : partFilterGrade}
+                          <ChevronDown className={`h-4 w-4 transition-transform ${openDropdown === 'partGrade' ? 'rotate-180' : ''}`} />
                         </button>
                         
-                        <AnimatePresence>
-                          {openDropdown === 'partGrade' && (
-                            <motion.div
-                              initial={{ opacity: 0, y: -4 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              exit={{ opacity: 0, y: -4 }}
-                              transition={{ duration: 0.15 }}
-                              className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-20 min-w-[110px] overflow-hidden"
-                            >
-                              {['전체', '1++(9)', '1++(8)', '1++(7)', '1+', '1', '2'].map((option) => (
-                                <button
-                                  key={option}
-                                  onClick={() => {
-                                    setPartFilterGrade(option);
-                                    setOpenDropdown(null);
-                                  }}
-                                  className={`w-full px-3.5 py-2.5 text-[13px] text-left transition-colors ${
-                                    partFilterGrade === option
-                                      ? 'bg-gray-100 text-gray-900 font-medium'
-                                      : 'text-gray-600 hover:bg-gray-50'
-                                  }`}
-                                >
-                                  {option}
-                                </button>
-                              ))}
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
+                        {/* 등급 드롭다운 메뉴 */}
+                        {openDropdown === 'partGrade' && (
+                          <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-20 min-w-[110px]">
+                            {['전체', '1++(9)', '1++(8)', '1++(7)', '1+', '1', '2'].map((option) => (
+                              <button
+                                key={option}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setPartFilterGrade(option);
+                                  setOpenDropdown(null);
+                                }}
+                                className={`block w-full text-left px-4 py-2.5 text-[13px] hover:bg-gray-50 first:rounded-t-lg last:rounded-b-lg ${
+                                  (partFilterGrade === option || (partFilterGrade === '등급' && option === '전체'))
+                                    ? 'bg-gray-100 text-gray-900 font-medium'
+                                    : 'text-gray-700'
+                                }`}
+                              >
+                                {option}
+                              </button>
+                            ))}
+                          </div>
+                        )}
                       </div>
-
-                      {/* 구분선 */}
-                      <div className="w-px h-5 bg-gray-200"></div>
                       
                       {/* 업체 필터 */}
-                      <span className="text-[13px] text-gray-500">업체</span>
                       <div className="relative">
                         <button
                           onClick={() => setOpenDropdown(openDropdown === 'partCompany' ? null : 'partCompany')}
-                          className={`flex items-center gap-1.5 px-3.5 py-2 text-[13px] font-medium rounded-full border transition-all ${
-                            partFilterCompany !== '업체명' && partFilterCompany !== '전체'
-                              ? 'bg-gray-900 text-white border-gray-900'
-                              : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'
-                          }`}
+                          className="flex items-center gap-1.5 px-3.5 py-2 bg-gray-100 rounded text-[13px] font-medium text-gray-700 hover:bg-gray-200 transition-colors"
                         >
-                          {partFilterCompany === '업체명' ? '전체' : partFilterCompany}
-                          <svg 
-                            className={`w-3.5 h-3.5 transition-transform ${openDropdown === 'partCompany' ? 'rotate-180' : ''}`} 
-                            fill="none" 
-                            stroke="currentColor" 
-                            viewBox="0 0 24 24"
-                          >
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                          </svg>
+                          업체: {partFilterCompany === '업체명' ? '전체' : partFilterCompany}
+                          <ChevronDown className={`h-4 w-4 transition-transform ${openDropdown === 'partCompany' ? 'rotate-180' : ''}`} />
                         </button>
                         
-                        <AnimatePresence>
-                          {openDropdown === 'partCompany' && (
-                            <motion.div
-                              initial={{ opacity: 0, y: -4 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              exit={{ opacity: 0, y: -4 }}
-                              transition={{ duration: 0.15 }}
-                              className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-20 min-w-[110px] overflow-hidden"
-                            >
-                              {['전체', '건화', '대진엠에스', '안심엘피씨', '정직한고기'].map((option) => (
-                                <button
-                                  key={option}
-                                  onClick={() => {
-                                    setPartFilterCompany(option);
-                                    setOpenDropdown(null);
-                                  }}
-                                  className={`w-full px-3.5 py-2.5 text-[13px] text-left transition-colors whitespace-nowrap ${
-                                    partFilterCompany === option
-                                      ? 'bg-gray-100 text-gray-900 font-medium'
-                                      : 'text-gray-600 hover:bg-gray-50'
-                                  }`}
-                                >
-                                  {option}
-                                </button>
-                              ))}
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
+                        {/* 업체 드롭다운 메뉴 */}
+                        {openDropdown === 'partCompany' && (
+                          <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-20 min-w-[110px]">
+                            {['전체', '건화', '대진엠에스', '안심엘피씨', '정직한고기'].map((option) => (
+                              <button
+                                key={option}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setPartFilterCompany(option);
+                                  setOpenDropdown(null);
+                                }}
+                                className={`block w-full text-left px-4 py-2.5 text-[13px] hover:bg-gray-50 first:rounded-t-lg last:rounded-b-lg whitespace-nowrap ${
+                                  (partFilterCompany === option || (partFilterCompany === '업체명' && option === '전체'))
+                                    ? 'bg-gray-100 text-gray-900 font-medium'
+                                    : 'text-gray-700'
+                                }`}
+                              >
+                                {option}
+                              </button>
+                            ))}
+                          </div>
+                        )}
                       </div>
                       
                       {/* 필터 결과 카운트 */}
