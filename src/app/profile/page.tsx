@@ -13,7 +13,8 @@ import {
   Bell,
   LogOut,
   Gavel,
-  FileText
+  FileText,
+  Megaphone
 } from 'lucide-react';
 import BottomNav from '@/components/BottomNav';
 
@@ -77,13 +78,7 @@ export default function ProfilePage() {
                   {/* 가운데 타이틀 */}
                   <h1 className="text-[17px] font-bold text-gray-900">내정보</h1>
                   {/* 오른쪽 아이콘 */}
-                  <div className="flex items-center gap-1">
-                    <Link 
-                      href="/settings"
-                      className="p-2 text-gray-600 hover:text-gray-900 transition-colors flex items-center justify-center"
-                    >
-                      <Settings className="w-[22px] h-[22px]" />
-                    </Link>
+                  <div className="w-[80px] flex items-center justify-end">
                     <Link 
                       href="/notifications"
                       className="p-2 text-gray-600 hover:text-gray-900 transition-colors flex items-center justify-center relative"
@@ -99,9 +94,9 @@ export default function ProfilePage() {
             </div>
 
             {/* 메인 콘텐츠 */}
-            <div className="flex-1 min-h-0 overflow-y-auto bg-gray-50">
+            <div className="flex-1 min-h-0 overflow-y-auto bg-white">
               {/* 사용자 환영 섹션 - 메인페이지와 동일 */}
-              <div className="px-4 py-3 bg-gray-50">
+              <div className="px-4 pt-5 pb-3 bg-white">
                 <div className="flex items-center gap-2.5">
                   {/* 프로필 이미지 */}
                   <div className="flex-shrink-0">
@@ -116,117 +111,97 @@ export default function ProfilePage() {
                     </p>
                     <p className="text-xs text-gray-600">오늘도 즐거운 하루 되세요.</p>
                   </div>
+                  {/* 회원 정보 버튼 */}
+                  <Link 
+                    href="/profile/account"
+                    className="flex-shrink-0 px-3 py-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-300 rounded hover:bg-gray-50 transition-colors"
+                  >
+                    회원 정보
+                  </Link>
                 </div>
               </div>
 
-              {/* 내 정보 섹션 */}
-              <div className="mx-4 mt-3 rounded-lg bg-white border border-gray-200 shadow-sm overflow-hidden">
-                <div className="px-4 py-3 border-b border-gray-100">
-                  <p className="text-gray-600 text-sm font-bold">내 정보</p>
+              {/* 공지사항 */}
+              <div className="mx-4 mt-3 rounded-lg bg-gray-100 overflow-hidden">
+                <div className="px-4 py-3 flex items-center justify-between">
+                  <span className="text-sm font-bold text-gray-900">공지사항</span>
+                  <Link href="/notice" className="text-xs text-gray-500 hover:text-gray-700">
+                    더보기
+                  </Link>
                 </div>
-                
-                {/* 계정 정보 */}
-                <button className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-gray-50 transition-colors border-b border-gray-100">
-                  <div className="flex items-center gap-3">
-                    <User className="w-5 h-5 text-gray-400" />
-                    <span className="text-sm text-gray-900">계정 정보</span>
-                  </div>
-                  <ChevronRight className="w-5 h-5 text-gray-400" />
-                </button>
-
-                {/* 사업자 정보 */}
-                <button className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-gray-50 transition-colors border-b border-gray-100">
-                  <div className="flex items-center gap-3">
-                    <Building2 className="w-5 h-5 text-gray-400" />
-                    <span className="text-sm text-gray-900">사업자 정보</span>
-                  </div>
-                  <ChevronRight className="w-5 h-5 text-gray-400" />
-                </button>
-
-                {/* 거래처 관리 */}
-                <Link href="/trade/dealers?from=profile" className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-gray-50 transition-colors">
-                  <div className="flex items-center gap-3">
-                    <Users className="w-5 h-5 text-gray-400" />
-                    <span className="text-sm text-gray-900">거래처 관리</span>
-                  </div>
-                  <ChevronRight className="w-5 h-5 text-gray-400" />
-                </Link>
+                <div>
+                  <Link href="/notice/1" className="flex items-center justify-between px-4 py-1.5 hover:bg-gray-200 transition-colors">
+                    <span className="text-xs text-gray-900 truncate flex-1">1월 경매 일정 안내드립니다.</span>
+                    <span className="text-[11px] text-gray-400 ml-2 flex-shrink-0">01.26</span>
+                  </Link>
+                  <Link href="/notice/2" className="flex items-center justify-between px-4 py-1.5 hover:bg-gray-200 transition-colors">
+                    <span className="text-xs text-gray-900 truncate flex-1">설 연휴 경매장 운영 안내</span>
+                    <span className="text-[11px] text-gray-400 ml-2 flex-shrink-0">01.24</span>
+                  </Link>
+                  <Link href="/notice/3" className="flex items-center justify-between px-4 py-1.5 hover:bg-gray-200 transition-colors">
+                    <span className="text-xs text-gray-900 truncate flex-1">2026년 1월 시세 동향 안내</span>
+                    <span className="text-[11px] text-gray-400 ml-2 flex-shrink-0">01.20</span>
+                  </Link>
+                  <Link href="/notice/4" className="flex items-center justify-between px-4 py-1.5 hover:bg-gray-200 transition-colors">
+                    <span className="text-xs text-gray-900 truncate flex-1">앱 업데이트 안내 (v1.2.0)</span>
+                    <span className="text-[11px] text-gray-400 ml-2 flex-shrink-0">01.15</span>
+                  </Link>
+                  <Link href="/notice/5" className="flex items-center justify-between px-4 py-1.5 hover:bg-gray-200 transition-colors">
+                    <span className="text-xs text-gray-900 truncate flex-1">정산 계좌 변경 안내</span>
+                    <span className="text-[11px] text-gray-400 ml-2 flex-shrink-0">01.10</span>
+                  </Link>
+                </div>
               </div>
 
-              {/* 거래 내역 섹션 */}
-              <div className="mx-4 mt-3 rounded-lg bg-white border border-gray-200 shadow-sm overflow-hidden">
-                <div className="px-4 py-3 border-b border-gray-100">
-                  <p className="text-gray-600 text-sm font-bold">거래 내역</p>
-                </div>
-                
-                {/* 입찰 내역 */}
-                <Link href="/profile/bids" className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-gray-50 transition-colors border-b border-gray-100">
-                  <div className="flex items-center gap-3">
-                    <Gavel className="w-5 h-5 text-gray-400" />
-                    <span className="text-sm text-gray-900">입찰 내역</span>
-                  </div>
-                  <ChevronRight className="w-5 h-5 text-gray-400" />
-                </Link>
-
-                {/* 낙찰 내역 */}
-                <Link href="/trade?status=won" className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-gray-50 transition-colors border-b border-gray-100">
-                  <div className="flex items-center gap-3">
-                    <FileText className="w-5 h-5 text-gray-400" />
-                    <span className="text-sm text-gray-900">낙찰 내역</span>
-                  </div>
-                  <ChevronRight className="w-5 h-5 text-gray-400" />
-                </Link>
-
-                {/* 잔고 내역 */}
+              {/* 메뉴 섹션 */}
+              <div className="mt-3">
+                <div className="my-4 border-t border-gray-200"></div>
+                {/* 잔고내역 */}
                 <Link href="/profile/balance" className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-gray-50 transition-colors">
-                  <div className="flex items-center gap-3">
-                    <CreditCard className="w-5 h-5 text-gray-400" />
-                    <span className="text-sm text-gray-900">잔고 내역</span>
-                  </div>
+                  <span className="text-sm text-gray-900">잔고내역</span>
                   <ChevronRight className="w-5 h-5 text-gray-400" />
                 </Link>
-              </div>
 
-              {/* 설정 섹션 */}
-              <div className="mx-4 mt-3 rounded-lg bg-white border border-gray-200 shadow-sm overflow-hidden">
-                <div className="px-4 py-3 border-b border-gray-100">
-                  <p className="text-gray-600 text-sm font-bold">설정</p>
-                </div>
-                
-                {/* 계정 설정 */}
-                <button className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-gray-50 transition-colors border-b border-gray-100">
-                  <div className="flex items-center gap-3">
-                    <Settings className="w-5 h-5 text-gray-400" />
-                    <span className="text-sm text-gray-900">계정 설정</span>
-                  </div>
+                {/* 설정 */}
+                <Link href="/settings" className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-gray-50 transition-colors">
+                  <span className="text-sm text-gray-900">설정</span>
                   <ChevronRight className="w-5 h-5 text-gray-400" />
-                </button>
+                </Link>
+
+                {/* 이용약관 */}
+                <Link href="/terms" className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-gray-50 transition-colors">
+                  <span className="text-sm text-gray-900">이용약관</span>
+                  <ChevronRight className="w-5 h-5 text-gray-400" />
+                </Link>
+
+                {/* 개인정보처리방침 */}
+                <Link href="/privacy" className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-gray-50 transition-colors">
+                  <span className="text-sm text-gray-900">개인정보처리방침</span>
+                  <ChevronRight className="w-5 h-5 text-gray-400" />
+                </Link>
 
                 {/* 고객센터 */}
-                <a href="tel:031-123-4567" className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-gray-50 transition-colors border-b border-gray-100">
-                  <div className="flex items-center gap-3">
-                    <Phone className="w-5 h-5 text-gray-400" />
-                    <div>
-                      <span className="text-sm text-gray-900">고객센터</span>
-                      <p className="text-xs text-gray-500">031-123-4567</p>
+                <div className="w-full px-4 py-3.5">
+                  <span className="text-sm text-gray-900">중부미트센터</span>
+                  <div className="mt-2 flex flex-col gap-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-500">전화</span>
+                      <a href="tel:031-123-4567" className="text-sm text-gray-700 hover:text-gray-900">031-123-4567</a>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-500">팩스</span>
+                      <span className="text-sm text-gray-700">031-123-4568</span>
                     </div>
                   </div>
-                  <ChevronRight className="w-5 h-5 text-gray-400" />
-                </a>
+                </div>
 
                 {/* 로그아웃 */}
+                <div className="my-2 border-t border-gray-200"></div>
                 <button className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-gray-50 transition-colors">
-                  <div className="flex items-center gap-3">
-                    <LogOut className="w-5 h-5 text-gray-400" />
-                    <span className="text-sm text-red-600">로그아웃</span>
-                  </div>
+                  <span className="text-sm text-gray-900">로그아웃</span>
                 </button>
               </div>
 
-              {/* 버전 정보 */}
-              <div className="text-center py-6">
-                <p className="text-xs text-gray-400">앱 버전 1.0.0</p>
-              </div>
             </div>
 
             {/* 하단 네비게이션 */}

@@ -102,7 +102,7 @@ function TradeRegisterContent() {
               <div className="border border-gray-200 rounded overflow-hidden">
                 {/* 테이블 헤더 */}
                 <div className="bg-gray-100 border-b border-gray-200">
-                  <div className="grid py-2 text-[11px] font-medium text-gray-500" style={{gridTemplateColumns: '2fr 1fr 1fr 1fr 1.2fr 1.5fr'}}>
+                  <div className="grid h-9 items-center text-[13px] font-medium text-gray-500" style={{gridTemplateColumns: '2fr 1fr 1fr 1fr 1.2fr 1.5fr'}}>
                     <div className="text-center">상장번호</div>
                     <div className="text-center">부위</div>
                     <div className="text-center">등급</div>
@@ -113,7 +113,7 @@ function TradeRegisterContent() {
                 </div>
                 {/* 테이블 데이터 */}
                 <div className="bg-white">
-                  <div className="grid py-2.5 text-[11px]" style={{gridTemplateColumns: '2fr 1fr 1fr 1fr 1.2fr 1.5fr'}}>
+                  <div className="grid py-3 text-[13px]" style={{gridTemplateColumns: '2fr 1fr 1fr 1fr 1.2fr 1.5fr'}}>
                     <div className="text-center font-medium text-gray-900 whitespace-nowrap">{listingNo}</div>
                     <div className="text-center text-gray-700">{auctionItem.productInfo.partName}</div>
                     <div className="text-center text-gray-700">{auctionItem.productInfo.grade}</div>
@@ -149,7 +149,7 @@ function TradeRegisterContent() {
           <div className="flex-1 min-h-0 overflow-y-auto bg-white">
             {/* 테이블 헤더 */}
             <div className="sticky top-0 z-10 bg-gray-100 border-b border-gray-200">
-              <div className="grid px-3 py-2 text-[11px] font-medium text-gray-500" style={{gridTemplateColumns: '32px 1fr 50px 90px 95px'}}>
+              <div className="grid px-3 h-9 items-center text-[13px] font-medium text-gray-500" style={{gridTemplateColumns: '36px 1fr 55px 95px 100px'}}>
                 <div></div>
                 <div>거래처명</div>
                 <div className="text-center">대표자</div>
@@ -168,42 +168,42 @@ function TradeRegisterContent() {
                 <div 
                   key={dealer.id}
                   onClick={() => setSelectedDealerId(selectedDealerId === dealer.id ? null : dealer.id)}
-                  className={`grid px-3 py-2.5 border-b border-gray-100 cursor-pointer transition-colors items-center ${
+                  className={`grid px-3 py-3 border-b border-gray-100 cursor-pointer transition-colors items-center ${
                     selectedDealerId === dealer.id ? 'bg-gray-100' : 'hover:bg-gray-50'
                   }`}
-                  style={{gridTemplateColumns: '32px 1fr 50px 90px 95px'}}
+                  style={{gridTemplateColumns: '36px 1fr 55px 95px 100px'}}
                 >
                   {/* 선택 */}
                   <div className="flex justify-center">
-                    <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
                       selectedDealerId === dealer.id 
                         ? 'border-gray-900 bg-gray-900' 
                         : 'border-gray-300'
                     }`}>
                       {selectedDealerId === dealer.id && (
-                        <Check className="w-2.5 h-2.5 text-white" />
+                        <Check className="w-3 h-3 text-white" />
                       )}
                     </div>
                   </div>
                   
                   {/* 거래처명 */}
                   <div className="min-w-0">
-                    <div className="text-[12px] font-medium text-gray-900 truncate">{dealer.name}</div>
-                    <div className="text-[10px] text-gray-500 truncate">{dealer.address}</div>
+                    <div className="text-[13px] font-medium text-gray-900 truncate">{dealer.name}</div>
+                    <div className="text-[11px] text-gray-500 truncate">{dealer.address}</div>
                   </div>
                   
                   {/* 대표자 */}
-                  <div className="text-[11px] text-gray-700 text-center truncate">
+                  <div className="text-[13px] text-gray-700 text-center truncate">
                     {dealer.representative || '-'}
                   </div>
                   
                   {/* 연락처 */}
-                  <div className="text-[11px] text-gray-700 text-center">
+                  <div className="text-[13px] text-gray-700 text-center">
                     {dealer.contact}
                   </div>
                   
                   {/* 사업자번호 */}
-                  <div className="text-[11px] text-gray-700 text-center">
+                  <div className="text-[13px] text-gray-700 text-center">
                     {dealer.businessNo || '-'}
                   </div>
                 </div>
