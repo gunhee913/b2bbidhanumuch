@@ -17,7 +17,8 @@ import {
   Settings,
   ChevronRight,
   Bell,
-  Star
+  Star,
+  ExternalLink
 } from 'lucide-react';
 import BottomNav from '@/components/BottomNav';
 import { Button } from '@/components/ui/button';
@@ -47,7 +48,8 @@ function MainPageContent() {
     cleanOldBids,
     favorites,
     toggleFavorite,
-    isFavorite
+    isFavorite,
+    bids
   } = useBidStore();
   
   // hydration 완료 여부
@@ -77,6 +79,20 @@ function MainPageContent() {
   const [selectedCompany, setSelectedCompany] = useState<string>('전체');
   const [showCompanyDropdown, setShowCompanyDropdown] = useState(false);
   const companyDropdownRef = useRef<HTMLDivElement>(null);
+  const [favoriteSubTab, setFavoriteSubTab] = useState<'개체별' | '부위별'>('개체별');
+  
+  // 부위별 관심 목록용 상태
+  const [expandedFavoritePartId, setExpandedFavoritePartId] = useState<string | null>(null);
+  const [favoritePartImageIndex, setFavoritePartImageIndex] = useState<Record<string, number>>({});
+  const [showFavoritePartBidSheet, setShowFavoritePartBidSheet] = useState(false);
+  const [selectedFavoritePart, setSelectedFavoritePart] = useState<any>(null);
+  const [favoritePartBidPrice, setFavoritePartBidPrice] = useState(0);
+  const [showFavoritePartBidConfirm, setShowFavoritePartBidConfirm] = useState(false);
+  
+  // 이미지 스와이프 상태
+  const [favPartTouchStart, setFavPartTouchStart] = useState<number | null>(null);
+  const [favPartTouchEnd, setFavPartTouchEnd] = useState<number | null>(null);
+  const [favPartCurrentProductId, setFavPartCurrentProductId] = useState<string | null>(null);
 
   // 개체 데이터 (거세 20두, 암 4두)
   const cattleData = [
@@ -110,6 +126,163 @@ function MainPageContent() {
     { id: '260126-406', type: '한우', gender: '암', grade: '1+A', months: 28, company: '정직한고기' },
   ];
 
+  // 부위별 관심 목록용 데이터 생성
+  const partSubParts: Record<string, string[]> = {
+    sirloin: ['등심(좌)', '등심(우)'],
+    tenderloin: ['안심'],
+    striploin: ['채끝'],
+    ribs: ['갈비(좌)', '갈비(우)'],
+    special: ['특수부위'],
+    foreleg: ['앞다리'],
+    rump: ['우둔'],
+    chuck: ['목심'],
+    brisket: ['양지(좌)', '양지(우)'],
+    round: ['설도(좌)', '설도(우)'],
+    shank: ['사태'],
+    tail: ['꼬리'],
+    feet: ['족'],
+    bone: ['사골'],
+    misc: ['잡뼈'],
+  };
+
+  const partMinPrices: Record<string, number> = {
+    '등심(좌)': 85000, '등심(우)': 85000,
+    '안심': 95000, '채끝': 82000,
+    '갈비(좌)': 78000, '갈비(우)': 78000,
+    '특수부위': 72000, '앞다리': 55000,
+    '우둔': 58000, '목심': 62000,
+    '양지(좌)': 52000, '양지(우)': 52000,
+    '설도(좌)': 56000, '설도(우)': 56000,
+    '사태': 48000, '꼬리': 35000,
+    '족': 25000, '사골': 20000, '잡뼈': 15000,
+  };
+
+  const partWeightRanges: Record<string, [number, number]> = {
+    '등심(좌)': [15, 16], '등심(우)': [15, 16],
+    '안심': [4, 5], '채끝': [7.5, 8.5],
+    '갈비(좌)': [12, 13], '갈비(우)': [12, 13],
+    '특수부위': [3, 4], '앞다리': [24, 26],
+    '우둔': [20, 22], '목심': [14, 15],
+    '양지(좌)': [12, 13], '양지(우)': [12, 13],
+    '설도(좌)': [16, 17.5], '설도(우)': [16, 17.5],
+    '사태': [14.5, 15.5], '꼬리': [15.5, 16.5],
+    '족': [10, 11], '사골': [3, 4], '잡뼈': [21, 23],
+  };
+
+  // 모든 부위 상품 데이터 생성
+  const allPartProducts = React.useMemo(() => {
+    const products: any[] = [];
+    const allSubPartsOrder = [
+      '등심(좌)', '등심(우)', '안심', '채끝', '갈비(좌)', '갈비(우)', 
+      '특수부위', '앞다리', '우둔', '목심', '양지(좌)', '양지(우)', 
+      '설도(좌)', '설도(우)', '사태', '꼬리', '족', '사골', '잡뼈'
+    ];
+    
+    // 각 개체에 대해 모든 부위 생성
+    cattleData.forEach((entity) => {
+      const entityNo = parseInt(entity.id.split('-')[1]);
+      
+      Object.entries(partSubParts).forEach(([partId, subParts]) => {
+        subParts.forEach((subPart) => {
+          const [minW, maxW] = partWeightRanges[subPart] || [10, 15];
+          const variation = (entityNo * 0.17) % 1;
+          const weight = (minW + (maxW - minW) * variation).toFixed(1);
+          
+          const partIndex = allSubPartsOrder.indexOf(subPart);
+          const listingNumber = partIndex + 1;
+          
+          const basePrice = partMinPrices[subPart] || 50000;
+          let gradeMultiplier = 1.0;
+          
+          if (entity.grade.includes('1++')) {
+            const marblingMatch = entity.grade.match(/\((\d+)\)/);
+            const marblingNo = marblingMatch ? parseInt(marblingMatch[1]) : 8;
+            if (marblingNo === 9) gradeMultiplier = 1.20;
+            else if (marblingNo === 8) gradeMultiplier = 1.15;
+            else gradeMultiplier = 1.10;
+          } else if (entity.grade.includes('1+')) {
+            gradeMultiplier = 1.05;
+          } else if (entity.grade.startsWith('1')) {
+            gradeMultiplier = 1.00;
+          } else if (entity.grade.startsWith('2')) {
+            gradeMultiplier = 0.90;
+          } else {
+            gradeMultiplier = 0.80;
+          }
+          
+          const adjustedPrice = Math.round((basePrice * gradeMultiplier) / 1000) * 1000;
+          const listingNo = `${getTodayDateCode()}-${String(entityNo).padStart(3, '0')}-${String(listingNumber).padStart(2, '0')}`;
+          
+          products.push({
+            id: `${partId}-${entityNo}-${subPart}`,
+            partId,
+            partName: subPart,
+            image: `/등심${((entityNo % 4) + 1)}.png`,
+            type: entity.gender === '거세' ? '한우거세' : '한우암',
+            grade: entity.grade,
+            weight: `${weight}kg`,
+            price: adjustedPrice,
+            auctionNo: `${getTodayDateCode()}-${String(entityNo).padStart(3, '0')}`,
+            listingNo,
+            historyNo: `002-1486-7293-${entityNo}`,
+            company: entity.company,
+            months: entity.months,
+            entityId: entityNo,
+          });
+        });
+      });
+    });
+    
+    return products;
+  }, [cattleData]);
+
+  // 관심 부위 목록에서 상품 정보 가져오기
+  const favoritePartProducts = React.useMemo(() => {
+    const partFavorites = favorites.filter(id => id.split('-').length === 3);
+    return partFavorites.map(listingNo => {
+      const product = allPartProducts.find(p => p.listingNo === listingNo);
+      return product;
+    }).filter(Boolean);
+  }, [favorites, allPartProducts]);
+
+  // 부위별 이미지 스와이프 핸들러
+  const TOTAL_FAV_PART_IMAGES = 6;
+  
+  const handleFavPartTouchStart = (e: React.TouchEvent, productId: string) => {
+    setFavPartTouchEnd(null);
+    setFavPartTouchStart(e.targetTouches[0].clientX);
+    setFavPartCurrentProductId(productId);
+  };
+
+  const handleFavPartTouchMove = (e: React.TouchEvent) => {
+    setFavPartTouchEnd(e.targetTouches[0].clientX);
+  };
+
+  const handleFavPartTouchEnd = () => {
+    if (!favPartTouchStart || !favPartTouchEnd || !favPartCurrentProductId) return;
+    const distance = favPartTouchStart - favPartTouchEnd;
+    const isSwipe = Math.abs(distance) > 50;
+    
+    if (isSwipe) {
+      const currentIndex = favoritePartImageIndex[favPartCurrentProductId] || 0;
+      if (distance > 0) {
+        setFavoritePartImageIndex(prev => ({ 
+          ...prev, 
+          [favPartCurrentProductId!]: (currentIndex + 1) % TOTAL_FAV_PART_IMAGES 
+        }));
+      } else {
+        setFavoritePartImageIndex(prev => ({ 
+          ...prev, 
+          [favPartCurrentProductId!]: (currentIndex - 1 + TOTAL_FAV_PART_IMAGES) % TOTAL_FAV_PART_IMAGES 
+        }));
+      }
+    }
+    
+    setFavPartTouchStart(null);
+    setFavPartTouchEnd(null);
+    setFavPartCurrentProductId(null);
+  };
+
   // 토스트 표시 함수
   const showToastMessage = (message: string, type: 'warning' | 'success' = 'success') => {
     setToastMessage(message);
@@ -118,35 +291,6 @@ function MainPageContent() {
     setTimeout(() => {
       setShowToast(false);
     }, 3000);
-  };
-  
-  // 내 입찰내역 테이블 마우스 드래그 스크롤
-  const bidTableRef = useRef<HTMLDivElement>(null);
-  const [isBidTableDragging, setIsBidTableDragging] = useState(false);
-  const [bidTableStartX, setBidTableStartX] = useState(0);
-  const [bidTableScrollLeft, setBidTableScrollLeft] = useState(0);
-
-  const handleBidTableMouseDown = (e: React.MouseEvent) => {
-    if (!bidTableRef.current) return;
-    setIsBidTableDragging(true);
-    setBidTableStartX(e.pageX - bidTableRef.current.offsetLeft);
-    setBidTableScrollLeft(bidTableRef.current.scrollLeft);
-  };
-
-  const handleBidTableMouseMove = (e: React.MouseEvent) => {
-    if (!isBidTableDragging || !bidTableRef.current) return;
-    e.preventDefault();
-    const x = e.pageX - bidTableRef.current.offsetLeft;
-    const walk = (bidTableStartX - x) * 1.5;
-    bidTableRef.current.scrollLeft = bidTableScrollLeft + walk;
-  };
-
-  const handleBidTableMouseUp = () => {
-    setIsBidTableDragging(false);
-  };
-
-  const handleBidTableMouseLeave = () => {
-    setIsBidTableDragging(false);
   };
   
   // 입금신청 모달 상태
@@ -195,26 +339,11 @@ function MainPageContent() {
     setBalanceAmount(newValue.toLocaleString());
   };
 
-  // 내 입찰내역(진행중)은 zustand 스토어(globalBids)에서 관리
-
-  // URL 파라미터로 탭 설정 및 스크롤
+  // URL 파라미터로 탭 설정
   useEffect(() => {
     const tab = searchParams.get('tab');
-    const bidId = searchParams.get('bidId');
     
-    if (tab === 'myBids') {
-      setActiveTab('입찰내역(진행중)');
-      
-      // 탭 전환 후 스크롤 실행
-      if (bidId) {
-        setTimeout(() => {
-          const element = document.getElementById(`bid-card-${bidId}`);
-          if (element) {
-            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          }
-        }, 100);
-      }
-    } else if (tab === '개체별' || tab === '부위별') {
+    if (tab === '개체별' || tab === '부위별') {
       // 부위별도 개체별 탭으로 이동
       setActiveTab('개체별');
     } else if (tab === '경매정보') {
@@ -704,53 +833,473 @@ function MainPageContent() {
                   </div>
                 ) : activeTab === '관심' ? (
                   <div className="pt-4">
-                    {!isHydrated || favorites.length === 0 ? (
-                      <div className="text-center py-12">
-                        <Star className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                        <p className="text-gray-500 text-sm">관심 등록된 개체가 없습니다.</p>
-                        <p className="text-gray-400 text-xs mt-1">개체별 탭에서 별 아이콘을 눌러 추가해보세요.</p>
+                    {/* 개체별/부위별 서브탭 */}
+                    <div className="px-4 mb-3">
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setFavoriteSubTab('개체별')}
+                          className={`px-4 py-1.5 text-xs font-medium rounded-full transition-colors ${
+                            favoriteSubTab === '개체별'
+                              ? 'bg-gray-900 text-white'
+                              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                          }`}
+                        >
+                          개체별
+                        </button>
+                        <button
+                          onClick={() => setFavoriteSubTab('부위별')}
+                          className={`px-4 py-1.5 text-xs font-medium rounded-full transition-colors ${
+                            favoriteSubTab === '부위별'
+                              ? 'bg-gray-900 text-white'
+                              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                          }`}
+                        >
+                          부위별
+                        </button>
                       </div>
-                    ) : (
-                      <div className="bg-white border-y border-gray-200">
-                        <table className="w-full text-[11px]">
-                          <thead className="sticky top-0 z-10">
-                            <tr className="bg-gray-100 border-b border-gray-200">
-                              <th className="py-1.5 pl-4 pr-8 text-center font-medium text-gray-500 whitespace-nowrap">접수번호</th>
-                              <th className="py-1.5 px-2 text-center font-medium text-gray-500 whitespace-nowrap">성별</th>
-                              <th className="py-1.5 px-2 text-center font-medium text-gray-500 whitespace-nowrap">등급</th>
-                              <th className="py-1.5 px-2 text-center font-medium text-gray-500 whitespace-nowrap">개월령</th>
-                              <th className="py-1.5 px-2 text-center font-medium text-gray-500 whitespace-nowrap">상장업체</th>
-                              <th className="py-1.5 px-2 text-center font-medium text-gray-500 whitespace-nowrap">관심</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {cattleData.filter(item => isHydrated && isFavorite(item.id)).map((item, index) => (
-                              <tr 
-                                key={item.id} 
-                                onClick={() => window.location.href = `/auction/${item.id}`}
-                                className={`border-b border-gray-100 hover:bg-gray-50 cursor-pointer active:bg-gray-100 transition-colors ${index % 2 === 1 ? 'bg-gray-50/50' : ''}`}
-                              >
-                                <td className="py-2 pl-4 pr-8 text-center font-medium text-gray-900 whitespace-nowrap">{item.id}</td>
-                                <td className="py-2 px-2 text-center text-gray-700 whitespace-nowrap">{item.gender}</td>
-                                <td className="py-2 px-2 text-center text-gray-700 whitespace-nowrap">{item.grade}</td>
-                                <td className="py-2 px-2 text-center text-gray-700 whitespace-nowrap">{item.months}</td>
-                                <td className="py-2 px-2 text-center text-gray-700 whitespace-nowrap">{item.company}</td>
-                                <td className="py-2 px-2 text-center">
-                                  <button 
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      toggleFavorite(item.id);
-                                    }}
-                                    className="p-1.5 text-gray-900 transition-colors"
+                    </div>
+
+                    {favoriteSubTab === '개체별' ? (
+                      // 개체별 관심 목록
+                      (() => {
+                        const entityFavorites = favorites.filter(id => !id.includes('-', id.indexOf('-') + 1) || id.split('-').length === 2);
+                        return entityFavorites.length === 0 ? (
+                          <div className="text-center py-12">
+                            <Star className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                            <p className="text-gray-500 text-sm">관심 등록된 개체가 없습니다.</p>
+                            <p className="text-gray-400 text-xs mt-1">개체별 탭에서 별 아이콘을 눌러 추가해보세요.</p>
+                          </div>
+                        ) : (
+                          <div className="bg-white border-y border-gray-200">
+                            <table className="w-full text-[11px]">
+                              <thead className="sticky top-0 z-10">
+                                <tr className="bg-gray-100 border-b border-gray-200">
+                                  <th className="py-1.5 pl-4 pr-8 text-center font-medium text-gray-500 whitespace-nowrap">접수번호</th>
+                                  <th className="py-1.5 px-2 text-center font-medium text-gray-500 whitespace-nowrap">성별</th>
+                                  <th className="py-1.5 px-2 text-center font-medium text-gray-500 whitespace-nowrap">등급</th>
+                                  <th className="py-1.5 px-2 text-center font-medium text-gray-500 whitespace-nowrap">개월령</th>
+                                  <th className="py-1.5 px-2 text-center font-medium text-gray-500 whitespace-nowrap">상장업체</th>
+                                  <th className="py-1.5 px-2 text-center font-medium text-gray-500 whitespace-nowrap">관심</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {cattleData.filter(item => isHydrated && isFavorite(item.id)).map((item, index) => (
+                                  <tr 
+                                    key={item.id} 
+                                    onClick={() => window.location.href = `/auction/${item.id}`}
+                                    className={`border-b border-gray-100 hover:bg-gray-50 cursor-pointer active:bg-gray-100 transition-colors ${index % 2 === 1 ? 'bg-gray-50/50' : ''}`}
                                   >
-                                    <Star className="w-4 h-4 fill-current" />
-                                  </button>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
+                                    <td className="py-2 pl-4 pr-8 text-center font-medium text-gray-900 whitespace-nowrap">{item.id}</td>
+                                    <td className="py-2 px-2 text-center text-gray-700 whitespace-nowrap">{item.gender}</td>
+                                    <td className="py-2 px-2 text-center text-gray-700 whitespace-nowrap">{item.grade}</td>
+                                    <td className="py-2 px-2 text-center text-gray-700 whitespace-nowrap">{item.months}</td>
+                                    <td className="py-2 px-2 text-center text-gray-700 whitespace-nowrap">{item.company}</td>
+                                    <td className="py-2 px-2 text-center">
+                                      <button 
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          toggleFavorite(item.id);
+                                        }}
+                                        className="p-1.5 text-gray-900 transition-colors"
+                                      >
+                                        <Star className="w-4 h-4 fill-current" />
+                                      </button>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        );
+                      })()
+                    ) : (
+                      // 부위별 관심 목록
+                      favoritePartProducts.length === 0 ? (
+                        <div className="text-center py-12">
+                          <Star className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                          <p className="text-gray-500 text-sm">관심 등록된 부위가 없습니다.</p>
+                          <p className="text-gray-400 text-xs mt-1">부위별 탭에서 별 아이콘을 눌러 추가해보세요.</p>
+                        </div>
+                      ) : (
+                        <div className="bg-white border-y border-gray-200">
+                          {/* 테이블 헤더 */}
+                          <div className="bg-gray-100 border-b border-gray-200 h-7 flex items-center">
+                            <div className="grid px-2 text-[11px] font-medium text-gray-500 w-full" style={{gridTemplateColumns: '0.85fr 0.6fr 0.85fr 0.95fr 0.95fr 0.5fr 0.5fr'}}>
+                              <div className="text-center">부위</div>
+                              <div className="text-center">중량</div>
+                              <div className="text-center">최저단가</div>
+                              <div className="text-center">최고입찰가</div>
+                              <div className="text-center">나의입찰가</div>
+                              <div className="text-center">상태</div>
+                              <div className="text-center">관심</div>
+                            </div>
+                          </div>
+
+                          {/* 테이블 데이터 */}
+                          {favoritePartProducts.map((product: any) => {
+                            const bid = bids[product.listingNo];
+                            const isExpanded = expandedFavoritePartId === product.id;
+                            return (
+                              <div key={product.id}>
+                                <div 
+                                  className={`grid px-2 py-2 border-b border-gray-100 cursor-pointer transition-colors items-center ${
+                                    bid?.status === 'highest' 
+                                      ? 'bg-blue-50/50' 
+                                      : bid?.status === 'secondHighest'
+                                        ? 'bg-red-50/50'
+                                        : 'bg-white hover:bg-gray-50'
+                                  }`}
+                                  style={{gridTemplateColumns: '0.85fr 0.6fr 0.85fr 0.95fr 0.95fr 0.5fr 0.5fr'}}
+                                  onClick={() => setExpandedFavoritePartId(isExpanded ? null : product.id)}
+                                >
+                                  <div className="text-center">
+                                    <div className="text-[11px] font-medium text-gray-900">{product.partName}</div>
+                                    <div className="text-[10px] text-gray-500 whitespace-nowrap">{product.type.includes('거세') ? '거세' : '암'} / {product.grade}</div>
+                                  </div>
+                                  <div className="text-center text-[11px] text-gray-700">
+                                    {product.weight}
+                                  </div>
+                                  <div className="text-center text-[11px] text-gray-700">
+                                    {product.price.toLocaleString()}
+                                  </div>
+                                  <div className="text-center text-[11px] font-medium text-gray-900">
+                                    {bid?.highestBid ? bid.highestBid.toLocaleString() : '-'}
+                                  </div>
+                                  <div 
+                                    className="text-center flex items-center justify-center"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    {bid?.myBid ? (
+                                      <div className="flex flex-col items-center">
+                                        <span 
+                                          onClick={() => {
+                                            if (bid.status !== 'highest') {
+                                              setSelectedFavoritePart(product);
+                                              setFavoritePartBidPrice(bid.highestBid + quickReBidAmount);
+                                              setShowFavoritePartBidSheet(true);
+                                            }
+                                          }}
+                                          className={`text-[11px] font-medium text-gray-900 leading-none ${bid.status !== 'highest' ? 'cursor-pointer' : ''}`}
+                                        >
+                                          {bid.myBid.toLocaleString()}
+                                        </span>
+                                        {bid.status !== 'highest' && (
+                                          <button
+                                            onClick={() => {
+                                              setSelectedFavoritePart(product);
+                                              setFavoritePartBidPrice(bid.highestBid + quickReBidAmount);
+                                              setShowFavoritePartBidSheet(true);
+                                            }}
+                                            className="mt-1 px-2 py-0.5 text-[10px] font-medium text-white bg-gray-800 rounded hover:bg-gray-900 transition-colors"
+                                          >
+                                            재입찰
+                                          </button>
+                                        )}
+                                      </div>
+                                    ) : (
+                                      <button
+                                        onClick={() => {
+                                          setSelectedFavoritePart(product);
+                                          setFavoritePartBidPrice(0);
+                                          setShowFavoritePartBidSheet(true);
+                                        }}
+                                        className="px-2 py-1 text-[10px] font-medium text-white bg-gray-800 rounded hover:bg-gray-900 transition-colors"
+                                      >
+                                        입찰하기
+                                      </button>
+                                    )}
+                                  </div>
+                                  <div className="text-center flex items-center justify-center">
+                                    {bid?.status === 'highest' ? (
+                                      <span className="text-[10px] font-medium text-blue-600">최고</span>
+                                    ) : bid?.status === 'secondHighest' ? (
+                                      <span className="text-[10px] font-medium text-red-500">차순위</span>
+                                    ) : (
+                                      <span className="text-[11px] text-gray-400">-</span>
+                                    )}
+                                  </div>
+                                  <div 
+                                    className="text-center flex items-center justify-center"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <button 
+                                      onClick={() => toggleFavorite(product.listingNo)}
+                                      className="p-1 text-gray-900 transition-colors"
+                                    >
+                                      <Star className="w-4 h-4 fill-current" />
+                                    </button>
+                                  </div>
+                                </div>
+                                
+                                {/* 펼쳐지는 개체 정보 */}
+                                <AnimatePresence>
+                                  {isExpanded && (
+                                    <motion.div
+                                      initial={{ height: 0, opacity: 0 }}
+                                      animate={{ height: 'auto', opacity: 1 }}
+                                      exit={{ height: 0, opacity: 0 }}
+                                      transition={{ duration: 0.2 }}
+                                      className="overflow-hidden border-b border-gray-200"
+                                    >
+                                      {/* 메인 이미지 배너 */}
+                                      <div 
+                                        className="relative overflow-hidden cursor-grab active:cursor-grabbing select-none"
+                                        onTouchStart={(e) => handleFavPartTouchStart(e, product.id)}
+                                        onTouchMove={handleFavPartTouchMove}
+                                        onTouchEnd={handleFavPartTouchEnd}
+                                      >
+                                        <div className="w-full aspect-square bg-gray-200">
+                                          {(favoritePartImageIndex[product.id] || 0) === 4 ? (
+                                            // 등급판정확인서
+                                            <div className="w-full h-full flex items-center justify-center bg-gray-100 p-4">
+                                              <div className="w-full max-w-[280px] bg-white shadow-lg border border-gray-300 p-4 aspect-[1/1.414]">
+                                                <div className="h-full flex flex-col text-[8px] text-gray-700">
+                                                  <div className="text-center border-b border-gray-400 pb-2 mb-2">
+                                                    <p className="text-[12px] font-bold text-gray-900">등급판정확인서</p>
+                                                    <p className="text-gray-500 mt-1">Grade Certification</p>
+                                                  </div>
+                                                  <div className="flex-1 space-y-1.5">
+                                                    <div className="flex"><span className="w-16 text-gray-500">접수번호:</span><span className="font-medium">{product.auctionNo}</span></div>
+                                                    <div className="flex"><span className="w-16 text-gray-500">축종:</span><span>한우</span></div>
+                                                    <div className="flex"><span className="w-16 text-gray-500">성별:</span><span>{product.type.includes('거세') ? '거세' : '암'}</span></div>
+                                                    <div className="flex"><span className="w-16 text-gray-500">등급:</span><span className="font-bold text-gray-900">{product.grade}</span></div>
+                                                    <div className="flex"><span className="w-16 text-gray-500">개월령:</span><span>{product.months}개월</span></div>
+                                                    <div className="flex"><span className="w-16 text-gray-500">도체중량:</span><span>520kg</span></div>
+                                                    <div className="flex"><span className="w-16 text-gray-500">등지방:</span><span>16mm</span></div>
+                                                    <div className="flex"><span className="w-16 text-gray-500">등심면적:</span><span>123㎠</span></div>
+                                                    <div className="flex"><span className="w-16 text-gray-500">근내지방:</span><span>9</span></div>
+                                                    <div className="flex"><span className="w-16 text-gray-500">육색:</span><span>5</span></div>
+                                                    <div className="flex"><span className="w-16 text-gray-500">지방색:</span><span>3</span></div>
+                                                    <div className="flex"><span className="w-16 text-gray-500">조직감:</span><span>1</span></div>
+                                                    <div className="flex"><span className="w-16 text-gray-500">성숙도:</span><span>2</span></div>
+                                                  </div>
+                                                  <div className="border-t border-gray-300 pt-2 mt-2 text-center">
+                                                    <p className="text-gray-500">축산물품질평가원</p>
+                                                    <p className="text-[6px] text-gray-400 mt-1">본 확인서는 법적 효력이 있습니다</p>
+                                                  </div>
+                                                </div>
+                                              </div>
+                                            </div>
+                                          ) : (favoritePartImageIndex[product.id] || 0) === 5 ? (
+                                            // 도축검사증명서
+                                            <div className="w-full h-full flex items-center justify-center bg-gray-100 p-4">
+                                              <div className="w-full max-w-[280px] bg-white shadow-lg border border-gray-300 p-4 aspect-[1/1.414]">
+                                                <div className="h-full flex flex-col text-[8px] text-gray-700">
+                                                  <div className="text-center border-b border-gray-400 pb-2 mb-2">
+                                                    <p className="text-[12px] font-bold text-gray-900">도축검사증명서</p>
+                                                    <p className="text-gray-500 mt-1">Slaughter Inspection Certificate</p>
+                                                  </div>
+                                                  <div className="flex-1 space-y-1.5">
+                                                    <div className="flex"><span className="w-16 text-gray-500">접수번호:</span><span className="font-medium">{product.auctionNo}</span></div>
+                                                    <div className="flex"><span className="w-16 text-gray-500">도축일:</span><span>2026.01.16</span></div>
+                                                    <div className="flex"><span className="w-16 text-gray-500">도축장:</span><span>음성축산물공판장</span></div>
+                                                    <div className="flex"><span className="w-16 text-gray-500">도축번호:</span><span>201</span></div>
+                                                    <div className="flex"><span className="w-16 text-gray-500">이력번호:</span><span>{product.historyNo}</span></div>
+                                                    <div className="flex"><span className="w-16 text-gray-500">출하농가:</span><span>{product.company}</span></div>
+                                                    <div className="flex"><span className="w-16 text-gray-500">검사결과:</span><span className="font-bold text-green-600">적합</span></div>
+                                                    <div className="flex"><span className="w-16 text-gray-500">검사항목:</span><span>일반검사</span></div>
+                                                    <div className="flex"><span className="w-16 text-gray-500">생체중량:</span><span>720kg</span></div>
+                                                    <div className="flex"><span className="w-16 text-gray-500">도체중량:</span><span>520kg</span></div>
+                                                    <div className="flex"><span className="w-16 text-gray-500">지육율:</span><span>72.2%</span></div>
+                                                  </div>
+                                                  <div className="border-t border-gray-300 pt-2 mt-2 text-center">
+                                                    <p className="text-gray-500">농림축산검역본부</p>
+                                                    <p className="text-[6px] text-gray-400 mt-1">본 증명서는 법적 효력이 있습니다</p>
+                                                  </div>
+                                                </div>
+                                              </div>
+                                            </div>
+                                          ) : (
+                                            // 일반 이미지
+                                            <img 
+                                              src={`/등심${((favoritePartImageIndex[product.id] || 0) % 4) + 1}.png`}
+                                              alt="개체 이미지"
+                                              className="w-full h-full object-cover select-none pointer-events-none"
+                                              draggable="false"
+                                            />
+                                          )}
+                                        </div>
+                                        
+                                        {/* 이미지 인디케이터 */}
+                                        <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2">
+                                          {[0,1,2,3,4,5].map((index) => (
+                                            <button
+                                              key={index}
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                setFavoritePartImageIndex(prev => ({ ...prev, [product.id]: index }));
+                                              }}
+                                              className={`w-2 h-2 rounded-full transition-colors ${
+                                                (favoritePartImageIndex[product.id] || 0) === index ? 'bg-white' : 'bg-white/50'
+                                              }`}
+                                            />
+                                          ))}
+                                        </div>
+                                      </div>
+
+                                      {/* 썸네일 이미지 */}
+                                      <div className="px-3 py-2">
+                                        <div className="flex gap-1.5 justify-start overflow-x-auto">
+                                          {[1,2,3,4].map((num, index) => (
+                                            <button
+                                              key={index}
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                setFavoritePartImageIndex(prev => ({ ...prev, [product.id]: index }));
+                                              }}
+                                              className={`w-14 h-14 flex-shrink-0 rounded overflow-hidden transition-all ${
+                                                (favoritePartImageIndex[product.id] || 0) === index 
+                                                  ? 'border-2 border-gray-400' 
+                                                  : 'border-2 border-transparent hover:border-gray-300'
+                                              }`}
+                                            >
+                                              <img 
+                                                src={`/등심${num}.png`}
+                                                alt={`등심${num}`}
+                                                className="w-full h-full object-cover"
+                                              />
+                                            </button>
+                                          ))}
+                                          {/* 등급판정확인서 썸네일 */}
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              setFavoritePartImageIndex(prev => ({ ...prev, [product.id]: 4 }));
+                                            }}
+                                            className={`w-14 h-14 flex-shrink-0 rounded overflow-hidden transition-all ${
+                                              (favoritePartImageIndex[product.id] || 0) === 4 
+                                                ? 'border-2 border-gray-400' 
+                                                : 'border-2 border-transparent hover:border-gray-300'
+                                            }`}
+                                          >
+                                            <div className="w-full h-full bg-gray-100 flex items-center justify-center">
+                                              <div className="w-8 h-10 bg-white border border-gray-300"></div>
+                                            </div>
+                                          </button>
+                                          {/* 도축검사증명서 썸네일 */}
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              setFavoritePartImageIndex(prev => ({ ...prev, [product.id]: 5 }));
+                                            }}
+                                            className={`w-14 h-14 flex-shrink-0 rounded overflow-hidden transition-all ${
+                                              (favoritePartImageIndex[product.id] || 0) === 5 
+                                                ? 'border-2 border-gray-400' 
+                                                : 'border-2 border-transparent hover:border-gray-300'
+                                            }`}
+                                          >
+                                            <div className="w-full h-full bg-gray-100 flex items-center justify-center">
+                                              <div className="w-8 h-10 bg-white border border-gray-300"></div>
+                                            </div>
+                                          </button>
+                                        </div>
+                                      </div>
+
+                                      {/* 개체정보 패널 - 테이블 형식 */}
+                                      <div className="px-3 py-3 border-t border-gray-200">
+                                        {/* 첫 번째 테이블: 등급 정보 */}
+                                        <div className="bg-white border border-gray-200 rounded overflow-hidden mb-2">
+                                          <table className="w-full text-[11px]">
+                                            <thead>
+                                              <tr className="bg-gray-100/80 border-b border-gray-200">
+                                                <th className="py-1.5 px-1 text-center font-medium text-gray-500">등급</th>
+                                                <th className="py-1.5 px-1 text-center font-medium text-gray-500">개월령</th>
+                                                <th className="py-1.5 px-1 text-center font-medium text-gray-500">등지방</th>
+                                                <th className="py-1.5 px-1 text-center font-medium text-gray-500">등심면적</th>
+                                                <th className="py-1.5 px-1 text-center font-medium text-gray-500">근내지방</th>
+                                                <th className="py-1.5 px-1 text-center font-medium text-gray-500">육색</th>
+                                                <th className="py-1.5 px-1 text-center font-medium text-gray-500">지방색</th>
+                                                <th className="py-1.5 px-1 text-center font-medium text-gray-500">조직감</th>
+                                                <th className="py-1.5 px-1 text-center font-medium text-gray-500">성숙도</th>
+                                              </tr>
+                                            </thead>
+                                            <tbody>
+                                              <tr>
+                                                <td className="py-2 px-1 text-center text-gray-700">{product.grade}</td>
+                                                <td className="py-2 px-1 text-center text-gray-700">{product.months}</td>
+                                                <td className="py-2 px-1 text-center text-gray-700">16</td>
+                                                <td className="py-2 px-1 text-center text-gray-700">123</td>
+                                                <td className="py-2 px-1 text-center text-gray-700">9</td>
+                                                <td className="py-2 px-1 text-center text-gray-700">5</td>
+                                                <td className="py-2 px-1 text-center text-gray-700">3</td>
+                                                <td className="py-2 px-1 text-center text-gray-700">1</td>
+                                                <td className="py-2 px-1 text-center text-gray-700">2</td>
+                                              </tr>
+                                            </tbody>
+                                          </table>
+                                        </div>
+
+                                        {/* 두 번째 테이블: 도축/가공 정보 */}
+                                        <div className="bg-white border border-gray-200 rounded overflow-hidden">
+                                          <table className="w-full text-[11px]">
+                                            <thead>
+                                              <tr className="bg-gray-100/80 border-b border-gray-200">
+                                                <th className="py-1.5 px-1 text-center font-medium text-gray-500">이력번호</th>
+                                                <th className="py-1.5 px-1 text-center font-medium text-gray-500">도축장</th>
+                                                <th className="py-1.5 px-1 text-center font-medium text-gray-500">도축번호</th>
+                                                <th className="py-1.5 px-1 text-center font-medium text-gray-500">도체중</th>
+                                                <th className="py-1.5 px-1 text-center font-medium text-gray-500">상장업체</th>
+                                                <th className="py-1.5 px-1 text-center font-medium text-gray-500">가공일</th>
+                                                <th className="py-1.5 px-1 text-center font-medium text-gray-500">가공중량</th>
+                                              </tr>
+                                            </thead>
+                                            <tbody>
+                                              <tr>
+                                                <td className="py-2 px-1 text-center text-gray-700">{product.historyNo}</td>
+                                                <td className="py-2 px-1 text-center text-gray-700">음성</td>
+                                                <td className="py-2 px-1 text-center text-gray-700">201</td>
+                                                <td className="py-2 px-1 text-center text-gray-700">520</td>
+                                                <td className="py-2 px-1 text-center text-gray-700">{product.company}</td>
+                                                <td className="py-2 px-1 text-center text-gray-700">26.01.17</td>
+                                                <td className="py-2 px-1 text-center text-gray-700">312</td>
+                                              </tr>
+                                            </tbody>
+                                          </table>
+                                        </div>
+                                      </div>
+                                      
+                                      {/* 개체정보 버튼 & 축산물 이력정보 */}
+                                      <div className="px-3 py-3 border-t border-gray-200 bg-white flex items-center gap-2">
+                                        <a
+                                          href="https://aunit.mtrace.go.kr/mtracesearch/cattleNoSearch.do?btsProgNo=0109008401&btsActionMethod=SELECT&cattleNo=002189438539"
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="px-3 py-1.5 text-xs font-bold rounded border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-1"
+                                          onClick={(e) => e.stopPropagation()}
+                                        >
+                                          축산물 이력정보
+                                          <ExternalLink className="w-3 h-3" />
+                                        </a>
+                                        <div className="flex-1" />
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setSelectedFavoritePart(product);
+                                            setFavoritePartBidPrice(product.price);
+                                            setShowFavoritePartBidSheet(true);
+                                          }}
+                                          className="px-3 py-1.5 text-xs font-bold rounded bg-gray-800 text-white hover:bg-gray-900 transition-colors"
+                                        >
+                                          입찰하기
+                                        </button>
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setExpandedFavoritePartId(null);
+                                          }}
+                                          className="px-3 py-1.5 text-xs font-bold rounded border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 transition-colors"
+                                        >
+                                          개체정보 닫기
+                                        </button>
+                                      </div>
+                                    </motion.div>
+                                  )}
+                                </AnimatePresence>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )
                     )}
                   </div>
                 ) : activeTab === '경매정보' ? (
@@ -774,21 +1323,22 @@ function MainPageContent() {
                           </thead>
                           <tbody>
                             {(() => {
-                              // cattleData에서 성별/등급별 두수 계산
-                              const steer9 = cattleData.filter(c => c.gender === '거세' && c.grade === '1++(9)').length;
-                              const steer8 = cattleData.filter(c => c.gender === '거세' && c.grade === '1++(8)').length;
-                              const steer7 = cattleData.filter(c => c.gender === '거세' && c.grade === '1++(7)').length;
-                              const steer1p = cattleData.filter(c => c.gender === '거세' && c.grade === '1+').length;
-                              const steer1 = cattleData.filter(c => c.gender === '거세' && c.grade === '1').length;
-                              const steer2 = cattleData.filter(c => c.gender === '거세' && c.grade === '2').length;
+                              // cattleData에서 성별/등급별 두수 계산 (육량지수 A,B,C 무시)
+                              const getGradeWithoutYield = (grade: string) => grade.replace(/[ABC]/, '');
+                              const steer9 = cattleData.filter(c => c.gender === '거세' && getGradeWithoutYield(c.grade) === '1++(9)').length;
+                              const steer8 = cattleData.filter(c => c.gender === '거세' && getGradeWithoutYield(c.grade) === '1++(8)').length;
+                              const steer7 = cattleData.filter(c => c.gender === '거세' && getGradeWithoutYield(c.grade) === '1++(7)').length;
+                              const steer1p = cattleData.filter(c => c.gender === '거세' && getGradeWithoutYield(c.grade) === '1+').length;
+                              const steer1 = cattleData.filter(c => c.gender === '거세' && getGradeWithoutYield(c.grade) === '1').length;
+                              const steer2 = cattleData.filter(c => c.gender === '거세' && getGradeWithoutYield(c.grade) === '2').length;
                               const steerSum = cattleData.filter(c => c.gender === '거세').length;
 
-                              const cow9 = cattleData.filter(c => c.gender === '암' && c.grade === '1++(9)').length;
-                              const cow8 = cattleData.filter(c => c.gender === '암' && c.grade === '1++(8)').length;
-                              const cow7 = cattleData.filter(c => c.gender === '암' && c.grade === '1++(7)').length;
-                              const cow1p = cattleData.filter(c => c.gender === '암' && c.grade === '1+').length;
-                              const cow1 = cattleData.filter(c => c.gender === '암' && c.grade === '1').length;
-                              const cow2 = cattleData.filter(c => c.gender === '암' && c.grade === '2').length;
+                              const cow9 = cattleData.filter(c => c.gender === '암' && getGradeWithoutYield(c.grade) === '1++(9)').length;
+                              const cow8 = cattleData.filter(c => c.gender === '암' && getGradeWithoutYield(c.grade) === '1++(8)').length;
+                              const cow7 = cattleData.filter(c => c.gender === '암' && getGradeWithoutYield(c.grade) === '1++(7)').length;
+                              const cow1p = cattleData.filter(c => c.gender === '암' && getGradeWithoutYield(c.grade) === '1+').length;
+                              const cow1 = cattleData.filter(c => c.gender === '암' && getGradeWithoutYield(c.grade) === '1').length;
+                              const cow2 = cattleData.filter(c => c.gender === '암' && getGradeWithoutYield(c.grade) === '2').length;
                               const cowSum = cattleData.filter(c => c.gender === '암').length;
 
                               return (
@@ -853,19 +1403,20 @@ function MainPageContent() {
                           </thead>
                           <tbody>
                           {(() => {
-                            // cattleData에서 고유 업체 목록 추출
+                            // cattleData에서 고유 업체 목록 추출 (육량지수 A,B,C 무시)
+                            const getGradeWithoutYield = (grade: string) => grade.replace(/[ABC]/, '');
                             const companies = [...new Set(cattleData.map(c => c.company))];
                             return companies.map((companyName, idx) => {
                               const companyData = cattleData.filter(c => c.company === companyName);
-                              const grade9 = companyData.filter(c => c.grade === '1++(9)').length;
-                              const grade8 = companyData.filter(c => c.grade === '1++(8)').length;
-                              const grade7 = companyData.filter(c => c.grade === '1++(7)').length;
-                              const grade1p = companyData.filter(c => c.grade === '1+').length;
-                              const grade1 = companyData.filter(c => c.grade === '1').length;
-                              const grade2 = companyData.filter(c => c.grade === '2').length;
+                              const grade9 = companyData.filter(c => getGradeWithoutYield(c.grade) === '1++(9)').length;
+                              const grade8 = companyData.filter(c => getGradeWithoutYield(c.grade) === '1++(8)').length;
+                              const grade7 = companyData.filter(c => getGradeWithoutYield(c.grade) === '1++(7)').length;
+                              const grade1p = companyData.filter(c => getGradeWithoutYield(c.grade) === '1+').length;
+                              const grade1 = companyData.filter(c => getGradeWithoutYield(c.grade) === '1').length;
+                              const grade2 = companyData.filter(c => getGradeWithoutYield(c.grade) === '2').length;
                               const companyTotal = companyData.length;
                               return (
-                                <tr key={companyName} className={`border-b border-gray-100 cursor-pointer hover:bg-gray-50 ${idx > 0 ? 'border-t border-gray-100' : ''}`} onClick={() => window.location.href = `/auction?company=${companyName}`}>
+                                <tr key={companyName} className={`border-b border-gray-100 ${idx > 0 ? 'border-t border-gray-100' : ''}`}>
                                   <td className="py-2 text-center text-gray-900 font-semibold border-r border-gray-100">
                                     {companyName}
                                   </td>
@@ -883,12 +1434,13 @@ function MainPageContent() {
                           </tbody>
                           <tfoot>
                             {(() => {
-                              const total9 = cattleData.filter(c => c.grade === '1++(9)').length;
-                              const total8 = cattleData.filter(c => c.grade === '1++(8)').length;
-                              const total7 = cattleData.filter(c => c.grade === '1++(7)').length;
-                              const total1p = cattleData.filter(c => c.grade === '1+').length;
-                              const total1 = cattleData.filter(c => c.grade === '1').length;
-                              const total2 = cattleData.filter(c => c.grade === '2').length;
+                              const getGradeWithoutYield = (grade: string) => grade.replace(/[ABC]/, '');
+                              const total9 = cattleData.filter(c => getGradeWithoutYield(c.grade) === '1++(9)').length;
+                              const total8 = cattleData.filter(c => getGradeWithoutYield(c.grade) === '1++(8)').length;
+                              const total7 = cattleData.filter(c => getGradeWithoutYield(c.grade) === '1++(7)').length;
+                              const total1p = cattleData.filter(c => getGradeWithoutYield(c.grade) === '1+').length;
+                              const total1 = cattleData.filter(c => getGradeWithoutYield(c.grade) === '1').length;
+                              const total2 = cattleData.filter(c => getGradeWithoutYield(c.grade) === '2').length;
                               const grandTotal = cattleData.length;
                               return (
                                 <tr className="bg-gray-100/80 border-t border-gray-300">
@@ -908,173 +1460,6 @@ function MainPageContent() {
                       </div>
                     </div>
 
-                  </div>
-                ) : activeTab === '입찰내역(진행중)' ? (
-                  <div className="px-4 pt-4">
-                    {/* 요약 카드 */}
-                    <div className="bg-white border border-gray-200 rounded shadow-sm mb-4">
-                      <div className="px-4 py-3.5">
-                        <div className="flex items-center justify-between mb-3">
-                          <span className="text-sm font-bold text-gray-900">오늘의 입찰 현황</span>
-                          <button
-                            onClick={() => setShowQuickReBidEdit(true)}
-                            className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
-                          >
-                            설정
-                          </button>
-                        </div>
-                        <div className="flex items-center gap-5">
-                          <div className="flex items-center gap-1.5">
-                            <span className="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
-                            <span className="text-xs text-gray-600">최고가격</span>
-                            <span className="text-base font-bold text-gray-900">
-                              {Object.values(globalBids).filter(bid => bid.status === 'highest').length}건
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-1.5">
-                            <span className="w-2.5 h-2.5 rounded-full bg-red-400"></span>
-                            <span className="text-xs text-gray-600">차순위</span>
-                            <span className="text-base font-bold text-gray-900">
-                              {Object.values(globalBids).filter(bid => bid.status !== 'highest').length}건
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    {Object.keys(globalBids).length === 0 ? (
-                      <div className="text-center py-12">
-                        <h3 className="text-base font-medium text-gray-500">입찰 내역이 없습니다</h3>
-                      </div>
-                    ) : (
-                      <div 
-                        ref={bidTableRef}
-                        className="overflow-x-auto cursor-grab active:cursor-grabbing select-none"
-                        onMouseDown={handleBidTableMouseDown}
-                        onMouseMove={handleBidTableMouseMove}
-                        onMouseUp={handleBidTableMouseUp}
-                        onMouseLeave={handleBidTableMouseLeave}
-                      >
-                        <table className="w-full text-xs whitespace-nowrap">
-                          <thead>
-                            <tr className="bg-gray-50 border-b border-gray-200">
-                              <th className="px-2 py-2.5 text-center font-bold text-gray-700">상태</th>
-                              <th className="px-2 py-2.5 text-center font-bold text-gray-700">일자</th>
-                              <th className="px-2 py-2.5 text-center font-bold text-gray-700">상장번호</th>
-                              <th className="px-2 py-2.5 text-center font-bold text-gray-700">부위</th>
-                              <th className="px-2 py-2.5 text-center font-bold text-gray-700">등급</th>
-                              <th className="px-2 py-2.5 text-center font-bold text-gray-700">중량</th>
-                              <th className="px-2 py-2.5 text-center font-bold text-gray-700">최고가</th>
-                              <th className="px-2 py-2.5 text-center font-bold text-gray-700">나의 입찰가</th>
-                              <th className="px-2 py-2.5 text-center font-bold text-gray-700">액션</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {Object.entries(globalBids)
-                              .filter(([listingNo]) => listingNo.startsWith(getTodayDateCode()))
-                              .sort(([, a], [, b]) => {
-                                // 일자 기준 내림차순 정렬
-                                const parseTime = (time: string) => {
-                                  const match = time.match(/(\d{2})\.(\d{2})\.(\d{2}).*?(\d{2}):(\d{2})/);
-                                  if (match) {
-                                    return new Date(2000 + parseInt(match[1]), parseInt(match[2]) - 1, parseInt(match[3]), parseInt(match[4]), parseInt(match[5])).getTime();
-                                  }
-                                  return 0;
-                                };
-                                return parseTime(b.time) - parseTime(a.time);
-                              })
-                              .map(([listingNo, bid]) => {
-                          const productInfo = bid.productInfo;
-                          if (!productInfo) return null;
-                          
-                          return (
-                                <tr key={listingNo} id={`bid-card-${listingNo}`} className="border-b border-gray-100 hover:bg-gray-50">
-                                  {/* 상태 */}
-                                  <td className="px-2 py-2.5 text-center">
-                                    {bid.status === 'highest' ? (
-                                      <span className="inline-block w-2.5 h-2.5 rounded-full bg-blue-500"></span>
-                                    ) : (
-                                      <span className="inline-block w-2.5 h-2.5 rounded-full bg-red-400"></span>
-                                    )}
-                                  </td>
-                                  {/* 일자 */}
-                                  <td className="px-2 py-2.5 text-center text-gray-600 text-[11px]">
-                                    {bid.time}
-                                  </td>
-                                  {/* 상장번호 */}
-                                  <td className="px-2 py-2.5 text-center font-medium text-gray-900">
-                                    <Link 
-                                      href={`/auction/${parseInt(listingNo.split('-')[1])}`}
-                                      className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
-                                    >
-                                      {listingNo}
-                                    </Link>
-                                  </td>
-                                  {/* 부위 */}
-                                  <td className="px-2 py-2.5 text-center text-gray-900">
-                                    <Link 
-                                      href={`/auction?tab=part&part=${
-                                        productInfo.partName.includes('등심') ? 'sirloin' :
-                                        productInfo.partName.includes('채끝') ? 'striploin' :
-                                        productInfo.partName.includes('목심') ? 'chuck' :
-                                        productInfo.partName.includes('앞다리') ? 'foreleg' :
-                                        productInfo.partName.includes('갈비') ? 'ribs' :
-                                        productInfo.partName.includes('설도') ? 'round' :
-                                        productInfo.partName.includes('양지') ? 'brisket' :
-                                        productInfo.partName.includes('우둔') ? 'rump' :
-                                        productInfo.partName.includes('사태') ? 'shank' :
-                                        productInfo.partName.includes('안심') ? 'tenderloin' :
-                                        productInfo.partName.includes('특수') ? 'special' :
-                                        productInfo.partName.includes('꼬리') ? 'tail' :
-                                        productInfo.partName.includes('족') ? 'feet' :
-                                        productInfo.partName.includes('사골') ? 'bone' :
-                                        productInfo.partName.includes('잡뼈') ? 'misc' : 'sirloin'
-                                      }`}
-                                      className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
-                                    >
-                                      {productInfo.partName}
-                                    </Link>
-                                  </td>
-                                  {/* 등급 */}
-                                  <td className="px-2 py-2.5 text-center text-gray-900" style={{ letterSpacing: '-0.05em' }}>
-                                    {productInfo.grade}
-                                  </td>
-                                  {/* 중량 */}
-                                  <td className="px-2 py-2.5 text-center text-gray-900">
-                                    {productInfo.weight}
-                                  </td>
-                                  {/* 최고가 */}
-                                  <td className="px-2 py-2.5 text-center font-medium text-gray-900">
-                                    {bid.highestBid.toLocaleString()}원
-                                  </td>
-                                  {/* 나의 입찰가 */}
-                                  <td className="px-2 py-2.5 text-center font-medium text-gray-900">
-                                    {bid.myBid.toLocaleString()}원
-                                  </td>
-                                  {/* 액션 */}
-                                  <td className="px-2 py-2.5 text-center">
-                                    {bid.status === 'highest' ? (
-                                      <span className="text-gray-400 text-[10px]">-</span>
-                                    ) : (
-                                  <button 
-                                    onClick={() => {
-                                        setSelectedBid({ listingNo, ...bid });
-                                        setCustomBidPrice((bid.highestBid + quickReBidAmount).toLocaleString());
-                                        setShowReBidDialog(true);
-                                    }}
-                                        className="px-2 py-1 bg-gray-900 text-white text-[10px] font-bold rounded hover:bg-gray-800 transition-colors"
-                                  >
-                                        재입찰
-                                  </button>
-                                    )}
-                                  </td>
-                                </tr>
-                          );
-                        })}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
                   </div>
                 ) : (
                   <div className="px-4 pt-4">
@@ -1371,6 +1756,246 @@ function MainPageContent() {
                 </div>
               </div>
             )}
+
+            {/* 부위별 관심 입찰 바텀시트 */}
+            <AnimatePresence>
+              {showFavoritePartBidSheet && selectedFavoritePart && (
+                <>
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="absolute inset-0 bg-black/50 z-[90]"
+                    onClick={() => setShowFavoritePartBidSheet(false)}
+                  />
+                  <motion.div
+                    initial={{ y: '100%' }}
+                    animate={{ y: 0 }}
+                    exit={{ y: '100%' }}
+                    transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+                    className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-2xl max-h-[70vh] overflow-y-auto z-[100]"
+                  >
+                    <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
+                      <h3 className="text-base font-bold text-gray-900">입찰하기</h3>
+                      <button
+                        onClick={() => setShowFavoritePartBidSheet(false)}
+                        className="p-1 text-gray-500 hover:text-gray-700"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                    </div>
+                    
+                    <div className="p-4">
+                      {/* 상품 정보 테이블 */}
+                      <div className="mb-4 bg-white border border-gray-200 rounded overflow-hidden">
+                        <table className="w-full text-[11px]">
+                          <thead>
+                            <tr className="bg-gray-100 border-b border-gray-200">
+                              <th className="py-1.5 px-2 text-center font-medium text-gray-500">상장번호</th>
+                              <th className="py-1.5 px-2 text-center font-medium text-gray-500">부위명</th>
+                              <th className="py-1.5 px-2 text-center font-medium text-gray-500">등급</th>
+                              <th className="py-1.5 px-2 text-center font-medium text-gray-500">중량</th>
+                              <th className="py-1.5 px-2 text-center font-medium text-gray-500">최저단가</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            <tr>
+                              <td className="py-2 px-2 text-center text-gray-900 font-medium">{selectedFavoritePart.listingNo}</td>
+                              <td className="py-2 px-2 text-center text-gray-700">{selectedFavoritePart.partName}</td>
+                              <td className="py-2 px-2 text-center text-gray-700">{selectedFavoritePart.grade}</td>
+                              <td className="py-2 px-2 text-center text-gray-700">{selectedFavoritePart.weight}</td>
+                              <td className="py-2 px-2 text-center text-gray-700">{selectedFavoritePart.price.toLocaleString()}원</td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                      
+                      {/* 입찰가 입력 */}
+                      <div className="space-y-2 mb-4">
+                        <label className="text-sm font-bold text-gray-700">입찰가격 (kg당)</label>
+                        <div className="relative">
+                          <input
+                            type="text"
+                            value={favoritePartBidPrice > 0 ? favoritePartBidPrice.toLocaleString() : ''}
+                            onChange={(e) => {
+                              const value = e.target.value.replace(/[^\d]/g, '');
+                              setFavoritePartBidPrice(value ? parseInt(value) : 0);
+                            }}
+                            placeholder={`최저단가 ${selectedFavoritePart.price.toLocaleString()}`}
+                            className="w-full px-3 py-3 pr-10 text-right text-xl font-bold border border-gray-200 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500 bg-white text-black placeholder:text-gray-400"
+                          />
+                          <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-sm text-gray-400">
+                            원
+                          </div>
+                        </div>
+                        {/* 가격 조정 버튼 */}
+                        <div className="grid grid-cols-5 gap-1.5">
+                          {[100, 1000, 10000, 50000].map((amount) => (
+                            <button
+                              key={amount}
+                              onClick={() => {
+                                setFavoritePartBidPrice(prev => {
+                                  // 0이면 최고입찰가 또는 최저단가에서 시작
+                                  if (prev === 0 && selectedFavoritePart) {
+                                    const bidInfo = bids[selectedFavoritePart.listingNo];
+                                    const basePrice = bidInfo?.highestBid || selectedFavoritePart.price || 0;
+                                    return basePrice + amount;
+                                  }
+                                  return prev + amount;
+                                });
+                              }}
+                              className="py-2.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 font-medium"
+                            >
+                              +{amount.toLocaleString()}
+                            </button>
+                          ))}
+                          <button
+                            onClick={() => setFavoritePartBidPrice(0)}
+                            className="py-2.5 text-xs bg-gray-100 border border-gray-200 rounded-lg hover:bg-gray-200 text-gray-600 font-medium"
+                          >
+                            초기화
+                          </button>
+                        </div>
+                      </div>
+                      
+                      {/* 총 입찰금액 */}
+                      <div className="bg-gray-50 p-3 rounded-lg border border-gray-200 mb-4">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm font-bold text-gray-700">총 입찰금액</span>
+                          <span className="text-xl font-bold text-gray-900">
+                            {favoritePartBidPrice > 0 
+                              ? `${Math.round(favoritePartBidPrice * parseFloat(selectedFavoritePart.weight)).toLocaleString()}원`
+                              : '-'
+                            }
+                          </span>
+                        </div>
+                      </div>
+                      
+                      {/* 입찰하기 버튼 */}
+                      <button
+                        onClick={() => {
+                          if (favoritePartBidPrice >= selectedFavoritePart.price) {
+                            setShowFavoritePartBidSheet(false);
+                            setShowFavoritePartBidConfirm(true);
+                          } else {
+                            showToastMessage('최저단가 이상으로 입찰해주세요.', 'warning');
+                          }
+                        }}
+                        disabled={favoritePartBidPrice === 0}
+                        className="w-full py-2.5 bg-gray-800 hover:bg-gray-900 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-bold text-base rounded"
+                      >
+                        입찰하기
+                      </button>
+                    </div>
+                  </motion.div>
+                </>
+              )}
+            </AnimatePresence>
+
+            {/* 부위별 관심 입찰 확인 다이얼로그 */}
+            <AnimatePresence>
+              {showFavoritePartBidConfirm && selectedFavoritePart && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="absolute inset-0 z-[110] flex items-center justify-center p-4"
+                >
+                  <div 
+                    className="absolute inset-0 bg-black/60"
+                    onClick={() => setShowFavoritePartBidConfirm(false)}
+                  />
+                  <motion.div
+                    initial={{ scale: 0.95, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    exit={{ scale: 0.95, opacity: 0 }}
+                    className="relative bg-white rounded-lg shadow-xl w-full max-w-sm overflow-hidden"
+                  >
+                    <div className="p-4">
+                      <h3 className="text-base font-bold text-gray-900 mb-4 text-center">입찰 내용을 확인해 주세요.</h3>
+                      
+                      {/* 상품 정보 테이블 */}
+                      <div className="mb-4 bg-white border border-gray-200 rounded overflow-hidden">
+                        <table className="w-full text-[11px]">
+                          <thead>
+                            <tr className="bg-gray-100 border-b border-gray-200">
+                              <th className="py-1.5 px-2 text-center font-medium text-gray-500">상장번호</th>
+                              <th className="py-1.5 px-2 text-center font-medium text-gray-500">부위명</th>
+                              <th className="py-1.5 px-2 text-center font-medium text-gray-500">등급</th>
+                              <th className="py-1.5 px-2 text-center font-medium text-gray-500">중량</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            <tr>
+                              <td className="py-2 px-2 text-center text-gray-900 font-medium">{selectedFavoritePart.listingNo}</td>
+                              <td className="py-2 px-2 text-center text-gray-700">{selectedFavoritePart.partName}</td>
+                              <td className="py-2 px-2 text-center text-gray-700">{selectedFavoritePart.grade}</td>
+                              <td className="py-2 px-2 text-center text-gray-700">{selectedFavoritePart.weight}</td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+
+                      <div className="space-y-2 text-sm mb-4">
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">입찰가격</span>
+                          <span className="font-medium text-gray-900">{favoritePartBidPrice.toLocaleString()}원/kg</span>
+                        </div>
+                        <div className="flex justify-between border-t border-gray-200 pt-2">
+                          <span className="font-bold text-gray-700">총 입찰금액</span>
+                          <span className="font-bold text-gray-900">
+                            {Math.round(favoritePartBidPrice * parseFloat(selectedFavoritePart.weight)).toLocaleString()}원
+                          </span>
+                        </div>
+                      </div>
+                      
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => {
+                            setShowFavoritePartBidConfirm(false);
+                            setShowFavoritePartBidSheet(true);
+                          }}
+                          className="flex-1 py-2.5 border border-gray-300 text-gray-700 font-bold text-sm rounded hover:bg-gray-50"
+                        >
+                          취소
+                        </button>
+                        <button
+                          onClick={() => {
+                            // 입찰 저장
+                            const weight = parseFloat(selectedFavoritePart.weight);
+                            const totalBid = Math.round(favoritePartBidPrice * weight);
+                            const highestBid = Math.round(favoritePartBidPrice * weight * 0.95);
+                            
+                            setBid(selectedFavoritePart.listingNo, {
+                              myBid: totalBid,
+                              highestBid: Math.max(totalBid, highestBid),
+                              status: 'highest',
+                              time: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
+                              productInfo: {
+                                listingNo: selectedFavoritePart.listingNo,
+                                partName: selectedFavoritePart.partName,
+                                weight: selectedFavoritePart.weight,
+                                type: selectedFavoritePart.type,
+                                grade: selectedFavoritePart.grade,
+                                price: selectedFavoritePart.price,
+                              }
+                            });
+                            
+                            setShowFavoritePartBidConfirm(false);
+                            setSelectedFavoritePart(null);
+                            setFavoritePartBidPrice(0);
+                            showToastMessage('입찰이 완료되었습니다.', 'success');
+                          }}
+                          className="flex-1 py-2.5 bg-gray-800 text-white font-bold text-sm rounded hover:bg-gray-900"
+                        >
+                          입찰하기
+                        </button>
+                      </div>
+                    </div>
+                  </motion.div>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             {/* 입금신청 모달 */}
             <AnimatePresence>

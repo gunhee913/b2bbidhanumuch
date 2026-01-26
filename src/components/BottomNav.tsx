@@ -2,11 +2,11 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home as HomeIcon, Gavel, BarChart3, FileText, User } from 'lucide-react';
+import { ClipboardList, Gavel, BarChart3, FileText, User } from 'lucide-react';
 
 const navItems = [
   { href: '/', label: '경매장', icon: Gavel },
-  { href: '/auction', label: '기타', icon: HomeIcon },
+  { href: '/bids', label: '경매내역', icon: ClipboardList },
   { href: '/market', label: '시세', icon: BarChart3 },
   { href: '/trade', label: '거래', icon: FileText },
   { href: '/profile', label: '내정보', icon: User },
@@ -20,9 +20,9 @@ export default function BottomNav() {
       // 메인 페이지 또는 /auction 관련 페이지일 때 '경매장' 활성화
       return pathname === '/' || pathname.startsWith('/auction');
     }
-    if (href === '/auction') {
-      // '기타'는 별도 조건 없이 비활성화 (경매장에서 처리)
-      return false;
+    if (href === '/bids') {
+      // 경매내역 페이지
+      return pathname.startsWith('/bids');
     }
     return pathname.startsWith(href);
   };

@@ -14,6 +14,8 @@ export default function SettingsPage() {
     setIsAuctionStartNotificationOn,
     isDailyResultNotificationOn,
     setIsDailyResultNotificationOn,
+    isListingInfoNotificationOn,
+    setIsListingInfoNotificationOn,
     isDarkMode,
     setIsDarkMode,
     isScreenAwakeOn,
@@ -104,6 +106,26 @@ export default function SettingsPage() {
                     <div
                       className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${
                         isDailyResultNotificationOn ? 'translate-x-7' : 'translate-x-1'
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                {/* 상장 정보 알림 받기 */}
+                <div className="flex items-center justify-between py-1">
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">상장 정보 알림 받기</p>
+                    <p className="text-xs text-gray-500 mt-0.5">다음날 상장 정보가 업로드되면 알림을 받습니다</p>
+                  </div>
+                  <button
+                    onClick={() => setIsListingInfoNotificationOn(!isListingInfoNotificationOn)}
+                    className={`relative w-12 h-6 rounded-full transition-colors ${
+                      isListingInfoNotificationOn ? 'bg-gray-800' : 'bg-gray-300'
+                    }`}
+                  >
+                    <div
+                      className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${
+                        isListingInfoNotificationOn ? 'translate-x-7' : 'translate-x-1'
                       }`}
                     />
                   </button>
