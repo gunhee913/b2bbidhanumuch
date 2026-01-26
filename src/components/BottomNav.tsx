@@ -2,13 +2,13 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { ClipboardList, Gavel, BarChart3, FileText, User } from 'lucide-react';
+import { ClipboardList, Gavel, BarChart3, Truck, User } from 'lucide-react';
 
 const navItems = [
   { href: '/', label: '경매장', icon: Gavel },
   { href: '/bids', label: '경매내역', icon: ClipboardList },
+  { href: '/trade', label: '배송지시', icon: Truck },
   { href: '/market', label: '시세', icon: BarChart3 },
-  { href: '/trade', label: '거래', icon: FileText },
   { href: '/profile', label: '내정보', icon: User },
 ];
 

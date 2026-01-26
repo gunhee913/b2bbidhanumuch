@@ -6,12 +6,12 @@ import { persist } from 'zustand/middleware';
 // 앱 로드 시 즉시 잘못된 입찰 데이터 삭제 (스토어 생성 전에 실행)
 if (typeof window !== 'undefined') {
   // 모든 이전 버전 삭제
-  ['bid-storage', 'bid-storage-v2', 'bid-storage-v3', 'bid-storage-v4', 'bid-storage-v5', 'bid-storage-v6', 'bid-storage-v7', 'bid-storage-v8', 'bid-storage-v9', 'bid-storage-v10', 'bid-storage-v11', 'bid-storage-v12', 'bid-storage-v13'].forEach(key => {
+  ['bid-storage', 'bid-storage-v2', 'bid-storage-v3', 'bid-storage-v4', 'bid-storage-v5', 'bid-storage-v6', 'bid-storage-v7', 'bid-storage-v8', 'bid-storage-v9', 'bid-storage-v10', 'bid-storage-v11', 'bid-storage-v12', 'bid-storage-v13', 'bid-storage-v14'].forEach(key => {
     localStorage.removeItem(key);
   });
   
   // 현재 버전에서 잘못된 데이터 정리
-  const currentKey = 'bid-storage-v14';
+  const currentKey = 'bid-storage-v15';
   const data = localStorage.getItem(currentKey);
   if (data) {
     try {
@@ -114,6 +114,11 @@ interface BidStore {
   
   // 경매 결과 조회
   getAuctionResults: () => AuctionResult[];
+  
+  // 배송 거래처 매핑 (상장번호 -> 거래처ID)
+  deliveryDealers: Record<string, string>;
+  setDeliveryDealer: (listingNo: string, dealerId: string) => void;
+  getDeliveryDealer: (listingNo: string) => string | undefined;
   
   // 빠른 재입찰 금액
   quickReBidAmount: number;
@@ -432,6 +437,87 @@ export const useBidStore = create<BidStore>()(
             time: `${dateStr} 14:45`,
             productInfo: { partName: '앞다리', weight: '24.5kg', type: '한우거세', grade: '1A' }
           },
+          // 추가 낙찰 10건 (미등록)
+          {
+            listingNo: `${dateCode}-115-01`,
+            result: 'won' as const,
+            myBid: 98000,
+            winningBid: 98000,
+            time: `${dateStr} 15:40`,
+            productInfo: { partName: '등심(좌)', weight: '14.2kg', type: '한우거세', grade: '1++A(8)' }
+          },
+          {
+            listingNo: `${dateCode}-115-02`,
+            result: 'won' as const,
+            myBid: 95000,
+            winningBid: 95000,
+            time: `${dateStr} 15:42`,
+            productInfo: { partName: '등심(우)', weight: '14.5kg', type: '한우거세', grade: '1++A(8)' }
+          },
+          {
+            listingNo: `${dateCode}-116-03`,
+            result: 'won' as const,
+            myBid: 125000,
+            winningBid: 125000,
+            time: `${dateStr} 15:45`,
+            productInfo: { partName: '안심', weight: '5.2kg', type: '한우암', grade: '1++A(9)' }
+          },
+          {
+            listingNo: `${dateCode}-117-04`,
+            result: 'won' as const,
+            myBid: 78000,
+            winningBid: 78000,
+            time: `${dateStr} 15:48`,
+            productInfo: { partName: '갈비(좌)', weight: '11.8kg', type: '한우거세', grade: '1+A' }
+          },
+          {
+            listingNo: `${dateCode}-117-05`,
+            result: 'won' as const,
+            myBid: 76000,
+            winningBid: 76000,
+            time: `${dateStr} 15:50`,
+            productInfo: { partName: '갈비(우)', weight: '12.1kg', type: '한우거세', grade: '1+A' }
+          },
+          {
+            listingNo: `${dateCode}-118-06`,
+            result: 'won' as const,
+            myBid: 72000,
+            winningBid: 72000,
+            time: `${dateStr} 15:52`,
+            productInfo: { partName: '채끝', weight: '7.8kg', type: '한우암', grade: '1++B(7)' }
+          },
+          {
+            listingNo: `${dateCode}-119-07`,
+            result: 'won' as const,
+            myBid: 55000,
+            winningBid: 55000,
+            time: `${dateStr} 15:55`,
+            productInfo: { partName: '앞다리', weight: '22.5kg', type: '한우거세', grade: '1+B' }
+          },
+          {
+            listingNo: `${dateCode}-120-08`,
+            result: 'won' as const,
+            myBid: 52000,
+            winningBid: 52000,
+            time: `${dateStr} 15:58`,
+            productInfo: { partName: '우둔', weight: '18.2kg', type: '한우거세', grade: '1A' }
+          },
+          {
+            listingNo: `${dateCode}-121-09`,
+            result: 'won' as const,
+            myBid: 58000,
+            winningBid: 58000,
+            time: `${dateStr} 16:00`,
+            productInfo: { partName: '목심', weight: '12.8kg', type: '한우암', grade: '1+A' }
+          },
+          {
+            listingNo: `${dateCode}-122-10`,
+            result: 'won' as const,
+            myBid: 48000,
+            winningBid: 48000,
+            time: `${dateStr} 16:02`,
+            productInfo: { partName: '양지(좌)', weight: '13.5kg', type: '한우거세', grade: '1B' }
+          },
           // 유찰 (lost)
           {
             listingNo: `${dateCode}-105-01`,
@@ -521,6 +607,20 @@ export const useBidStore = create<BidStore>()(
         return get().auctionResults;
       },
       
+      // 배송 거래처 매핑
+      deliveryDealers: {},
+      setDeliveryDealer: (listingNo, dealerId) => {
+        set((state) => ({
+          deliveryDealers: {
+            ...state.deliveryDealers,
+            [listingNo]: dealerId
+          }
+        }));
+      },
+      getDeliveryDealer: (listingNo) => {
+        return get().deliveryDealers[listingNo];
+      },
+      
       quickReBidAmount: 500,
       setQuickReBidAmount: (amount) => set({ quickReBidAmount: amount }),
       
@@ -594,7 +694,7 @@ export const useBidStore = create<BidStore>()(
       },
     }),
     {
-      name: 'bid-storage-v14',
+      name: 'bid-storage-v15',
       onRehydrateStorage: () => (state) => {
         if (state) {
           state.cleanOldBids();

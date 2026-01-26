@@ -663,9 +663,7 @@ export default function BidsPage() {
                             <div className="text-center">
                               <button 
                                 onClick={() => {
-                                  const entityNo = result.listingNo.split('-')[1];
-                                  const dateCode = result.listingNo.split('-')[0];
-                                  router.push(`/auction/${dateCode}-${entityNo}`);
+                                  router.push(`/trade/detail?listingNo=${result.listingNo}`);
                                 }}
                                 className="text-[11px] font-medium text-gray-900 underline cursor-pointer"
                               >
@@ -673,31 +671,8 @@ export default function BidsPage() {
                               </button>
                             </div>
                             {/* 부위 */}
-                            <div className="text-center">
-                              <button
-                                onClick={() => {
-                                  const partId = 
-                                    result.productInfo.partName.includes('등심') ? 'sirloin' :
-                                    result.productInfo.partName.includes('채끝') ? 'striploin' :
-                                    result.productInfo.partName.includes('목심') ? 'chuck' :
-                                    result.productInfo.partName.includes('앞다리') ? 'foreleg' :
-                                    result.productInfo.partName.includes('갈비') ? 'ribs' :
-                                    result.productInfo.partName.includes('설도') ? 'round' :
-                                    result.productInfo.partName.includes('양지') ? 'brisket' :
-                                    result.productInfo.partName.includes('우둔') ? 'rump' :
-                                    result.productInfo.partName.includes('사태') ? 'shank' :
-                                    result.productInfo.partName.includes('안심') ? 'tenderloin' :
-                                    result.productInfo.partName.includes('특수') ? 'special' :
-                                    result.productInfo.partName.includes('꼬리') ? 'tail' :
-                                    result.productInfo.partName.includes('족') ? 'feet' :
-                                    result.productInfo.partName.includes('사골') ? 'bone' :
-                                    result.productInfo.partName.includes('잡뼈') ? 'misc' : 'sirloin';
-                                  router.push(`/auction?tab=part&part=${partId}`);
-                                }}
-                                className="text-[11px] text-gray-900 underline cursor-pointer"
-                              >
-                                {result.productInfo.partName}
-                              </button>
+                            <div className="text-center text-[11px] text-gray-700">
+                              {result.productInfo.partName}
                             </div>
                             {/* 등급 */}
                             <div className="text-center text-[11px] text-gray-700" style={{ letterSpacing: '-0.05em' }}>
