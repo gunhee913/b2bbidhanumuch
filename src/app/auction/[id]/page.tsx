@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, use, useMemo } from 'react';
+import { useState, useEffect, useRef, use, useMemo, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -58,7 +58,7 @@ const cattleData = [
   { id: '260126-406', type: '한우', gender: '거세', grade: '1+', months: 28, company: '정직한고기' },
 ];
 
-export default function AuctionDetailPage({ params }: PageProps) {
+function AuctionDetailContent({ params }: PageProps) {
   const resolvedParams = use(params);
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -1545,5 +1545,21 @@ export default function AuctionDetailPage({ params }: PageProps) {
           </div>
         )}
     </div>
+  );
+}
+
+function LoadingFallback() {
+  return (
+    <div className="fixed inset-0 bg-white flex items-center justify-center">
+      <span className="text-gray-500">로딩 중...</span>
+    </div>
+  );
+}
+
+export default function AuctionDetailPage({ params }: PageProps) {
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <AuctionDetailContent params={params} />
+    </Suspense>
   );
 }

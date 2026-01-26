@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { 
@@ -12,7 +12,7 @@ import BottomNav from '@/components/BottomNav';
 import { useBidStore } from '@/stores/bidStore';
 import { useDealerStore } from '@/features/dealers/store';
 
-export default function TradeRegisterPage() {
+function TradeRegisterContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const listingNo = searchParams.get('listingNo');
@@ -231,5 +231,23 @@ export default function TradeRegisterPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+function LoadingFallback() {
+  return (
+    <div className="fixed inset-0 bg-white flex justify-center items-center">
+      <div className="text-center">
+        <p className="text-gray-500">로딩 중...</p>
+      </div>
+    </div>
+  );
+}
+
+export default function TradeRegisterPage() {
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <TradeRegisterContent />
+    </Suspense>
   );
 }
