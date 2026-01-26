@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { useBidStore } from '@/stores/bidStore';
 import BottomNav from '@/components/BottomNav';
 
-export default function TradeDetailPage() {
+function TradeDetailContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const listingNo = searchParams.get('listingNo') || '';
@@ -384,5 +384,26 @@ export default function TradeDetailPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+// 로딩 컴포넌트
+function LoadingFallback() {
+  return (
+    <div className="fixed inset-0 bg-white flex justify-center items-center z-[9999]">
+      <div className="w-full md:max-w-md md:w-[500px] bg-white md:shadow-2xl">
+        <div className="text-center py-20">
+          <p className="text-gray-500">로딩 중...</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function TradeDetailPage() {
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <TradeDetailContent />
+    </Suspense>
   );
 }
