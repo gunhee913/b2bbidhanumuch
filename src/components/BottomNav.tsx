@@ -28,7 +28,7 @@ export default function BottomNav() {
   };
 
   return (
-    <div className="flex-shrink-0 bg-white border-t border-gray-200 px-2 md:px-4 pt-1.5 pb-5 safe-area-pb">
+    <div className="flex-shrink-0 bg-white border-t border-gray-200 px-2 md:px-4 pt-2 pb-5 safe-area-pb">
       <div className="flex items-center justify-around">
         {navItems.map((item) => {
           const active = isActive(item.href);
@@ -38,12 +38,12 @@ export default function BottomNav() {
             <Link
               key={item.href}
               href={item.href}
-              className={`flex-1 flex flex-col items-center py-1.5 transition-colors ${
+              className={`flex-1 flex flex-col items-center py-2 transition-colors ${
                 active ? 'text-gray-900' : 'text-gray-400'
               }`}
             >
-              <Icon className="h-5 w-5 mb-0.5" />
-              <span className={`text-[10px] ${active ? 'font-bold' : 'font-medium'}`}>
+              <Icon className="h-6 w-6 mb-1" />
+              <span className={`text-[11px] ${active ? 'font-bold' : 'font-medium'}`}>
                 {item.label}
               </span>
             </Link>

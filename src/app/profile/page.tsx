@@ -10,6 +10,7 @@ import {
   Building2,
   CreditCard,
   Settings,
+  Bell,
   LogOut,
   Gavel,
   FileText
@@ -68,26 +69,34 @@ export default function ProfilePage() {
             `}</style>
             
             {/* 모바일 메인 헤더 */}
-            <div className="flex-shrink-0 bg-white border-b border-gray-200">
-              <div className="px-4 py-3">
+            <div className="flex-shrink-0 bg-white">
+              <div className="px-4 py-3.5">
                 <div className="flex items-center justify-between">
-                  <Link href="/" className="flex items-center">
-                    <img 
-                      src="/Mainlogo.png" 
-                      alt="HanuMuch" 
-                      className="h-7 w-auto"
-                    />
-                  </Link>
-                  <div className="flex items-center">
-                    <img 
-                      src="/음성축산물공판장.png" 
-                      alt="음성축산물공판장" 
-                      className="h-5 w-auto border border-gray-300 rounded px-1.5 py-0.5 bg-gradient-to-br from-white to-gray-50 shadow-sm"
-                    />
+                  {/* 왼쪽 여백 (오른쪽과 동일한 크기) */}
+                  <div className="w-[80px]"></div>
+                  {/* 가운데 타이틀 */}
+                  <h1 className="text-[17px] font-bold text-gray-900">내정보</h1>
+                  {/* 오른쪽 아이콘 */}
+                  <div className="flex items-center gap-1">
+                    <Link 
+                      href="/settings"
+                      className="p-2 text-gray-600 hover:text-gray-900 transition-colors flex items-center justify-center"
+                    >
+                      <Settings className="w-[22px] h-[22px]" />
+                    </Link>
+                    <Link 
+                      href="/notifications"
+                      className="p-2 text-gray-600 hover:text-gray-900 transition-colors flex items-center justify-center relative"
+                    >
+                      <Bell className="w-[22px] h-[22px] translate-y-[0.5px]" />
+                      <span className="absolute top-0 right-0 w-4 h-4 bg-red-500 text-white text-[9px] font-medium rounded-full flex items-center justify-center">
+                        2
+                      </span>
+                    </Link>
                   </div>
+                </div>
               </div>
             </div>
-          </div>
 
             {/* 메인 콘텐츠 */}
             <div className="flex-1 min-h-0 overflow-y-auto bg-gray-50">

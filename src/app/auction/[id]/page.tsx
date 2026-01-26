@@ -903,12 +903,12 @@ function AuctionDetailContent({ params }: PageProps) {
 
               {/* 사이드 이미지 박스 6개 */}
               <div className="px-3 pt-2 pb-1">
-                <div className="flex gap-1.5 justify-start overflow-x-auto">
+                <div className="flex gap-2 justify-start overflow-x-auto">
                   {mainImages.map((image, index) => (
                     <button
                       key={image.id}
                       onClick={() => setCurrentImageIndex(index)}
-                      className={`w-14 h-14 flex-shrink-0 rounded overflow-hidden transition-all ${
+                      className={`w-16 h-16 flex-shrink-0 rounded overflow-hidden transition-all ${
                         currentImageIndex === index 
                           ? 'border-2 border-gray-400' 
                           : 'border-2 border-transparent hover:border-gray-300'
@@ -917,7 +917,7 @@ function AuctionDetailContent({ params }: PageProps) {
                       {(image as any).isDocument ? (
                         // 서류 썸네일
                         <div className="w-full h-full bg-gray-100 flex items-center justify-center">
-                          <div className="w-8 h-10 bg-white border border-gray-300"></div>
+                          <div className="w-9 h-11 bg-white border border-gray-300"></div>
                         </div>
                       ) : (
                         <img 
@@ -1028,8 +1028,8 @@ function AuctionDetailContent({ params }: PageProps) {
                 {/* 호가창 */}
                 <div className="w-full flex flex-col border-b border-gray-200">
                   {/* 호가창 헤더 */}
-                  <div className="bg-gray-100 border-b border-gray-200 flex-shrink-0 h-7 flex items-center sticky top-[56px] z-10">
-                    <div className="grid px-2 text-[11px] font-medium text-gray-500 w-full" style={{gridTemplateColumns: '0.9fr 0.7fr 0.9fr 1fr 1fr 0.7fr'}}>
+                  <div className="bg-gray-100 border-b border-gray-200 flex-shrink-0 h-9 flex items-center sticky top-[56px] z-10">
+                    <div className="grid px-2 text-[13px] font-medium text-gray-500 w-full" style={{gridTemplateColumns: '0.9fr 0.7fr 0.9fr 1fr 1fr 0.7fr'}}>
                       <div className="text-center">부위</div>
                       <div className="text-center">중량</div>
                       <div className="text-center">최저단가</div>
@@ -1052,7 +1052,7 @@ function AuctionDetailContent({ params }: PageProps) {
                       return (
                         <div 
                           key={`sell-${index}`}
-                          className={`grid px-2 py-2 border-b border-gray-100 transition-colors ${
+                          className={`grid px-2 py-3 border-b border-gray-100 transition-colors ${
                             bidInfo?.status === 'highest' 
                               ? 'bg-blue-50/50' 
                               : bidInfo?.status === 'secondHighest'
@@ -1061,16 +1061,16 @@ function AuctionDetailContent({ params }: PageProps) {
                           }`}
                           style={{gridTemplateColumns: '0.9fr 0.7fr 0.9fr 1fr 1fr 0.7fr'}}
                         >
-                          <div className="text-center text-[11px] text-gray-700 flex items-center justify-center">
+                          <div className="text-center text-[13px] text-gray-700 flex items-center justify-center">
                             {item.part}
                           </div>
-                          <div className="text-center text-[11px] text-gray-700 flex items-center justify-center">
+                          <div className="text-center text-[13px] text-gray-700 flex items-center justify-center">
                             {item.weight}kg
                           </div>
-                          <div className="text-center text-[11px] text-gray-700 flex items-center justify-center">
+                          <div className="text-center text-[13px] text-gray-700 flex items-center justify-center">
                             {minPrice.toLocaleString()}
                           </div>
-                          <div className={`text-center text-[11px] flex items-center justify-center ${
+                          <div className={`text-center text-[13px] flex items-center justify-center ${
                             hasBid || hasMarketBid ? 'text-gray-900 font-medium' : 'text-gray-400'
                           }`}>
                             {displayHighestBid ? `${displayHighestBid.toLocaleString()}` : '-'}
@@ -1087,7 +1087,7 @@ function AuctionDetailContent({ params }: PageProps) {
                                       setShowBidSheet(true);
                                     }
                                   }}
-                                  className={`text-[11px] font-medium text-gray-900 leading-none ${bidInfo.status !== 'highest' ? 'cursor-pointer' : ''}`}
+                                  className={`text-[13px] font-medium text-gray-900 leading-none ${bidInfo.status !== 'highest' ? 'cursor-pointer' : ''}`}
                                 >
                                   {bidInfo.myBid.toLocaleString()}
                                 </span>
@@ -1099,7 +1099,7 @@ function AuctionDetailContent({ params }: PageProps) {
                                       setBidPrice('');
                                       setShowBidSheet(true);
                                     }}
-                                    className="mt-1 px-2 py-0.5 text-[10px] font-medium text-white bg-gray-800 rounded hover:bg-gray-900 transition-colors"
+                                    className="mt-1 px-2 py-1 text-[11px] font-medium text-white bg-gray-800 rounded hover:bg-gray-900 transition-colors"
                                   >
                                     재입찰
                                   </button>
@@ -1113,7 +1113,7 @@ function AuctionDetailContent({ params }: PageProps) {
                                   setBidPrice('');
                                   setShowBidSheet(true);
                                 }}
-                                className="px-2 py-1 text-[10px] font-medium text-white bg-gray-800 rounded hover:bg-gray-900 transition-colors"
+                                className="px-2 py-1 text-[11px] font-medium text-white bg-gray-800 rounded hover:bg-gray-900 transition-colors"
                               >
                                 입찰하기
                               </button>
@@ -1121,7 +1121,7 @@ function AuctionDetailContent({ params }: PageProps) {
                           </div>
                           <div className="flex items-center justify-center">
                             {hasBid ? (
-                              <span className={`text-[10px] font-medium ${
+                              <span className={`text-[11px] font-medium ${
                                 bidInfo.status === 'highest'
                                   ? 'text-blue-600' 
                                   : 'text-red-500'
@@ -1129,7 +1129,7 @@ function AuctionDetailContent({ params }: PageProps) {
                                 {bidInfo.status === 'highest' ? '최고순위' : '차순위'}
                               </span>
                             ) : (
-                              <span className="text-[11px] text-gray-400">-</span>
+                              <span className="text-[13px] text-gray-400">-</span>
                             )}
                           </div>
                         </div>

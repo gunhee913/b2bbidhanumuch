@@ -284,12 +284,12 @@ function TradeDetailContent() {
 
             {/* 썸네일 6개 */}
             <div className="px-3 pt-2 pb-1 bg-white">
-              <div className="flex gap-1.5 justify-start overflow-x-auto">
+              <div className="flex gap-2 justify-start overflow-x-auto">
                 {allImages.map((image, index) => (
                   <button
                     key={image.id}
                     onClick={() => setCurrentImageIndex(index)}
-                    className={`w-14 h-14 flex-shrink-0 rounded overflow-hidden transition-all ${
+                    className={`w-16 h-16 flex-shrink-0 rounded overflow-hidden transition-all ${
                       currentImageIndex === index 
                         ? 'border-2 border-gray-400' 
                         : 'border-2 border-transparent hover:border-gray-300'
@@ -297,8 +297,8 @@ function TradeDetailContent() {
                   >
                     {image.isDocument ? (
                       <div className="w-full h-full bg-gray-100 flex items-center justify-center">
-                        <div className="w-8 h-10 bg-white border border-gray-300 flex items-center justify-center">
-                          <span className="text-[6px] text-gray-500 text-center leading-tight">
+                        <div className="w-9 h-11 bg-white border border-gray-300 flex items-center justify-center">
+                          <span className="text-[7px] text-gray-500 text-center leading-tight">
                             {image.alt === '등급판정확인서' ? '등급' : '도축'}
                           </span>
                         </div>

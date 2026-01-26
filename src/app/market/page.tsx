@@ -8,7 +8,7 @@ import {
   Bell
 } from 'lucide-react';
 import BottomNav from '@/components/BottomNav';
-import { createChart, ColorType, CandlestickData, Time, CandlestickSeries, HistogramSeries, HistogramData } from 'lightweight-charts';
+import { createChart, ColorType, Time, HistogramSeries, HistogramData, AreaSeries, LineSeries, LineData, AreaData } from 'lightweight-charts';
 import { format, subDays, subWeeks, subMonths, isWeekend, startOfWeek, startOfMonth, endOfWeek, endOfMonth } from 'date-fns';
 import { ko } from 'date-fns/locale';
 
@@ -509,21 +509,26 @@ export default function MarketPage() {
           fixRightEdge: true,
           barSpacing: 6,
           minBarSpacing: 2,
+          rightOffset: 2,
         },
         rightPriceScale: {
           borderColor: '#E5E7EB',
           scaleMargins: {
-            top: 0.2,
-            bottom: 0.45,
+            top: 0.15,
+            bottom: 0.35,
           },
+          minimumWidth: 80,
         },
         localization: {
-          priceFormatter: (price: number) => price.toLocaleString(),
+          priceFormatter: (price: number) => {
+            if (price < 0) return '';
+            return Math.round(price).toLocaleString() + '원';
+          },
           dateFormat: 'yyyy.MM.dd',
           locale: 'ko-KR',
         },
         crosshair: {
-          mode: 1,
+          mode: 0,
           vertLine: {
             width: 1,
             color: '#9CA3AF',
@@ -539,14 +544,28 @@ export default function MarketPage() {
         },
       });
 
-      // 캔들스틱 시리즈 추가
-      const candlestickSeries = chart.addSeries(CandlestickSeries, {
-        upColor: '#DC2626',
-        downColor: '#2563EB',
-        borderUpColor: '#DC2626',
-        borderDownColor: '#2563EB',
-        wickUpColor: '#DC2626',
-        wickDownColor: '#2563EB',
+      // 최고가 영역 시리즈 (밴드 상단 - 색칠)
+      const highAreaSeries = chart.addSeries(AreaSeries, {
+        topColor: 'rgba(220, 38, 38, 0.2)',
+        bottomColor: 'rgba(220, 38, 38, 0.2)',
+        lineColor: 'rgba(220, 38, 38, 0.5)',
+        lineWidth: 1,
+        lineStyle: 2,
+      });
+
+      // 최저가 영역 시리즈 (흰색으로 덮어서 밴드 효과)
+      const lowAreaSeries = chart.addSeries(AreaSeries, {
+        topColor: 'rgba(255, 255, 255, 1)',
+        bottomColor: 'rgba(255, 255, 255, 1)',
+        lineColor: 'rgba(220, 38, 38, 0.5)',
+        lineWidth: 1,
+        lineStyle: 2,
+      });
+
+      // 평균가 라인 시리즈 (메인)
+      const avgLineSeries = chart.addSeries(LineSeries, {
+        color: '#DC2626',
+        lineWidth: 2,
       });
 
       // 거래량 시리즈 추가
@@ -560,32 +579,44 @@ export default function MarketPage() {
       // 거래량 프라이스 스케일 설정
       chart.priceScale('volume').applyOptions({
         scaleMargins: {
-          top: 0.85, // 상단 85% 위치부터 시작 (하단 15%만 사용)
-          bottom: 0.02,
+          top: 0.8,
+          bottom: 0,
         },
+        visible: false,
       });
 
-      // 캔들스틱 데이터
-      const chartData: CandlestickData<Time>[] = priceData.map(d => ({
+      // 최고가 데이터 (밴드 상단)
+      const highData: AreaData<Time>[] = priceData.map(d => ({
         time: d.date as Time,
-        open: d.open,
-        high: d.high,
-        low: d.low,
-        close: d.close,
+        value: d.high,
+      }));
+
+      // 최저가 데이터 (밴드 하단 - 흰색 영역)
+      const lowData: AreaData<Time>[] = priceData.map(d => ({
+        time: d.date as Time,
+        value: d.low,
+      }));
+
+      // 평균가 데이터 (메인 라인)
+      const avgData: LineData<Time>[] = priceData.map(d => ({
+        time: d.date as Time,
+        value: d.price,
       }));
 
       // 거래량 데이터
       const volumeData: HistogramData<Time>[] = priceData.map(d => ({
         time: d.date as Time,
         value: d.volume,
-        color: d.close >= d.open ? 'rgba(220, 38, 38, 0.5)' : 'rgba(37, 99, 235, 0.5)',
+        color: 'rgba(220, 38, 38, 0.4)',
       }));
 
-      candlestickSeries.setData(chartData);
+      highAreaSeries.setData(highData);
+      lowAreaSeries.setData(lowData);
+      avgLineSeries.setData(avgData);
       volumeSeries.setData(volumeData);
 
       // 최근 2개월(약 40 평일)만 보이도록 설정
-      const dataLength = chartData.length;
+      const dataLength = avgData.length;
       const visibleBars = 40;
       if (dataLength > visibleBars) {
         chart.timeScale().setVisibleLogicalRange({
@@ -603,16 +634,18 @@ export default function MarketPage() {
           return;
         }
 
-        const candleData = param.seriesData.get(candlestickSeries) as CandlestickData<Time> | undefined;
+        const avgDataPoint = param.seriesData.get(avgLineSeries) as LineData<Time> | undefined;
+        const highDataPoint = param.seriesData.get(highAreaSeries) as AreaData<Time> | undefined;
+        const lowDataPoint = param.seriesData.get(lowAreaSeries) as AreaData<Time> | undefined;
         const volumeDataPoint = param.seriesData.get(volumeSeries) as HistogramData<Time> | undefined;
 
-        if (candleData) {
+        if (avgDataPoint) {
           const dataPoint = priceData.find(d => d.date === param.time);
           setTooltipData({
-            open: candleData.open,
-            high: candleData.high,
-            low: candleData.low,
-            close: candleData.close,
+            open: avgDataPoint.value,
+            high: highDataPoint?.value || 0,
+            low: lowDataPoint?.value || 0,
+            close: avgDataPoint.value,
             volume: volumeDataPoint?.value || 0,
             date: dataPoint?.fullDate || String(param.time),
             visible: true,
@@ -720,26 +753,26 @@ export default function MarketPage() {
           
           {/* 모바일 메인 헤더 */}
           <div className="flex-shrink-0 bg-white">
-            <div className="px-4 py-3">
+            <div className="px-4 py-3.5">
               <div className="flex items-center justify-between">
                 {/* 왼쪽 여백 (오른쪽과 동일한 크기) */}
-                <div className="w-[72px]"></div>
+                <div className="w-[80px]"></div>
                 {/* 가운데 타이틀 */}
-                <h1 className="text-base font-bold text-gray-900">시세</h1>
+                <h1 className="text-[17px] font-bold text-gray-900">시세</h1>
                 {/* 오른쪽 아이콘 */}
-                <div className="flex items-center gap-0">
+                <div className="flex items-center gap-1">
                   <Link 
                     href="/settings"
-                    className="p-1.5 text-gray-600 hover:text-gray-900 transition-colors flex items-center justify-center"
+                    className="p-2 text-gray-600 hover:text-gray-900 transition-colors flex items-center justify-center"
                   >
-                    <Settings className="w-5 h-5" />
+                    <Settings className="w-[22px] h-[22px]" />
                   </Link>
                   <Link 
                     href="/notifications"
-                    className="p-1.5 text-gray-600 hover:text-gray-900 transition-colors flex items-center justify-center relative"
+                    className="p-2 text-gray-600 hover:text-gray-900 transition-colors flex items-center justify-center relative"
                   >
-                    <Bell className="w-5 h-5 translate-y-[0.5px]" />
-                    <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 text-white text-[9px] font-medium rounded-full flex items-center justify-center">
+                    <Bell className="w-[22px] h-[22px] translate-y-[0.5px]" />
+                    <span className="absolute top-0 right-0 w-4 h-4 bg-red-500 text-white text-[9px] font-medium rounded-full flex items-center justify-center">
                       2
                     </span>
                   </Link>
@@ -752,10 +785,10 @@ export default function MarketPage() {
           <div className="flex-1 min-h-0 overflow-y-auto bg-gray-50">
             {/* 부위별/기간별 탭 - 스크롤 영역 안에 위치 */}
             <div className="px-4 py-3 bg-white border-b border-gray-200">
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-5">
                 <button
                   onClick={() => setActiveTab('시세차트')}
-                  className={`text-sm font-semibold pb-1 transition-colors ${
+                  className={`text-[15px] font-semibold pb-1.5 transition-colors ${
                     activeTab === '시세차트'
                       ? 'text-gray-900 border-b-2 border-gray-900'
                       : 'text-gray-400 hover:text-gray-600'
@@ -765,7 +798,7 @@ export default function MarketPage() {
                 </button>
                 <button
                   onClick={() => setActiveTab('시세표')}
-                  className={`text-sm font-semibold pb-1 transition-colors ${
+                  className={`text-[15px] font-semibold pb-1.5 transition-colors ${
                     activeTab === '시세표'
                       ? 'text-gray-900 border-b-2 border-gray-900'
                       : 'text-gray-400 hover:text-gray-600'
@@ -780,25 +813,25 @@ export default function MarketPage() {
               /* 시세표 탭 - 테이블 */
               <div className="pb-24 bg-white">
                 {/* 일자 조회 */}
-                <div className="bg-white px-4 py-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-gray-500">일자</span>
+                <div className="bg-white px-4 py-2.5">
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-[13px] text-gray-500">일자</span>
                     <input
                       type="date"
                       value={`20${formatDateDisplay(partTabStartDate).replace(/\./g, '-')}`}
                       onChange={(e) => setPartTabStartDate(new Date(e.target.value))}
-                      className="text-xs text-gray-700 bg-white border border-gray-200 rounded px-2 py-1 [&::-webkit-calendar-picker-indicator]:dark:invert-0 [&::-webkit-calendar-picker-indicator]:brightness-0"
+                      className="text-[13px] text-gray-700 bg-white border border-gray-200 rounded px-2.5 py-1.5 [&::-webkit-calendar-picker-indicator]:dark:invert-0 [&::-webkit-calendar-picker-indicator]:brightness-0"
                     />
-                    <span className="text-xs text-gray-400">~</span>
+                    <span className="text-[13px] text-gray-400">~</span>
                     <input
                       type="date"
                       value={`20${formatDateDisplay(partTabEndDate).replace(/\./g, '-')}`}
                       onChange={(e) => setPartTabEndDate(new Date(e.target.value))}
-                      className="text-xs text-gray-700 bg-white border border-gray-200 rounded px-2 py-1 [&::-webkit-calendar-picker-indicator]:dark:invert-0 [&::-webkit-calendar-picker-indicator]:brightness-0"
+                      className="text-[13px] text-gray-700 bg-white border border-gray-200 rounded px-2.5 py-1.5 [&::-webkit-calendar-picker-indicator]:dark:invert-0 [&::-webkit-calendar-picker-indicator]:brightness-0"
                     />
                     <button
                       onClick={handlePartTabSearch}
-                      className="px-3 py-1 text-xs font-medium text-white bg-gray-800 rounded hover:bg-gray-900 transition-colors"
+                      className="px-3.5 py-1.5 text-[13px] font-medium text-white bg-gray-800 rounded hover:bg-gray-900 transition-colors"
                     >
                       조회
                     </button>
@@ -806,8 +839,8 @@ export default function MarketPage() {
                 </div>
 
                 {/* 필터 영역 */}
-                <div className="bg-white px-4 py-2 border-b border-gray-200">
-                  <div className="flex items-center gap-2">
+                <div className="bg-white px-4 py-2.5 border-b border-gray-200">
+                  <div className="flex items-center gap-2.5">
                     {/* 부위 필터 */}
                     <div className="relative">
                       <button
@@ -816,20 +849,20 @@ export default function MarketPage() {
                           setShowPartFilterDropdown(!showPartFilterDropdown);
                           setShowGradeFilterDropdown(false);
                         }}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 rounded text-xs font-medium text-gray-700 hover:bg-gray-200 transition-colors"
+                        className="flex items-center gap-1.5 px-3.5 py-2 bg-gray-100 rounded text-[13px] font-medium text-gray-700 hover:bg-gray-200 transition-colors"
                       >
                         부위: {partTabFilterPart}
-                        <ChevronDown className={`h-3.5 w-3.5 transition-transform ${showPartFilterDropdown ? 'rotate-180' : ''}`} />
+                        <ChevronDown className={`h-4 w-4 transition-transform ${showPartFilterDropdown ? 'rotate-180' : ''}`} />
                       </button>
                       {showPartFilterDropdown && (
-                        <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-20 min-w-[100px] max-h-[200px] overflow-y-auto">
+                        <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-20 min-w-[110px] max-h-[200px] overflow-y-auto">
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
                               setPartTabFilterPart('전체');
                               setShowPartFilterDropdown(false);
                             }}
-                            className={`block w-full text-left px-4 py-2 text-xs hover:bg-gray-50 first:rounded-t-lg ${
+                            className={`block w-full text-left px-4 py-2.5 text-[13px] hover:bg-gray-50 first:rounded-t-lg ${
                               partTabFilterPart === '전체' ? 'bg-gray-100 text-gray-900 font-medium' : 'text-gray-700'
                             }`}
                           >
@@ -843,7 +876,7 @@ export default function MarketPage() {
                                 setPartTabFilterPart(part.name);
                                 setShowPartFilterDropdown(false);
                               }}
-                              className={`block w-full text-left px-4 py-2 text-xs hover:bg-gray-50 last:rounded-b-lg ${
+                              className={`block w-full text-left px-4 py-2.5 text-[13px] hover:bg-gray-50 last:rounded-b-lg ${
                                 partTabFilterPart === part.name ? 'bg-gray-100 text-gray-900 font-medium' : 'text-gray-700'
                               }`}
                             >
@@ -862,20 +895,20 @@ export default function MarketPage() {
                           setShowGradeFilterDropdown(!showGradeFilterDropdown);
                           setShowPartFilterDropdown(false);
                         }}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 rounded text-xs font-medium text-gray-700 hover:bg-gray-200 transition-colors"
+                        className="flex items-center gap-1.5 px-3.5 py-2 bg-gray-100 rounded text-[13px] font-medium text-gray-700 hover:bg-gray-200 transition-colors"
                       >
                         등급: {partTabFilterGrade}
-                        <ChevronDown className={`h-3.5 w-3.5 transition-transform ${showGradeFilterDropdown ? 'rotate-180' : ''}`} />
+                        <ChevronDown className={`h-4 w-4 transition-transform ${showGradeFilterDropdown ? 'rotate-180' : ''}`} />
                       </button>
                       {showGradeFilterDropdown && (
-                        <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-20 min-w-[100px]">
+                        <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-20 min-w-[110px]">
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
                               setPartTabFilterGrade('전체');
                               setShowGradeFilterDropdown(false);
                             }}
-                            className={`block w-full text-left px-4 py-2 text-xs hover:bg-gray-50 first:rounded-t-lg ${
+                            className={`block w-full text-left px-4 py-2.5 text-[13px] hover:bg-gray-50 first:rounded-t-lg ${
                               partTabFilterGrade === '전체' ? 'bg-gray-100 text-gray-900 font-medium' : 'text-gray-700'
                             }`}
                           >
@@ -889,7 +922,7 @@ export default function MarketPage() {
                                 setPartTabFilterGrade(grade);
                                 setShowGradeFilterDropdown(false);
                               }}
-                              className={`block w-full text-left px-4 py-2 text-xs hover:bg-gray-50 last:rounded-b-lg ${
+                              className={`block w-full text-left px-4 py-2.5 text-[13px] hover:bg-gray-50 last:rounded-b-lg ${
                                 partTabFilterGrade === grade ? 'bg-gray-100 text-gray-900 font-medium' : 'text-gray-700'
                               }`}
                             >
@@ -904,7 +937,7 @@ export default function MarketPage() {
 
                 {/* 테이블 헤더 - sticky로 고정 */}
                 <div className="sticky top-0 z-10 bg-gray-100 border-b border-gray-200">
-                  <div className="grid px-3 py-1.5 text-xs font-medium text-gray-500" style={{gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr 1fr'}}>
+                  <div className="grid px-3 h-9 items-center text-[13px] font-medium text-gray-500" style={{gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr 1fr'}}>
                     <div className="text-center">부위</div>
                     <div className="text-center">등급</div>
                     <div className="text-center">낙찰건수</div>
@@ -922,7 +955,7 @@ export default function MarketPage() {
                     .map((row, index) => (
                     <div 
                       key={`${row.part}-${row.grade}`}
-                      className={`grid px-3 py-3 border-b border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors text-xs ${index % 2 === 1 ? 'bg-gray-50/50' : ''}`}
+                      className={`grid px-3 py-3 border-b border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors text-[13px] ${index % 2 === 1 ? 'bg-gray-50/50' : ''}`}
                       style={{gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr 1fr'}}
                     >
                       <div className="text-center font-medium text-gray-900">{row.part}</div>
@@ -940,8 +973,8 @@ export default function MarketPage() {
             <>
             {/* 필터 영역 */}
             <div className="bg-white">
-              <div className="px-4 py-2 border-b border-gray-200">
-                <div className="flex items-center gap-2">
+              <div className="px-4 py-2.5 border-b border-gray-200">
+                <div className="flex items-center gap-2.5">
                   {/* 부위 필터 */}
                   <div className="relative">
                     <button
@@ -950,13 +983,13 @@ export default function MarketPage() {
                         setShowChartPartDropdown(!showChartPartDropdown);
                         setShowChartGradeDropdown(false);
                       }}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 rounded text-xs font-medium text-gray-700 hover:bg-gray-200 transition-colors"
+                      className="flex items-center gap-1.5 px-3.5 py-2 bg-gray-100 rounded text-[13px] font-medium text-gray-700 hover:bg-gray-200 transition-colors"
                     >
                       부위: {chartFilterPart}
-                      <ChevronDown className={`h-3.5 w-3.5 transition-transform ${showChartPartDropdown ? 'rotate-180' : ''}`} />
+                      <ChevronDown className={`h-4 w-4 transition-transform ${showChartPartDropdown ? 'rotate-180' : ''}`} />
                     </button>
                     {showChartPartDropdown && (
-                      <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-20 min-w-[100px] max-h-[200px] overflow-y-auto">
+                      <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-20 min-w-[110px] max-h-[200px] overflow-y-auto">
                         {PARTS.map((part) => (
                           <button
                             key={part.id}
@@ -966,7 +999,7 @@ export default function MarketPage() {
                               setSelectedPart(part);
                               setShowChartPartDropdown(false);
                             }}
-                            className={`block w-full text-left px-4 py-2 text-xs hover:bg-gray-50 first:rounded-t-lg last:rounded-b-lg ${
+                            className={`block w-full text-left px-4 py-2.5 text-[13px] hover:bg-gray-50 first:rounded-t-lg last:rounded-b-lg ${
                               chartFilterPart === part.name ? 'bg-gray-100 text-gray-900 font-medium' : 'text-gray-700'
                             }`}
                           >
@@ -985,13 +1018,13 @@ export default function MarketPage() {
                         setShowChartGradeDropdown(!showChartGradeDropdown);
                         setShowChartPartDropdown(false);
                       }}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 rounded text-xs font-medium text-gray-700 hover:bg-gray-200 transition-colors"
+                      className="flex items-center gap-1.5 px-3.5 py-2 bg-gray-100 rounded text-[13px] font-medium text-gray-700 hover:bg-gray-200 transition-colors"
                     >
                       등급: {chartFilterGrade}
-                      <ChevronDown className={`h-3.5 w-3.5 transition-transform ${showChartGradeDropdown ? 'rotate-180' : ''}`} />
+                      <ChevronDown className={`h-4 w-4 transition-transform ${showChartGradeDropdown ? 'rotate-180' : ''}`} />
                     </button>
                     {showChartGradeDropdown && (
-                      <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-20 min-w-[100px]">
+                      <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-20 min-w-[110px]">
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -999,7 +1032,7 @@ export default function MarketPage() {
                             setSelectedGrade(GRADES[0]);
                             setShowChartGradeDropdown(false);
                           }}
-                          className={`block w-full text-left px-4 py-2 text-xs hover:bg-gray-50 first:rounded-t-lg ${
+                          className={`block w-full text-left px-4 py-2.5 text-[13px] hover:bg-gray-50 first:rounded-t-lg ${
                             chartFilterGrade === '전체' ? 'bg-gray-100 text-gray-900 font-medium' : 'text-gray-700'
                           }`}
                         >
@@ -1015,7 +1048,7 @@ export default function MarketPage() {
                               setSelectedGrade(gradeObj);
                               setShowChartGradeDropdown(false);
                             }}
-                            className={`block w-full text-left px-4 py-2 text-xs hover:bg-gray-50 last:rounded-b-lg ${
+                            className={`block w-full text-left px-4 py-2.5 text-[13px] hover:bg-gray-50 last:rounded-b-lg ${
                               chartFilterGrade === grade ? 'bg-gray-100 text-gray-900 font-medium' : 'text-gray-700'
                             }`}
                           >
@@ -1027,16 +1060,16 @@ export default function MarketPage() {
                   </div>
                   
                   {/* 기간 선택 버튼 */}
-                  <div className="flex items-center gap-1 ml-auto">
+                  <div className="flex items-center gap-1.5 ml-auto">
                     {[
-                      { id: 'daily', label: '일' },
-                      { id: 'weekly', label: '주' },
-                      { id: 'monthly', label: '월' },
+                      { id: 'daily', label: '일간' },
+                      { id: 'weekly', label: '주간' },
+                      { id: 'monthly', label: '월간' },
                     ].map((period) => (
                       <button
                         key={period.id}
                         onClick={() => setChartPeriod(period.id as 'daily' | 'weekly' | 'monthly')}
-                        className={`px-2.5 py-1 text-xs font-medium rounded transition-colors ${
+                        className={`px-3 py-1.5 text-[13px] font-medium rounded transition-colors ${
                           chartPeriod === period.id
                             ? 'bg-gray-900 text-white'
                             : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -1064,16 +1097,16 @@ export default function MarketPage() {
                 </span>
               </div>
               <div className="overflow-x-auto">
-                <table className="w-full text-xs">
+                <table className="w-full text-[13px]">
                   <thead>
                     <tr className="bg-gray-50 border-b border-gray-200">
-                      <th className="px-2 py-2 text-center font-medium text-gray-600 whitespace-nowrap">일자</th>
-                      <th className="px-2 py-2 text-center font-medium text-gray-600 whitespace-nowrap">부위</th>
-                      <th className="px-2 py-2 text-center font-medium text-gray-600 whitespace-nowrap">등급</th>
-                      <th className="px-2 py-2 text-center font-medium text-gray-600 whitespace-nowrap">낙찰건수</th>
-                      <th className="px-2 py-2 text-center font-medium text-gray-600 whitespace-nowrap">평균단가</th>
-                      <th className="px-2 py-2 text-center font-medium text-gray-600 whitespace-nowrap">최저단가</th>
-                      <th className="px-2 py-2 text-center font-medium text-gray-600 whitespace-nowrap">최고단가</th>
+                      <th className="px-2 py-2.5 text-center font-medium text-gray-600 whitespace-nowrap">일자</th>
+                      <th className="px-2 py-2.5 text-center font-medium text-gray-600 whitespace-nowrap">부위</th>
+                      <th className="px-2 py-2.5 text-center font-medium text-gray-600 whitespace-nowrap">등급</th>
+                      <th className="px-2 py-2.5 text-center font-medium text-gray-600 whitespace-nowrap">낙찰건수</th>
+                      <th className="px-2 py-2.5 text-center font-medium text-gray-600 whitespace-nowrap">평균단가</th>
+                      <th className="px-2 py-2.5 text-center font-medium text-gray-600 whitespace-nowrap">최저단가</th>
+                      <th className="px-2 py-2.5 text-center font-medium text-gray-600 whitespace-nowrap">최고단가</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1082,25 +1115,25 @@ export default function MarketPage() {
                         key={item.date} 
                         className={`border-b border-gray-100 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}
                       >
-                        <td className="px-2 py-2 text-center text-gray-900 whitespace-nowrap">
+                        <td className="px-2 py-3 text-center text-gray-900 whitespace-nowrap">
                           {item.displayDate}
                         </td>
-                        <td className="px-2 py-2 text-center text-gray-900 whitespace-nowrap">
+                        <td className="px-2 py-3 text-center text-gray-900 whitespace-nowrap">
                           {chartFilterPart}
                         </td>
-                        <td className="px-2 py-2 text-center text-gray-900 whitespace-nowrap">
+                        <td className="px-2 py-3 text-center text-gray-900 whitespace-nowrap">
                           {chartFilterGrade}
                         </td>
-                        <td className="px-2 py-2 text-center text-gray-900 whitespace-nowrap">
+                        <td className="px-2 py-3 text-center text-gray-900 whitespace-nowrap">
                           {item.volume}건
                         </td>
-                        <td className="px-2 py-2 text-center text-gray-900 font-medium whitespace-nowrap">
+                        <td className="px-2 py-3 text-center text-gray-900 font-medium whitespace-nowrap">
                           {item.price.toLocaleString()}
                         </td>
-                        <td className="px-2 py-2 text-center text-blue-600 whitespace-nowrap">
+                        <td className="px-2 py-3 text-center text-blue-600 whitespace-nowrap">
                           {item.low.toLocaleString()}
                         </td>
-                        <td className="px-2 py-2 text-center text-red-600 whitespace-nowrap">
+                        <td className="px-2 py-3 text-center text-red-600 whitespace-nowrap">
                           {item.high.toLocaleString()}
                         </td>
                       </tr>

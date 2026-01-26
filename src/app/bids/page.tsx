@@ -288,26 +288,26 @@ export default function BidsPage() {
           
           {/* 헤더 */}
           <div className="flex-shrink-0 bg-white">
-            <div className="px-4 py-3">
+            <div className="px-4 py-3.5">
               <div className="flex items-center justify-between">
                 {/* 왼쪽 여백 */}
-                <div className="w-[72px]"></div>
+                <div className="w-[80px]"></div>
                 {/* 가운데 타이틀 */}
-                <h1 className="text-base font-bold text-gray-900">경매내역</h1>
+                <h1 className="text-[17px] font-bold text-gray-900">경매내역</h1>
                 {/* 오른쪽 아이콘 */}
-                <div className="flex items-center gap-0">
+                <div className="flex items-center gap-1">
                   <Link 
                     href="/settings"
-                    className="p-1.5 text-gray-600 hover:text-gray-900 transition-colors flex items-center justify-center"
+                    className="p-2 text-gray-600 hover:text-gray-900 transition-colors flex items-center justify-center"
                   >
-                    <Settings className="w-5 h-5" />
+                    <Settings className="w-[22px] h-[22px]" />
                   </Link>
                   <Link 
                     href="/notifications"
-                    className="p-1.5 text-gray-600 hover:text-gray-900 transition-colors flex items-center justify-center relative"
+                    className="p-2 text-gray-600 hover:text-gray-900 transition-colors flex items-center justify-center relative"
                   >
-                    <Bell className="w-5 h-5 translate-y-[0.5px]" />
-                    <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 text-white text-[9px] font-medium rounded-full flex items-center justify-center">
+                    <Bell className="w-[22px] h-[22px] translate-y-[0.5px]" />
+                    <span className="absolute top-0 right-0 w-4 h-4 bg-red-500 text-white text-[9px] font-medium rounded-full flex items-center justify-center">
                       2
                     </span>
                   </Link>
@@ -321,7 +321,7 @@ export default function BidsPage() {
             <div className="flex">
               <button
                 onClick={() => setActiveTab('진행중')}
-                className={`flex-1 py-3 text-sm font-medium transition-colors ${
+                className={`flex-1 py-3.5 text-[15px] font-medium transition-colors ${
                   activeTab === '진행중'
                     ? 'text-gray-900 border-b-2 border-gray-900'
                     : 'text-gray-500'
@@ -331,7 +331,7 @@ export default function BidsPage() {
               </button>
               <button
                 onClick={() => setActiveTab('경매결과')}
-                className={`flex-1 py-3 text-sm font-medium transition-colors ${
+                className={`flex-1 py-3.5 text-[15px] font-medium transition-colors ${
                   activeTab === '경매결과'
                     ? 'text-gray-900 border-b-2 border-gray-900'
                     : 'text-gray-500'
@@ -365,13 +365,13 @@ export default function BidsPage() {
                   </div>
 
                   {/* 상태 필터 - 가로 스크롤 X */}
-                  <div className="bg-white px-4 py-2">
+                  <div className="bg-white px-4 py-2.5">
                     <div className="flex gap-2">
                       {(['전체', '최고순위', '차순위'] as const).map((filter) => (
                         <button
                           key={filter}
                           onClick={() => setStatusFilter(filter)}
-                          className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${
+                          className={`px-3.5 py-2 text-[13px] font-medium rounded-md transition-colors ${
                             statusFilter === filter
                               ? 'bg-gray-900 text-white'
                               : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -388,8 +388,8 @@ export default function BidsPage() {
                     ref={headerRef}
                     className="sticky top-0 z-10 bg-gray-100 border-b border-gray-200 overflow-x-hidden"
                   >
-                    <div className="min-w-[680px] h-7 flex items-center">
-                      <div className="grid px-2 text-[11px] font-medium text-gray-500 w-full" style={{gridTemplateColumns: '55px 100px 60px 55px 50px 65px 65px 75px 50px 95px'}}>
+                    <div className="min-w-[730px] h-9 flex items-center">
+                      <div className="grid px-2 text-[13px] font-medium text-gray-500 w-full" style={{gridTemplateColumns: '60px 110px 65px 60px 55px 70px 70px 80px 55px 100px'}}>
                         <div className="text-center">입찰</div>
                         <div className="text-center">상장번호</div>
                         <div className="text-center">부위</div>
@@ -414,7 +414,7 @@ export default function BidsPage() {
                     onMouseLeave={handleMouseLeave}
                     onScroll={handleTableScroll}
                   >
-                    <div className="min-w-[680px]">
+                    <div className="min-w-[730px]">
 
                     {/* 필터 결과 없음 */}
                     {todayBids.length === 0 ? (
@@ -430,23 +430,23 @@ export default function BidsPage() {
                       return (
                         <div 
                           key={listingNo}
-                          className={`grid px-2 py-2 border-b border-gray-100 transition-colors items-center ${
+                          className={`grid px-2 py-3 border-b border-gray-100 transition-colors items-center ${
                             bid.status === 'highest' 
                               ? 'bg-blue-50/50' 
                               : bid.status === 'secondHighest'
                                 ? 'bg-red-50/50'
                                 : 'bg-white hover:bg-gray-50'
                           }`}
-                          style={{gridTemplateColumns: '55px 100px 60px 55px 50px 65px 65px 75px 50px 95px'}}
+                          style={{gridTemplateColumns: '60px 110px 65px 60px 55px 70px 70px 80px 55px 100px'}}
                         >
                           {/* 입찰 */}
                           <div className="text-center flex items-center justify-center">
                             {bid.status === 'highest' ? (
-                              <span className="text-gray-400 text-[10px]">-</span>
+                              <span className="text-gray-400 text-[11px]">-</span>
                             ) : (
                               <button
                                 onClick={() => handleReBidClick(listingNo, bid, productInfo)}
-                                className="px-2 py-0.5 text-[10px] font-medium text-white bg-gray-800 rounded hover:bg-gray-900 transition-colors"
+                                className="px-2 py-1 text-[11px] font-medium text-white bg-gray-800 rounded hover:bg-gray-900 transition-colors"
                               >
                                 재입찰
                               </button>
@@ -459,7 +459,7 @@ export default function BidsPage() {
                                 const entityNo = listingNo.split('-')[1];
                                 router.push(`/auction/${getTodayDateCode()}-${entityNo}`);
                               }}
-                              className="text-[11px] font-medium text-gray-900 underline cursor-pointer"
+                              className="text-[13px] font-medium text-gray-900 underline cursor-pointer"
                             >
                               {listingNo}
                             </button>
@@ -486,29 +486,29 @@ export default function BidsPage() {
                                   productInfo.partName.includes('잡뼈') ? 'misc' : 'sirloin';
                                 router.push(`/auction?tab=part&part=${partId}`);
                               }}
-                              className="text-[11px] text-gray-900 underline cursor-pointer"
+                              className="text-[13px] text-gray-900 underline cursor-pointer"
                             >
                               {productInfo.partName}
                             </button>
                           </div>
                           {/* 등급 */}
-                          <div className="text-center text-[11px] text-gray-700" style={{ letterSpacing: '-0.05em' }}>
+                          <div className="text-center text-[13px] text-gray-700" style={{ letterSpacing: '-0.05em' }}>
                             {addYieldGradeIfMissing(productInfo.grade)}
                           </div>
                           {/* 중량 */}
-                          <div className="text-center text-[11px] text-gray-700">
+                          <div className="text-center text-[13px] text-gray-700">
                             {productInfo.weight.includes('kg') ? productInfo.weight : `${productInfo.weight}kg`}
                           </div>
                           {/* 최고입찰가 */}
-                          <div className="text-center text-[11px] font-medium text-gray-900">
+                          <div className="text-center text-[13px] font-medium text-gray-900">
                             {bid.highestBid.toLocaleString()}
                           </div>
                           {/* 나의입찰가 */}
-                          <div className="text-center text-[11px] font-medium text-gray-900">
+                          <div className="text-center text-[13px] font-medium text-gray-900">
                             {bid.myBid.toLocaleString()}
                           </div>
                           {/* 총입찰가격 */}
-                          <div className="text-center text-[11px] font-medium text-gray-900">
+                          <div className="text-center text-[13px] font-medium text-gray-900">
                             {(() => {
                               const weight = parseFloat(productInfo.weight.replace('kg', ''));
                               return (bid.myBid * weight).toLocaleString();
@@ -517,13 +517,13 @@ export default function BidsPage() {
                           {/* 상태 */}
                           <div className="text-center flex items-center justify-center">
                             {bid.status === 'highest' ? (
-                              <span className="text-[10px] font-medium text-blue-600">최고순위</span>
+                              <span className="text-[11px] font-medium text-blue-600">최고순위</span>
                             ) : (
-                              <span className="text-[10px] font-medium text-red-500">차순위</span>
+                              <span className="text-[11px] font-medium text-red-500">차순위</span>
                             )}
                           </div>
                           {/* 시간 */}
-                          <div className="text-center text-[10px] text-gray-500 whitespace-nowrap">
+                          <div className="text-center text-[11px] text-gray-500 whitespace-nowrap">
                             {bid.time.replace(/\([^)]+\)\s*/, ' ')}
                           </div>
                         </div>
@@ -554,25 +554,25 @@ export default function BidsPage() {
                   </div>
 
                   {/* 일자 */}
-                  <div className="bg-white px-4 py-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-gray-500">일자</span>
+                  <div className="bg-white px-4 py-2.5">
+                    <div className="flex items-center gap-2.5">
+                      <span className="text-[13px] text-gray-500">일자</span>
                       <input
                         type="date"
                         value={`20${formatDateDisplay(startDate).replace(/\./g, '-')}`}
                         onChange={(e) => setStartDate(new Date(e.target.value))}
-                        className="text-xs text-gray-700 bg-white border border-gray-200 rounded px-2 py-1 [&::-webkit-calendar-picker-indicator]:dark:invert-0 [&::-webkit-calendar-picker-indicator]:brightness-0"
+                        className="text-[13px] text-gray-700 bg-white border border-gray-200 rounded px-2.5 py-1.5 [&::-webkit-calendar-picker-indicator]:dark:invert-0 [&::-webkit-calendar-picker-indicator]:brightness-0"
                       />
-                      <span className="text-xs text-gray-400">~</span>
+                      <span className="text-[13px] text-gray-400">~</span>
                       <input
                         type="date"
                         value={`20${formatDateDisplay(endDate).replace(/\./g, '-')}`}
                         onChange={(e) => setEndDate(new Date(e.target.value))}
-                        className="text-xs text-gray-700 bg-white border border-gray-200 rounded px-2 py-1 [&::-webkit-calendar-picker-indicator]:dark:invert-0 [&::-webkit-calendar-picker-indicator]:brightness-0"
+                        className="text-[13px] text-gray-700 bg-white border border-gray-200 rounded px-2.5 py-1.5 [&::-webkit-calendar-picker-indicator]:dark:invert-0 [&::-webkit-calendar-picker-indicator]:brightness-0"
                       />
                       <button
                         onClick={handleSearch}
-                        className="px-3 py-1 text-xs font-medium text-white bg-gray-800 rounded hover:bg-gray-900 transition-colors"
+                        className="px-3.5 py-1.5 text-[13px] font-medium text-white bg-gray-800 rounded hover:bg-gray-900 transition-colors"
                       >
                         조회
                       </button>
@@ -580,13 +580,13 @@ export default function BidsPage() {
                   </div>
 
                   {/* 결과 필터 */}
-                  <div className="bg-white px-4 py-2">
+                  <div className="bg-white px-4 py-2.5">
                     <div className="flex gap-2">
                       {(['전체', '낙찰', '유찰'] as const).map((filter) => (
                         <button
                           key={filter}
                           onClick={() => setResultFilter(filter)}
-                          className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${
+                          className={`px-3.5 py-2 text-[13px] font-medium rounded-md transition-colors ${
                             resultFilter === filter
                               ? 'bg-gray-900 text-white'
                               : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -603,8 +603,8 @@ export default function BidsPage() {
                     ref={headerRef}
                     className="sticky top-0 z-10 bg-gray-100 border-b border-gray-200 overflow-x-hidden"
                   >
-                    <div className="min-w-[636px] h-7 flex items-center">
-                      <div className="grid px-2 text-[11px] font-medium text-gray-500 w-full" style={{gridTemplateColumns: '55px 100px 60px 55px 50px 65px 65px 75px 95px'}}>
+                    <div className="min-w-[680px] h-9 flex items-center">
+                      <div className="grid px-2 text-[13px] font-medium text-gray-500 w-full" style={{gridTemplateColumns: '60px 110px 65px 60px 55px 70px 70px 80px 100px'}}>
                         <div className="text-center">결과</div>
                         <div className="text-center">상장번호</div>
                         <div className="text-center">부위</div>
@@ -628,7 +628,7 @@ export default function BidsPage() {
                     onMouseLeave={handleMouseLeave}
                     onScroll={handleTableScroll}
                   >
-                    <div className="min-w-[636px]">
+                    <div className="min-w-[680px]">
                       {/* 필터 결과 없음 */}
                       {filteredResults.length === 0 ? (
                         <div className="py-12 text-center">
@@ -644,19 +644,19 @@ export default function BidsPage() {
                         return (
                           <div 
                             key={result.listingNo}
-                            className={`grid px-2 py-2 border-b border-gray-100 transition-colors items-center ${
+                            className={`grid px-2 py-3 border-b border-gray-100 transition-colors items-center ${
                               result.result === 'won' 
                                 ? 'bg-blue-50/50' 
                                 : 'bg-red-50/50'
                             }`}
-                            style={{gridTemplateColumns: '55px 100px 60px 55px 50px 65px 65px 75px 95px'}}
+                            style={{gridTemplateColumns: '60px 110px 65px 60px 55px 70px 70px 80px 100px'}}
                           >
                             {/* 결과 */}
                             <div className="text-center flex items-center justify-center">
                               {result.result === 'won' ? (
-                                <span className="text-[10px] font-medium text-blue-600">낙찰</span>
+                                <span className="text-[11px] font-medium text-blue-600">낙찰</span>
                               ) : (
-                                <span className="text-[10px] font-medium text-red-500">유찰</span>
+                                <span className="text-[11px] font-medium text-red-500">유찰</span>
                               )}
                             </div>
                             {/* 상장번호 */}
@@ -665,37 +665,37 @@ export default function BidsPage() {
                                 onClick={() => {
                                   router.push(`/trade/detail?listingNo=${result.listingNo}`);
                                 }}
-                                className="text-[11px] font-medium text-gray-900 underline cursor-pointer"
+                                className="text-[13px] font-medium text-gray-900 underline cursor-pointer"
                               >
                                 {result.listingNo}
                               </button>
                             </div>
                             {/* 부위 */}
-                            <div className="text-center text-[11px] text-gray-700">
+                            <div className="text-center text-[13px] text-gray-700">
                               {result.productInfo.partName}
                             </div>
                             {/* 등급 */}
-                            <div className="text-center text-[11px] text-gray-700" style={{ letterSpacing: '-0.05em' }}>
+                            <div className="text-center text-[13px] text-gray-700" style={{ letterSpacing: '-0.05em' }}>
                               {addYieldGradeIfMissing(result.productInfo.grade)}
                             </div>
                             {/* 중량 */}
-                            <div className="text-center text-[11px] text-gray-700">
+                            <div className="text-center text-[13px] text-gray-700">
                               {result.productInfo.weight.includes('kg') ? result.productInfo.weight : `${result.productInfo.weight}kg`}
                             </div>
                             {/* 낙찰가 */}
-                            <div className="text-center text-[11px] font-medium text-gray-900">
+                            <div className="text-center text-[13px] font-medium text-gray-900">
                               {result.winningBid.toLocaleString()}
                             </div>
                             {/* 나의입찰가 */}
-                            <div className="text-center text-[11px] font-medium text-gray-900">
+                            <div className="text-center text-[13px] font-medium text-gray-900">
                               {result.myBid.toLocaleString()}
                             </div>
                             {/* 총입찰가격 */}
-                            <div className="text-center text-[11px] font-medium text-gray-900">
+                            <div className="text-center text-[13px] font-medium text-gray-900">
                               {totalPrice.toLocaleString()}
                             </div>
                             {/* 시간 */}
-                            <div className="text-center text-[10px] text-gray-500 whitespace-nowrap">
+                            <div className="text-center text-[11px] text-gray-500 whitespace-nowrap">
                               {result.time}
                             </div>
                           </div>
