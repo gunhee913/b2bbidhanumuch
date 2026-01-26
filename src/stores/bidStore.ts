@@ -6,12 +6,12 @@ import { persist } from 'zustand/middleware';
 // 앱 로드 시 즉시 잘못된 입찰 데이터 삭제 (스토어 생성 전에 실행)
 if (typeof window !== 'undefined') {
   // 모든 이전 버전 삭제
-  ['bid-storage', 'bid-storage-v2', 'bid-storage-v3', 'bid-storage-v4', 'bid-storage-v5', 'bid-storage-v6', 'bid-storage-v7', 'bid-storage-v8', 'bid-storage-v9', 'bid-storage-v10', 'bid-storage-v11', 'bid-storage-v12'].forEach(key => {
+  ['bid-storage', 'bid-storage-v2', 'bid-storage-v3', 'bid-storage-v4', 'bid-storage-v5', 'bid-storage-v6', 'bid-storage-v7', 'bid-storage-v8', 'bid-storage-v9', 'bid-storage-v10', 'bid-storage-v11', 'bid-storage-v12', 'bid-storage-v13'].forEach(key => {
     localStorage.removeItem(key);
   });
   
   // 현재 버전에서 잘못된 데이터 정리
-  const currentKey = 'bid-storage-v13';
+  const currentKey = 'bid-storage-v14';
   const data = localStorage.getItem(currentKey);
   if (data) {
     try {
@@ -473,6 +473,47 @@ export const useBidStore = create<BidStore>()(
             time: `${dateStr} 15:10`,
             productInfo: { partName: '목심', weight: '14.2kg', type: '한우암', grade: '2A' }
           },
+          // 추가 유찰 5건
+          {
+            listingNo: `${dateCode}-110-11`,
+            result: 'lost' as const,
+            myBid: 45000,
+            winningBid: 52000,
+            time: `${dateStr} 15:15`,
+            productInfo: { partName: '양지(좌)', weight: '12.5kg', type: '한우거세', grade: '1A' }
+          },
+          {
+            listingNo: `${dateCode}-111-12`,
+            result: 'lost' as const,
+            myBid: 46000,
+            winningBid: 54000,
+            time: `${dateStr} 15:20`,
+            productInfo: { partName: '양지(우)', weight: '12.8kg', type: '한우거세', grade: '1A' }
+          },
+          {
+            listingNo: `${dateCode}-112-13`,
+            result: 'lost' as const,
+            myBid: 42000,
+            winningBid: 50000,
+            time: `${dateStr} 15:25`,
+            productInfo: { partName: '설도(좌)', weight: '16.5kg', type: '한우암', grade: '1+B' }
+          },
+          {
+            listingNo: `${dateCode}-113-14`,
+            result: 'lost' as const,
+            myBid: 43000,
+            winningBid: 51000,
+            time: `${dateStr} 15:30`,
+            productInfo: { partName: '설도(우)', weight: '16.2kg', type: '한우암', grade: '1+B' }
+          },
+          {
+            listingNo: `${dateCode}-114-15`,
+            result: 'lost' as const,
+            myBid: 38000,
+            winningBid: 45000,
+            time: `${dateStr} 15:35`,
+            productInfo: { partName: '사태', weight: '15.0kg', type: '한우거세', grade: '2A' }
+          },
         ];
       })(),
       
@@ -553,7 +594,7 @@ export const useBidStore = create<BidStore>()(
       },
     }),
     {
-      name: 'bid-storage-v13',
+      name: 'bid-storage-v14',
       onRehydrateStorage: () => (state) => {
         if (state) {
           state.cleanOldBids();

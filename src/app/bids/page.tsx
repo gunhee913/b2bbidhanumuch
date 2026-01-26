@@ -35,6 +35,22 @@ export default function BidsPage() {
   const [resultFilter, setResultFilter] = useState<'전체' | '낙찰' | '유찰'>('전체');
   const { bids: globalBids, cleanOldBids, setBid, auctionResults } = useBidStore();
   
+  // 조회기간 (기본값: 어제)
+  const getYesterdayDate = () => {
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    return yesterday;
+  };
+  const [startDate, setStartDate] = useState<Date>(getYesterdayDate());
+  const [endDate, setEndDate] = useState<Date>(getYesterdayDate());
+  
+  const formatDateDisplay = (date: Date) => {
+    const yy = String(date.getFullYear()).slice(2);
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const dd = String(date.getDate()).padStart(2, '0');
+    return `${yy}.${mm}.${dd}`;
+  };
+  
   // 테이블 드래그 스크롤
   const tableRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLDivElement>(null);
@@ -186,6 +202,11 @@ export default function BidsPage() {
       return true;
     })
     .sort((a, b) => {
+      // 낙찰(won)이 먼저, 유찰(lost)이 나중
+      if (a.result !== b.result) {
+        return a.result === 'won' ? -1 : 1;
+      }
+      // 같은 결과 내에서는 시간순 (최신순)
       const parseTime = (time: string) => {
         const match = time.match(/(\d{2})\.(\d{2})\.(\d{2})\s*(\d{2}):(\d{2})/);
         if (match) {
@@ -308,7 +329,7 @@ export default function BidsPage() {
                     <div className="px-4 py-3 bg-gray-100 rounded flex items-center justify-between">
                       <div className="flex items-center">
                         <span className="text-xs text-gray-500">예상 낙찰금액</span>
-                        <span className="text-xs text-gray-400 ml-2">최고순위 {expectedAmounts.highestCount}건</span>
+                        <span className="text-xs text-gray-400 ml-2">총 {expectedAmounts.highestCount + expectedAmounts.secondHighestCount}건, 최고순위 {expectedAmounts.highestCount}건, 차순위 {expectedAmounts.secondHighestCount}건</span>
                       </div>
                       <span className="text-sm font-semibold text-gray-900">{expectedAmounts.highestTotal.toLocaleString()}원</span>
                     </div>
@@ -349,7 +370,7 @@ export default function BidsPage() {
                         <div className="text-center">나의입찰가</div>
                         <div className="text-center">총입찰가격</div>
                         <div className="text-center">상태</div>
-                        <div className="text-center">시간</div>
+                        <div className="text-center">입찰시간</div>
                       </div>
                     </div>
                   </div>
@@ -497,9 +518,29 @@ export default function BidsPage() {
                     <div className="px-4 py-3 bg-gray-100 rounded flex items-center justify-between">
                       <div className="flex items-center">
                         <span className="text-xs text-gray-500">낙찰금액</span>
-                        <span className="text-xs text-gray-400 ml-2">낙찰 {resultSummary.wonCount}건</span>
+                        <span className="text-xs text-gray-400 ml-2">총 {resultSummary.wonCount + resultSummary.lostCount}건, 낙찰 {resultSummary.wonCount}건, 유찰 {resultSummary.lostCount}건</span>
                       </div>
                       <span className="text-sm font-semibold text-gray-900">{resultSummary.wonTotal.toLocaleString()}원</span>
+                    </div>
+                  </div>
+
+                  {/* 조회일 */}
+                  <div className="bg-white px-4 py-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-gray-500">조회일</span>
+                      <input
+                        type="date"
+                        value={`20${formatDateDisplay(startDate).replace(/\./g, '-')}`}
+                        onChange={(e) => setStartDate(new Date(e.target.value))}
+                        className="text-xs text-gray-700 bg-white border border-gray-200 rounded px-2 py-1 [&::-webkit-calendar-picker-indicator]:dark:invert-0 [&::-webkit-calendar-picker-indicator]:brightness-0"
+                      />
+                      <span className="text-xs text-gray-400">~</span>
+                      <input
+                        type="date"
+                        value={`20${formatDateDisplay(endDate).replace(/\./g, '-')}`}
+                        onChange={(e) => setEndDate(new Date(e.target.value))}
+                        className="text-xs text-gray-700 bg-white border border-gray-200 rounded px-2 py-1 [&::-webkit-calendar-picker-indicator]:dark:invert-0 [&::-webkit-calendar-picker-indicator]:brightness-0"
+                      />
                     </div>
                   </div>
 
@@ -527,8 +568,8 @@ export default function BidsPage() {
                     ref={headerRef}
                     className="sticky top-0 z-10 bg-gray-100 border-b border-gray-200 overflow-x-hidden"
                   >
-                    <div className="min-w-[680px] h-7 flex items-center">
-                      <div className="grid px-2 text-[11px] font-medium text-gray-500 w-full" style={{gridTemplateColumns: '55px 100px 60px 55px 50px 65px 65px 75px 50px 95px'}}>
+                    <div className="min-w-[636px] h-7 flex items-center">
+                      <div className="grid px-2 text-[11px] font-medium text-gray-500 w-full" style={{gridTemplateColumns: '55px 100px 60px 55px 50px 65px 65px 75px 95px'}}>
                         <div className="text-center">결과</div>
                         <div className="text-center">상장번호</div>
                         <div className="text-center">부위</div>
@@ -537,8 +578,7 @@ export default function BidsPage() {
                         <div className="text-center">낙찰가</div>
                         <div className="text-center">나의입찰가</div>
                         <div className="text-center">총입찰가격</div>
-                        <div className="text-center">차액</div>
-                        <div className="text-center">시간</div>
+                        <div className="text-center">입찰시간</div>
                       </div>
                     </div>
                   </div>
@@ -553,7 +593,7 @@ export default function BidsPage() {
                     onMouseLeave={handleMouseLeave}
                     onScroll={handleTableScroll}
                   >
-                    <div className="min-w-[680px]">
+                    <div className="min-w-[636px]">
                       {/* 필터 결과 없음 */}
                       {filteredResults.length === 0 ? (
                         <div className="py-12 text-center">
@@ -574,7 +614,7 @@ export default function BidsPage() {
                                 ? 'bg-blue-50/50' 
                                 : 'bg-red-50/50'
                             }`}
-                            style={{gridTemplateColumns: '55px 100px 60px 55px 50px 65px 65px 75px 50px 95px'}}
+                            style={{gridTemplateColumns: '55px 100px 60px 55px 50px 65px 65px 75px 95px'}}
                           >
                             {/* 결과 */}
                             <div className="text-center flex items-center justify-center">
@@ -643,16 +683,6 @@ export default function BidsPage() {
                             {/* 총입찰가격 */}
                             <div className="text-center text-[11px] font-medium text-gray-900">
                               {totalPrice.toLocaleString()}
-                            </div>
-                            {/* 차액 */}
-                            <div className="text-center flex items-center justify-center">
-                              {result.result === 'won' ? (
-                                <span className="text-[10px] text-gray-400">-</span>
-                              ) : (
-                                <span className="text-[10px] font-medium text-red-500">
-                                  -{((result.winningBid - result.myBid)).toLocaleString()}
-                                </span>
-                              )}
                             </div>
                             {/* 시간 */}
                             <div className="text-center text-[10px] text-gray-500 whitespace-nowrap">

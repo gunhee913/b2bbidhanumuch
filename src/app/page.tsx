@@ -751,50 +751,50 @@ function MainPageContent() {
                         </button>
                       </div>
                     ) : (
-                      <div className="bg-white border-y border-gray-200">
-                        <table className="w-full text-[11px]">
-                          <thead className="sticky top-0 z-10">
-                            <tr className="bg-gray-100 border-b border-gray-200">
+                    <div className="bg-white border-y border-gray-200">
+                      <table className="w-full text-[11px]">
+                        <thead className="sticky top-0 z-10">
+                          <tr className="bg-gray-100 border-b border-gray-200">
                               <th className="py-1.5 pl-4 pr-8 text-center font-medium text-gray-500 whitespace-nowrap">접수번호</th>
                               <th className="py-1.5 px-2 text-center font-medium text-gray-500 whitespace-nowrap">성별</th>
                               <th className="py-1.5 px-2 text-center font-medium text-gray-500 whitespace-nowrap">등급</th>
                               <th className="py-1.5 px-2 text-center font-medium text-gray-500 whitespace-nowrap">개월령</th>
                               <th className="py-1.5 px-2 text-center font-medium text-gray-500 whitespace-nowrap">상장업체</th>
                               <th className="py-1.5 px-2 text-center font-medium text-gray-500 whitespace-nowrap">관심</th>
-                            </tr>
-                          </thead>
-                          <tbody>
+                          </tr>
+                        </thead>
+                        <tbody>
                             {filteredCattleData.map((item, index) => (
-                              <tr 
-                                key={item.id}
-                                onClick={() => window.location.href = `/auction/${item.id}`}
-                                className={`border-b border-gray-100 hover:bg-gray-50 cursor-pointer active:bg-gray-100 transition-colors ${index % 2 === 1 ? 'bg-gray-50/50' : ''}`}
-                              >
+                            <tr 
+                              key={item.id}
+                              onClick={() => window.location.href = `/auction/${item.id}`}
+                              className={`border-b border-gray-100 hover:bg-gray-50 cursor-pointer active:bg-gray-100 transition-colors ${index % 2 === 1 ? 'bg-gray-50/50' : ''}`}
+                            >
                                 <td className="py-2 pl-4 pr-8 text-center font-medium text-gray-900 whitespace-nowrap">{item.id}</td>
                                 <td className="py-2 px-2 text-center text-gray-700 whitespace-nowrap">{item.gender}</td>
                                 <td className="py-2 px-2 text-center text-gray-700 whitespace-nowrap">{item.grade}</td>
                                 <td className="py-2 px-2 text-center text-gray-700 whitespace-nowrap">{item.months}</td>
                                 <td className="py-2 px-2 text-center text-gray-700 whitespace-nowrap">{item.company}</td>
                                 <td className="py-2 px-2 text-center">
-                                  <button 
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      toggleFavorite(item.id);
-                                    }}
-                                    className={`p-1.5 transition-colors ${
-                                      isHydrated && isFavorite(item.id) 
-                                        ? 'text-gray-900' 
-                                        : 'text-gray-400 hover:text-gray-700'
-                                    }`}
-                                  >
-                                    <Star className={`w-4 h-4 ${isHydrated && isFavorite(item.id) ? 'fill-current' : ''}`} />
-                                  </button>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
+                                <button 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    toggleFavorite(item.id);
+                                  }}
+                                  className={`p-1.5 transition-colors ${
+                                    isHydrated && isFavorite(item.id) 
+                                      ? 'text-gray-900' 
+                                      : 'text-gray-400 hover:text-gray-700'
+                                  }`}
+                                >
+                                  <Star className={`w-4 h-4 ${isHydrated && isFavorite(item.id) ? 'fill-current' : ''}`} />
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                     )}
                   </div>
                 ) : activeTab === '부위별' ? (
@@ -864,52 +864,52 @@ function MainPageContent() {
                       (() => {
                         const entityFavorites = favorites.filter(id => !id.includes('-', id.indexOf('-') + 1) || id.split('-').length === 2);
                         return entityFavorites.length === 0 ? (
-                          <div className="text-center py-12">
-                            <Star className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                            <p className="text-gray-500 text-sm">관심 등록된 개체가 없습니다.</p>
-                            <p className="text-gray-400 text-xs mt-1">개체별 탭에서 별 아이콘을 눌러 추가해보세요.</p>
-                          </div>
-                        ) : (
-                          <div className="bg-white border-y border-gray-200">
-                            <table className="w-full text-[11px]">
-                              <thead className="sticky top-0 z-10">
-                                <tr className="bg-gray-100 border-b border-gray-200">
+                      <div className="text-center py-12">
+                        <Star className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                        <p className="text-gray-500 text-sm">관심 등록된 개체가 없습니다.</p>
+                        <p className="text-gray-400 text-xs mt-1">개체별 탭에서 별 아이콘을 눌러 추가해보세요.</p>
+                      </div>
+                    ) : (
+                      <div className="bg-white border-y border-gray-200">
+                        <table className="w-full text-[11px]">
+                          <thead className="sticky top-0 z-10">
+                            <tr className="bg-gray-100 border-b border-gray-200">
                                   <th className="py-1.5 pl-4 pr-8 text-center font-medium text-gray-500 whitespace-nowrap">접수번호</th>
                                   <th className="py-1.5 px-2 text-center font-medium text-gray-500 whitespace-nowrap">성별</th>
                                   <th className="py-1.5 px-2 text-center font-medium text-gray-500 whitespace-nowrap">등급</th>
                                   <th className="py-1.5 px-2 text-center font-medium text-gray-500 whitespace-nowrap">개월령</th>
                                   <th className="py-1.5 px-2 text-center font-medium text-gray-500 whitespace-nowrap">상장업체</th>
                                   <th className="py-1.5 px-2 text-center font-medium text-gray-500 whitespace-nowrap">관심</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {cattleData.filter(item => isHydrated && isFavorite(item.id)).map((item, index) => (
-                                  <tr 
-                                    key={item.id} 
-                                    onClick={() => window.location.href = `/auction/${item.id}`}
-                                    className={`border-b border-gray-100 hover:bg-gray-50 cursor-pointer active:bg-gray-100 transition-colors ${index % 2 === 1 ? 'bg-gray-50/50' : ''}`}
-                                  >
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {cattleData.filter(item => isHydrated && isFavorite(item.id)).map((item, index) => (
+                              <tr 
+                                key={item.id} 
+                                onClick={() => window.location.href = `/auction/${item.id}`}
+                                className={`border-b border-gray-100 hover:bg-gray-50 cursor-pointer active:bg-gray-100 transition-colors ${index % 2 === 1 ? 'bg-gray-50/50' : ''}`}
+                              >
                                     <td className="py-2 pl-4 pr-8 text-center font-medium text-gray-900 whitespace-nowrap">{item.id}</td>
                                     <td className="py-2 px-2 text-center text-gray-700 whitespace-nowrap">{item.gender}</td>
                                     <td className="py-2 px-2 text-center text-gray-700 whitespace-nowrap">{item.grade}</td>
                                     <td className="py-2 px-2 text-center text-gray-700 whitespace-nowrap">{item.months}</td>
                                     <td className="py-2 px-2 text-center text-gray-700 whitespace-nowrap">{item.company}</td>
                                     <td className="py-2 px-2 text-center">
-                                      <button 
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          toggleFavorite(item.id);
-                                        }}
-                                        className="p-1.5 text-gray-900 transition-colors"
-                                      >
-                                        <Star className="w-4 h-4 fill-current" />
-                                      </button>
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
+                                  <button 
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      toggleFavorite(item.id);
+                                    }}
+                                    className="p-1.5 text-gray-900 transition-colors"
+                                  >
+                                    <Star className="w-4 h-4 fill-current" />
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
                         );
                       })()
                     ) : (
@@ -994,8 +994,8 @@ function MainPageContent() {
                                           >
                                             재입찰
                                           </button>
-                                        )}
-                                      </div>
+                    )}
+                  </div>
                                     ) : (
                                       <button
                                         onClick={() => {
