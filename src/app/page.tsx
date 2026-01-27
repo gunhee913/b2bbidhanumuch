@@ -970,7 +970,7 @@ function MainPageContent() {
                                   </div>
                                   <div className="text-center flex items-center justify-center">
                                     {bid?.status === 'highest' ? (
-                                      <span className="text-[11px] font-medium text-blue-600">최고</span>
+                                      <span className="text-[11px] font-medium text-blue-600">최고순위</span>
                                     ) : bid?.status === 'secondHighest' ? (
                                       <span className="text-[11px] font-medium text-red-500">차순위</span>
                                     ) : (
@@ -1924,16 +1924,15 @@ function MainPageContent() {
                         </button>
                         <button
                           onClick={() => {
-                            // 입찰 저장
-                            const weight = parseFloat(selectedFavoritePart.weight);
-                            const totalBid = Math.round(favoritePartBidPrice * weight);
-                            const highestBid = Math.round(favoritePartBidPrice * weight * 0.95);
+                            // 입찰 저장 (kg당 가격으로 저장)
+                            const now = new Date();
+                            const timeStr = `${now.getFullYear().toString().slice(2)}.${String(now.getMonth() + 1).padStart(2, '0')}.${String(now.getDate()).padStart(2, '0')}.(${['일','월','화','수','목','금','토'][now.getDay()]}) ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
                             
                             setBid(selectedFavoritePart.listingNo, {
-                              myBid: totalBid,
-                              highestBid: Math.max(totalBid, highestBid),
+                              myBid: favoritePartBidPrice,
+                              highestBid: favoritePartBidPrice,
                               status: 'highest',
-                              time: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
+                              time: timeStr,
                               productInfo: {
                                 listingNo: selectedFavoritePart.listingNo,
                                 partName: selectedFavoritePart.partName,

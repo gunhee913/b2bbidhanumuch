@@ -32,7 +32,7 @@ export default function BidsPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'진행중' | '경매결과'>('진행중');
   const [statusFilter, setStatusFilter] = useState<'전체' | '최고순위' | '차순위'>('전체');
-  const [resultFilter, setResultFilter] = useState<'전체' | '낙찰' | '유찰'>('전체');
+  const [resultFilter, setResultFilter] = useState<'전체' | '낙찰' | '미낙찰'>('전체');
   const { bids: globalBids, cleanOldBids, setBid, auctionResults } = useBidStore();
   
   // 조회기간 (기본값: 오늘)
@@ -218,11 +218,11 @@ export default function BidsPage() {
       // 결과 필터링
       if (resultFilter === '전체') return true;
       if (resultFilter === '낙찰') return result.result === 'won';
-      if (resultFilter === '유찰') return result.result === 'lost';
+      if (resultFilter === '미낙찰') return result.result === 'lost';
       return true;
     })
     .sort((a, b) => {
-      // 낙찰(won)이 먼저, 유찰(lost)이 나중
+      // 낙찰(won)이 먼저, 미낙찰(lost)이 나중
       if (a.result !== b.result) {
         return a.result === 'won' ? -1 : 1;
       }
@@ -552,7 +552,7 @@ export default function BidsPage() {
                     <div className="px-4 py-3 bg-gray-100 rounded flex items-center justify-between">
                       <div className="flex items-center">
                         <span className="text-xs text-gray-500">낙찰금액</span>
-                        <span className="text-xs text-gray-400 ml-2">총 {resultSummary.wonCount + resultSummary.lostCount}건, 낙찰 {resultSummary.wonCount}건, 유찰 {resultSummary.lostCount}건</span>
+                        <span className="text-xs text-gray-400 ml-2">총 {resultSummary.wonCount + resultSummary.lostCount}건, 낙찰 {resultSummary.wonCount}건, 미낙찰 {resultSummary.lostCount}건</span>
                       </div>
                       <span className="text-sm font-semibold text-gray-900">{resultSummary.wonTotal.toLocaleString()}원</span>
                     </div>
@@ -587,7 +587,7 @@ export default function BidsPage() {
                   {/* 결과 필터 */}
                   <div className="bg-white px-4 py-2.5">
                     <div className="flex gap-2">
-                      {(['전체', '낙찰', '유찰'] as const).map((filter) => (
+                      {(['전체', '낙찰', '미낙찰'] as const).map((filter) => (
                         <button
                           key={filter}
                           onClick={() => setResultFilter(filter)}
@@ -661,7 +661,7 @@ export default function BidsPage() {
                               {result.result === 'won' ? (
                                 <span className="text-[11px] font-medium text-blue-600">낙찰</span>
                               ) : (
-                                <span className="text-[11px] font-medium text-red-500">유찰</span>
+                                <span className="text-[11px] font-medium text-red-500">미낙찰</span>
                               )}
                             </div>
                             {/* 상장번호 */}
