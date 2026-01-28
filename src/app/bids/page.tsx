@@ -35,13 +35,13 @@ export default function BidsPage() {
   const [resultFilter, setResultFilter] = useState<'전체' | '낙찰' | '미낙찰'>('전체');
   const { bids: globalBids, cleanOldBids, setBid, auctionResults } = useBidStore();
   
-  // 조회기간 (기본값: 오늘)
-  const getTodayDate = () => new Date();
-  const [startDate, setStartDate] = useState<Date>(getTodayDate());
-  const [endDate, setEndDate] = useState<Date>(getTodayDate());
+  // 조회기간 (기본값: 1월 26일)
+  const getDefaultDate = () => new Date(2026, 0, 26); // 2026년 1월 26일
+  const [startDate, setStartDate] = useState<Date>(getDefaultDate());
+  const [endDate, setEndDate] = useState<Date>(getDefaultDate());
   // 실제 조회에 사용되는 날짜 (조회 버튼 클릭 시 업데이트)
-  const [searchStartDate, setSearchStartDate] = useState<Date>(getTodayDate());
-  const [searchEndDate, setSearchEndDate] = useState<Date>(getTodayDate());
+  const [searchStartDate, setSearchStartDate] = useState<Date>(getDefaultDate());
+  const [searchEndDate, setSearchEndDate] = useState<Date>(getDefaultDate());
   
   const formatDateDisplay = (date: Date) => {
     const yy = String(date.getFullYear()).slice(2);

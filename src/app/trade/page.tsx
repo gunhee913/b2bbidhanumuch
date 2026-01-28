@@ -105,16 +105,12 @@ export default function TradePage() {
   // 필터 상태 (거래처 등록 여부)
   const [dealerFilter, setDealerFilter] = useState<'all' | 'registered' | 'unregistered'>('all');
   
-  // 기간 필터 상태 (테스트 데이터가 어제 날짜 기준이므로 기본값을 어제로 설정)
-  const getYesterdayDate = () => {
-    const d = new Date();
-    d.setDate(d.getDate() - 1);
-    return d;
-  };
-  const [startDate, setStartDate] = useState<Date>(getYesterdayDate());
-  const [endDate, setEndDate] = useState<Date>(getYesterdayDate());
-  const [searchStartDate, setSearchStartDate] = useState<Date>(getYesterdayDate());
-  const [searchEndDate, setSearchEndDate] = useState<Date>(getYesterdayDate());
+  // 기간 필터 상태 (기본값: 1월 26일)
+  const getDefaultDate = () => new Date(2026, 0, 26); // 2026년 1월 26일
+  const [startDate, setStartDate] = useState<Date>(getDefaultDate());
+  const [endDate, setEndDate] = useState<Date>(getDefaultDate());
+  const [searchStartDate, setSearchStartDate] = useState<Date>(getDefaultDate());
+  const [searchEndDate, setSearchEndDate] = useState<Date>(getDefaultDate());
   
   const formatDateDisplay = (date: Date) => {
     const yy = String(date.getFullYear()).slice(2);

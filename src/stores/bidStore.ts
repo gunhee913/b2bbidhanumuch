@@ -184,10 +184,10 @@ const getYesterdayDateCode = () => {
   return `${yy}${mm}${dd}`;
 };
 
-// 경매 결과 데이터 생성 함수 (전일자 기준, 매일 새로 생성)
+// 경매 결과 데이터 생성 함수 (1/26 고정)
 const generateDailyAuctionResults = (): AuctionResult[] => {
-  const dateCode = getYesterdayDateCode();
-  const dateStr = `${dateCode.slice(0, 2)}.${dateCode.slice(2, 4)}.${dateCode.slice(4, 6)}`;
+  const dateCode = '260126'; // 1월 26일 고정
+  const dateStr = '26.01.26';
   const seed = parseInt(dateCode, 10);
   
   // 낙찰 부위 목록 (15개)
@@ -574,7 +574,7 @@ export const useBidStore = create<BidStore>()(
       },
     }),
     {
-      name: 'bid-storage-v18',
+      name: 'bid-storage-v19',
       onRehydrateStorage: () => (state) => {
         if (state) {
           // 오래된 입찰 데이터 정리
