@@ -575,8 +575,6 @@ export default function MarketPage() {
           formatter: (price: number) => Math.round(price).toLocaleString() + '건',
         },
         priceScaleId: 'volume',
-        crosshairMarkerVisible: false,
-        lastValueVisible: false,
       });
 
       // 거래량 프라이스 스케일 설정
