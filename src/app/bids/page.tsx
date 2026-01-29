@@ -890,45 +890,45 @@ export default function BidsPage() {
       {/* 입찰 확인 다이얼로그 */}
       {showBidDialog && selectedBidInfo && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[10000] p-4">
-          <div className="bg-white rounded w-full max-w-md mx-4">
+          <div className="bg-white dark:bg-gray-900 rounded w-full max-w-md mx-4 transition-colors">
             {/* 다이얼로그 헤더 */}
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h3 className="text-lg font-bold text-gray-900">입찰 내용을 확인해 주세요</h3>
+            <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">입찰 내용을 확인해 주세요</h3>
             </div>
             
             {/* 다이얼로그 내용 */}
             <div className="px-6 py-4">
               {/* 개체 정보 테이블 */}
-              <div className="border border-gray-200 rounded overflow-hidden overflow-x-auto mb-4">
+              <div className="border border-gray-200 dark:border-gray-700 rounded overflow-hidden overflow-x-auto mb-4">
                 <table className="w-full text-[11px]">
                   <thead>
-                    <tr className="bg-gray-100 border-b border-gray-200">
-                      <th className="py-2 px-1.5 text-center font-medium text-gray-500 whitespace-nowrap">상장번호</th>
-                      <th className="py-2 px-1.5 text-center font-medium text-gray-500">축종</th>
-                      <th className="py-2 px-1.5 text-center font-medium text-gray-500">성별</th>
-                      <th className="py-2 px-1.5 text-center font-medium text-gray-500">등급</th>
-                      <th className="py-2 px-1.5 text-center font-medium text-gray-500">개월령</th>
-                      <th className="py-2 px-1.5 text-center font-medium text-gray-500">부위</th>
-                      <th className="py-2 px-1.5 text-center font-medium text-gray-500">중량</th>
+                    <tr className="bg-gray-100 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+                      <th className="py-2 px-1.5 text-center font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">상장번호</th>
+                      <th className="py-2 px-1.5 text-center font-medium text-gray-500 dark:text-gray-400">축종</th>
+                      <th className="py-2 px-1.5 text-center font-medium text-gray-500 dark:text-gray-400">성별</th>
+                      <th className="py-2 px-1.5 text-center font-medium text-gray-500 dark:text-gray-400">등급</th>
+                      <th className="py-2 px-1.5 text-center font-medium text-gray-500 dark:text-gray-400">개월령</th>
+                      <th className="py-2 px-1.5 text-center font-medium text-gray-500 dark:text-gray-400">부위</th>
+                      <th className="py-2 px-1.5 text-center font-medium text-gray-500 dark:text-gray-400">중량</th>
                     </tr>
                   </thead>
                   <tbody>
                     <tr>
-                      <td className="py-2.5 px-1.5 text-center text-gray-700 whitespace-nowrap">
+                      <td className="py-2.5 px-1.5 text-center text-gray-700 dark:text-gray-300 whitespace-nowrap">
                         {selectedBidInfo.listingNo}
                       </td>
-                      <td className="py-2.5 px-1.5 text-center text-gray-700">한우</td>
-                      <td className="py-2.5 px-1.5 text-center text-gray-700">
+                      <td className="py-2.5 px-1.5 text-center text-gray-700 dark:text-gray-300">한우</td>
+                      <td className="py-2.5 px-1.5 text-center text-gray-700 dark:text-gray-300">
                         {selectedBidInfo.productInfo.gender || '암'}
                       </td>
-                      <td className="py-2.5 px-1.5 text-center text-gray-700">
+                      <td className="py-2.5 px-1.5 text-center text-gray-700 dark:text-gray-300">
                         {addYieldGradeIfMissing(selectedBidInfo.productInfo.grade)}
                       </td>
-                      <td className="py-2.5 px-1.5 text-center text-gray-700">32</td>
-                      <td className="py-2.5 px-1.5 text-center font-medium text-gray-900">
+                      <td className="py-2.5 px-1.5 text-center text-gray-700 dark:text-gray-300">32</td>
+                      <td className="py-2.5 px-1.5 text-center font-medium text-gray-900 dark:text-gray-100">
                         {selectedBidInfo.productInfo.partName}
                       </td>
-                      <td className="py-2.5 px-1.5 text-center font-medium text-gray-900">
+                      <td className="py-2.5 px-1.5 text-center font-medium text-gray-900 dark:text-gray-100">
                         {selectedBidInfo.productInfo.weight.includes('kg') 
                           ? selectedBidInfo.productInfo.weight 
                           : `${selectedBidInfo.productInfo.weight}kg`}
@@ -939,16 +939,16 @@ export default function BidsPage() {
               </div>
 
               {/* 입찰 금액 정보 */}
-              <div className="bg-gray-50 p-3 rounded border border-gray-200">
+              <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-700">
                 <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm text-gray-600">입찰가격</span>
-                  <span className="text-sm font-medium text-gray-900">
+                  <span className="text-sm text-gray-600 dark:text-gray-400">입찰가격</span>
+                  <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
                     {bidPrice ? `${formatNumber(bidPrice)}원/kg` : '-'}
                   </span>
                 </div>
-                <div className="flex justify-between items-center pt-2 border-t border-gray-200">
-                  <span className="text-sm font-bold text-gray-900">총 입찰금액</span>
-                  <span className="text-lg font-bold text-gray-900">
+                <div className="flex justify-between items-center pt-2 border-t border-gray-200 dark:border-gray-700">
+                  <span className="text-sm font-bold text-gray-900 dark:text-gray-100">총 입찰금액</span>
+                  <span className="text-lg font-bold text-gray-900 dark:text-gray-100">
                     {(() => {
                       if (!bidPrice || !selectedBidInfo) return '-';
                       const price = parseFloat(removeCommas(bidPrice));
@@ -962,16 +962,16 @@ export default function BidsPage() {
             </div>
             
             {/* 다이얼로그 버튼 */}
-            <div className="px-6 py-4 border-t border-gray-200 flex gap-3">
+            <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex gap-3">
               <button
                 onClick={() => setShowBidDialog(false)}
-                className="flex-1 py-2.5 px-4 border border-gray-300 text-gray-700 rounded hover:bg-gray-50 transition-colors font-medium"
+                className="flex-1 py-2.5 px-4 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors font-medium"
               >
                 취소
               </button>
               <button
                 onClick={confirmBid}
-                className="flex-1 py-2.5 px-4 bg-gray-800 text-white rounded hover:bg-gray-900 transition-colors font-medium"
+                className="flex-1 py-2.5 px-4 bg-gray-800 dark:bg-gray-700 text-white rounded hover:bg-gray-900 dark:hover:bg-gray-600 transition-colors font-medium"
               >
                 입찰하기
               </button>

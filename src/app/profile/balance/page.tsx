@@ -36,7 +36,7 @@ type PeriodFilter = 'all' | 'today' | 'week' | 'month' | 'custom';
 
 export default function BalanceHistoryPage() {
   return (
-    <Suspense fallback={<div className="fixed inset-0 bg-white flex items-center justify-center"><span className="text-gray-500">로딩중...</span></div>}>
+    <Suspense fallback={<div className="fixed inset-0 bg-white dark:bg-gray-900 flex items-center justify-center"><span className="text-gray-500 dark:text-gray-400">로딩중...</span></div>}>
       <BalanceHistoryContent />
     </Suspense>
   );
@@ -286,7 +286,7 @@ function BalanceHistoryContent() {
     <div className="fixed inset-0 bg-white flex justify-center items-center z-[9999] overflow-hidden">
       <div className="w-full md:flex md:justify-center md:items-center bg-white">
           <div 
-            className="w-full md:max-w-md md:w-[500px] bg-white md:shadow-2xl relative overflow-hidden flex flex-col" 
+            className="w-full md:max-w-md md:w-[500px] bg-white dark:bg-gray-900 md:shadow-2xl relative overflow-hidden flex flex-col transition-colors" 
             style={{
               height: 'calc(var(--vh, 1vh) * 100)',
               scrollbarWidth: 'none', 
@@ -304,28 +304,28 @@ function BalanceHistoryContent() {
             `}</style>
             
             {/* 모바일 메인 헤더 */}
-            <div className="flex-shrink-0 bg-white">
+            <div className="flex-shrink-0 bg-white dark:bg-gray-900 transition-colors">
               <div className="px-4 py-3.5">
                 <div className="flex items-center justify-between">
                   {/* 왼쪽 뒤로가기 */}
                   <Link href={backUrl} className="w-[80px] flex items-center">
-                    <button className="p-1.5 hover:bg-gray-100 rounded transition-colors">
-                      <ChevronLeft className="h-[22px] w-[22px] text-gray-600" />
+                    <button className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors">
+                      <ChevronLeft className="h-[22px] w-[22px] text-gray-600 dark:text-gray-400" />
                     </button>
                   </Link>
                   {/* 가운데 타이틀 */}
-                  <h1 className="text-[17px] font-bold text-gray-900">잔고 내역</h1>
+                  <h1 className="text-[17px] font-bold text-gray-900 dark:text-gray-100">잔고 내역</h1>
                   {/* 오른쪽 아이콘 */}
                   <div className="w-[80px] flex items-center justify-end gap-1">
                     <Link 
                       href="/settings"
-                      className="p-2 text-gray-600 hover:text-gray-900 transition-colors flex items-center justify-center"
+                      className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 transition-colors flex items-center justify-center"
                     >
                       <Settings className="w-[22px] h-[22px]" />
                     </Link>
                     <Link 
                       href="/notifications"
-                      className="p-2 text-gray-600 hover:text-gray-900 transition-colors flex items-center justify-center relative"
+                      className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 transition-colors flex items-center justify-center relative"
                     >
                       <Bell className="w-[22px] h-[22px] translate-y-[0.5px]" />
                       <span className="absolute top-0 right-0 w-4 h-4 bg-red-500 text-white text-[9px] font-medium rounded-full flex items-center justify-center">
@@ -338,7 +338,7 @@ function BalanceHistoryContent() {
             </div>
 
             {/* 필터 영역 */}
-            <div className="flex-shrink-0 bg-white border-b border-gray-200 px-4 py-3">
+            <div className="flex-shrink-0 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 px-4 py-3 transition-colors">
               <div className="flex gap-2">
                 {/* 구분 필터 드롭다운 */}
                 <div className="relative" ref={typeDropdownRef}>
@@ -347,7 +347,7 @@ function BalanceHistoryContent() {
                       setShowTypeDropdown(!showTypeDropdown);
                       setShowPeriodDropdown(false);
                     }}
-                    className="flex items-center gap-1.5 px-4 py-2 text-[13px] font-medium bg-gray-100 text-gray-600 rounded-md hover:bg-gray-200 transition-colors"
+                    className="flex items-center gap-1.5 px-4 py-2 text-[13px] font-medium bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
                   >
                     {typeFilter === 'all' ? '구분' : 
                      typeFilter === 'deposit' ? '입금' : '낙찰대금차감'}
@@ -360,7 +360,7 @@ function BalanceHistoryContent() {
                         initial={{ opacity: 0, y: -10 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -10 }}
-                        className="absolute left-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-20"
+                        className="absolute left-0 top-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-20"
                       >
                         {[
                           { value: 'all', label: '전체' },
@@ -373,8 +373,8 @@ function BalanceHistoryContent() {
                               setTypeFilter(option.value as TypeFilter);
                               setShowTypeDropdown(false);
                             }}
-                            className={`block w-full text-left px-4 py-2 text-[13px] hover:bg-gray-100 transition-colors whitespace-nowrap ${
-                              typeFilter === option.value ? 'bg-gray-100 text-gray-900 font-medium' : 'text-gray-700'
+                            className={`block w-full text-left px-4 py-2 text-[13px] hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors whitespace-nowrap ${
+                              typeFilter === option.value ? 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 font-medium' : 'text-gray-700 dark:text-gray-300'
                             }`}
                           >
                             {option.label}
@@ -392,7 +392,7 @@ function BalanceHistoryContent() {
                       setShowPeriodDropdown(!showPeriodDropdown);
                       setShowTypeDropdown(false);
                     }}
-                    className="flex items-center gap-1.5 px-4 py-2 text-[13px] font-medium bg-gray-100 text-gray-600 rounded-md hover:bg-gray-200 transition-colors"
+                    className="flex items-center gap-1.5 px-4 py-2 text-[13px] font-medium bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
                   >
                     {periodFilter === 'all' ? '기간' : 
                      periodFilter === 'today' ? '오늘' :
@@ -407,7 +407,7 @@ function BalanceHistoryContent() {
                         initial={{ opacity: 0, y: -10 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -10 }}
-                        className="absolute left-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-20"
+                        className="absolute left-0 top-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-20"
                       >
                         {[
                           { value: 'all', label: '전체' },
@@ -425,8 +425,8 @@ function BalanceHistoryContent() {
                                 setCustomDateRange({ from: undefined, to: undefined });
                               }
                             }}
-                            className={`block w-full text-left px-4 py-2 text-[13px] hover:bg-gray-100 transition-colors whitespace-nowrap ${
-                              periodFilter === option.value ? 'bg-gray-100 text-gray-900 font-medium' : 'text-gray-700'
+                            className={`block w-full text-left px-4 py-2 text-[13px] hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors whitespace-nowrap ${
+                              periodFilter === option.value ? 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 font-medium' : 'text-gray-700 dark:text-gray-300'
                             }`}
                           >
                             {option.label}
@@ -444,7 +444,7 @@ function BalanceHistoryContent() {
                     <Popover>
                       <PopoverTrigger asChild>
                         <button
-                          className="flex items-center gap-1.5 px-3 py-2 bg-gray-100 rounded-md text-[13px] font-medium text-gray-700 hover:bg-gray-200 transition-colors"
+                          className="flex items-center gap-1.5 px-3 py-2 bg-gray-100 dark:bg-gray-800 rounded-md text-[13px] font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
                         >
                           <CalendarIcon className="h-4 w-4" />
                           <span>
@@ -456,7 +456,7 @@ function BalanceHistoryContent() {
                         </button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0 z-[10000]" align="start">
-                        <div className="p-3 bg-white rounded-lg">
+                        <div className="p-3 bg-white dark:bg-gray-800 rounded-lg">
                           <Calendar
                             mode="single"
                             selected={customDateRange.from}
@@ -478,13 +478,13 @@ function BalanceHistoryContent() {
                       </PopoverContent>
                     </Popover>
 
-                    <span className="text-[13px] text-gray-400">~</span>
+                    <span className="text-[13px] text-gray-400 dark:text-gray-500">~</span>
 
                     {/* 마감일 */}
                     <Popover>
                       <PopoverTrigger asChild>
                         <button
-                          className="flex items-center gap-1.5 px-3 py-2 bg-gray-100 rounded-md text-[13px] font-medium text-gray-700 hover:bg-gray-200 transition-colors"
+                          className="flex items-center gap-1.5 px-3 py-2 bg-gray-100 dark:bg-gray-800 rounded-md text-[13px] font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
                         >
                           <CalendarIcon className="h-4 w-4" />
                           <span>
@@ -496,7 +496,7 @@ function BalanceHistoryContent() {
                         </button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0 z-[10000]" align="start">
-                        <div className="p-3 bg-white rounded-lg">
+                        <div className="p-3 bg-white dark:bg-gray-800 rounded-lg">
                           <Calendar
                             mode="single"
                             selected={customDateRange.to}
@@ -533,41 +533,41 @@ function BalanceHistoryContent() {
               onTouchStart={handleTouchStart}
               onTouchMove={handleTouchMove}
               onTouchEnd={handleTouchEnd}
-              className={`flex-1 min-h-0 overflow-y-auto overflow-x-auto bg-white hide-scrollbar ${isDragging ? 'cursor-grabbing select-none' : 'cursor-grab'}`}
+              className={`flex-1 min-h-0 overflow-y-auto overflow-x-auto bg-white dark:bg-gray-900 hide-scrollbar transition-colors ${isDragging ? 'cursor-grabbing select-none' : 'cursor-grab'}`}
             >
               <table className="w-full border-collapse min-w-[480px]">
-                <thead className="sticky top-0 bg-gray-50 border-b border-gray-200">
+                <thead className="sticky top-0 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
                   <tr>
-                    <th className="px-2 py-2.5 text-[13px] font-semibold text-gray-500 text-center border-r border-gray-200 w-[105px]">거래일시</th>
-                    <th className="px-2 py-2.5 text-[13px] font-semibold text-gray-500 text-center border-r border-gray-200 w-[90px]">입금</th>
-                    <th className="px-2 py-2.5 text-[13px] font-semibold text-gray-500 text-center border-r border-gray-200 w-[90px]">출금(차감)</th>
-                    <th className="px-2 py-2.5 text-[13px] font-semibold text-gray-500 text-center border-r border-gray-200 w-[100px]">잔액</th>
-                    <th className="px-2 py-2.5 text-[13px] font-semibold text-gray-500 text-center w-[75px]">비고</th>
+                    <th className="px-2 py-2.5 text-[13px] font-semibold text-gray-500 dark:text-gray-400 text-center border-r border-gray-200 dark:border-gray-700 w-[105px]">거래일시</th>
+                    <th className="px-2 py-2.5 text-[13px] font-semibold text-gray-500 dark:text-gray-400 text-center border-r border-gray-200 dark:border-gray-700 w-[90px]">입금</th>
+                    <th className="px-2 py-2.5 text-[13px] font-semibold text-gray-500 dark:text-gray-400 text-center border-r border-gray-200 dark:border-gray-700 w-[90px]">출금(차감)</th>
+                    <th className="px-2 py-2.5 text-[13px] font-semibold text-gray-500 dark:text-gray-400 text-center border-r border-gray-200 dark:border-gray-700 w-[100px]">잔액</th>
+                    <th className="px-2 py-2.5 text-[13px] font-semibold text-gray-500 dark:text-gray-400 text-center w-[75px]">비고</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
+                <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                   {displayedHistory.length === 0 ? (
                     <tr>
                       <td colSpan={5} className="text-center py-20">
-                        <p className="text-sm text-gray-500">조회된 내역이 없습니다.</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">조회된 내역이 없습니다.</p>
                       </td>
                     </tr>
                   ) : (
                     displayedHistory.map((item) => (
-                      <tr key={item.id} className="hover:bg-gray-50">
-                        <td className="px-2 py-3 text-[12px] text-gray-600 text-center border-r border-gray-100 whitespace-nowrap">
+                      <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
+                        <td className="px-2 py-3 text-[12px] text-gray-600 dark:text-gray-400 text-center border-r border-gray-100 dark:border-gray-800 whitespace-nowrap">
                           {formatDate(item.date)}
                         </td>
-                        <td className="px-2 py-3 text-[12px] text-right font-medium text-gray-900 border-r border-gray-100 whitespace-nowrap">
+                        <td className="px-2 py-3 text-[12px] text-right font-medium text-gray-900 dark:text-gray-100 border-r border-gray-100 dark:border-gray-800 whitespace-nowrap">
                           {item.deposit > 0 ? `+${formatCurrency(item.deposit)}` : ''}
                         </td>
-                        <td className="px-2 py-3 text-[12px] text-right font-medium text-gray-900 border-r border-gray-100 whitespace-nowrap">
+                        <td className="px-2 py-3 text-[12px] text-right font-medium text-gray-900 dark:text-gray-100 border-r border-gray-100 dark:border-gray-800 whitespace-nowrap">
                           {item.withdraw > 0 ? `-${formatCurrency(item.withdraw)}` : ''}
                         </td>
-                        <td className={`px-2 py-3 text-[12px] text-right font-semibold border-r border-gray-100 whitespace-nowrap ${item.balance < 0 ? 'text-red-600' : 'text-gray-900'}`}>
+                        <td className={`px-2 py-3 text-[12px] text-right font-semibold border-r border-gray-100 dark:border-gray-800 whitespace-nowrap ${item.balance < 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-gray-100'}`}>
                           {item.balance < 0 ? `-${formatCurrency(item.balance)}` : formatCurrency(item.balance)}
                         </td>
-                        <td className="px-2 py-3 text-[12px] text-gray-600 text-center whitespace-nowrap">
+                        <td className="px-2 py-3 text-[12px] text-gray-600 dark:text-gray-400 text-center whitespace-nowrap">
                           {item.description}
                         </td>
                       </tr>
@@ -578,14 +578,14 @@ function BalanceHistoryContent() {
               
               {/* 더 불러오기 표시 */}
               {displayCount < filteredHistory.length && (
-                <div className="py-4 text-center text-xs text-gray-400">
+                <div className="py-4 text-center text-xs text-gray-400 dark:text-gray-500">
                   스크롤하여 더 보기...
                 </div>
               )}
               
               {/* 전체 건수 표시 */}
               {displayedHistory.length > 0 && displayCount >= filteredHistory.length && (
-                <div className="py-4 text-center text-xs text-gray-400">
+                <div className="py-4 text-center text-xs text-gray-400 dark:text-gray-500">
                   총 {filteredHistory.length}건
                 </div>
               )}

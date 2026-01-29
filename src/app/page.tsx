@@ -468,7 +468,7 @@ function MainPageContent() {
     <div className="fixed inset-0 bg-white flex justify-center items-center z-[9999] overflow-hidden">
       <div className="w-full md:flex md:justify-center md:items-center bg-white">
           <div 
-            className="w-full md:max-w-md md:w-[500px] bg-white md:shadow-2xl relative overflow-hidden flex flex-col" 
+            className="w-full md:max-w-md md:w-[500px] bg-white dark:bg-gray-900 md:shadow-2xl relative overflow-hidden flex flex-col transition-colors" 
             style={{
               height: 'calc(var(--vh, 1vh) * 100)',
               scrollbarWidth: 'none', 
@@ -482,24 +482,24 @@ function MainPageContent() {
             `}</style>
             
             {/* 모바일 메인 헤더 */}
-            <div className="flex-shrink-0 bg-white">
+            <div className="flex-shrink-0 bg-white dark:bg-gray-900 transition-colors">
               <div className="px-4 py-3.5">
                 <div className="flex items-center justify-between">
                   {/* 왼쪽 여백 (오른쪽과 동일한 크기) */}
                   <div className="w-[80px]"></div>
                   {/* 가운데 타이틀 */}
-                  <h1 className="text-[17px] font-bold text-gray-900">부분육 경매장</h1>
+                  <h1 className="text-[17px] font-bold text-gray-900 dark:text-gray-100">부분육 경매장</h1>
                   {/* 오른쪽 아이콘 */}
                   <div className="flex items-center gap-1">
                     <Link 
                       href="/settings"
-                      className="p-2 text-gray-600 hover:text-gray-900 transition-colors flex items-center justify-center"
+                      className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors flex items-center justify-center"
                     >
                       <Settings className="w-[22px] h-[22px]" />
                     </Link>
                     <Link 
                       href="/notifications"
-                      className="p-2 text-gray-600 hover:text-gray-900 transition-colors flex items-center justify-center relative"
+                      className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors flex items-center justify-center relative"
                     >
                       <Bell className="w-[22px] h-[22px] translate-y-[0.5px]" />
                       <span className="absolute top-0 right-0 w-4 h-4 bg-red-500 text-white text-[9px] font-medium rounded-full flex items-center justify-center">
@@ -512,18 +512,18 @@ function MainPageContent() {
             </div>
 
             {/* 메인 콘텐츠 */}
-            <div className="flex-1 min-h-0 overflow-y-auto bg-white">
+            <div className="flex-1 min-h-0 overflow-y-auto bg-white dark:bg-gray-900 transition-colors">
 
               {/* 내 잔고 링크 */}
               <Link 
                 href="/profile/balance?from=main"
-                className="mx-4 mt-4 px-4 py-3 bg-gray-100 rounded flex items-center justify-between hover:bg-gray-200 transition-colors"
+                className="mx-4 mt-4 px-4 py-3 bg-gray-100 dark:bg-gray-800 rounded flex items-center justify-between hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
               >
                 <div className="flex items-center">
-                  <span className="text-xs text-gray-500">내 잔고</span>
-                  <ChevronRight className="w-4 h-4 text-gray-400" />
+                  <span className="text-xs text-gray-500 dark:text-gray-400">내 잔고</span>
+                  <ChevronRight className="w-4 h-4 text-gray-400 dark:text-gray-500" />
                 </div>
-                <span className="text-sm font-semibold text-gray-900">-8,280,000원</span>
+                <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">-8,280,000원</span>
               </Link>
 
               {/* 개체별/부위별/경매정보/관심 탭 */}
@@ -533,8 +533,8 @@ function MainPageContent() {
                     onClick={() => setActiveTab('개체별')}
                     className={`text-[15px] font-semibold pb-1.5 transition-colors ${
                       activeTab === '개체별'
-                        ? 'text-gray-900 border-b-2 border-gray-900'
-                        : 'text-gray-400 hover:text-gray-600'
+                        ? 'text-gray-900 dark:text-gray-100 border-b-2 border-gray-900 dark:border-gray-100'
+                        : 'text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300'
                     }`}
                   >
                     개체별
@@ -543,8 +543,8 @@ function MainPageContent() {
                     onClick={() => setActiveTab('부위별')}
                     className={`text-[15px] font-semibold pb-1.5 transition-colors ${
                       activeTab === '부위별'
-                        ? 'text-gray-900 border-b-2 border-gray-900'
-                        : 'text-gray-400 hover:text-gray-600'
+                        ? 'text-gray-900 dark:text-gray-100 border-b-2 border-gray-900 dark:border-gray-100'
+                        : 'text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300'
                     }`}
                   >
                     부위별
@@ -553,8 +553,8 @@ function MainPageContent() {
                     onClick={() => setActiveTab('경매정보')}
                     className={`text-[15px] font-semibold pb-1.5 transition-colors ${
                       activeTab === '경매정보'
-                        ? 'text-gray-900 border-b-2 border-gray-900'
-                        : 'text-gray-400 hover:text-gray-600'
+                        ? 'text-gray-900 dark:text-gray-100 border-b-2 border-gray-900 dark:border-gray-100'
+                        : 'text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300'
                     }`}
                   >
                     경매정보
@@ -563,8 +563,8 @@ function MainPageContent() {
                     onClick={() => setActiveTab('관심')}
                     className={`text-[15px] font-semibold pb-1.5 transition-colors ${
                       activeTab === '관심'
-                        ? 'text-gray-900 border-b-2 border-gray-900'
-                        : 'text-gray-400 hover:text-gray-600'
+                        ? 'text-gray-900 dark:text-gray-100 border-b-2 border-gray-900 dark:border-gray-100'
+                        : 'text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300'
                     }`}
                   >
                     관심
@@ -575,13 +575,13 @@ function MainPageContent() {
               {/* 기준일자 - 경매정보 탭에서만 표시 */}
               {activeTab === '경매정보' && (
                 <div className="mt-4 px-4">
-                  <div className="bg-white border border-gray-200 rounded px-4 py-3 shadow-sm">
+                  <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded px-4 py-3 shadow-sm transition-colors">
                     <div className="flex items-center gap-2">
-                      <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-4 h-4 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                       </svg>
-                      <span className="text-sm text-gray-500">기준일자:</span>
-                      <span className="text-sm font-semibold text-gray-900">
+                      <span className="text-sm text-gray-500 dark:text-gray-400">기준일자:</span>
+                      <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">
                         {selectedDate.getFullYear()}.{String(selectedDate.getMonth() + 1).padStart(2, '0')}.{String(selectedDate.getDate()).padStart(2, '0')} ({['일', '월', '화', '수', '목', '금', '토'][selectedDate.getDay()]})
                       </span>
                     </div>
@@ -590,7 +590,7 @@ function MainPageContent() {
               )}
 
               {/* 탭 컨텐츠 */}
-              <div className="pb-24 bg-white">
+              <div className="pb-24 bg-white dark:bg-gray-900 transition-colors">
                 {activeTab === '개체별' ? (
                   <div className="pt-3">
                     {/* 필터 영역 */}
@@ -603,7 +603,7 @@ function MainPageContent() {
                               setShowGradeDropdown(!showGradeDropdown);
                               setShowCompanyDropdown(false);
                             }}
-                            className="flex items-center gap-1.5 px-3.5 py-2 bg-gray-100 rounded text-[13px] font-medium text-gray-700 hover:bg-gray-200 transition-colors"
+                            className="flex items-center gap-1.5 px-3.5 py-2 bg-gray-100 dark:bg-gray-800 rounded text-[13px] font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
                           >
                             등급: {selectedGrade}
                             <ChevronDown className={`h-4 w-4 transition-transform ${showGradeDropdown ? 'rotate-180' : ''}`} />
@@ -611,7 +611,7 @@ function MainPageContent() {
                           
                           {/* 등급 드롭다운 메뉴 */}
                           {showGradeDropdown && (
-                            <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-20 min-w-[110px]">
+                            <div className="absolute top-full left-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-20 min-w-[110px]">
                               {gradeOptions.map((grade) => (
                                 <button
                                   key={grade}
@@ -620,10 +620,10 @@ function MainPageContent() {
                                     setSelectedGrade(grade);
                                     setShowGradeDropdown(false);
                                   }}
-                                  className={`block w-full text-left px-4 py-2.5 text-[13px] hover:bg-gray-50 first:rounded-t-lg last:rounded-b-lg ${
+                                  className={`block w-full text-left px-4 py-2.5 text-[13px] hover:bg-gray-50 dark:hover:bg-gray-700 first:rounded-t-lg last:rounded-b-lg ${
                                     selectedGrade === grade
-                                      ? 'bg-gray-100 text-gray-900 font-medium'
-                                      : 'text-gray-700'
+                                      ? 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 font-medium'
+                                      : 'text-gray-700 dark:text-gray-300'
                                   }`}
                                 >
                                   {grade}
@@ -640,7 +640,7 @@ function MainPageContent() {
                               setShowCompanyDropdown(!showCompanyDropdown);
                               setShowGradeDropdown(false);
                             }}
-                            className="flex items-center gap-1.5 px-3.5 py-2 bg-gray-100 rounded text-[13px] font-medium text-gray-700 hover:bg-gray-200 transition-colors"
+                            className="flex items-center gap-1.5 px-3.5 py-2 bg-gray-100 dark:bg-gray-800 rounded text-[13px] font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
                           >
                             업체: {selectedCompany}
                             <ChevronDown className={`h-4 w-4 transition-transform ${showCompanyDropdown ? 'rotate-180' : ''}`} />
@@ -648,7 +648,7 @@ function MainPageContent() {
                           
                           {/* 상장업체 드롭다운 메뉴 */}
                           {showCompanyDropdown && (
-                            <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-20 min-w-[110px]">
+                            <div className="absolute top-full left-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-20 min-w-[110px]">
                               {companyOptions.map((company) => (
                                 <button
                                   key={company}
@@ -657,10 +657,10 @@ function MainPageContent() {
                                     setSelectedCompany(company);
                                     setShowCompanyDropdown(false);
                                   }}
-                                  className={`block w-full text-left px-4 py-2.5 text-[13px] hover:bg-gray-50 first:rounded-t-lg last:rounded-b-lg whitespace-nowrap ${
+                                  className={`block w-full text-left px-4 py-2.5 text-[13px] hover:bg-gray-50 dark:hover:bg-gray-700 first:rounded-t-lg last:rounded-b-lg whitespace-nowrap ${
                                     selectedCompany === company
-                                      ? 'bg-gray-100 text-gray-900 font-medium'
-                                      : 'text-gray-700'
+                                      ? 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 font-medium'
+                                      : 'text-gray-700 dark:text-gray-300'
                                   }`}
                                 >
                                   {company}
@@ -671,7 +671,7 @@ function MainPageContent() {
                         </div>
                         
                         {/* 필터 결과 카운트 */}
-                        <span className="ml-auto text-[13px] text-gray-400">
+                        <span className="ml-auto text-[13px] text-gray-400 dark:text-gray-500">
                           {filteredCattleData.length}두
                         </span>
                       </div>
@@ -680,33 +680,33 @@ function MainPageContent() {
                     {/* 개체별 테이블 */}
                     {filteredCattleData.length === 0 ? (
                       <div className="text-center py-12">
-                        <div className="text-gray-400 mb-2">
+                        <div className="text-gray-400 dark:text-gray-500 mb-2">
                           <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                           </svg>
                         </div>
-                        <p className="text-gray-500 text-sm">해당 조건의 개체가 없습니다.</p>
+                        <p className="text-gray-500 dark:text-gray-400 text-sm">해당 조건의 개체가 없습니다.</p>
                         <button
                           onClick={() => {
                             setSelectedGrade('전체');
                             setSelectedCompany('전체');
                           }}
-                          className="mt-3 text-xs text-gray-600 underline hover:text-gray-800"
+                          className="mt-3 text-xs text-gray-600 dark:text-gray-400 underline hover:text-gray-800 dark:hover:text-gray-200"
                         >
                           전체 보기
                         </button>
                       </div>
                     ) : (
-                    <div className="bg-white border-y border-gray-200">
+                    <div className="bg-white dark:bg-gray-900 border-y border-gray-200 dark:border-gray-700 transition-colors">
                       <table className="w-full text-[13px]">
                         <thead className="sticky top-0 z-10">
-                          <tr className="bg-gray-100 border-b border-gray-200">
-                              <th className="py-2.5 pl-4 pr-8 text-center font-medium text-gray-500 whitespace-nowrap">접수번호</th>
-                              <th className="py-2.5 px-2 text-center font-medium text-gray-500 whitespace-nowrap">성별</th>
-                              <th className="py-2.5 px-2 text-center font-medium text-gray-500 whitespace-nowrap">등급</th>
-                              <th className="py-2.5 px-2 text-center font-medium text-gray-500 whitespace-nowrap">개월령</th>
-                              <th className="py-2.5 px-2 text-center font-medium text-gray-500 whitespace-nowrap">상장업체</th>
-                              <th className="py-2.5 px-2 text-center font-medium text-gray-500 whitespace-nowrap">관심</th>
+                          <tr className="bg-gray-100 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+                              <th className="py-2.5 pl-4 pr-8 text-center font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">접수번호</th>
+                              <th className="py-2.5 px-2 text-center font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">성별</th>
+                              <th className="py-2.5 px-2 text-center font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">등급</th>
+                              <th className="py-2.5 px-2 text-center font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">개월령</th>
+                              <th className="py-2.5 px-2 text-center font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">상장업체</th>
+                              <th className="py-2.5 px-2 text-center font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">관심</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -714,13 +714,13 @@ function MainPageContent() {
                             <tr 
                               key={item.id}
                               onClick={() => window.location.href = `/auction/${item.id}`}
-                              className={`border-b border-gray-100 hover:bg-gray-50 cursor-pointer active:bg-gray-100 transition-colors ${index % 2 === 1 ? 'bg-gray-50/50' : ''}`}
+                              className={`border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer active:bg-gray-100 dark:active:bg-gray-700 transition-colors ${index % 2 === 1 ? 'bg-gray-50/50 dark:bg-gray-800/50' : ''}`}
                             >
-                                <td className="py-3 pl-4 pr-8 text-center font-medium text-gray-900 whitespace-nowrap">{item.id}</td>
-                                <td className="py-3 px-2 text-center text-gray-700 whitespace-nowrap">{item.gender}</td>
-                                <td className="py-3 px-2 text-center text-gray-700 whitespace-nowrap">{item.grade}</td>
-                                <td className="py-3 px-2 text-center text-gray-700 whitespace-nowrap">{item.months}</td>
-                                <td className="py-3 px-2 text-center text-gray-700 whitespace-nowrap">{item.company}</td>
+                                <td className="py-3 pl-4 pr-8 text-center font-medium text-gray-900 dark:text-gray-100 whitespace-nowrap">{item.id}</td>
+                                <td className="py-3 px-2 text-center text-gray-700 dark:text-gray-300 whitespace-nowrap">{item.gender}</td>
+                                <td className="py-3 px-2 text-center text-gray-700 dark:text-gray-300 whitespace-nowrap">{item.grade}</td>
+                                <td className="py-3 px-2 text-center text-gray-700 dark:text-gray-300 whitespace-nowrap">{item.months}</td>
+                                <td className="py-3 px-2 text-center text-gray-700 dark:text-gray-300 whitespace-nowrap">{item.company}</td>
                                 <td className="py-3 px-2 text-center">
                                 <button 
                                   onClick={(e) => {
@@ -729,8 +729,8 @@ function MainPageContent() {
                                   }}
                                   className={`p-1.5 transition-colors ${
                                     isHydrated && isFavorite(item.id) 
-                                      ? 'text-gray-900' 
-                                      : 'text-gray-400 hover:text-gray-700'
+                                      ? 'text-gray-900 dark:text-gray-100' 
+                                      : 'text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
                                   }`}
                                 >
                                   <Star className={`w-5 h-5 ${isHydrated && isFavorite(item.id) ? 'fill-current' : ''}`} />
@@ -799,8 +799,8 @@ function MainPageContent() {
                           onClick={() => setFavoriteSubTab('개체별')}
                           className={`px-4 py-2 text-[13px] font-medium rounded-md transition-colors ${
                             favoriteSubTab === '개체별'
-                              ? 'bg-gray-900 text-white'
-                              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                              ? 'bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900'
+                              : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
                           }`}
                         >
                           개체별
@@ -809,8 +809,8 @@ function MainPageContent() {
                           onClick={() => setFavoriteSubTab('부위별')}
                           className={`px-4 py-2 text-[13px] font-medium rounded-md transition-colors ${
                             favoriteSubTab === '부위별'
-                              ? 'bg-gray-900 text-white'
-                              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                              ? 'bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900'
+                              : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
                           }`}
                         >
                           부위별
@@ -824,21 +824,21 @@ function MainPageContent() {
                         const entityFavorites = favorites.filter(id => !id.includes('-', id.indexOf('-') + 1) || id.split('-').length === 2);
                         return entityFavorites.length === 0 ? (
                       <div className="text-center py-12">
-                        <Star className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                        <p className="text-gray-500 text-sm">관심 등록된 개체가 없습니다.</p>
-                        <p className="text-gray-400 text-xs mt-1">개체별 탭에서 별 아이콘을 눌러 추가해보세요.</p>
+                        <Star className="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-3" />
+                        <p className="text-gray-500 dark:text-gray-400 text-sm">관심 등록된 개체가 없습니다.</p>
+                        <p className="text-gray-400 dark:text-gray-500 text-xs mt-1">개체별 탭에서 별 아이콘을 눌러 추가해보세요.</p>
                       </div>
                     ) : (
-                      <div className="bg-white border-y border-gray-200">
+                      <div className="bg-white dark:bg-gray-900 border-y border-gray-200 dark:border-gray-700 transition-colors">
                         <table className="w-full text-[13px]">
                           <thead className="sticky top-0 z-10">
-                            <tr className="bg-gray-100 border-b border-gray-200">
-                                  <th className="py-2.5 pl-4 pr-8 text-center font-medium text-gray-500 whitespace-nowrap">접수번호</th>
-                                  <th className="py-2.5 px-2 text-center font-medium text-gray-500 whitespace-nowrap">성별</th>
-                                  <th className="py-2.5 px-2 text-center font-medium text-gray-500 whitespace-nowrap">등급</th>
-                                  <th className="py-2.5 px-2 text-center font-medium text-gray-500 whitespace-nowrap">개월령</th>
-                                  <th className="py-2.5 px-2 text-center font-medium text-gray-500 whitespace-nowrap">상장업체</th>
-                                  <th className="py-2.5 px-2 text-center font-medium text-gray-500 whitespace-nowrap">관심</th>
+                            <tr className="bg-gray-100 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+                                  <th className="py-2.5 pl-4 pr-8 text-center font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">접수번호</th>
+                                  <th className="py-2.5 px-2 text-center font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">성별</th>
+                                  <th className="py-2.5 px-2 text-center font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">등급</th>
+                                  <th className="py-2.5 px-2 text-center font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">개월령</th>
+                                  <th className="py-2.5 px-2 text-center font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">상장업체</th>
+                                  <th className="py-2.5 px-2 text-center font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">관심</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -846,20 +846,20 @@ function MainPageContent() {
                               <tr 
                                 key={item.id} 
                                 onClick={() => window.location.href = `/auction/${item.id}`}
-                                className={`border-b border-gray-100 hover:bg-gray-50 cursor-pointer active:bg-gray-100 transition-colors ${index % 2 === 1 ? 'bg-gray-50/50' : ''}`}
+                                className={`border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer active:bg-gray-100 dark:active:bg-gray-700 transition-colors ${index % 2 === 1 ? 'bg-gray-50/50 dark:bg-gray-800/50' : ''}`}
                               >
-                                    <td className="py-3 pl-4 pr-8 text-center font-medium text-gray-900 whitespace-nowrap">{item.id}</td>
-                                    <td className="py-3 px-2 text-center text-gray-700 whitespace-nowrap">{item.gender}</td>
-                                    <td className="py-3 px-2 text-center text-gray-700 whitespace-nowrap">{item.grade}</td>
-                                    <td className="py-3 px-2 text-center text-gray-700 whitespace-nowrap">{item.months}</td>
-                                    <td className="py-3 px-2 text-center text-gray-700 whitespace-nowrap">{item.company}</td>
+                                    <td className="py-3 pl-4 pr-8 text-center font-medium text-gray-900 dark:text-gray-100 whitespace-nowrap">{item.id}</td>
+                                    <td className="py-3 px-2 text-center text-gray-700 dark:text-gray-300 whitespace-nowrap">{item.gender}</td>
+                                    <td className="py-3 px-2 text-center text-gray-700 dark:text-gray-300 whitespace-nowrap">{item.grade}</td>
+                                    <td className="py-3 px-2 text-center text-gray-700 dark:text-gray-300 whitespace-nowrap">{item.months}</td>
+                                    <td className="py-3 px-2 text-center text-gray-700 dark:text-gray-300 whitespace-nowrap">{item.company}</td>
                                     <td className="py-3 px-2 text-center">
                                   <button 
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       toggleFavorite(item.id);
                                     }}
-                                    className="p-1.5 text-gray-900 transition-colors"
+                                    className="p-1.5 text-gray-900 dark:text-gray-100 transition-colors"
                                   >
                                     <Star className="w-5 h-5 fill-current" />
                                   </button>
@@ -875,15 +875,15 @@ function MainPageContent() {
                       // 부위별 관심 목록
                       favoritePartProducts.length === 0 ? (
                         <div className="text-center py-12">
-                          <Star className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                          <p className="text-gray-500 text-sm">관심 등록된 부위가 없습니다.</p>
-                          <p className="text-gray-400 text-xs mt-1">부위별 탭에서 별 아이콘을 눌러 추가해보세요.</p>
+                          <Star className="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-3" />
+                          <p className="text-gray-500 dark:text-gray-400 text-sm">관심 등록된 부위가 없습니다.</p>
+                          <p className="text-gray-400 dark:text-gray-500 text-xs mt-1">부위별 탭에서 별 아이콘을 눌러 추가해보세요.</p>
                         </div>
                       ) : (
-                        <div className="bg-white border-y border-gray-200">
+                        <div className="bg-white dark:bg-gray-900 border-y border-gray-200 dark:border-gray-700 transition-colors">
                           {/* 테이블 헤더 */}
-                          <div className="bg-gray-100 border-b border-gray-200 h-9 flex items-center">
-                            <div className="grid px-2 text-[13px] font-medium text-gray-500 w-full" style={{gridTemplateColumns: '0.85fr 0.6fr 0.85fr 0.95fr 0.95fr 0.5fr 0.5fr'}}>
+                          <div className="bg-gray-100 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 h-9 flex items-center">
+                            <div className="grid px-2 text-[13px] font-medium text-gray-500 dark:text-gray-400 w-full" style={{gridTemplateColumns: '0.85fr 0.6fr 0.85fr 0.95fr 0.95fr 0.5fr 0.5fr'}}>
                               <div className="text-center">부위</div>
                               <div className="text-center">중량</div>
                               <div className="text-center">최저단가</div>
@@ -901,27 +901,27 @@ function MainPageContent() {
                             return (
                               <div key={product.id}>
                                 <div 
-                                  className={`grid px-2 py-3 border-b border-gray-100 cursor-pointer transition-colors items-center ${
+                                  className={`grid px-2 py-3 border-b border-gray-100 dark:border-gray-800 cursor-pointer transition-colors items-center ${
                                     bid?.status === 'highest' 
-                                      ? 'bg-blue-50/50' 
+                                      ? 'bg-blue-50/50 dark:bg-blue-900/30' 
                                       : bid?.status === 'secondHighest'
-                                        ? 'bg-red-50/50'
-                                        : 'bg-white hover:bg-gray-50'
+                                        ? 'bg-red-50/50 dark:bg-red-900/30'
+                                        : 'bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800'
                                   }`}
                                   style={{gridTemplateColumns: '0.85fr 0.6fr 0.85fr 0.95fr 0.95fr 0.5fr 0.5fr'}}
                                   onClick={() => setExpandedFavoritePartId(isExpanded ? null : product.id)}
                                 >
                                   <div className="text-center">
-                                    <div className="text-[13px] font-medium text-gray-900">{product.partName}</div>
-                                    <div className="text-[11px] text-gray-500 whitespace-nowrap">{product.type.includes('거세') ? '거세' : '암'} / {product.grade}</div>
+                                    <div className="text-[13px] font-medium text-gray-900 dark:text-gray-100">{product.partName}</div>
+                                    <div className="text-[11px] text-gray-500 dark:text-gray-400 whitespace-nowrap">{product.type.includes('거세') ? '거세' : '암'} / {product.grade}</div>
                                   </div>
-                                  <div className="text-center text-[13px] text-gray-700">
+                                  <div className="text-center text-[13px] text-gray-700 dark:text-gray-300">
                                     {product.weight}
                                   </div>
-                                  <div className="text-center text-[13px] text-gray-700">
+                                  <div className="text-center text-[13px] text-gray-700 dark:text-gray-300">
                                     {product.price.toLocaleString()}
                                   </div>
-                                  <div className="text-center text-[13px] font-medium text-gray-900">
+                                  <div className="text-center text-[13px] font-medium text-gray-900 dark:text-gray-100">
                                     {bid?.highestBid ? bid.highestBid.toLocaleString() : '-'}
                                   </div>
                                   <div 
@@ -938,7 +938,7 @@ function MainPageContent() {
                                               setShowFavoritePartBidSheet(true);
                                             }
                                           }}
-                                          className={`text-[13px] font-medium text-gray-900 leading-none ${bid.status !== 'highest' ? 'cursor-pointer' : ''}`}
+                                          className={`text-[13px] font-medium text-gray-900 dark:text-gray-100 leading-none ${bid.status !== 'highest' ? 'cursor-pointer' : ''}`}
                                         >
                                           {bid.myBid.toLocaleString()}
                                         </span>
@@ -949,7 +949,7 @@ function MainPageContent() {
                                               setFavoritePartBidPrice(bid.highestBid + quickReBidAmount);
                                               setShowFavoritePartBidSheet(true);
                                             }}
-                                            className="mt-1 px-2 py-0.5 text-[11px] font-medium text-white bg-gray-800 rounded hover:bg-gray-900 transition-colors"
+                                            className="mt-1 px-2 py-0.5 text-[11px] font-medium text-white bg-gray-800 dark:bg-gray-200 dark:text-gray-900 rounded hover:bg-gray-900 dark:hover:bg-gray-300 transition-colors"
                                           >
                                             재입찰
                                           </button>
@@ -962,7 +962,7 @@ function MainPageContent() {
                                           setFavoritePartBidPrice(0);
                                           setShowFavoritePartBidSheet(true);
                                         }}
-                                        className="px-2 py-1 text-[11px] font-medium text-white bg-gray-800 rounded hover:bg-gray-900 transition-colors"
+                                        className="px-2 py-1 text-[11px] font-medium text-white bg-gray-800 dark:bg-gray-200 dark:text-gray-900 rounded hover:bg-gray-900 dark:hover:bg-gray-300 transition-colors"
                                       >
                                         입찰하기
                                       </button>
@@ -970,11 +970,11 @@ function MainPageContent() {
                                   </div>
                                   <div className="text-center flex items-center justify-center">
                                     {bid?.status === 'highest' ? (
-                                      <span className="text-[11px] font-medium text-blue-600">최고순위</span>
+                                      <span className="text-[11px] font-medium text-blue-600 dark:text-blue-400">최고순위</span>
                                     ) : bid?.status === 'secondHighest' ? (
-                                      <span className="text-[11px] font-medium text-red-500">차순위</span>
+                                      <span className="text-[11px] font-medium text-red-500 dark:text-red-400">차순위</span>
                                     ) : (
-                                      <span className="text-[13px] text-gray-400">-</span>
+                                      <span className="text-[13px] text-gray-400 dark:text-gray-500">-</span>
                                     )}
                                   </div>
                                   <div 
@@ -983,7 +983,7 @@ function MainPageContent() {
                                   >
                                     <button 
                                       onClick={() => toggleFavorite(product.listingNo)}
-                                      className="p-1.5 text-gray-900 transition-colors"
+                                      className="p-1.5 text-gray-900 dark:text-gray-100 transition-colors"
                                     >
                                       <Star className="w-5 h-5 fill-current" />
                                     </button>
@@ -998,7 +998,7 @@ function MainPageContent() {
                                       animate={{ height: 'auto', opacity: 1 }}
                                       exit={{ height: 0, opacity: 0 }}
                                       transition={{ duration: 0.2 }}
-                                      className="overflow-hidden border-b border-gray-200"
+                                      className="overflow-hidden border-b border-gray-200 dark:border-gray-700"
                                     >
                                       {/* 메인 이미지 배너 */}
                                       <div 
@@ -1007,63 +1007,63 @@ function MainPageContent() {
                                         onTouchMove={handleFavPartTouchMove}
                                         onTouchEnd={handleFavPartTouchEnd}
                                       >
-                                        <div className="w-full aspect-square bg-gray-200">
+                                        <div className="w-full aspect-square bg-gray-200 dark:bg-gray-700">
                                           {(favoritePartImageIndex[product.id] || 0) === 4 ? (
                                             // 등급판정확인서
-                                            <div className="w-full h-full flex items-center justify-center bg-gray-100 p-4">
-                                              <div className="w-full max-w-[280px] bg-white shadow-lg border border-gray-300 p-4 aspect-[1/1.414]">
-                                                <div className="h-full flex flex-col text-[8px] text-gray-700">
-                                                  <div className="text-center border-b border-gray-400 pb-2 mb-2">
-                                                    <p className="text-[12px] font-bold text-gray-900">등급판정확인서</p>
-                                                    <p className="text-gray-500 mt-1">Grade Certification</p>
+                                            <div className="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-gray-800 p-4">
+                                              <div className="w-full max-w-[280px] bg-white dark:bg-gray-700 shadow-lg border border-gray-300 dark:border-gray-600 p-4 aspect-[1/1.414]">
+                                                <div className="h-full flex flex-col text-[8px] text-gray-700 dark:text-gray-300">
+                                                  <div className="text-center border-b border-gray-400 dark:border-gray-500 pb-2 mb-2">
+                                                    <p className="text-[12px] font-bold text-gray-900 dark:text-gray-100">등급판정확인서</p>
+                                                    <p className="text-gray-500 dark:text-gray-400 mt-1">Grade Certification</p>
                                                   </div>
                                                   <div className="flex-1 space-y-1.5">
-                                                    <div className="flex"><span className="w-16 text-gray-500">접수번호:</span><span className="font-medium">{product.auctionNo}</span></div>
-                                                    <div className="flex"><span className="w-16 text-gray-500">축종:</span><span>한우</span></div>
-                                                    <div className="flex"><span className="w-16 text-gray-500">성별:</span><span>{product.type.includes('거세') ? '거세' : '암'}</span></div>
-                                                    <div className="flex"><span className="w-16 text-gray-500">등급:</span><span className="font-bold text-gray-900">{product.grade}</span></div>
-                                                    <div className="flex"><span className="w-16 text-gray-500">개월령:</span><span>{product.months}개월</span></div>
-                                                    <div className="flex"><span className="w-16 text-gray-500">도체중량:</span><span>520kg</span></div>
-                                                    <div className="flex"><span className="w-16 text-gray-500">등지방:</span><span>16mm</span></div>
-                                                    <div className="flex"><span className="w-16 text-gray-500">등심면적:</span><span>123㎠</span></div>
-                                                    <div className="flex"><span className="w-16 text-gray-500">근내지방:</span><span>9</span></div>
-                                                    <div className="flex"><span className="w-16 text-gray-500">육색:</span><span>5</span></div>
-                                                    <div className="flex"><span className="w-16 text-gray-500">지방색:</span><span>3</span></div>
-                                                    <div className="flex"><span className="w-16 text-gray-500">조직감:</span><span>1</span></div>
-                                                    <div className="flex"><span className="w-16 text-gray-500">성숙도:</span><span>2</span></div>
+                                                    <div className="flex"><span className="w-16 text-gray-500 dark:text-gray-400">접수번호:</span><span className="font-medium">{product.auctionNo}</span></div>
+                                                    <div className="flex"><span className="w-16 text-gray-500 dark:text-gray-400">축종:</span><span>한우</span></div>
+                                                    <div className="flex"><span className="w-16 text-gray-500 dark:text-gray-400">성별:</span><span>{product.type.includes('거세') ? '거세' : '암'}</span></div>
+                                                    <div className="flex"><span className="w-16 text-gray-500 dark:text-gray-400">등급:</span><span className="font-bold text-gray-900 dark:text-gray-100">{product.grade}</span></div>
+                                                    <div className="flex"><span className="w-16 text-gray-500 dark:text-gray-400">개월령:</span><span>{product.months}개월</span></div>
+                                                    <div className="flex"><span className="w-16 text-gray-500 dark:text-gray-400">도체중량:</span><span>520kg</span></div>
+                                                    <div className="flex"><span className="w-16 text-gray-500 dark:text-gray-400">등지방:</span><span>16mm</span></div>
+                                                    <div className="flex"><span className="w-16 text-gray-500 dark:text-gray-400">등심면적:</span><span>123㎠</span></div>
+                                                    <div className="flex"><span className="w-16 text-gray-500 dark:text-gray-400">근내지방:</span><span>9</span></div>
+                                                    <div className="flex"><span className="w-16 text-gray-500 dark:text-gray-400">육색:</span><span>5</span></div>
+                                                    <div className="flex"><span className="w-16 text-gray-500 dark:text-gray-400">지방색:</span><span>3</span></div>
+                                                    <div className="flex"><span className="w-16 text-gray-500 dark:text-gray-400">조직감:</span><span>1</span></div>
+                                                    <div className="flex"><span className="w-16 text-gray-500 dark:text-gray-400">성숙도:</span><span>2</span></div>
                                                   </div>
-                                                  <div className="border-t border-gray-300 pt-2 mt-2 text-center">
-                                                    <p className="text-gray-500">축산물품질평가원</p>
-                                                    <p className="text-[6px] text-gray-400 mt-1">본 확인서는 법적 효력이 있습니다</p>
+                                                  <div className="border-t border-gray-300 dark:border-gray-500 pt-2 mt-2 text-center">
+                                                    <p className="text-gray-500 dark:text-gray-400">축산물품질평가원</p>
+                                                    <p className="text-[6px] text-gray-400 dark:text-gray-500 mt-1">본 확인서는 법적 효력이 있습니다</p>
                                                   </div>
                                                 </div>
                                               </div>
                                             </div>
                                           ) : (favoritePartImageIndex[product.id] || 0) === 5 ? (
                                             // 도축검사증명서
-                                            <div className="w-full h-full flex items-center justify-center bg-gray-100 p-4">
-                                              <div className="w-full max-w-[280px] bg-white shadow-lg border border-gray-300 p-4 aspect-[1/1.414]">
-                                                <div className="h-full flex flex-col text-[8px] text-gray-700">
-                                                  <div className="text-center border-b border-gray-400 pb-2 mb-2">
-                                                    <p className="text-[12px] font-bold text-gray-900">도축검사증명서</p>
-                                                    <p className="text-gray-500 mt-1">Slaughter Inspection Certificate</p>
+                                            <div className="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-gray-800 p-4">
+                                              <div className="w-full max-w-[280px] bg-white dark:bg-gray-700 shadow-lg border border-gray-300 dark:border-gray-600 p-4 aspect-[1/1.414]">
+                                                <div className="h-full flex flex-col text-[8px] text-gray-700 dark:text-gray-300">
+                                                  <div className="text-center border-b border-gray-400 dark:border-gray-500 pb-2 mb-2">
+                                                    <p className="text-[12px] font-bold text-gray-900 dark:text-gray-100">도축검사증명서</p>
+                                                    <p className="text-gray-500 dark:text-gray-400 mt-1">Slaughter Inspection Certificate</p>
                                                   </div>
                                                   <div className="flex-1 space-y-1.5">
-                                                    <div className="flex"><span className="w-16 text-gray-500">접수번호:</span><span className="font-medium">{product.auctionNo}</span></div>
-                                                    <div className="flex"><span className="w-16 text-gray-500">도축일:</span><span>2026.01.16</span></div>
-                                                    <div className="flex"><span className="w-16 text-gray-500">도축장:</span><span>음성축산물공판장</span></div>
-                                                    <div className="flex"><span className="w-16 text-gray-500">도축번호:</span><span>201</span></div>
-                                                    <div className="flex"><span className="w-16 text-gray-500">이력번호:</span><span>{product.historyNo}</span></div>
-                                                    <div className="flex"><span className="w-16 text-gray-500">출하농가:</span><span>{product.company}</span></div>
-                                                    <div className="flex"><span className="w-16 text-gray-500">검사결과:</span><span className="font-bold text-green-600">적합</span></div>
-                                                    <div className="flex"><span className="w-16 text-gray-500">검사항목:</span><span>일반검사</span></div>
-                                                    <div className="flex"><span className="w-16 text-gray-500">생체중량:</span><span>720kg</span></div>
-                                                    <div className="flex"><span className="w-16 text-gray-500">도체중량:</span><span>520kg</span></div>
-                                                    <div className="flex"><span className="w-16 text-gray-500">지육율:</span><span>72.2%</span></div>
+                                                    <div className="flex"><span className="w-16 text-gray-500 dark:text-gray-400">접수번호:</span><span className="font-medium">{product.auctionNo}</span></div>
+                                                    <div className="flex"><span className="w-16 text-gray-500 dark:text-gray-400">도축일:</span><span>2026.01.16</span></div>
+                                                    <div className="flex"><span className="w-16 text-gray-500 dark:text-gray-400">도축장:</span><span>음성축산물공판장</span></div>
+                                                    <div className="flex"><span className="w-16 text-gray-500 dark:text-gray-400">도축번호:</span><span>201</span></div>
+                                                    <div className="flex"><span className="w-16 text-gray-500 dark:text-gray-400">이력번호:</span><span>{product.historyNo}</span></div>
+                                                    <div className="flex"><span className="w-16 text-gray-500 dark:text-gray-400">출하농가:</span><span>{product.company}</span></div>
+                                                    <div className="flex"><span className="w-16 text-gray-500 dark:text-gray-400">검사결과:</span><span className="font-bold text-green-600 dark:text-green-400">적합</span></div>
+                                                    <div className="flex"><span className="w-16 text-gray-500 dark:text-gray-400">검사항목:</span><span>일반검사</span></div>
+                                                    <div className="flex"><span className="w-16 text-gray-500 dark:text-gray-400">생체중량:</span><span>720kg</span></div>
+                                                    <div className="flex"><span className="w-16 text-gray-500 dark:text-gray-400">도체중량:</span><span>520kg</span></div>
+                                                    <div className="flex"><span className="w-16 text-gray-500 dark:text-gray-400">지육율:</span><span>72.2%</span></div>
                                                   </div>
-                                                  <div className="border-t border-gray-300 pt-2 mt-2 text-center">
-                                                    <p className="text-gray-500">농림축산검역본부</p>
-                                                    <p className="text-[6px] text-gray-400 mt-1">본 증명서는 법적 효력이 있습니다</p>
+                                                  <div className="border-t border-gray-300 dark:border-gray-500 pt-2 mt-2 text-center">
+                                                    <p className="text-gray-500 dark:text-gray-400">농림축산검역본부</p>
+                                                    <p className="text-[6px] text-gray-400 dark:text-gray-500 mt-1">본 증명서는 법적 효력이 있습니다</p>
                                                   </div>
                                                 </div>
                                               </div>
@@ -1097,7 +1097,7 @@ function MainPageContent() {
                                       </div>
 
                                       {/* 썸네일 이미지 */}
-                                      <div className="px-3 py-2">
+                                      <div className="px-3 py-2 bg-white dark:bg-gray-900">
                                         <div className="flex gap-1.5 justify-start overflow-x-auto">
                                           {[1,2,3,4].map((num, index) => (
                                             <button
@@ -1108,8 +1108,8 @@ function MainPageContent() {
                                               }}
                                               className={`w-14 h-14 flex-shrink-0 rounded overflow-hidden transition-all ${
                                                 (favoritePartImageIndex[product.id] || 0) === index 
-                                                  ? 'border-2 border-gray-400' 
-                                                  : 'border-2 border-transparent hover:border-gray-300'
+                                                  ? 'border-2 border-gray-400 dark:border-gray-500' 
+                                                  : 'border-2 border-transparent hover:border-gray-300 dark:hover:border-gray-600'
                                               }`}
                                             >
                                               <img 
@@ -1127,12 +1127,12 @@ function MainPageContent() {
                                             }}
                                             className={`w-14 h-14 flex-shrink-0 rounded overflow-hidden transition-all ${
                                               (favoritePartImageIndex[product.id] || 0) === 4 
-                                                ? 'border-2 border-gray-400' 
-                                                : 'border-2 border-transparent hover:border-gray-300'
+                                                ? 'border-2 border-gray-400 dark:border-gray-500' 
+                                                : 'border-2 border-transparent hover:border-gray-300 dark:hover:border-gray-600'
                                             }`}
                                           >
-                                            <div className="w-full h-full bg-gray-100 flex items-center justify-center">
-                                              <div className="w-8 h-10 bg-white border border-gray-300"></div>
+                                            <div className="w-full h-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+                                              <div className="w-8 h-10 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600"></div>
                                             </div>
                                           </button>
                                           {/* 도축검사증명서 썸네일 */}
@@ -1143,92 +1143,92 @@ function MainPageContent() {
                                             }}
                                             className={`w-14 h-14 flex-shrink-0 rounded overflow-hidden transition-all ${
                                               (favoritePartImageIndex[product.id] || 0) === 5 
-                                                ? 'border-2 border-gray-400' 
-                                                : 'border-2 border-transparent hover:border-gray-300'
+                                                ? 'border-2 border-gray-400 dark:border-gray-500' 
+                                                : 'border-2 border-transparent hover:border-gray-300 dark:hover:border-gray-600'
                                             }`}
                                           >
-                                            <div className="w-full h-full bg-gray-100 flex items-center justify-center">
-                                              <div className="w-8 h-10 bg-white border border-gray-300"></div>
+                                            <div className="w-full h-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+                                              <div className="w-8 h-10 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600"></div>
                                             </div>
                                           </button>
                                         </div>
                                       </div>
 
                                       {/* 개체정보 패널 - 3줄 테이블 형식 */}
-                                      <div className="px-3 py-3 border-t border-gray-200">
+                                      <div className="px-3 py-3 border-t border-gray-200 dark:border-gray-700">
                                         {/* 1행: 축종, 성별, 등급, 개월령, 이력번호 */}
-                                        <div className="bg-white border border-gray-200 rounded overflow-hidden mb-2">
+                                        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded overflow-hidden mb-2">
                                           <table className="w-full text-[13px]">
                                             <thead>
-                                              <tr className="bg-gray-100/80 border-b border-gray-200">
-                                                <th className="py-2.5 px-2 text-center font-medium text-gray-500">축종</th>
-                                                <th className="py-2.5 px-2 text-center font-medium text-gray-500">성별</th>
-                                                <th className="py-2.5 px-2 text-center font-medium text-gray-500">등급</th>
-                                                <th className="py-2.5 px-2 text-center font-medium text-gray-500">개월령</th>
-                                                <th className="py-2.5 px-2 text-center font-medium text-gray-500">이력번호</th>
+                                              <tr className="bg-gray-100/80 dark:bg-gray-700/80 border-b border-gray-200 dark:border-gray-600">
+                                                <th className="py-2.5 px-2 text-center font-medium text-gray-500 dark:text-gray-400">축종</th>
+                                                <th className="py-2.5 px-2 text-center font-medium text-gray-500 dark:text-gray-400">성별</th>
+                                                <th className="py-2.5 px-2 text-center font-medium text-gray-500 dark:text-gray-400">등급</th>
+                                                <th className="py-2.5 px-2 text-center font-medium text-gray-500 dark:text-gray-400">개월령</th>
+                                                <th className="py-2.5 px-2 text-center font-medium text-gray-500 dark:text-gray-400">이력번호</th>
                                               </tr>
                                             </thead>
                                             <tbody>
                                               <tr>
-                                                <td className="py-3 px-2 text-center text-gray-900 font-medium">한우</td>
-                                                <td className="py-3 px-2 text-center text-gray-900 font-medium">{product.type.includes('거세') ? '거세' : '암'}</td>
-                                                <td className="py-3 px-2 text-center text-gray-900 font-medium">{product.grade}</td>
-                                                <td className="py-3 px-2 text-center text-gray-900 font-medium">{product.months}</td>
-                                                <td className="py-3 px-2 text-center text-gray-900 font-medium text-[11px]">{product.historyNo}</td>
+                                                <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">한우</td>
+                                                <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">{product.type.includes('거세') ? '거세' : '암'}</td>
+                                                <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">{product.grade}</td>
+                                                <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">{product.months}</td>
+                                                <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium text-[11px]">{product.historyNo}</td>
                                               </tr>
                                             </tbody>
                                           </table>
                                         </div>
 
                                         {/* 2행: 등지방, 등심면적, 근내지방, 육색, 지방색, 조직감, 성숙도 */}
-                                        <div className="bg-white border border-gray-200 rounded overflow-hidden mb-2">
+                                        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded overflow-hidden mb-2">
                                           <table className="w-full text-[13px]">
                                             <thead>
-                                              <tr className="bg-gray-100/80 border-b border-gray-200">
-                                                <th className="py-2.5 px-2 text-center font-medium text-gray-500">등지방</th>
-                                                <th className="py-2.5 px-2 text-center font-medium text-gray-500">등심면적</th>
-                                                <th className="py-2.5 px-2 text-center font-medium text-gray-500">근내지방</th>
-                                                <th className="py-2.5 px-2 text-center font-medium text-gray-500">육색</th>
-                                                <th className="py-2.5 px-2 text-center font-medium text-gray-500">지방색</th>
-                                                <th className="py-2.5 px-2 text-center font-medium text-gray-500">조직감</th>
-                                                <th className="py-2.5 px-2 text-center font-medium text-gray-500">성숙도</th>
+                                              <tr className="bg-gray-100/80 dark:bg-gray-700/80 border-b border-gray-200 dark:border-gray-600">
+                                                <th className="py-2.5 px-2 text-center font-medium text-gray-500 dark:text-gray-400">등지방</th>
+                                                <th className="py-2.5 px-2 text-center font-medium text-gray-500 dark:text-gray-400">등심면적</th>
+                                                <th className="py-2.5 px-2 text-center font-medium text-gray-500 dark:text-gray-400">근내지방</th>
+                                                <th className="py-2.5 px-2 text-center font-medium text-gray-500 dark:text-gray-400">육색</th>
+                                                <th className="py-2.5 px-2 text-center font-medium text-gray-500 dark:text-gray-400">지방색</th>
+                                                <th className="py-2.5 px-2 text-center font-medium text-gray-500 dark:text-gray-400">조직감</th>
+                                                <th className="py-2.5 px-2 text-center font-medium text-gray-500 dark:text-gray-400">성숙도</th>
                                               </tr>
                                             </thead>
                                             <tbody>
                                               <tr>
-                                                <td className="py-3 px-2 text-center text-gray-900 font-medium">16</td>
-                                                <td className="py-3 px-2 text-center text-gray-900 font-medium">123</td>
-                                                <td className="py-3 px-2 text-center text-gray-900 font-medium">9</td>
-                                                <td className="py-3 px-2 text-center text-gray-900 font-medium">5</td>
-                                                <td className="py-3 px-2 text-center text-gray-900 font-medium">3</td>
-                                                <td className="py-3 px-2 text-center text-gray-900 font-medium">1</td>
-                                                <td className="py-3 px-2 text-center text-gray-900 font-medium">2</td>
+                                                <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">16</td>
+                                                <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">123</td>
+                                                <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">9</td>
+                                                <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">5</td>
+                                                <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">3</td>
+                                                <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">1</td>
+                                                <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">2</td>
                                               </tr>
                                             </tbody>
                                           </table>
                                         </div>
 
                                         {/* 3행: 도축장, 도축번호, 도체중, 상장업체, 가공일, 가공중량 */}
-                                        <div className="bg-white border border-gray-200 rounded overflow-hidden">
+                                        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded overflow-hidden">
                                           <table className="w-full text-[13px]">
                                             <thead>
-                                              <tr className="bg-gray-100/80 border-b border-gray-200">
-                                                <th className="py-2.5 px-2 text-center font-medium text-gray-500">도축장</th>
-                                                <th className="py-2.5 px-2 text-center font-medium text-gray-500">도축번호</th>
-                                                <th className="py-2.5 px-2 text-center font-medium text-gray-500">도체중</th>
-                                                <th className="py-2.5 px-2 text-center font-medium text-gray-500">상장업체</th>
-                                                <th className="py-2.5 px-2 text-center font-medium text-gray-500">가공일</th>
-                                                <th className="py-2.5 px-2 text-center font-medium text-gray-500">가공중량</th>
+                                              <tr className="bg-gray-100/80 dark:bg-gray-700/80 border-b border-gray-200 dark:border-gray-600">
+                                                <th className="py-2.5 px-2 text-center font-medium text-gray-500 dark:text-gray-400">도축장</th>
+                                                <th className="py-2.5 px-2 text-center font-medium text-gray-500 dark:text-gray-400">도축번호</th>
+                                                <th className="py-2.5 px-2 text-center font-medium text-gray-500 dark:text-gray-400">도체중</th>
+                                                <th className="py-2.5 px-2 text-center font-medium text-gray-500 dark:text-gray-400">상장업체</th>
+                                                <th className="py-2.5 px-2 text-center font-medium text-gray-500 dark:text-gray-400">가공일</th>
+                                                <th className="py-2.5 px-2 text-center font-medium text-gray-500 dark:text-gray-400">가공중량</th>
                                               </tr>
                                             </thead>
                                             <tbody>
                                               <tr>
-                                                <td className="py-3 px-2 text-center text-gray-900 font-medium">음성</td>
-                                                <td className="py-3 px-2 text-center text-gray-900 font-medium">201</td>
-                                                <td className="py-3 px-2 text-center text-gray-900 font-medium">520</td>
-                                                <td className="py-3 px-2 text-center text-gray-900 font-medium">{product.company}</td>
-                                                <td className="py-3 px-2 text-center text-gray-900 font-medium">26.01.17</td>
-                                                <td className="py-3 px-2 text-center text-gray-900 font-medium">312</td>
+                                                <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">음성</td>
+                                                <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">201</td>
+                                                <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">520</td>
+                                                <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">{product.company}</td>
+                                                <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">26.01.17</td>
+                                                <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">312</td>
                                               </tr>
                                             </tbody>
                                           </table>
@@ -1236,12 +1236,12 @@ function MainPageContent() {
                                       </div>
                                       
                                       {/* 개체정보 버튼 & 축산물 이력정보 */}
-                                      <div className="px-3 py-3 border-t border-gray-200 bg-white flex items-center gap-2">
+                                      <div className="px-3 py-3 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 flex items-center gap-2">
                                         <a
                                           href="https://aunit.mtrace.go.kr/mtracesearch/cattleNoSearch.do?btsProgNo=0109008401&btsActionMethod=SELECT&cattleNo=002189438539"
                                           target="_blank"
                                           rel="noopener noreferrer"
-                                          className="px-3 py-1.5 text-xs font-bold rounded border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-1"
+                                          className="px-3 py-1.5 text-xs font-bold rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center gap-1"
                                           onClick={(e) => e.stopPropagation()}
                                         >
                                           축산물 이력정보
@@ -1255,7 +1255,7 @@ function MainPageContent() {
                                             setFavoritePartBidPrice(product.price);
                                             setShowFavoritePartBidSheet(true);
                                           }}
-                                          className="px-3 py-1.5 text-xs font-bold rounded bg-gray-800 text-white hover:bg-gray-900 transition-colors"
+                                          className="px-3 py-1.5 text-xs font-bold rounded bg-gray-800 dark:bg-gray-200 text-white dark:text-gray-900 hover:bg-gray-900 dark:hover:bg-gray-300 transition-colors"
                                         >
                                           입찰하기
                                         </button>
@@ -1264,7 +1264,7 @@ function MainPageContent() {
                                             e.stopPropagation();
                                             setExpandedFavoritePartId(null);
                                           }}
-                                          className="px-3 py-1.5 text-xs font-bold rounded border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 transition-colors"
+                                          className="px-3 py-1.5 text-xs font-bold rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                                         >
                                           개체정보 닫기
                                         </button>
@@ -1283,19 +1283,19 @@ function MainPageContent() {
                   <div className="px-4 pt-4">
                     <div className="mb-4">
                       {/* 등급별 경매 두수 */}
-                      <h3 className="text-base font-bold text-gray-900 mb-3">등급별 경매 두수</h3>
-                      <div className="mb-3 bg-white border border-gray-200 rounded overflow-hidden shadow-sm">
+                      <h3 className="text-base font-bold text-gray-900 dark:text-gray-100 mb-3">등급별 경매 두수</h3>
+                      <div className="mb-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded overflow-hidden shadow-sm transition-colors">
                         <table className="w-full text-xs table-fixed">
                           <thead>
-                            <tr className="bg-gray-100/80 border-b border-gray-200">
-                              <th className="py-2 text-center font-medium text-gray-500 w-[12.5%] border-r border-gray-200">성별</th>
-                              <th className="py-2 text-center font-medium text-gray-500 w-[12.5%] border-r border-gray-200">1++(9)</th>
-                              <th className="py-2 text-center font-medium text-gray-500 w-[12.5%] border-r border-gray-200">1++(8)</th>
-                              <th className="py-2 text-center font-medium text-gray-500 w-[12.5%] border-r border-gray-200">1++(7)</th>
-                              <th className="py-2 text-center font-medium text-gray-500 w-[12.5%] border-r border-gray-200">1+</th>
-                              <th className="py-2 text-center font-medium text-gray-500 w-[12.5%] border-r border-gray-200">1</th>
-                              <th className="py-2 text-center font-medium text-gray-500 w-[12.5%] border-r border-gray-200">2</th>
-                              <th className="py-2 text-center font-medium text-gray-500 w-[12.5%]">합계</th>
+                            <tr className="bg-gray-100/80 dark:bg-gray-700/80 border-b border-gray-200 dark:border-gray-600">
+                              <th className="py-2 text-center font-medium text-gray-500 dark:text-gray-400 w-[12.5%] border-r border-gray-200 dark:border-gray-600">성별</th>
+                              <th className="py-2 text-center font-medium text-gray-500 dark:text-gray-400 w-[12.5%] border-r border-gray-200 dark:border-gray-600">1++(9)</th>
+                              <th className="py-2 text-center font-medium text-gray-500 dark:text-gray-400 w-[12.5%] border-r border-gray-200 dark:border-gray-600">1++(8)</th>
+                              <th className="py-2 text-center font-medium text-gray-500 dark:text-gray-400 w-[12.5%] border-r border-gray-200 dark:border-gray-600">1++(7)</th>
+                              <th className="py-2 text-center font-medium text-gray-500 dark:text-gray-400 w-[12.5%] border-r border-gray-200 dark:border-gray-600">1+</th>
+                              <th className="py-2 text-center font-medium text-gray-500 dark:text-gray-400 w-[12.5%] border-r border-gray-200 dark:border-gray-600">1</th>
+                              <th className="py-2 text-center font-medium text-gray-500 dark:text-gray-400 w-[12.5%] border-r border-gray-200 dark:border-gray-600">2</th>
+                              <th className="py-2 text-center font-medium text-gray-500 dark:text-gray-400 w-[12.5%]">합계</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -1320,35 +1320,35 @@ function MainPageContent() {
 
                               return (
                                 <>
-                                  <tr className="border-b border-gray-100">
-                                    <td className="py-2.5 text-center text-gray-600 border-r border-gray-100">거세</td>
-                                    <td className="py-2.5 text-center text-gray-900 border-r border-gray-100">{steer9}</td>
-                                    <td className="py-2.5 text-center text-gray-900 border-r border-gray-100">{steer8}</td>
-                                    <td className="py-2.5 text-center text-gray-900 border-r border-gray-100">{steer7}</td>
-                                    <td className="py-2.5 text-center text-gray-900 border-r border-gray-100">{steer1p}</td>
-                                    <td className="py-2.5 text-center text-gray-900 border-r border-gray-100">{steer1}</td>
-                                    <td className="py-2.5 text-center text-gray-900 border-r border-gray-100">{steer2}</td>
-                                    <td className="py-2.5 text-center font-semibold text-gray-900">{steerSum}</td>
+                                  <tr className="border-b border-gray-100 dark:border-gray-700">
+                                    <td className="py-2.5 text-center text-gray-600 dark:text-gray-400 border-r border-gray-100 dark:border-gray-700">거세</td>
+                                    <td className="py-2.5 text-center text-gray-900 dark:text-gray-100 border-r border-gray-100 dark:border-gray-700">{steer9}</td>
+                                    <td className="py-2.5 text-center text-gray-900 dark:text-gray-100 border-r border-gray-100 dark:border-gray-700">{steer8}</td>
+                                    <td className="py-2.5 text-center text-gray-900 dark:text-gray-100 border-r border-gray-100 dark:border-gray-700">{steer7}</td>
+                                    <td className="py-2.5 text-center text-gray-900 dark:text-gray-100 border-r border-gray-100 dark:border-gray-700">{steer1p}</td>
+                                    <td className="py-2.5 text-center text-gray-900 dark:text-gray-100 border-r border-gray-100 dark:border-gray-700">{steer1}</td>
+                                    <td className="py-2.5 text-center text-gray-900 dark:text-gray-100 border-r border-gray-100 dark:border-gray-700">{steer2}</td>
+                                    <td className="py-2.5 text-center font-semibold text-gray-900 dark:text-gray-100">{steerSum}</td>
                                   </tr>
-                                  <tr className="border-b border-gray-100">
-                                    <td className="py-2.5 text-center text-gray-600 border-r border-gray-100">암</td>
-                                    <td className="py-2.5 text-center text-gray-900 border-r border-gray-100">{cow9}</td>
-                                    <td className="py-2.5 text-center text-gray-900 border-r border-gray-100">{cow8}</td>
-                                    <td className="py-2.5 text-center text-gray-900 border-r border-gray-100">{cow7}</td>
-                                    <td className="py-2.5 text-center text-gray-900 border-r border-gray-100">{cow1p}</td>
-                                    <td className="py-2.5 text-center text-gray-900 border-r border-gray-100">{cow1}</td>
-                                    <td className="py-2.5 text-center text-gray-900 border-r border-gray-100">{cow2}</td>
-                                    <td className="py-2.5 text-center font-semibold text-gray-900">{cowSum}</td>
+                                  <tr className="border-b border-gray-100 dark:border-gray-700">
+                                    <td className="py-2.5 text-center text-gray-600 dark:text-gray-400 border-r border-gray-100 dark:border-gray-700">암</td>
+                                    <td className="py-2.5 text-center text-gray-900 dark:text-gray-100 border-r border-gray-100 dark:border-gray-700">{cow9}</td>
+                                    <td className="py-2.5 text-center text-gray-900 dark:text-gray-100 border-r border-gray-100 dark:border-gray-700">{cow8}</td>
+                                    <td className="py-2.5 text-center text-gray-900 dark:text-gray-100 border-r border-gray-100 dark:border-gray-700">{cow7}</td>
+                                    <td className="py-2.5 text-center text-gray-900 dark:text-gray-100 border-r border-gray-100 dark:border-gray-700">{cow1p}</td>
+                                    <td className="py-2.5 text-center text-gray-900 dark:text-gray-100 border-r border-gray-100 dark:border-gray-700">{cow1}</td>
+                                    <td className="py-2.5 text-center text-gray-900 dark:text-gray-100 border-r border-gray-100 dark:border-gray-700">{cow2}</td>
+                                    <td className="py-2.5 text-center font-semibold text-gray-900 dark:text-gray-100">{cowSum}</td>
                                   </tr>
-                                  <tr className="bg-gray-100/80">
-                                    <td className="py-2.5 text-center font-semibold text-gray-700 border-r border-gray-100">합계</td>
-                                    <td className="py-2.5 text-center font-semibold text-gray-900 border-r border-gray-100">{steer9 + cow9}</td>
-                                    <td className="py-2.5 text-center font-semibold text-gray-900 border-r border-gray-100">{steer8 + cow8}</td>
-                                    <td className="py-2.5 text-center font-semibold text-gray-900 border-r border-gray-100">{steer7 + cow7}</td>
-                                    <td className="py-2.5 text-center font-semibold text-gray-900 border-r border-gray-100">{steer1p + cow1p}</td>
-                                    <td className="py-2.5 text-center font-semibold text-gray-900 border-r border-gray-100">{steer1 + cow1}</td>
-                                    <td className="py-2.5 text-center font-semibold text-gray-900 border-r border-gray-100">{steer2 + cow2}</td>
-                                    <td className="py-2.5 text-center font-bold text-gray-900">{steerSum + cowSum}</td>
+                                  <tr className="bg-gray-100/80 dark:bg-gray-700/80">
+                                    <td className="py-2.5 text-center font-semibold text-gray-700 dark:text-gray-300 border-r border-gray-100 dark:border-gray-600">합계</td>
+                                    <td className="py-2.5 text-center font-semibold text-gray-900 dark:text-gray-100 border-r border-gray-100 dark:border-gray-600">{steer9 + cow9}</td>
+                                    <td className="py-2.5 text-center font-semibold text-gray-900 dark:text-gray-100 border-r border-gray-100 dark:border-gray-600">{steer8 + cow8}</td>
+                                    <td className="py-2.5 text-center font-semibold text-gray-900 dark:text-gray-100 border-r border-gray-100 dark:border-gray-600">{steer7 + cow7}</td>
+                                    <td className="py-2.5 text-center font-semibold text-gray-900 dark:text-gray-100 border-r border-gray-100 dark:border-gray-600">{steer1p + cow1p}</td>
+                                    <td className="py-2.5 text-center font-semibold text-gray-900 dark:text-gray-100 border-r border-gray-100 dark:border-gray-600">{steer1 + cow1}</td>
+                                    <td className="py-2.5 text-center font-semibold text-gray-900 dark:text-gray-100 border-r border-gray-100 dark:border-gray-600">{steer2 + cow2}</td>
+                                    <td className="py-2.5 text-center font-bold text-gray-900 dark:text-gray-100">{steerSum + cowSum}</td>
                                   </tr>
                                 </>
                               );
@@ -1361,21 +1361,21 @@ function MainPageContent() {
                     {/* 업체별 경매 두수 */}
                     <div className="mt-6 mb-4">
                       <div className="mb-3">
-                        <h3 className="text-base font-bold text-gray-900">업체별 경매 두수</h3>
+                        <h3 className="text-base font-bold text-gray-900 dark:text-gray-100">업체별 경매 두수</h3>
                       </div>
                       
-                      <div className="bg-white border border-gray-200 rounded overflow-hidden shadow-sm">
+                      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded overflow-hidden shadow-sm transition-colors">
                         <table className="w-full text-xs table-fixed">
                           <thead>
-                            <tr className="bg-gray-100/80 border-b border-gray-200">
-                              <th className="py-2 text-center font-medium text-gray-500 w-[22%] border-r border-gray-200">업체</th>
-                              <th className="py-2 text-center font-medium text-gray-500 w-[11%] border-r border-gray-200">1++(9)</th>
-                              <th className="py-2 text-center font-medium text-gray-500 w-[11%] border-r border-gray-200">1++(8)</th>
-                              <th className="py-2 text-center font-medium text-gray-500 w-[11%] border-r border-gray-200">1++(7)</th>
-                              <th className="py-2 text-center font-medium text-gray-500 w-[11%] border-r border-gray-200">1+</th>
-                              <th className="py-2 text-center font-medium text-gray-500 w-[11%] border-r border-gray-200">1</th>
-                              <th className="py-2 text-center font-medium text-gray-500 w-[11%] border-r border-gray-200">2</th>
-                              <th className="py-2 text-center font-medium text-gray-500 w-[12%]">합계</th>
+                            <tr className="bg-gray-100/80 dark:bg-gray-700/80 border-b border-gray-200 dark:border-gray-600">
+                              <th className="py-2 text-center font-medium text-gray-500 dark:text-gray-400 w-[22%] border-r border-gray-200 dark:border-gray-600">업체</th>
+                              <th className="py-2 text-center font-medium text-gray-500 dark:text-gray-400 w-[11%] border-r border-gray-200 dark:border-gray-600">1++(9)</th>
+                              <th className="py-2 text-center font-medium text-gray-500 dark:text-gray-400 w-[11%] border-r border-gray-200 dark:border-gray-600">1++(8)</th>
+                              <th className="py-2 text-center font-medium text-gray-500 dark:text-gray-400 w-[11%] border-r border-gray-200 dark:border-gray-600">1++(7)</th>
+                              <th className="py-2 text-center font-medium text-gray-500 dark:text-gray-400 w-[11%] border-r border-gray-200 dark:border-gray-600">1+</th>
+                              <th className="py-2 text-center font-medium text-gray-500 dark:text-gray-400 w-[11%] border-r border-gray-200 dark:border-gray-600">1</th>
+                              <th className="py-2 text-center font-medium text-gray-500 dark:text-gray-400 w-[11%] border-r border-gray-200 dark:border-gray-600">2</th>
+                              <th className="py-2 text-center font-medium text-gray-500 dark:text-gray-400 w-[12%]">합계</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -1393,17 +1393,17 @@ function MainPageContent() {
                               const grade2 = companyData.filter(c => getGradeWithoutYield(c.grade) === '2').length;
                               const companyTotal = companyData.length;
                               return (
-                                <tr key={companyName} className={`border-b border-gray-100 ${idx > 0 ? 'border-t border-gray-100' : ''}`}>
-                                  <td className="py-2 text-center text-gray-900 font-semibold border-r border-gray-100">
+                                <tr key={companyName} className={`border-b border-gray-100 dark:border-gray-700 ${idx > 0 ? 'border-t border-gray-100 dark:border-gray-700' : ''}`}>
+                                  <td className="py-2 text-center text-gray-900 dark:text-gray-100 font-semibold border-r border-gray-100 dark:border-gray-700">
                                     {companyName}
                                   </td>
-                                  <td className="py-2 text-center text-gray-900 border-r border-gray-100">{grade9}</td>
-                                  <td className="py-2 text-center text-gray-900 border-r border-gray-100">{grade8}</td>
-                                  <td className="py-2 text-center text-gray-900 border-r border-gray-100">{grade7}</td>
-                                  <td className="py-2 text-center text-gray-900 border-r border-gray-100">{grade1p}</td>
-                                  <td className="py-2 text-center text-gray-900 border-r border-gray-100">{grade1}</td>
-                                  <td className="py-2 text-center text-gray-900 border-r border-gray-100">{grade2}</td>
-                                  <td className="py-2 text-center font-semibold text-gray-900">{companyTotal}</td>
+                                  <td className="py-2 text-center text-gray-900 dark:text-gray-100 border-r border-gray-100 dark:border-gray-700">{grade9}</td>
+                                  <td className="py-2 text-center text-gray-900 dark:text-gray-100 border-r border-gray-100 dark:border-gray-700">{grade8}</td>
+                                  <td className="py-2 text-center text-gray-900 dark:text-gray-100 border-r border-gray-100 dark:border-gray-700">{grade7}</td>
+                                  <td className="py-2 text-center text-gray-900 dark:text-gray-100 border-r border-gray-100 dark:border-gray-700">{grade1p}</td>
+                                  <td className="py-2 text-center text-gray-900 dark:text-gray-100 border-r border-gray-100 dark:border-gray-700">{grade1}</td>
+                                  <td className="py-2 text-center text-gray-900 dark:text-gray-100 border-r border-gray-100 dark:border-gray-700">{grade2}</td>
+                                  <td className="py-2 text-center font-semibold text-gray-900 dark:text-gray-100">{companyTotal}</td>
                                 </tr>
                               );
                             });
@@ -1420,15 +1420,15 @@ function MainPageContent() {
                               const total2 = cattleData.filter(c => getGradeWithoutYield(c.grade) === '2').length;
                               const grandTotal = cattleData.length;
                               return (
-                                <tr className="bg-gray-100/80 border-t border-gray-300">
-                                  <td className="py-2.5 text-center font-semibold text-gray-700 border-r border-gray-100">합계</td>
-                                  <td className="py-2.5 text-center font-semibold text-gray-900 border-r border-gray-100">{total9}</td>
-                                  <td className="py-2.5 text-center font-semibold text-gray-900 border-r border-gray-100">{total8}</td>
-                                  <td className="py-2.5 text-center font-semibold text-gray-900 border-r border-gray-100">{total7}</td>
-                                  <td className="py-2.5 text-center font-semibold text-gray-900 border-r border-gray-100">{total1p}</td>
-                                  <td className="py-2.5 text-center font-semibold text-gray-900 border-r border-gray-100">{total1}</td>
-                                  <td className="py-2.5 text-center font-semibold text-gray-900 border-r border-gray-100">{total2}</td>
-                                  <td className="py-2.5 text-center font-bold text-gray-900">{grandTotal}</td>
+                                <tr className="bg-gray-100/80 dark:bg-gray-700/80 border-t border-gray-300 dark:border-gray-600">
+                                  <td className="py-2.5 text-center font-semibold text-gray-700 dark:text-gray-300 border-r border-gray-100 dark:border-gray-600">합계</td>
+                                  <td className="py-2.5 text-center font-semibold text-gray-900 dark:text-gray-100 border-r border-gray-100 dark:border-gray-600">{total9}</td>
+                                  <td className="py-2.5 text-center font-semibold text-gray-900 dark:text-gray-100 border-r border-gray-100 dark:border-gray-600">{total8}</td>
+                                  <td className="py-2.5 text-center font-semibold text-gray-900 dark:text-gray-100 border-r border-gray-100 dark:border-gray-600">{total7}</td>
+                                  <td className="py-2.5 text-center font-semibold text-gray-900 dark:text-gray-100 border-r border-gray-100 dark:border-gray-600">{total1p}</td>
+                                  <td className="py-2.5 text-center font-semibold text-gray-900 dark:text-gray-100 border-r border-gray-100 dark:border-gray-600">{total1}</td>
+                                  <td className="py-2.5 text-center font-semibold text-gray-900 dark:text-gray-100 border-r border-gray-100 dark:border-gray-600">{total2}</td>
+                                  <td className="py-2.5 text-center font-bold text-gray-900 dark:text-gray-100">{grandTotal}</td>
                                 </tr>
                               );
                             })()}
@@ -1441,7 +1441,7 @@ function MainPageContent() {
                 ) : (
                   <div className="px-4 pt-4">
                     <div className="text-center py-12">
-                      <p className="text-gray-500 text-sm">탭을 선택해주세요.</p>
+                      <p className="text-gray-500 dark:text-gray-400 text-sm">탭을 선택해주세요.</p>
                     </div>
                   </div>
                 )}
@@ -1467,22 +1467,22 @@ function MainPageContent() {
                     animate={{ y: 0 }}
                     exit={{ y: '100%' }}
                     transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                    className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl z-50"
+                    className="absolute bottom-0 left-0 right-0 bg-white dark:bg-gray-800 rounded-t-2xl z-50 transition-colors"
                   >
                     {/* 핸들 */}
                     <div className="flex justify-center py-2">
-                      <div className="w-10 h-1 bg-gray-300 rounded-full"></div>
+                      <div className="w-10 h-1 bg-gray-300 dark:bg-gray-600 rounded-full"></div>
                     </div>
 
                     {/* 헤더 */}
                     <div className="flex items-center justify-between px-4 pb-3">
-                      <h3 className="text-lg font-bold">입찰 설정</h3>
+                      <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">입찰 설정</h3>
                       <button
                         onClick={() => {
                           setShowQuickReBidEdit(false);
                           setTempQuickReBidAmount(quickReBidAmount.toLocaleString());
                         }}
-                        className="p-1"
+                        className="p-1 text-gray-600 dark:text-gray-400"
                       >
                         <X className="w-5 h-5" />
                       </button>
@@ -1491,21 +1491,21 @@ function MainPageContent() {
                     {/* 콘텐츠 */}
                     <div className="px-4 pb-8">
                       {/* 차순위 알림 설정 */}
-                      <div className="flex items-center justify-between py-4 border-b border-gray-100">
+                      <div className="flex items-center justify-between py-4 border-b border-gray-100 dark:border-gray-700">
                         <div>
-                          <p className="text-sm font-medium text-gray-900">차순위 알림 받기</p>
-                          <p className="text-xs text-gray-500 mt-0.5">차순위가 되면 알림을 받습니다</p>
+                          <p className="text-sm font-medium text-gray-900 dark:text-gray-100">차순위 알림 받기</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">차순위가 되면 알림을 받습니다</p>
                         </div>
                         <button
                           onClick={() => setIsSecondBidNotificationOn(!isSecondBidNotificationOn)}
                           className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${
                             isSecondBidNotificationOn 
-                              ? 'bg-gray-900' 
-                              : 'bg-gray-300'
+                              ? 'bg-gray-900 dark:bg-gray-200' 
+                              : 'bg-gray-300 dark:bg-gray-600'
                           }`}
                         >
                           <span
-                            className={`inline-block h-5 w-5 rounded-full bg-white shadow-md transition-transform ${
+                            className={`inline-block h-5 w-5 rounded-full bg-white dark:bg-gray-900 shadow-md transition-transform ${
                               isSecondBidNotificationOn ? 'translate-x-6' : 'translate-x-1'
                             }`}
                           />
@@ -1514,8 +1514,8 @@ function MainPageContent() {
 
                       {/* 빠른 재입찰 금액 설정 */}
                       <div className="py-4">
-                        <p className="text-sm font-medium text-gray-900 mb-1">빠른 재입찰 금액</p>
-                        <p className="text-xs text-gray-500 mb-3">현재 최고가에 이 금액을 더해 빠른 재입찰합니다</p>
+                        <p className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-1">빠른 재입찰 금액</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">현재 최고가에 이 금액을 더해 빠른 재입찰합니다</p>
                         <div className="relative">
                           <input
                             type="tel"
@@ -1528,12 +1528,12 @@ function MainPageContent() {
                             }}
                             onFocus={() => setTempQuickReBidAmount('')}
                             placeholder="증액할 금액 입력 (100원 단위)"
-                            className="w-full px-3 py-3 pr-10 border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-gray-300 bg-white text-gray-900"
+                            className="w-full px-3 py-3 pr-10 border border-gray-200 dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-gray-300 dark:focus:ring-gray-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500"
                           />
-                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">원</span>
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 text-sm">원</span>
                         </div>
                         {tempQuickReBidAmount && parseInt(tempQuickReBidAmount.replace(/,/g, '')) % 100 !== 0 && (
-                          <p className="text-xs text-orange-500 mt-2">100원 단위로 입력해주세요</p>
+                          <p className="text-xs text-orange-500 dark:text-orange-400 mt-2">100원 단위로 입력해주세요</p>
                         )}
                       </div>
 
@@ -1544,7 +1544,7 @@ function MainPageContent() {
                           setShowQuickReBidEdit(false);
                         }}
                         disabled={!tempQuickReBidAmount || parseInt(tempQuickReBidAmount.replace(/,/g, '')) <= 0 || parseInt(tempQuickReBidAmount.replace(/,/g, '')) % 100 !== 0}
-                        className="w-full py-3 bg-gray-900 text-white font-bold rounded hover:bg-gray-800 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors mt-2"
+                        className="w-full py-3 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 font-bold rounded hover:bg-gray-800 dark:hover:bg-gray-200 disabled:bg-gray-300 dark:disabled:bg-gray-600 disabled:text-gray-500 dark:disabled:text-gray-400 disabled:cursor-not-allowed transition-colors mt-2"
                       >
                         저장
                       </button>
@@ -1577,23 +1577,23 @@ function MainPageContent() {
                     animate={{ y: 0 }}
                     exit={{ y: '100%' }}
                     transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                    className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl z-50 max-h-[85vh] overflow-y-auto"
+                    className="absolute bottom-0 left-0 right-0 bg-white dark:bg-gray-800 rounded-t-2xl z-50 max-h-[85vh] overflow-y-auto transition-colors"
                   >
                     {/* 핸들 */}
                     <div className="flex justify-center py-2">
-                      <div className="w-10 h-1 bg-gray-300 rounded-full"></div>
+                      <div className="w-10 h-1 bg-gray-300 dark:bg-gray-600 rounded-full"></div>
                   </div>
 
                     {/* 헤더 */}
                     <div className="flex items-center justify-between px-4 pb-3">
-                      <h3 className="text-lg font-bold">입찰하기</h3>
+                      <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">입찰하기</h3>
                       <button
                         onClick={() => {
                           setShowReBidDialog(false);
                           setSelectedBid(null);
                           setCustomBidPrice('');
                         }}
-                        className="p-1"
+                        className="p-1 text-gray-600 dark:text-gray-400"
                       >
                         <X className="w-5 h-5" />
                       </button>
@@ -1603,16 +1603,16 @@ function MainPageContent() {
                     <div className="px-4 pb-8">
                       {/* 상품 정보 배지 */}
                       <div className="flex items-center gap-1 mb-4 flex-wrap">
-                        <span className="text-xs px-1.5 py-0.5 bg-gray-100 border border-gray-300 text-gray-700 rounded font-medium">
+                        <span className="text-xs px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded font-medium">
                           {selectedBid.listingNo}
                         </span>
-                        <span className="text-xs px-1.5 py-0.5 bg-gray-100 border border-gray-300 text-gray-700 rounded font-medium">
+                        <span className="text-xs px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded font-medium">
                           {selectedBid.productInfo.type || '한우거세'}
                         </span>
-                        <span className="text-xs px-1.5 py-0.5 bg-gray-100 border border-gray-300 text-gray-700 rounded font-medium">
+                        <span className="text-xs px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded font-medium">
                           {selectedBid.productInfo.grade || '1++A(9)'}
                         </span>
-                        <span className="text-xs px-1.5 py-0.5 bg-gray-100 border border-gray-300 text-gray-700 rounded font-medium">
+                        <span className="text-xs px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded font-medium">
                           30개월
                         </span>
                       </div>
@@ -1620,14 +1620,14 @@ function MainPageContent() {
                       {/* 부위 및 중량 */}
                       <div className="grid grid-cols-2 gap-3 mb-4">
                         <div>
-                          <div className="text-xs text-gray-500 mb-1">선택된 부위</div>
-                          <div className="w-full px-3 py-2.5 text-sm font-bold border border-gray-200 rounded-lg bg-gray-50 text-center">
+                          <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">선택된 부위</div>
+                          <div className="w-full px-3 py-2.5 text-sm font-bold border border-gray-200 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-center">
                             {selectedBid.productInfo.partName}
                           </div>
                         </div>
                         <div>
-                          <div className="text-xs text-gray-500 mb-1">중량</div>
-                          <div className="w-full px-3 py-2.5 text-sm font-bold border border-gray-200 rounded-lg bg-gray-50 text-center">
+                          <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">중량</div>
+                          <div className="w-full px-3 py-2.5 text-sm font-bold border border-gray-200 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-center">
                             {selectedBid.productInfo.weight}
                           </div>
                         </div>
@@ -1636,7 +1636,7 @@ function MainPageContent() {
                       {/* 입찰가격 */}
                   <div className="mb-4">
                         <div className="flex items-center justify-between mb-1">
-                          <div className="text-xs text-gray-500">입찰가격 (원/kg)</div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400">입찰가격 (원/kg)</div>
                         </div>
                         <div className="relative mb-2">
                       <input
@@ -1648,9 +1648,9 @@ function MainPageContent() {
                           setCustomBidPrice(value ? parseInt(value).toLocaleString() : '');
                         }}
                             placeholder={`최저단가 ${(selectedBid.productInfo.price || 50000).toLocaleString()}`}
-                            className="w-full px-3 py-3 pr-10 text-right text-xl font-bold border border-gray-200 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500 bg-white text-black placeholder:text-gray-400"
+                            className="w-full px-3 py-3 pr-10 text-right text-xl font-bold border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-gray-500 dark:focus:ring-gray-400 focus:border-gray-500 bg-white dark:bg-gray-700 text-black dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500"
                       />
-                          <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-sm text-gray-400">
+                          <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-sm text-gray-400 dark:text-gray-500">
                             원
                     </div>
                       </div>
@@ -1664,14 +1664,14 @@ function MainPageContent() {
                                 const newPrice = currentPrice + amount;
                                 setCustomBidPrice(newPrice.toLocaleString());
                       }}
-                              className="py-2.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 font-medium"
+                              className="py-2.5 text-xs border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 font-medium text-gray-700 dark:text-gray-300"
                     >
                               +{amount.toLocaleString()}
                     </button>
                           ))}
                     <button
                             onClick={() => setCustomBidPrice('')}
-                            className="py-2.5 text-xs bg-gray-100 border border-gray-200 rounded-lg hover:bg-gray-200 text-gray-600 font-medium"
+                            className="py-2.5 text-xs bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-400 font-medium"
                     >
                             초기화
                     </button>
@@ -1679,10 +1679,10 @@ function MainPageContent() {
                 </div>
                       
                       {/* 총 입찰금액 */}
-                      <div className="bg-gray-50 p-3 rounded-lg border border-gray-200 mb-4">
+                      <div className="bg-gray-50 dark:bg-gray-700 p-3 rounded-lg border border-gray-200 dark:border-gray-600 mb-4">
                         <div className="flex justify-between items-center">
-                          <span className="text-sm font-bold text-gray-700">총 입찰금액</span>
-                          <span className="text-xl font-bold text-gray-900">
+                          <span className="text-sm font-bold text-gray-700 dark:text-gray-300">총 입찰금액</span>
+                          <span className="text-xl font-bold text-gray-900 dark:text-gray-100">
                             {(() => {
                               if (!customBidPrice) return '-';
                               const price = parseInt(customBidPrice.replace(/,/g, ''));
@@ -1698,7 +1698,7 @@ function MainPageContent() {
                       <button
                         onClick={confirmReBid}
                         disabled={!customBidPrice}
-                        className="w-full py-3.5 bg-gray-900 hover:bg-gray-800 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-bold text-base rounded-lg"
+                        className="w-full py-3.5 bg-gray-900 dark:bg-gray-100 hover:bg-gray-800 dark:hover:bg-gray-200 disabled:bg-gray-300 dark:disabled:bg-gray-600 disabled:cursor-not-allowed text-white dark:text-gray-900 disabled:text-gray-500 dark:disabled:text-gray-400 font-bold text-base rounded-lg transition-colors"
                       >
                         입찰하기
                       </button>
@@ -1715,16 +1715,16 @@ function MainPageContent() {
               }`}>
                 <div className={`px-4 py-3 rounded-lg shadow-lg flex items-center space-x-2 ${
                   toastType === 'success' 
-                    ? 'bg-white border border-gray-200 text-gray-800' 
-                    : 'bg-gray-800 text-white'
+                    ? 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200' 
+                    : 'bg-gray-800 dark:bg-gray-700 text-white'
                 }`}>
                   <div className="flex-shrink-0">
                     {toastType === 'success' ? (
-                      <svg className="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                      <svg className="w-5 h-5 text-green-500 dark:text-green-400" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                       </svg>
                     ) : (
-                      <svg className="w-5 h-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                      <svg className="w-5 h-5 text-yellow-400 dark:text-yellow-300" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                       </svg>
                     )}
@@ -1750,13 +1750,13 @@ function MainPageContent() {
                     animate={{ y: 0 }}
                     exit={{ y: '100%' }}
                     transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                    className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-2xl max-h-[70vh] overflow-y-auto z-[100]"
+                    className="absolute bottom-0 left-0 right-0 bg-white dark:bg-gray-800 rounded-t-2xl shadow-2xl max-h-[70vh] overflow-y-auto z-[100] transition-colors"
                   >
-                    <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
-                      <h3 className="text-base font-bold text-gray-900">입찰하기</h3>
+                    <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+                      <h3 className="text-base font-bold text-gray-900 dark:text-gray-100">입찰하기</h3>
                       <button
                         onClick={() => setShowFavoritePartBidSheet(false)}
-                        className="p-1 text-gray-500 hover:text-gray-700"
+                        className="p-1 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
                       >
                         <X className="w-5 h-5" />
                       </button>
@@ -1764,28 +1764,28 @@ function MainPageContent() {
                     
                     <div className="p-4">
                       {/* 상품 정보 테이블 */}
-                      <div className="mb-4 bg-white border border-gray-200 rounded overflow-hidden overflow-x-auto">
+                      <div className="mb-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded overflow-hidden overflow-x-auto">
                         <table className="w-full text-[11px]">
                           <thead>
-                            <tr className="bg-gray-100 border-b border-gray-200">
-                              <th className="py-2 px-1.5 text-center font-medium text-gray-500 whitespace-nowrap">상장번호</th>
-                              <th className="py-2 px-1.5 text-center font-medium text-gray-500">축종</th>
-                              <th className="py-2 px-1.5 text-center font-medium text-gray-500">성별</th>
-                              <th className="py-2 px-1.5 text-center font-medium text-gray-500">등급</th>
-                              <th className="py-2 px-1.5 text-center font-medium text-gray-500">개월령</th>
-                              <th className="py-2 px-1.5 text-center font-medium text-gray-500">부위</th>
-                              <th className="py-2 px-1.5 text-center font-medium text-gray-500">중량</th>
+                            <tr className="bg-gray-100 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600">
+                              <th className="py-2 px-1.5 text-center font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">상장번호</th>
+                              <th className="py-2 px-1.5 text-center font-medium text-gray-500 dark:text-gray-400">축종</th>
+                              <th className="py-2 px-1.5 text-center font-medium text-gray-500 dark:text-gray-400">성별</th>
+                              <th className="py-2 px-1.5 text-center font-medium text-gray-500 dark:text-gray-400">등급</th>
+                              <th className="py-2 px-1.5 text-center font-medium text-gray-500 dark:text-gray-400">개월령</th>
+                              <th className="py-2 px-1.5 text-center font-medium text-gray-500 dark:text-gray-400">부위</th>
+                              <th className="py-2 px-1.5 text-center font-medium text-gray-500 dark:text-gray-400">중량</th>
                             </tr>
                           </thead>
                           <tbody>
                             <tr>
-                              <td className="py-2.5 px-1.5 text-center text-gray-700 whitespace-nowrap">{selectedFavoritePart.listingNo}</td>
-                              <td className="py-2.5 px-1.5 text-center text-gray-700">{selectedFavoritePart.type || '한우'}</td>
-                              <td className="py-2.5 px-1.5 text-center text-gray-700">{selectedFavoritePart.gender || '거세'}</td>
-                              <td className="py-2.5 px-1.5 text-center text-gray-700">{selectedFavoritePart.grade}</td>
-                              <td className="py-2.5 px-1.5 text-center text-gray-700">{selectedFavoritePart.months || '30'}</td>
-                              <td className="py-2.5 px-1.5 text-center font-medium text-gray-900">{selectedFavoritePart.partName}</td>
-                              <td className="py-2.5 px-1.5 text-center font-medium text-gray-900">{selectedFavoritePart.weight}</td>
+                              <td className="py-2.5 px-1.5 text-center text-gray-700 dark:text-gray-300 whitespace-nowrap">{selectedFavoritePart.listingNo}</td>
+                              <td className="py-2.5 px-1.5 text-center text-gray-700 dark:text-gray-300">한우</td>
+                              <td className="py-2.5 px-1.5 text-center text-gray-700 dark:text-gray-300">{selectedFavoritePart.gender || '거세'}</td>
+                              <td className="py-2.5 px-1.5 text-center text-gray-700 dark:text-gray-300">{selectedFavoritePart.grade}</td>
+                              <td className="py-2.5 px-1.5 text-center text-gray-700 dark:text-gray-300">{selectedFavoritePart.months || '30'}</td>
+                              <td className="py-2.5 px-1.5 text-center font-medium text-gray-900 dark:text-gray-100">{selectedFavoritePart.partName}</td>
+                              <td className="py-2.5 px-1.5 text-center font-medium text-gray-900 dark:text-gray-100">{selectedFavoritePart.weight}</td>
                             </tr>
                           </tbody>
                         </table>
@@ -1793,7 +1793,7 @@ function MainPageContent() {
                       
                       {/* 입찰가 입력 */}
                       <div className="space-y-2 mb-4">
-                        <label className="text-sm font-bold text-gray-700">입찰가격 (kg당)</label>
+                        <label className="text-sm font-bold text-gray-700 dark:text-gray-300">입찰가격 (kg당)</label>
                         <div className="relative">
                           <input
                             type="text"
@@ -1803,9 +1803,9 @@ function MainPageContent() {
                               setFavoritePartBidPrice(value ? parseInt(value) : 0);
                             }}
                             placeholder={`최저단가 ${selectedFavoritePart.price.toLocaleString()}`}
-                            className="w-full px-3 py-3 pr-10 text-right text-xl font-bold border border-gray-200 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500 bg-white text-black placeholder:text-gray-400"
+                            className="w-full px-3 py-3 pr-10 text-right text-xl font-bold border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-gray-500 dark:focus:ring-gray-400 focus:border-gray-500 bg-white dark:bg-gray-700 text-black dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500"
                           />
-                          <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-sm text-gray-400">
+                          <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-sm text-gray-400 dark:text-gray-500">
                             원
                           </div>
                         </div>
@@ -1825,14 +1825,14 @@ function MainPageContent() {
                                   return prev + amount;
                                 });
                               }}
-                              className="py-2.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 font-medium"
+                              className="py-2.5 text-xs border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 font-medium text-gray-700 dark:text-gray-300"
                             >
                               +{amount.toLocaleString()}
                             </button>
                           ))}
                           <button
                             onClick={() => setFavoritePartBidPrice(0)}
-                            className="py-2.5 text-xs bg-gray-100 border border-gray-200 rounded-lg hover:bg-gray-200 text-gray-600 font-medium"
+                            className="py-2.5 text-xs bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-400 font-medium"
                           >
                             초기화
                           </button>
@@ -1840,10 +1840,10 @@ function MainPageContent() {
                       </div>
                       
                       {/* 총 입찰금액 */}
-                      <div className="bg-gray-50 p-3 rounded-lg border border-gray-200 mb-4">
+                      <div className="bg-gray-50 dark:bg-gray-700 p-3 rounded-lg border border-gray-200 dark:border-gray-600 mb-4">
                         <div className="flex justify-between items-center">
-                          <span className="text-sm font-bold text-gray-700">총 입찰금액</span>
-                          <span className="text-xl font-bold text-gray-900">
+                          <span className="text-sm font-bold text-gray-700 dark:text-gray-300">총 입찰금액</span>
+                          <span className="text-xl font-bold text-gray-900 dark:text-gray-100">
                             {favoritePartBidPrice > 0 
                               ? `${Math.round(favoritePartBidPrice * parseFloat(selectedFavoritePart.weight)).toLocaleString()}원`
                               : '-'
@@ -1863,7 +1863,7 @@ function MainPageContent() {
                           }
                         }}
                         disabled={favoritePartBidPrice === 0}
-                        className="w-full py-2.5 bg-gray-800 hover:bg-gray-900 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-bold text-base rounded"
+                        className="w-full py-2.5 bg-gray-800 dark:bg-gray-100 hover:bg-gray-900 dark:hover:bg-gray-200 disabled:bg-gray-300 dark:disabled:bg-gray-600 disabled:cursor-not-allowed text-white dark:text-gray-900 disabled:text-gray-500 dark:disabled:text-gray-400 font-bold text-base rounded transition-colors"
                       >
                         입찰하기
                       </button>
@@ -1890,87 +1890,99 @@ function MainPageContent() {
                     initial={{ scale: 0.95, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
                     exit={{ scale: 0.95, opacity: 0 }}
-                    className="relative bg-white rounded-lg shadow-xl w-full max-w-sm overflow-hidden"
+                    className="relative bg-white dark:bg-gray-900 rounded w-full max-w-md overflow-hidden transition-colors"
                   >
-                    <div className="p-4">
-                      <h3 className="text-base font-bold text-gray-900 mb-4 text-center">입찰 내용을 확인해 주세요.</h3>
-                      
-                      {/* 상품 정보 테이블 */}
-                      <div className="mb-4 bg-white border border-gray-200 rounded overflow-hidden">
+                    {/* 다이얼로그 헤더 */}
+                    <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                      <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">입찰 내용을 확인해 주세요</h3>
+                    </div>
+                    
+                    {/* 다이얼로그 내용 */}
+                    <div className="px-6 py-4">
+                      {/* 개체 정보 테이블 */}
+                      <div className="border border-gray-200 dark:border-gray-700 rounded overflow-hidden overflow-x-auto mb-4">
                         <table className="w-full text-[11px]">
                           <thead>
-                            <tr className="bg-gray-100 border-b border-gray-200">
-                              <th className="py-1.5 px-2 text-center font-medium text-gray-500">상장번호</th>
-                              <th className="py-1.5 px-2 text-center font-medium text-gray-500">부위명</th>
-                              <th className="py-1.5 px-2 text-center font-medium text-gray-500">등급</th>
-                              <th className="py-1.5 px-2 text-center font-medium text-gray-500">중량</th>
+                            <tr className="bg-gray-100 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+                              <th className="py-2 px-1.5 text-center font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">상장번호</th>
+                              <th className="py-2 px-1.5 text-center font-medium text-gray-500 dark:text-gray-400">축종</th>
+                              <th className="py-2 px-1.5 text-center font-medium text-gray-500 dark:text-gray-400">성별</th>
+                              <th className="py-2 px-1.5 text-center font-medium text-gray-500 dark:text-gray-400">등급</th>
+                              <th className="py-2 px-1.5 text-center font-medium text-gray-500 dark:text-gray-400">개월령</th>
+                              <th className="py-2 px-1.5 text-center font-medium text-gray-500 dark:text-gray-400">부위</th>
+                              <th className="py-2 px-1.5 text-center font-medium text-gray-500 dark:text-gray-400">중량</th>
                             </tr>
                           </thead>
                           <tbody>
                             <tr>
-                              <td className="py-2 px-2 text-center text-gray-900 font-medium">{selectedFavoritePart.listingNo}</td>
-                              <td className="py-2 px-2 text-center text-gray-700">{selectedFavoritePart.partName}</td>
-                              <td className="py-2 px-2 text-center text-gray-700">{selectedFavoritePart.grade}</td>
-                              <td className="py-2 px-2 text-center text-gray-700">{selectedFavoritePart.weight}</td>
+                              <td className="py-2.5 px-1.5 text-center text-gray-700 dark:text-gray-300 whitespace-nowrap">{selectedFavoritePart.listingNo}</td>
+                              <td className="py-2.5 px-1.5 text-center text-gray-700 dark:text-gray-300">한우</td>
+                              <td className="py-2.5 px-1.5 text-center text-gray-700 dark:text-gray-300">{selectedFavoritePart.type?.includes('거세') ? '거세' : '암'}</td>
+                              <td className="py-2.5 px-1.5 text-center text-gray-700 dark:text-gray-300">{selectedFavoritePart.grade}</td>
+                              <td className="py-2.5 px-1.5 text-center text-gray-700 dark:text-gray-300">32</td>
+                              <td className="py-2.5 px-1.5 text-center font-medium text-gray-900 dark:text-gray-100">{selectedFavoritePart.partName}</td>
+                              <td className="py-2.5 px-1.5 text-center font-medium text-gray-900 dark:text-gray-100">{selectedFavoritePart.weight}</td>
                             </tr>
                           </tbody>
                         </table>
                       </div>
 
-                      <div className="space-y-2 text-sm mb-4">
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">입찰가격</span>
-                          <span className="font-medium text-gray-900">{favoritePartBidPrice.toLocaleString()}원/kg</span>
+                      {/* 입찰 금액 정보 */}
+                      <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-700">
+                        <div className="flex justify-between items-center mb-2">
+                          <span className="text-sm text-gray-600 dark:text-gray-400">입찰가격</span>
+                          <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{favoritePartBidPrice.toLocaleString()}원/kg</span>
                         </div>
-                        <div className="flex justify-between border-t border-gray-200 pt-2">
-                          <span className="font-bold text-gray-700">총 입찰금액</span>
-                          <span className="font-bold text-gray-900">
+                        <div className="flex justify-between items-center pt-2 border-t border-gray-200 dark:border-gray-700">
+                          <span className="text-sm font-bold text-gray-900 dark:text-gray-100">총 입찰금액</span>
+                          <span className="text-lg font-bold text-gray-900 dark:text-gray-100">
                             {Math.round(favoritePartBidPrice * parseFloat(selectedFavoritePart.weight)).toLocaleString()}원
                           </span>
                         </div>
                       </div>
-                      
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => {
-                            setShowFavoritePartBidConfirm(false);
-                            setShowFavoritePartBidSheet(true);
-                          }}
-                          className="flex-1 py-2.5 border border-gray-300 text-gray-700 font-bold text-sm rounded hover:bg-gray-50"
-                        >
-                          취소
-                        </button>
-                        <button
-                          onClick={() => {
-                            // 입찰 저장 (kg당 가격으로 저장)
-                            const now = new Date();
-                            const timeStr = `${now.getFullYear().toString().slice(2)}.${String(now.getMonth() + 1).padStart(2, '0')}.${String(now.getDate()).padStart(2, '0')}.(${['일','월','화','수','목','금','토'][now.getDay()]}) ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-                            
-                            setBid(selectedFavoritePart.listingNo, {
-                              myBid: favoritePartBidPrice,
-                              highestBid: favoritePartBidPrice,
-                              status: 'highest',
-                              time: timeStr,
-                              productInfo: {
-                                listingNo: selectedFavoritePart.listingNo,
-                                partName: selectedFavoritePart.partName,
-                                weight: selectedFavoritePart.weight,
-                                type: selectedFavoritePart.type,
-                                grade: selectedFavoritePart.grade,
-                                price: selectedFavoritePart.price,
-                              }
-                            });
-                            
-                            setShowFavoritePartBidConfirm(false);
-                            setSelectedFavoritePart(null);
-                            setFavoritePartBidPrice(0);
-                            showToastMessage('입찰이 완료되었습니다.', 'success');
-                          }}
-                          className="flex-1 py-2.5 bg-gray-800 text-white font-bold text-sm rounded hover:bg-gray-900"
-                        >
-                          입찰하기
-                        </button>
-                      </div>
+                    </div>
+                    
+                    {/* 다이얼로그 버튼 */}
+                    <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex gap-3">
+                      <button
+                        onClick={() => {
+                          setShowFavoritePartBidConfirm(false);
+                          setShowFavoritePartBidSheet(true);
+                        }}
+                        className="flex-1 py-2.5 px-4 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors font-medium"
+                      >
+                        취소
+                      </button>
+                      <button
+                        onClick={() => {
+                          // 입찰 저장 (kg당 가격으로 저장)
+                          const now = new Date();
+                          const timeStr = `${now.getFullYear().toString().slice(2)}.${String(now.getMonth() + 1).padStart(2, '0')}.${String(now.getDate()).padStart(2, '0')}.(${['일','월','화','수','목','금','토'][now.getDay()]}) ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+                          
+                          setBid(selectedFavoritePart.listingNo, {
+                            myBid: favoritePartBidPrice,
+                            highestBid: favoritePartBidPrice,
+                            status: 'highest',
+                            time: timeStr,
+                            productInfo: {
+                              listingNo: selectedFavoritePart.listingNo,
+                              partName: selectedFavoritePart.partName,
+                              weight: selectedFavoritePart.weight,
+                              type: selectedFavoritePart.type,
+                              grade: selectedFavoritePart.grade,
+                              price: selectedFavoritePart.price,
+                            }
+                          });
+                          
+                          setShowFavoritePartBidConfirm(false);
+                          setSelectedFavoritePart(null);
+                          setFavoritePartBidPrice(0);
+                          showToastMessage('입찰이 완료되었습니다.', 'success');
+                        }}
+                        className="flex-1 py-2.5 px-4 bg-gray-800 dark:bg-gray-700 text-white rounded hover:bg-gray-900 dark:hover:bg-gray-600 transition-colors font-medium"
+                      >
+                        입찰하기
+                      </button>
                     </div>
                   </motion.div>
                 </motion.div>

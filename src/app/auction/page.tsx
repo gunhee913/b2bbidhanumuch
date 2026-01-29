@@ -588,7 +588,7 @@ function AuctionPageContent() {
     <div className="fixed inset-0 bg-white flex justify-center items-center z-[9999] overflow-hidden">
       <div className="w-full md:flex md:justify-center md:items-center bg-white">
           <div 
-            className="w-full md:max-w-md md:w-[500px] bg-white md:shadow-2xl relative overflow-hidden flex flex-col" 
+            className="w-full md:max-w-md md:w-[500px] bg-white dark:bg-gray-900 md:shadow-2xl relative overflow-hidden flex flex-col transition-colors" 
             style={{
               height: 'calc(var(--vh, 1vh) * 100)',
               scrollbarWidth: 'none', 
@@ -602,14 +602,14 @@ function AuctionPageContent() {
             `}</style>
             
             {/* 메인 콘텐츠 */}
-            <div className="flex-1 min-h-0 overflow-y-auto">
+            <div className="flex-1 min-h-0 overflow-y-auto bg-white dark:bg-gray-900 transition-colors">
               {/* 섹션 제목 - 부위별 상세에서는 숨김 */}
               {!(activeTab === 'part' && selectedPartId) && (
-                <div className="px-4 pt-4 pb-2 bg-white flex items-center justify-between">
-                  <h2 className="text-base font-bold text-gray-900">{getTodayFormatted()} 경매</h2>
+                <div className="px-4 pt-4 pb-2 bg-white dark:bg-gray-900 flex items-center justify-between transition-colors">
+                  <h2 className="text-base font-bold text-gray-900 dark:text-gray-100">{getTodayFormatted()} 경매</h2>
                   <div className="flex items-center gap-1.5">
-                    <span className="text-xs text-gray-500">마감까지</span>
-                    <span className={`text-sm font-bold ${remainingTime <= 300 ? 'text-red-600' : 'text-gray-900'}`}>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">마감까지</span>
+                    <span className={`text-sm font-bold ${remainingTime <= 300 ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-gray-100'}`}>
                       {formatTime(remainingTime)}
                     </span>
                   </div>
@@ -619,20 +619,20 @@ function AuctionPageContent() {
               {activeTab === 'individual' ? (
                 <>
                   {/* 필터 섹션 */}
-                  <div className="px-3 py-2 bg-white">
+                  <div className="px-3 py-2 bg-white dark:bg-gray-900 transition-colors">
                     <div className="flex gap-1.5 relative filter-dropdown max-w-sm">
                       {/* 업체명 필터 */}
                       <div className="flex-1 relative">
                         <button
                           onClick={() => setOpenDropdown(openDropdown === 'company' ? null : 'company')}
-                          className="w-full h-8 px-2 text-[11px] border border-gray-300 rounded-lg bg-white transition-colors flex items-center justify-between"
+                          className="w-full h-8 px-2 text-[11px] border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 transition-colors flex items-center justify-between"
                         >
-                          <span className="text-gray-700 truncate">{selectedCompany}</span>
+                          <span className="text-gray-700 dark:text-gray-300 truncate">{selectedCompany}</span>
                           <motion.div
                             animate={{ rotate: openDropdown === 'company' ? 180 : 0 }}
                             transition={{ duration: 0.2 }}
                           >
-                            <ChevronDown className="h-3.5 w-3.5 text-gray-500 flex-shrink-0" />
+                            <ChevronDown className="h-3.5 w-3.5 text-gray-500 dark:text-gray-400 flex-shrink-0" />
                           </motion.div>
                         </button>
                         <AnimatePresence>
@@ -642,7 +642,7 @@ function AuctionPageContent() {
                               animate={{ opacity: 1, y: 0 }}
                               exit={{ opacity: 0, y: -10 }}
                               transition={{ duration: 0.2 }}
-                              className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden z-50 max-h-40 overflow-y-auto"
+                              className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg overflow-hidden z-50 max-h-40 overflow-y-auto"
                             >
                               {['전체', '건화', '대진엠이스', '안심엘피시', '정직한고기'].map((option) => (
                                 <motion.button
@@ -653,7 +653,7 @@ function AuctionPageContent() {
                                   }}
                                   whileHover={{ backgroundColor: '#fef2f2' }}
                                   className={`w-full px-2.5 py-1.5 text-[11px] text-left transition-colors ${
-                                    selectedCompany === option ? 'bg-red-50 text-red-600 font-medium' : 'text-gray-700'
+                                    selectedCompany === option ? 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 font-medium' : 'text-gray-700 dark:text-gray-300'
                                   }`}
                                 >
                                   {option}
@@ -668,14 +668,14 @@ function AuctionPageContent() {
                       <div className="flex-1 relative">
                         <button
                           onClick={() => setOpenDropdown(openDropdown === 'type' ? null : 'type')}
-                          className="w-full h-8 px-2 text-[11px] border border-gray-300 rounded-lg bg-white transition-colors flex items-center justify-between"
+                          className="w-full h-8 px-2 text-[11px] border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 transition-colors flex items-center justify-between"
                         >
-                          <span className="text-gray-700 truncate">{selectedType}</span>
+                          <span className="text-gray-700 dark:text-gray-300 truncate">{selectedType}</span>
                           <motion.div
                             animate={{ rotate: openDropdown === 'type' ? 180 : 0 }}
                             transition={{ duration: 0.2 }}
                           >
-                            <ChevronDown className="h-3.5 w-3.5 text-gray-500 flex-shrink-0" />
+                            <ChevronDown className="h-3.5 w-3.5 text-gray-500 dark:text-gray-400 flex-shrink-0" />
                           </motion.div>
                         </button>
                         
@@ -686,7 +686,7 @@ function AuctionPageContent() {
                               animate={{ opacity: 1, y: 0 }}
                               exit={{ opacity: 0, y: -10 }}
                               transition={{ duration: 0.2 }}
-                              className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden z-50"
+                              className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg overflow-hidden z-50"
                             >
                               {['전체', '한우거세', '한우암'].map((option) => (
                                 <motion.button
@@ -697,7 +697,7 @@ function AuctionPageContent() {
                                   }}
                                   whileHover={{ backgroundColor: '#fef2f2' }}
                                   className={`w-full px-2.5 py-1.5 text-[11px] text-left transition-colors ${
-                                    selectedType === option ? 'bg-red-50 text-red-600 font-medium' : 'text-gray-700'
+                                    selectedType === option ? 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 font-medium' : 'text-gray-700 dark:text-gray-300'
                                   }`}
                                 >
                                   {option}
@@ -712,14 +712,14 @@ function AuctionPageContent() {
                       <div className="flex-1 relative">
                         <button
                           onClick={() => setOpenDropdown(openDropdown === 'grade' ? null : 'grade')}
-                          className="w-full h-8 px-2 text-[11px] border border-gray-300 rounded-lg bg-white transition-colors flex items-center justify-between"
+                          className="w-full h-8 px-2 text-[11px] border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 transition-colors flex items-center justify-between"
                         >
-                          <span className="text-gray-700 truncate">{selectedGrade}</span>
+                          <span className="text-gray-700 dark:text-gray-300 truncate">{selectedGrade}</span>
                           <motion.div
                             animate={{ rotate: openDropdown === 'grade' ? 180 : 0 }}
                             transition={{ duration: 0.2 }}
                           >
-                            <ChevronDown className="h-3.5 w-3.5 text-gray-500 flex-shrink-0" />
+                            <ChevronDown className="h-3.5 w-3.5 text-gray-500 dark:text-gray-400 flex-shrink-0" />
                           </motion.div>
                         </button>
                         
@@ -730,7 +730,7 @@ function AuctionPageContent() {
                               animate={{ opacity: 1, y: 0 }}
                               exit={{ opacity: 0, y: -10 }}
                               transition={{ duration: 0.2 }}
-                              className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden z-50 max-h-40 overflow-y-auto"
+                              className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg overflow-hidden z-50 max-h-40 overflow-y-auto"
                             >
                               {['전체', '1++등급', '1+등급', '1등급', '2등급'].map((option) => (
                                 <motion.button
@@ -741,7 +741,7 @@ function AuctionPageContent() {
                                   }}
                                   whileHover={{ backgroundColor: '#fef2f2' }}
                                   className={`w-full px-2.5 py-1.5 text-[11px] text-left transition-colors ${
-                                    selectedGrade === option ? 'bg-red-50 text-red-600 font-medium' : 'text-gray-700'
+                                    selectedGrade === option ? 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 font-medium' : 'text-gray-700 dark:text-gray-300'
                                   }`}
                                 >
                                   {option}
@@ -756,14 +756,14 @@ function AuctionPageContent() {
                       <div className="flex-1 relative">
                         <button
                           onClick={() => setOpenDropdown(openDropdown === 'no' ? null : 'no')}
-                          className="w-full h-8 px-2 text-[11px] border border-gray-300 rounded-lg bg-white transition-colors flex items-center justify-between"
+                          className="w-full h-8 px-2 text-[11px] border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 transition-colors flex items-center justify-between"
                         >
-                          <span className="text-gray-700 truncate">{selectedNo}</span>
+                          <span className="text-gray-700 dark:text-gray-300 truncate">{selectedNo}</span>
                           <motion.div
                             animate={{ rotate: openDropdown === 'no' ? 180 : 0 }}
                             transition={{ duration: 0.2 }}
                           >
-                            <ChevronDown className="h-3.5 w-3.5 text-gray-500 flex-shrink-0" />
+                            <ChevronDown className="h-3.5 w-3.5 text-gray-500 dark:text-gray-400 flex-shrink-0" />
                           </motion.div>
                         </button>
                         
@@ -774,7 +774,7 @@ function AuctionPageContent() {
                               animate={{ opacity: 1, y: 0 }}
                               exit={{ opacity: 0, y: -10 }}
                               transition={{ duration: 0.2 }}
-                              className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden z-50"
+                              className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg overflow-hidden z-50"
                             >
                               {['전체', 'No.9', 'No.8', 'No.7', 'No.6', 'No.5'].map((option) => (
                                 <motion.button
@@ -785,7 +785,7 @@ function AuctionPageContent() {
                                   }}
                                   whileHover={{ backgroundColor: '#fef2f2' }}
                                   className={`w-full px-2.5 py-1.5 text-[11px] text-left transition-colors ${
-                                    selectedNo === option ? 'bg-red-50 text-red-600 font-medium' : 'text-gray-700'
+                                    selectedNo === option ? 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 font-medium' : 'text-gray-700 dark:text-gray-300'
                                   }`}
                                 >
                                   {option}
@@ -802,16 +802,16 @@ function AuctionPageContent() {
                   <div className="px-3 pb-24 pt-4 flex-1 overflow-y-auto">
                     {filteredProducts.length === 0 ? (
                       <div className="text-center py-12">
-                        <p className="text-sm text-gray-500">조건에 맞는 상품이 없습니다.</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">조건에 맞는 상품이 없습니다.</p>
                       </div>
                     ) : (
                       filteredProducts.map((product) => (
                         <Link key={product.id} href={`/auction/${product.id}`} className="block">
-                          <div className="bg-white rounded border border-gray-200 p-3 mb-3 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
+                          <div className="bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700 p-3 mb-3 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
                             <div className="flex gap-3">
                               {/* 상품 이미지 */}
                               <div className="flex-shrink-0">
-                                <div className="w-24 h-24 rounded bg-gray-200 overflow-hidden">
+                                <div className="w-24 h-24 rounded bg-gray-200 dark:bg-gray-700 overflow-hidden">
                                   <img 
                                     src={product.image} 
                                     alt={`등심${product.id}`} 
@@ -824,10 +824,10 @@ function AuctionPageContent() {
                               <div className="flex-1 min-w-0 flex flex-col justify-center">
                                 <div className="flex items-start justify-between mb-2">
                                   <div className="flex flex-wrap gap-0.5">
-                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-white border border-gray-300 text-gray-700">
+                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300">
                                       {product.type}
                                     </span>
-                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-white border border-gray-300 text-gray-700">
+                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300">
                                       {product.grade}
                                     </span>
                                   </div>
@@ -835,20 +835,20 @@ function AuctionPageContent() {
                                 
                                 <div className="space-y-0.5">
                                   <p className="text-xs">
-                                    <span className="font-bold text-gray-900">접수번호:</span> 
-                                    <span className="text-gray-600 ml-1">{product.auctionNo}</span>
+                                    <span className="font-bold text-gray-900 dark:text-gray-100">접수번호:</span> 
+                                    <span className="text-gray-600 dark:text-gray-400 ml-1">{product.auctionNo}</span>
                                   </p>
                                   <p className="text-xs">
-                                    <span className="font-bold text-gray-900">이력번호:</span> 
-                                    <span className="text-gray-600 ml-1">{product.historyNo}</span>
+                                    <span className="font-bold text-gray-900 dark:text-gray-100">이력번호:</span> 
+                                    <span className="text-gray-600 dark:text-gray-400 ml-1">{product.historyNo}</span>
                                   </p>
                                   <p className="text-xs">
-                                    <span className="font-bold text-gray-900">업체명:</span> 
-                                    <span className="text-gray-600 ml-1">{product.company}</span>
+                                    <span className="font-bold text-gray-900 dark:text-gray-100">업체명:</span> 
+                                    <span className="text-gray-600 dark:text-gray-400 ml-1">{product.company}</span>
                                   </p>
                                   <p className="text-xs">
-                                    <span className="font-bold text-gray-900">가공일자:</span> 
-                                    <span className="text-gray-600 ml-1">{product.date}</span>
+                                    <span className="font-bold text-gray-900 dark:text-gray-100">가공일자:</span> 
+                                    <span className="text-gray-600 dark:text-gray-400 ml-1">{product.date}</span>
                                   </p>
                                 </div>
                               </div>
@@ -862,27 +862,27 @@ function AuctionPageContent() {
               ) : selectedPartId && selectedPart ? (
                 <>
                   {/* 부위별 상세 목록 헤더 - sticky */}
-                  <div className="px-3 h-12 bg-white sticky top-0 z-30 flex items-center">
+                  <div className="px-3 h-12 bg-white dark:bg-gray-900 sticky top-0 z-30 flex items-center transition-colors">
                     <button
                       onClick={() => router.push('/?tab=부위별')}
-                      className="p-1 text-gray-600 hover:text-gray-900 transition-colors"
+                      className="p-1 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
                     >
                       <ChevronLeft className="h-6 w-6" />
                     </button>
                     <div className="flex-1 text-center pr-6">
-                      <h3 className="text-[17px] font-bold text-gray-900">{selectedPart.name}</h3>
+                      <h3 className="text-[17px] font-bold text-gray-900 dark:text-gray-100">{selectedPart.name}</h3>
                     </div>
                   </div>
                   
 
                   {/* 부위별 필터 - 메인 페이지 개체별과 동일한 스타일 */}
-                  <div className="px-4 py-3 bg-white border-b border-gray-100 filter-dropdown">
+                  <div className="px-4 py-3 bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 filter-dropdown transition-colors">
                     <div className="flex items-center gap-2.5 flex-wrap">
                       {/* 등급 필터 */}
                       <div className="relative">
                         <button
                           onClick={() => setOpenDropdown(openDropdown === 'partGrade' ? null : 'partGrade')}
-                          className="flex items-center gap-1.5 px-3.5 py-2 bg-gray-100 rounded text-[13px] font-medium text-gray-700 hover:bg-gray-200 transition-colors"
+                          className="flex items-center gap-1.5 px-3.5 py-2 bg-gray-100 dark:bg-gray-800 rounded text-[13px] font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
                         >
                           등급: {partFilterGrade === '등급' ? '전체' : partFilterGrade}
                           <ChevronDown className={`h-4 w-4 transition-transform ${openDropdown === 'partGrade' ? 'rotate-180' : ''}`} />
@@ -890,7 +890,7 @@ function AuctionPageContent() {
                         
                         {/* 등급 드롭다운 메뉴 */}
                         {openDropdown === 'partGrade' && (
-                          <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-20 min-w-[110px]">
+                          <div className="absolute top-full left-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-20 min-w-[110px]">
                             {['전체', '1++(9)', '1++(8)', '1++(7)', '1+', '1', '2'].map((option) => (
                               <button
                                 key={option}
@@ -899,10 +899,10 @@ function AuctionPageContent() {
                                   setPartFilterGrade(option);
                                   setOpenDropdown(null);
                                 }}
-                                className={`block w-full text-left px-4 py-2.5 text-[13px] hover:bg-gray-50 first:rounded-t-lg last:rounded-b-lg ${
+                                className={`block w-full text-left px-4 py-2.5 text-[13px] hover:bg-gray-50 dark:hover:bg-gray-700 first:rounded-t-lg last:rounded-b-lg ${
                                   (partFilterGrade === option || (partFilterGrade === '등급' && option === '전체'))
-                                    ? 'bg-gray-100 text-gray-900 font-medium'
-                                    : 'text-gray-700'
+                                    ? 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 font-medium'
+                                    : 'text-gray-700 dark:text-gray-300'
                                 }`}
                               >
                                 {option}
@@ -916,7 +916,7 @@ function AuctionPageContent() {
                       <div className="relative">
                         <button
                           onClick={() => setOpenDropdown(openDropdown === 'partCompany' ? null : 'partCompany')}
-                          className="flex items-center gap-1.5 px-3.5 py-2 bg-gray-100 rounded text-[13px] font-medium text-gray-700 hover:bg-gray-200 transition-colors"
+                          className="flex items-center gap-1.5 px-3.5 py-2 bg-gray-100 dark:bg-gray-800 rounded text-[13px] font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
                         >
                           업체: {partFilterCompany === '업체명' ? '전체' : partFilterCompany}
                           <ChevronDown className={`h-4 w-4 transition-transform ${openDropdown === 'partCompany' ? 'rotate-180' : ''}`} />
@@ -924,7 +924,7 @@ function AuctionPageContent() {
                         
                         {/* 업체 드롭다운 메뉴 */}
                         {openDropdown === 'partCompany' && (
-                          <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-20 min-w-[110px]">
+                          <div className="absolute top-full left-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-20 min-w-[110px]">
                             {['전체', '건화', '대진엠이스', '안심엘피시', '정직한고기'].map((option) => (
                               <button
                                 key={option}
@@ -933,10 +933,10 @@ function AuctionPageContent() {
                                   setPartFilterCompany(option);
                                   setOpenDropdown(null);
                                 }}
-                                className={`block w-full text-left px-4 py-2.5 text-[13px] hover:bg-gray-50 first:rounded-t-lg last:rounded-b-lg whitespace-nowrap ${
+                                className={`block w-full text-left px-4 py-2.5 text-[13px] hover:bg-gray-50 dark:hover:bg-gray-700 first:rounded-t-lg last:rounded-b-lg whitespace-nowrap ${
                                   (partFilterCompany === option || (partFilterCompany === '업체명' && option === '전체'))
-                                    ? 'bg-gray-100 text-gray-900 font-medium'
-                                    : 'text-gray-700'
+                                    ? 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 font-medium'
+                                    : 'text-gray-700 dark:text-gray-300'
                                 }`}
                               >
                                 {option}
@@ -947,7 +947,7 @@ function AuctionPageContent() {
                       </div>
                       
                       {/* 필터 결과 카운트 */}
-                      <span className="ml-auto text-[13px] text-gray-400">
+                      <span className="ml-auto text-[13px] text-gray-400 dark:text-gray-500">
                         {filteredPartProducts.length}개
                       </span>
                     </div>
@@ -957,8 +957,8 @@ function AuctionPageContent() {
                   {/* 부위별 상품 테이블 */}
                   <div className="flex-1 pb-24" data-scroll-container>
                     {/* 테이블 헤더 - sticky */}
-                    <div className="bg-gray-100 border-b border-gray-200 h-9 flex items-center sticky top-11 z-10">
-                      <div className="grid px-2 text-[13px] font-medium text-gray-500 w-full" style={{gridTemplateColumns: '0.85fr 0.6fr 0.85fr 0.95fr 0.95fr 0.5fr 0.5fr'}}>
+                    <div className="bg-gray-100 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 h-9 flex items-center sticky top-11 z-10 transition-colors">
+                      <div className="grid px-2 text-[13px] font-medium text-gray-500 dark:text-gray-400 w-full" style={{gridTemplateColumns: '0.85fr 0.6fr 0.85fr 0.95fr 0.95fr 0.5fr 0.5fr'}}>
                         <div className="text-center">부위</div>
                         <div className="text-center">중량</div>
                         <div className="text-center">최저단가</div>
@@ -972,7 +972,7 @@ function AuctionPageContent() {
                     {/* 테이블 데이터 */}
                     {filteredPartProducts.length === 0 ? (
                       <div className="text-center py-12">
-                        <p className="text-sm text-gray-500">조건에 맞는 상품이 없습니다.</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">조건에 맞는 상품이 없습니다.</p>
                       </div>
                     ) : (
                       filteredPartProducts.map((product) => {
@@ -980,14 +980,14 @@ function AuctionPageContent() {
                         const isExpanded = expandedProductId === product.id;
                         const isHighlighted = highlightedProductId === product.id;
                         return (
-                          <div key={product.id} id={`product-row-${product.id}`} className={`${isHighlighted ? 'border-2 border-red-500' : ''}`}>
+                          <div key={product.id} id={`product-row-${product.id}`} className={`${isHighlighted ? 'border-2 border-red-500 dark:border-red-400' : ''}`}>
                             <div 
-                              className={`grid px-2 py-3 border-b border-gray-100 cursor-pointer transition-colors items-center ${
+                              className={`grid px-2 py-3 border-b border-gray-100 dark:border-gray-800 cursor-pointer transition-colors items-center ${
                                 bid?.status === 'highest' 
-                                  ? 'bg-blue-50/50' 
+                                  ? 'bg-blue-50/50 dark:bg-blue-900/30' 
                                   : bid?.status === 'secondHighest'
-                                    ? 'bg-red-50/50'
-                                    : 'bg-white hover:bg-gray-50'
+                                    ? 'bg-red-50/50 dark:bg-red-900/30'
+                                    : 'bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800'
                               }`}
                               style={{gridTemplateColumns: '0.85fr 0.6fr 0.85fr 0.95fr 0.95fr 0.5fr 0.5fr'}}
                               onClick={() => {
@@ -998,16 +998,16 @@ function AuctionPageContent() {
                               }}
                             >
                               <div className="text-center">
-                                <div className="text-[13px] font-medium text-gray-900">{product.partName}</div>
-                                <div className="text-[11px] text-gray-500 whitespace-nowrap">{product.type.includes('거세') ? '거세' : '암'} / {product.grade}</div>
+                                <div className="text-[13px] font-medium text-gray-900 dark:text-gray-100">{product.partName}</div>
+                                <div className="text-[11px] text-gray-500 dark:text-gray-400 whitespace-nowrap">{product.type.includes('거세') ? '거세' : '암'} / {product.grade}</div>
                               </div>
-                              <div className="text-center text-[13px] text-gray-700">
+                              <div className="text-center text-[13px] text-gray-700 dark:text-gray-300">
                                 {product.weight}
                               </div>
-                              <div className="text-center text-[13px] text-gray-700">
+                              <div className="text-center text-[13px] text-gray-700 dark:text-gray-300">
                                 {product.price.toLocaleString()}
                               </div>
-                              <div className="text-center text-[13px] font-medium text-gray-900">
+                              <div className="text-center text-[13px] font-medium text-gray-900 dark:text-gray-100">
                                 {bid?.highestBid ? bid.highestBid.toLocaleString() : '-'}
                               </div>
                               <div 
@@ -1024,7 +1024,7 @@ function AuctionPageContent() {
                                           setShowPartBidSheet(true);
                                         }
                                       }}
-                                      className={`text-[13px] font-medium text-gray-900 leading-none ${bid.status !== 'highest' ? 'cursor-pointer' : ''}`}
+                                      className={`text-[13px] font-medium text-gray-900 dark:text-gray-100 leading-none ${bid.status !== 'highest' ? 'cursor-pointer' : ''}`}
                                     >
                                       {bid.myBid.toLocaleString()}
                                     </span>
@@ -1035,7 +1035,7 @@ function AuctionPageContent() {
                                           setPartBidPrice(bid.highestBid + quickReBidAmount);
                                           setShowPartBidSheet(true);
                                         }}
-                                        className="mt-1 px-2 py-0.5 text-[11px] font-medium text-white bg-gray-800 rounded hover:bg-gray-900 transition-colors"
+                                        className="mt-1 px-2 py-0.5 text-[11px] font-medium text-white bg-gray-800 dark:bg-gray-700 rounded hover:bg-gray-900 dark:hover:bg-gray-600 transition-colors"
                                       >
                                         재입찰
                                       </button>
@@ -1048,7 +1048,7 @@ function AuctionPageContent() {
                                       setPartBidPrice(0);
                                       setShowPartBidSheet(true);
                                     }}
-                                    className="px-2 py-1 text-[11px] font-medium text-white bg-gray-800 rounded hover:bg-gray-900 transition-colors"
+                                    className="px-2 py-1 text-[11px] font-medium text-white bg-gray-800 dark:bg-gray-700 rounded hover:bg-gray-900 dark:hover:bg-gray-600 transition-colors"
                                   >
                                     입찰하기
                                   </button>
@@ -1056,11 +1056,11 @@ function AuctionPageContent() {
                               </div>
                               <div className="text-center flex items-center justify-center">
                                 {bid?.status === 'highest' ? (
-                                  <span className="text-[11px] font-medium text-blue-600">최고순위</span>
+                                  <span className="text-[11px] font-medium text-blue-600 dark:text-blue-400">최고순위</span>
                                 ) : bid?.status === 'secondHighest' ? (
-                                  <span className="text-[11px] font-medium text-red-500">차순위</span>
+                                  <span className="text-[11px] font-medium text-red-500 dark:text-red-400">차순위</span>
                                 ) : (
-                                  <span className="text-[13px] text-gray-400">-</span>
+                                  <span className="text-[13px] text-gray-400 dark:text-gray-500">-</span>
                                 )}
                               </div>
                               <div 
@@ -1071,8 +1071,8 @@ function AuctionPageContent() {
                                   onClick={() => toggleFavorite(product.listingNo)}
                                   className={`p-1.5 transition-colors ${
                                     isFavorite(product.listingNo) 
-                                      ? 'text-gray-900' 
-                                      : 'text-gray-400 hover:text-gray-700'
+                                      ? 'text-gray-900 dark:text-gray-100' 
+                                      : 'text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
                                   }`}
                                 >
                                   <Star className={`w-5 h-5 ${isFavorite(product.listingNo) ? 'fill-current' : ''}`} />
@@ -1088,7 +1088,7 @@ function AuctionPageContent() {
                                   animate={{ height: 'auto', opacity: 1 }}
                                   exit={{ height: 0, opacity: 0 }}
                                   transition={{ duration: 0.2 }}
-                                  className="overflow-hidden border-b border-gray-200"
+                                  className="overflow-hidden border-b border-gray-200 dark:border-gray-700"
                                 >
                                   {/* 메인 이미지 배너 */}
                                   <div 
@@ -1101,11 +1101,11 @@ function AuctionPageContent() {
                                     onMouseUp={handleImageMouseUp}
                                     onMouseLeave={handleImageMouseLeave}
                                   >
-                                    <div className="w-full aspect-square bg-gray-200">
+                                    <div className="w-full aspect-square bg-gray-200 dark:bg-gray-800">
                                       {(expandedImageIndex[product.id] || 0) === 4 ? (
                                         // 등급판정확인서
-                                        <div className="w-full h-full flex items-center justify-center bg-gray-100 p-4">
-                                          <div className="w-full max-w-[280px] bg-white shadow-lg border border-gray-300 p-4 aspect-[1/1.414]">
+                                        <div className="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-gray-700 p-4">
+                                          <div className="w-full max-w-[280px] bg-white dark:bg-gray-200 shadow-lg border border-gray-300 p-4 aspect-[1/1.414]">
                                             <div className="h-full flex flex-col text-[8px] text-gray-700">
                                               <div className="text-center border-b border-gray-400 pb-2 mb-2">
                                                 <p className="text-[12px] font-bold text-gray-900">등급판정확인서</p>
@@ -1135,8 +1135,8 @@ function AuctionPageContent() {
                                         </div>
                                       ) : (expandedImageIndex[product.id] || 0) === 5 ? (
                                         // 도축검사증명서
-                                        <div className="w-full h-full flex items-center justify-center bg-gray-100 p-4">
-                                          <div className="w-full max-w-[280px] bg-white shadow-lg border border-gray-300 p-4 aspect-[1/1.414]">
+                                        <div className="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-gray-700 p-4">
+                                          <div className="w-full max-w-[280px] bg-white dark:bg-gray-200 shadow-lg border border-gray-300 p-4 aspect-[1/1.414]">
                                             <div className="h-full flex flex-col text-[8px] text-gray-700">
                                               <div className="text-center border-b border-gray-400 pb-2 mb-2">
                                                 <p className="text-[12px] font-bold text-gray-900">도축검사증명서</p>
@@ -1203,8 +1203,8 @@ function AuctionPageContent() {
                                           }}
                                           className={`w-14 h-14 flex-shrink-0 rounded overflow-hidden transition-all ${
                                             (expandedImageIndex[product.id] || 0) === index 
-                                              ? 'border-2 border-gray-400' 
-                                              : 'border-2 border-transparent hover:border-gray-300'
+                                              ? 'border-2 border-gray-400 dark:border-gray-500' 
+                                              : 'border-2 border-transparent hover:border-gray-300 dark:hover:border-gray-600'
                                           }`}
                                         >
                                           <img 
@@ -1222,12 +1222,12 @@ function AuctionPageContent() {
                                         }}
                                         className={`w-14 h-14 flex-shrink-0 rounded overflow-hidden transition-all ${
                                           (expandedImageIndex[product.id] || 0) === 4 
-                                            ? 'border-2 border-gray-400' 
-                                            : 'border-2 border-transparent hover:border-gray-300'
+                                            ? 'border-2 border-gray-400 dark:border-gray-500' 
+                                            : 'border-2 border-transparent hover:border-gray-300 dark:hover:border-gray-600'
                                         }`}
                                       >
-                                        <div className="w-full h-full bg-gray-100 flex items-center justify-center">
-                                          <div className="w-8 h-10 bg-white border border-gray-300"></div>
+                                        <div className="w-full h-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
+                                          <div className="w-8 h-10 bg-white dark:bg-gray-200 border border-gray-300"></div>
                                         </div>
                                       </button>
                                       {/* 도축검사증명서 썸네일 */}
@@ -1238,92 +1238,92 @@ function AuctionPageContent() {
                                         }}
                                         className={`w-14 h-14 flex-shrink-0 rounded overflow-hidden transition-all ${
                                           (expandedImageIndex[product.id] || 0) === 5 
-                                            ? 'border-2 border-gray-400' 
-                                            : 'border-2 border-transparent hover:border-gray-300'
+                                            ? 'border-2 border-gray-400 dark:border-gray-500' 
+                                            : 'border-2 border-transparent hover:border-gray-300 dark:hover:border-gray-600'
                                         }`}
                                       >
-                                        <div className="w-full h-full bg-gray-100 flex items-center justify-center">
-                                          <div className="w-8 h-10 bg-white border border-gray-300"></div>
+                                        <div className="w-full h-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
+                                          <div className="w-8 h-10 bg-white dark:bg-gray-200 border border-gray-300"></div>
                                         </div>
                                       </button>
                                     </div>
                                   </div>
 
                                   {/* 개체정보 패널 - 3줄 테이블 형식 */}
-                                  <div className="px-3 py-3 border-t border-gray-200">
+                                  <div className="px-3 py-3 border-t border-gray-200 dark:border-gray-700">
                                     {/* 1행: 축종, 성별, 등급, 개월령, 이력번호 */}
-                                    <div className="bg-white border border-gray-200 rounded overflow-hidden mb-2">
+                                    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded overflow-hidden mb-2">
                                       <table className="w-full text-[13px]">
                                         <thead>
-                                          <tr className="bg-gray-100/80 border-b border-gray-200">
-                                            <th className="py-2.5 px-2 text-center font-medium text-gray-500">축종</th>
-                                            <th className="py-2.5 px-2 text-center font-medium text-gray-500">성별</th>
-                                            <th className="py-2.5 px-2 text-center font-medium text-gray-500">등급</th>
-                                            <th className="py-2.5 px-2 text-center font-medium text-gray-500">개월령</th>
-                                            <th className="py-2.5 px-2 text-center font-medium text-gray-500">이력번호</th>
+                                          <tr className="bg-gray-100/80 dark:bg-gray-700/80 border-b border-gray-200 dark:border-gray-600">
+                                            <th className="py-2.5 px-2 text-center font-medium text-gray-500 dark:text-gray-400">축종</th>
+                                            <th className="py-2.5 px-2 text-center font-medium text-gray-500 dark:text-gray-400">성별</th>
+                                            <th className="py-2.5 px-2 text-center font-medium text-gray-500 dark:text-gray-400">등급</th>
+                                            <th className="py-2.5 px-2 text-center font-medium text-gray-500 dark:text-gray-400">개월령</th>
+                                            <th className="py-2.5 px-2 text-center font-medium text-gray-500 dark:text-gray-400">이력번호</th>
                                           </tr>
                                         </thead>
                                         <tbody>
                                           <tr>
-                                            <td className="py-3 px-2 text-center text-gray-900 font-medium">한우</td>
-                                            <td className="py-3 px-2 text-center text-gray-900 font-medium">암</td>
-                                            <td className="py-3 px-2 text-center text-gray-900 font-medium">{product.grade}</td>
-                                            <td className="py-3 px-2 text-center text-gray-900 font-medium">32</td>
-                                            <td className="py-3 px-2 text-center text-gray-900 font-medium text-[11px]">002-1486-7293-1</td>
+                                            <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">한우</td>
+                                            <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">암</td>
+                                            <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">{product.grade}</td>
+                                            <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">32</td>
+                                            <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium text-[11px]">002-1486-7293-1</td>
                                           </tr>
                                         </tbody>
                                       </table>
                                     </div>
 
                                     {/* 2행: 등지방, 등심면적, 근내지방, 육색, 지방색, 조직감, 성숙도 */}
-                                    <div className="bg-white border border-gray-200 rounded overflow-hidden mb-2">
+                                    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded overflow-hidden mb-2">
                                       <table className="w-full text-[13px]">
                                         <thead>
-                                          <tr className="bg-gray-100/80 border-b border-gray-200">
-                                            <th className="py-2.5 px-2 text-center font-medium text-gray-500">등지방</th>
-                                            <th className="py-2.5 px-2 text-center font-medium text-gray-500">등심면적</th>
-                                            <th className="py-2.5 px-2 text-center font-medium text-gray-500">근내지방</th>
-                                            <th className="py-2.5 px-2 text-center font-medium text-gray-500">육색</th>
-                                            <th className="py-2.5 px-2 text-center font-medium text-gray-500">지방색</th>
-                                            <th className="py-2.5 px-2 text-center font-medium text-gray-500">조직감</th>
-                                            <th className="py-2.5 px-2 text-center font-medium text-gray-500">성숙도</th>
+                                          <tr className="bg-gray-100/80 dark:bg-gray-700/80 border-b border-gray-200 dark:border-gray-600">
+                                            <th className="py-2.5 px-2 text-center font-medium text-gray-500 dark:text-gray-400">등지방</th>
+                                            <th className="py-2.5 px-2 text-center font-medium text-gray-500 dark:text-gray-400">등심면적</th>
+                                            <th className="py-2.5 px-2 text-center font-medium text-gray-500 dark:text-gray-400">근내지방</th>
+                                            <th className="py-2.5 px-2 text-center font-medium text-gray-500 dark:text-gray-400">육색</th>
+                                            <th className="py-2.5 px-2 text-center font-medium text-gray-500 dark:text-gray-400">지방색</th>
+                                            <th className="py-2.5 px-2 text-center font-medium text-gray-500 dark:text-gray-400">조직감</th>
+                                            <th className="py-2.5 px-2 text-center font-medium text-gray-500 dark:text-gray-400">성숙도</th>
                                           </tr>
                                         </thead>
                                         <tbody>
                                           <tr>
-                                            <td className="py-3 px-2 text-center text-gray-900 font-medium">16</td>
-                                            <td className="py-3 px-2 text-center text-gray-900 font-medium">123</td>
-                                            <td className="py-3 px-2 text-center text-gray-900 font-medium">9</td>
-                                            <td className="py-3 px-2 text-center text-gray-900 font-medium">5</td>
-                                            <td className="py-3 px-2 text-center text-gray-900 font-medium">3</td>
-                                            <td className="py-3 px-2 text-center text-gray-900 font-medium">1</td>
-                                            <td className="py-3 px-2 text-center text-gray-900 font-medium">2</td>
+                                            <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">16</td>
+                                            <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">123</td>
+                                            <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">9</td>
+                                            <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">5</td>
+                                            <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">3</td>
+                                            <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">1</td>
+                                            <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">2</td>
                                           </tr>
                                         </tbody>
                                       </table>
                                     </div>
 
                                     {/* 3행: 도축장, 도축번호, 도체중, 상장업체, 가공일, 가공중량 */}
-                                    <div className="bg-white border border-gray-200 rounded overflow-hidden">
+                                    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded overflow-hidden">
                                       <table className="w-full text-[13px]">
                                         <thead>
-                                          <tr className="bg-gray-100/80 border-b border-gray-200">
-                                            <th className="py-2.5 px-2 text-center font-medium text-gray-500">도축장</th>
-                                            <th className="py-2.5 px-2 text-center font-medium text-gray-500">도축번호</th>
-                                            <th className="py-2.5 px-2 text-center font-medium text-gray-500">도체중</th>
-                                            <th className="py-2.5 px-2 text-center font-medium text-gray-500">상장업체</th>
-                                            <th className="py-2.5 px-2 text-center font-medium text-gray-500">가공일</th>
-                                            <th className="py-2.5 px-2 text-center font-medium text-gray-500">가공중량</th>
+                                          <tr className="bg-gray-100/80 dark:bg-gray-700/80 border-b border-gray-200 dark:border-gray-600">
+                                            <th className="py-2.5 px-2 text-center font-medium text-gray-500 dark:text-gray-400">도축장</th>
+                                            <th className="py-2.5 px-2 text-center font-medium text-gray-500 dark:text-gray-400">도축번호</th>
+                                            <th className="py-2.5 px-2 text-center font-medium text-gray-500 dark:text-gray-400">도체중</th>
+                                            <th className="py-2.5 px-2 text-center font-medium text-gray-500 dark:text-gray-400">상장업체</th>
+                                            <th className="py-2.5 px-2 text-center font-medium text-gray-500 dark:text-gray-400">가공일</th>
+                                            <th className="py-2.5 px-2 text-center font-medium text-gray-500 dark:text-gray-400">가공중량</th>
                                           </tr>
                                         </thead>
                                         <tbody>
                                           <tr>
-                                            <td className="py-3 px-2 text-center text-gray-900 font-medium">음성</td>
-                                            <td className="py-3 px-2 text-center text-gray-900 font-medium">201</td>
-                                            <td className="py-3 px-2 text-center text-gray-900 font-medium">520</td>
-                                            <td className="py-3 px-2 text-center text-gray-900 font-medium">건화</td>
-                                            <td className="py-3 px-2 text-center text-gray-900 font-medium">26.01.17</td>
-                                            <td className="py-3 px-2 text-center text-gray-900 font-medium">312</td>
+                                            <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">음성</td>
+                                            <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">201</td>
+                                            <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">520</td>
+                                            <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">건화</td>
+                                            <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">26.01.17</td>
+                                            <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">312</td>
                                           </tr>
                                         </tbody>
                                       </table>
@@ -1465,22 +1465,22 @@ function AuctionPageContent() {
                     animate={{ y: 0 }}
                     exit={{ y: '100%' }}
                     transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                    className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-2xl max-h-[70vh] overflow-y-auto z-[100]"
+                    className="absolute bottom-0 left-0 right-0 bg-white dark:bg-gray-900 rounded-t-2xl shadow-2xl max-h-[70vh] overflow-y-auto z-[100] transition-colors"
                   >
                     {/* 핸들 */}
                     <div className="flex justify-center pt-3 pb-2">
-                      <div className="w-10 h-1 bg-gray-300 rounded-full" />
+                      <div className="w-10 h-1 bg-gray-300 dark:bg-gray-600 rounded-full" />
                     </div>
                     
                     {/* 헤더 */}
-                    <div className="px-4 pb-3 border-b border-gray-200">
+                    <div className="px-4 pb-3 border-b border-gray-200 dark:border-gray-700">
                       <div className="flex items-center justify-between">
-                        <h3 className="text-lg font-bold text-gray-900">입찰하기</h3>
+                        <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">입찰하기</h3>
                         <button 
                           onClick={() => setShowPartBidSheet(false)}
-                          className="p-1 hover:bg-gray-100 rounded-full"
+                          className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"
                         >
-                          <X className="h-5 w-5 text-gray-500" />
+                          <X className="h-5 w-5 text-gray-500 dark:text-gray-400" />
                         </button>
                       </div>
                     </div>
@@ -1488,28 +1488,28 @@ function AuctionPageContent() {
                     {/* 입찰 내용 */}
                     <div className="p-4 space-y-4">
                       {/* 개체 정보 테이블 */}
-                      <div className="border border-gray-200 rounded overflow-hidden overflow-x-auto">
+                      <div className="border border-gray-200 dark:border-gray-700 rounded overflow-hidden overflow-x-auto">
                         <table className="w-full text-[11px]">
                           <thead>
-                            <tr className="bg-gray-100 border-b border-gray-200">
-                              <th className="py-2 px-1.5 text-center font-medium text-gray-500 whitespace-nowrap">상장번호</th>
-                              <th className="py-2 px-1.5 text-center font-medium text-gray-500">축종</th>
-                              <th className="py-2 px-1.5 text-center font-medium text-gray-500">성별</th>
-                              <th className="py-2 px-1.5 text-center font-medium text-gray-500">등급</th>
-                              <th className="py-2 px-1.5 text-center font-medium text-gray-500">개월령</th>
-                              <th className="py-2 px-1.5 text-center font-medium text-gray-500">부위</th>
-                              <th className="py-2 px-1.5 text-center font-medium text-gray-500">중량</th>
+                            <tr className="bg-gray-100 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+                              <th className="py-2 px-1.5 text-center font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">상장번호</th>
+                              <th className="py-2 px-1.5 text-center font-medium text-gray-500 dark:text-gray-400">축종</th>
+                              <th className="py-2 px-1.5 text-center font-medium text-gray-500 dark:text-gray-400">성별</th>
+                              <th className="py-2 px-1.5 text-center font-medium text-gray-500 dark:text-gray-400">등급</th>
+                              <th className="py-2 px-1.5 text-center font-medium text-gray-500 dark:text-gray-400">개월령</th>
+                              <th className="py-2 px-1.5 text-center font-medium text-gray-500 dark:text-gray-400">부위</th>
+                              <th className="py-2 px-1.5 text-center font-medium text-gray-500 dark:text-gray-400">중량</th>
                             </tr>
                           </thead>
                           <tbody>
                             <tr>
-                              <td className="py-2.5 px-1.5 text-center text-gray-700 whitespace-nowrap">{selectedProduct.listingNo}</td>
-                              <td className="py-2.5 px-1.5 text-center text-gray-700">한우</td>
-                              <td className="py-2.5 px-1.5 text-center text-gray-700">{selectedProduct.type?.includes('거세') ? '거세' : '암'}</td>
-                              <td className="py-2.5 px-1.5 text-center text-gray-700">{selectedProduct.grade}</td>
-                              <td className="py-2.5 px-1.5 text-center text-gray-700">30</td>
-                              <td className="py-2.5 px-1.5 text-center font-medium text-gray-900">{selectedProduct.partName}</td>
-                              <td className="py-2.5 px-1.5 text-center font-medium text-gray-900">{selectedProduct.weight}</td>
+                              <td className="py-2.5 px-1.5 text-center text-gray-700 dark:text-gray-300 whitespace-nowrap">{selectedProduct.listingNo}</td>
+                              <td className="py-2.5 px-1.5 text-center text-gray-700 dark:text-gray-300">한우</td>
+                              <td className="py-2.5 px-1.5 text-center text-gray-700 dark:text-gray-300">{selectedProduct.type?.includes('거세') ? '거세' : '암'}</td>
+                              <td className="py-2.5 px-1.5 text-center text-gray-700 dark:text-gray-300">{selectedProduct.grade}</td>
+                              <td className="py-2.5 px-1.5 text-center text-gray-700 dark:text-gray-300">30</td>
+                              <td className="py-2.5 px-1.5 text-center font-medium text-gray-900 dark:text-gray-100">{selectedProduct.partName}</td>
+                              <td className="py-2.5 px-1.5 text-center font-medium text-gray-900 dark:text-gray-100">{selectedProduct.weight}</td>
                             </tr>
                           </tbody>
                         </table>
@@ -1517,7 +1517,7 @@ function AuctionPageContent() {
 
                       {/* 입찰가격 입력 */}
                       <div>
-                        <div className="text-xs text-gray-500 mb-2">입찰가격 (원/kg)</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400 mb-2">입찰가격 (원/kg)</div>
                         <div className="relative mb-2">
                           <input
                             type="text"
@@ -1527,10 +1527,10 @@ function AuctionPageContent() {
                               const value = e.target.value.replace(/,/g, '').replace(/[^0-9]/g, '');
                               setPartBidPrice(value ? parseInt(value) : 0);
                             }}
-                            className="w-full px-4 py-3.5 pr-12 text-right text-xl font-bold border border-gray-200 rounded focus:ring-2 focus:ring-gray-400 focus:border-gray-400 bg-white text-black placeholder:text-gray-400"
+                            className="w-full px-4 py-3.5 pr-12 text-right text-xl font-bold border border-gray-200 dark:border-gray-700 rounded focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500 focus:border-gray-400 dark:focus:border-gray-500 bg-white dark:bg-gray-800 text-black dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500"
                             placeholder={selectedProduct?.price ? `최저단가 ${selectedProduct.price.toLocaleString()}` : '0'}
                           />
-                          <div className="absolute right-4 top-1/2 transform -translate-y-1/2 text-sm text-gray-400">
+                          <div className="absolute right-4 top-1/2 transform -translate-y-1/2 text-sm text-gray-400 dark:text-gray-500">
                             원
                           </div>
                         </div>
@@ -1550,14 +1550,14 @@ function AuctionPageContent() {
                                   return prev + amount;
                                 });
                               }}
-                              className="py-2 text-xs border border-gray-200 rounded hover:bg-gray-50 font-medium text-gray-700"
+                              className="py-2 text-xs border border-gray-200 dark:border-gray-700 rounded hover:bg-gray-50 dark:hover:bg-gray-800 font-medium text-gray-700 dark:text-gray-300 transition-colors"
                             >
                               +{amount.toLocaleString()}
                             </button>
                           ))}
                           <button
                             onClick={() => setPartBidPrice(0)}
-                            className="py-2 text-xs bg-gray-100 border border-gray-200 rounded hover:bg-gray-200 text-gray-600 font-medium"
+                            className="py-2 text-xs bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 font-medium transition-colors"
                           >
                             초기화
                           </button>
@@ -1565,10 +1565,10 @@ function AuctionPageContent() {
                       </div>
 
                       {/* 총 입찰금액 */}
-                      <div className="bg-gray-50 p-3 rounded border border-gray-200">
+                      <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-700">
                         <div className="flex justify-between items-center">
-                          <span className="text-sm font-bold text-gray-700">총 입찰금액</span>
-                          <span className="text-xl font-bold text-gray-900">
+                          <span className="text-sm font-bold text-gray-700 dark:text-gray-300">총 입찰금액</span>
+                          <span className="text-xl font-bold text-gray-900 dark:text-gray-100">
                             {partBidPrice > 0 && selectedProduct.weight 
                               ? `${(partBidPrice * parseFloat(selectedProduct.weight)).toLocaleString()}원`
                               : '-'}
@@ -1586,7 +1586,7 @@ function AuctionPageContent() {
                           setShowPartBidDialog(true);
                         }}
                         disabled={partBidPrice === 0}
-                        className="w-full py-3.5 bg-gray-800 hover:bg-gray-900 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-bold text-base rounded"
+                        className="w-full py-3.5 bg-gray-800 dark:bg-gray-700 hover:bg-gray-900 dark:hover:bg-gray-600 disabled:bg-gray-300 dark:disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-bold text-base rounded transition-colors"
                       >
                         입찰하기
                       </button>
@@ -1599,51 +1599,51 @@ function AuctionPageContent() {
             {/* 부위별 입찰 확인 다이얼로그 */}
             {showPartBidDialog && selectedProduct && (
               <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[10000] p-4">
-                <div className="bg-white rounded w-full max-w-md mx-4">
+                <div className="bg-white dark:bg-gray-900 rounded w-full max-w-md mx-4 transition-colors">
                   {/* 다이얼로그 헤더 */}
-                  <div className="px-6 py-4 border-b border-gray-200">
-                    <h3 className="text-lg font-bold text-gray-900">입찰 내용을 확인해 주세요</h3>
+                  <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                    <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">입찰 내용을 확인해 주세요</h3>
                   </div>
                   
                   {/* 다이얼로그 내용 */}
                   <div className="px-6 py-4">
                     {/* 개체 정보 테이블 */}
-                    <div className="border border-gray-200 rounded overflow-hidden overflow-x-auto mb-4">
+                    <div className="border border-gray-200 dark:border-gray-700 rounded overflow-hidden overflow-x-auto mb-4">
                       <table className="w-full text-[11px]">
                         <thead>
-                          <tr className="bg-gray-100 border-b border-gray-200">
-                            <th className="py-2 px-1.5 text-center font-medium text-gray-500 whitespace-nowrap">상장번호</th>
-                            <th className="py-2 px-1.5 text-center font-medium text-gray-500">축종</th>
-                            <th className="py-2 px-1.5 text-center font-medium text-gray-500">성별</th>
-                            <th className="py-2 px-1.5 text-center font-medium text-gray-500">등급</th>
-                            <th className="py-2 px-1.5 text-center font-medium text-gray-500">개월령</th>
-                            <th className="py-2 px-1.5 text-center font-medium text-gray-500">부위</th>
-                            <th className="py-2 px-1.5 text-center font-medium text-gray-500">중량</th>
+                          <tr className="bg-gray-100 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+                            <th className="py-2 px-1.5 text-center font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">상장번호</th>
+                            <th className="py-2 px-1.5 text-center font-medium text-gray-500 dark:text-gray-400">축종</th>
+                            <th className="py-2 px-1.5 text-center font-medium text-gray-500 dark:text-gray-400">성별</th>
+                            <th className="py-2 px-1.5 text-center font-medium text-gray-500 dark:text-gray-400">등급</th>
+                            <th className="py-2 px-1.5 text-center font-medium text-gray-500 dark:text-gray-400">개월령</th>
+                            <th className="py-2 px-1.5 text-center font-medium text-gray-500 dark:text-gray-400">부위</th>
+                            <th className="py-2 px-1.5 text-center font-medium text-gray-500 dark:text-gray-400">중량</th>
                           </tr>
                         </thead>
                         <tbody>
                           <tr>
-                            <td className="py-2.5 px-1.5 text-center text-gray-700 whitespace-nowrap">{selectedProduct.listingNo}</td>
-                            <td className="py-2.5 px-1.5 text-center text-gray-700">한우</td>
-                            <td className="py-2.5 px-1.5 text-center text-gray-700">{selectedProduct.type?.includes('거세') ? '거세' : '암'}</td>
-                            <td className="py-2.5 px-1.5 text-center text-gray-700">{selectedProduct.grade}</td>
-                            <td className="py-2.5 px-1.5 text-center text-gray-700">30</td>
-                            <td className="py-2.5 px-1.5 text-center font-medium text-gray-900">{selectedProduct.partName}</td>
-                            <td className="py-2.5 px-1.5 text-center font-medium text-gray-900">{selectedProduct.weight}</td>
+                            <td className="py-2.5 px-1.5 text-center text-gray-700 dark:text-gray-300 whitespace-nowrap">{selectedProduct.listingNo}</td>
+                            <td className="py-2.5 px-1.5 text-center text-gray-700 dark:text-gray-300">한우</td>
+                            <td className="py-2.5 px-1.5 text-center text-gray-700 dark:text-gray-300">{selectedProduct.type?.includes('거세') ? '거세' : '암'}</td>
+                            <td className="py-2.5 px-1.5 text-center text-gray-700 dark:text-gray-300">{selectedProduct.grade}</td>
+                            <td className="py-2.5 px-1.5 text-center text-gray-700 dark:text-gray-300">30</td>
+                            <td className="py-2.5 px-1.5 text-center font-medium text-gray-900 dark:text-gray-100">{selectedProduct.partName}</td>
+                            <td className="py-2.5 px-1.5 text-center font-medium text-gray-900 dark:text-gray-100">{selectedProduct.weight}</td>
                           </tr>
                         </tbody>
                       </table>
                     </div>
 
                     {/* 입찰 금액 정보 */}
-                    <div className="bg-gray-50 p-3 rounded border border-gray-200">
+                    <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-700">
                       <div className="flex justify-between items-center mb-2">
-                        <span className="text-sm text-gray-600">입찰가격</span>
-                        <span className="text-sm font-medium text-gray-900">{partBidPrice.toLocaleString()}원/kg</span>
+                        <span className="text-sm text-gray-600 dark:text-gray-400">입찰가격</span>
+                        <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{partBidPrice.toLocaleString()}원/kg</span>
                       </div>
-                      <div className="flex justify-between items-center pt-2 border-t border-gray-200">
-                        <span className="text-sm font-bold text-gray-900">총 입찰금액</span>
-                        <span className="text-lg font-bold text-gray-900">
+                      <div className="flex justify-between items-center pt-2 border-t border-gray-200 dark:border-gray-700">
+                        <span className="text-sm font-bold text-gray-900 dark:text-gray-100">총 입찰금액</span>
+                        <span className="text-lg font-bold text-gray-900 dark:text-gray-100">
                           {(partBidPrice * parseFloat(selectedProduct.weight)).toLocaleString()}원
                         </span>
                       </div>
@@ -1651,10 +1651,10 @@ function AuctionPageContent() {
                   </div>
                   
                   {/* 다이얼로그 버튼 */}
-                  <div className="px-6 py-4 border-t border-gray-200 flex gap-3">
+                  <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex gap-3">
                     <button
                       onClick={() => setShowPartBidDialog(false)}
-                      className="flex-1 py-2.5 px-4 border border-gray-300 text-gray-700 rounded font-medium hover:bg-gray-50 transition-colors"
+                      className="flex-1 py-2.5 px-4 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded font-medium hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
                     >
                       취소
                     </button>
@@ -1682,7 +1682,7 @@ function AuctionPageContent() {
                         setShowPartBidSheet(false);
                         showToastMessage('입찰이 완료되었습니다.', 'success');
                       }}
-                      className="flex-1 py-2.5 px-4 bg-gray-800 text-white rounded font-medium hover:bg-gray-900 transition-colors"
+                      className="flex-1 py-2.5 px-4 bg-gray-800 dark:bg-gray-700 text-white rounded font-medium hover:bg-gray-900 dark:hover:bg-gray-600 transition-colors"
                     >
                       입찰하기
                     </button>
@@ -1703,8 +1703,8 @@ function AuctionPageContent() {
           }`}>
             <div className={`px-4 py-3 rounded-lg shadow-lg flex items-center space-x-2 ${
               toastType === 'success' 
-                ? 'bg-white border border-gray-200 text-gray-800' 
-                : 'bg-gray-800 text-white'
+                ? 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-100' 
+                : 'bg-gray-800 dark:bg-gray-700 text-white'
             }`}>
               <div className="flex-shrink-0">
                 {toastType === 'success' ? (
@@ -1727,7 +1727,7 @@ function AuctionPageContent() {
 
 export default function AuctionPage() {
   return (
-    <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="text-gray-500">로딩 중...</div></div>}>
+    <Suspense fallback={<div className="flex items-center justify-center min-h-screen bg-white dark:bg-gray-900"><div className="text-gray-500 dark:text-gray-400">로딩 중...</div></div>}>
       <AuctionPageContent />
     </Suspense>
   );

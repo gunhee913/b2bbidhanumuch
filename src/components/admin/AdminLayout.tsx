@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import { useTheme } from 'next-themes';
 import {
   LayoutDashboard,
   Users,
@@ -158,14 +159,36 @@ const getInitialExpandedMenus = (currentPathname: string) => {
 export default function AdminLayout({ children }: AdminLayoutProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const { setTheme, theme } = useTheme();
+  
   // 초기값을 현재 경로 기반으로 설정 (애니메이션 없이 바로 열림)
   const [expandedMenus, setExpandedMenus] = useState<string[]>(() => getInitialExpandedMenus(pathname));
   const [isAnimationEnabled, setIsAnimationEnabled] = useState(false);
   const prevPathnameRef = useRef(pathname);
+  const previousThemeRef = useRef<string | undefined>(undefined);
   
   // 열린 탭 관리
   const [openTabs, setOpenTabs] = useState<OpenTab[]>([]);
   const [isTabsLoaded, setIsTabsLoaded] = useState(false);
+  
+  // 관리자 페이지에서는 항상 라이트 모드 강제 적용
+  useEffect(() => {
+    // 이전 테마 저장 (최초 마운트 시에만)
+    if (previousThemeRef.current === undefined && theme) {
+      previousThemeRef.current = theme;
+    }
+    
+    // 강제로 라이트 모드 적용
+    setTheme('light');
+    
+    // 언마운트 시 이전 테마 복원
+    return () => {
+      if (previousThemeRef.current && previousThemeRef.current !== 'light') {
+        setTheme(previousThemeRef.current);
+      }
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   
   // 탭 초기화 (localStorage에서 불러오기)
   useEffect(() => {

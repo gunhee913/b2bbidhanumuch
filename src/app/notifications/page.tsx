@@ -130,7 +130,7 @@ export default function NotificationsPage() {
     <div className="fixed inset-0 bg-white flex justify-center items-center z-[9999] overflow-hidden">
       <div className="w-full md:flex md:justify-center md:items-center bg-white">
         <div 
-          className="w-full md:max-w-md md:w-[500px] bg-white md:shadow-2xl relative overflow-hidden flex flex-col" 
+          className="w-full md:max-w-md md:w-[500px] bg-white dark:bg-gray-900 md:shadow-2xl relative overflow-hidden flex flex-col transition-colors" 
           style={{
             height: 'calc(var(--vh, 1vh) * 100)',
             scrollbarWidth: 'none', 
@@ -138,16 +138,16 @@ export default function NotificationsPage() {
           }}
         >
           {/* 헤더 */}
-          <div className="flex-shrink-0 px-4 py-3 bg-white border-b border-gray-200 flex items-center justify-between">
+          <div className="flex-shrink-0 px-4 py-3 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between transition-colors">
             <div className="flex items-center">
               <button
                 onClick={() => router.back()}
-                className="p-1 rounded transition-colors hover:bg-gray-100 mr-3"
+                className="p-1 rounded transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 mr-3"
                 aria-label="뒤로가기"
               >
-                <ArrowLeft className="h-5 w-5 text-gray-700" />
+                <ArrowLeft className="h-5 w-5 text-gray-700 dark:text-gray-300" />
               </button>
-              <h1 className="text-base font-bold text-gray-900">알림</h1>
+              <h1 className="text-base font-bold text-gray-900 dark:text-gray-100">알림</h1>
               {unreadCount > 0 && (
                 <span className="ml-2 px-1.5 py-0.5 text-[10px] font-medium bg-red-500 text-white rounded-full">
                   {unreadCount}
@@ -157,9 +157,9 @@ export default function NotificationsPage() {
           </div>
 
           {/* 메인 콘텐츠 */}
-          <div className="flex-1 min-h-0 overflow-y-auto bg-gray-50">
+          <div className="flex-1 min-h-0 overflow-y-auto bg-gray-50 dark:bg-gray-900 transition-colors">
             {displayNotifications.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-gray-400">
+              <div className="flex flex-col items-center justify-center h-full text-gray-400 dark:text-gray-500">
                 <p className="text-sm">알림이 없습니다</p>
               </div>
             ) : (
@@ -168,24 +168,24 @@ export default function NotificationsPage() {
                   <div
                     key={notification.id}
                     onClick={() => handleNotificationClick(notification)}
-                    className={`p-4 rounded-lg bg-white border cursor-pointer transition-colors ${
+                    className={`p-4 rounded-lg bg-white dark:bg-gray-800 border cursor-pointer transition-colors ${
                       notification.isRead 
-                        ? 'border-gray-200' 
-                        : 'border-gray-300 bg-gray-50'
+                        ? 'border-gray-200 dark:border-gray-700' 
+                        : 'border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-750'
                     }`}
                   >
                     <div className="flex items-center gap-2 mb-1.5">
                       {!notification.isRead && (
                         <span className="w-2 h-2 bg-red-500 rounded-full flex-shrink-0" />
                       )}
-                      <p className={`text-[15px] ${notification.isRead ? 'text-gray-700' : 'text-gray-900 font-semibold'}`}>
+                      <p className={`text-[15px] ${notification.isRead ? 'text-gray-700 dark:text-gray-300' : 'text-gray-900 dark:text-gray-100 font-semibold'}`}>
                         {notification.title}
                       </p>
                     </div>
-                    <p className="text-[13px] text-gray-600 leading-relaxed mb-2.5 whitespace-pre-line">
+                    <p className="text-[13px] text-gray-600 dark:text-gray-400 leading-relaxed mb-2.5 whitespace-pre-line">
                       {notification.message}
                     </p>
-                    <p className="text-[12px] text-gray-400">
+                    <p className="text-[12px] text-gray-400 dark:text-gray-500">
                       {notification.time}
                     </p>
                   </div>

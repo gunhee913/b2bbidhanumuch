@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useTheme } from 'next-themes';
 import { useBidStore } from '@/stores/bidStore';
 
@@ -10,26 +10,18 @@ import { useBidStore } from '@/stores/bidStore';
  */
 export default function DarkModeSync() {
   const { isDarkMode } = useBidStore();
-  const { setTheme, resolvedTheme } = useTheme();
+  const { setTheme } = useTheme();
+  const isInitialMount = useRef(true);
 
   // isDarkMode 상태가 변경되면 next-themes 테마도 변경
   useEffect(() => {
-    if (isDarkMode) {
-      setTheme('dark');
-    } else {
-      setTheme('light');
+    // 초기 마운트 시에도 상태에 따라 테마 설정
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
     }
+    
+    setTheme(isDarkMode ? 'dark' : 'light');
   }, [isDarkMode, setTheme]);
-
-  // 초기 로드 시 next-themes 테마에 따라 isDarkMode 상태 동기화
-  useEffect(() => {
-    const { setIsDarkMode } = useBidStore.getState();
-    if (resolvedTheme === 'dark' && !isDarkMode) {
-      setIsDarkMode(true);
-    } else if (resolvedTheme === 'light' && isDarkMode) {
-      setIsDarkMode(false);
-    }
-  }, [resolvedTheme]);
 
   return null;
 }
