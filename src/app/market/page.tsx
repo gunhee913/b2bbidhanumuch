@@ -568,12 +568,15 @@ export default function MarketPage() {
         lineWidth: 2,
       });
 
-      // 거래량 시리즈 추가
+      // 거래량 시리즈 추가 (낙찰건수)
       const volumeSeries = chart.addSeries(HistogramSeries, {
         priceFormat: {
-          type: 'volume',
+          type: 'custom',
+          formatter: (price: number) => Math.round(price).toLocaleString() + '건',
         },
         priceScaleId: 'volume',
+        crosshairMarkerVisible: false,
+        lastValueVisible: false,
       });
 
       // 거래량 프라이스 스케일 설정
@@ -1085,8 +1088,32 @@ export default function MarketPage() {
             </div>
 
             {/* TradingView 캔들스틱 차트 */}
-            <div className="bg-white overflow-hidden">
+            <div className="bg-white overflow-hidden relative">
               <div ref={chartContainerRef} style={{ width: '100%', height: '450px' }} />
+              {/* 커스텀 툴팁 */}
+              {tooltipData && tooltipData.visible && (
+                <div className="absolute top-4 left-4 bg-white border border-gray-200 text-xs px-3 py-2 rounded-lg shadow-lg z-10">
+                  <div className="text-gray-500 mb-1.5">{tooltipData.date}</div>
+                  <div className="space-y-1">
+                    <div className="flex justify-between gap-4">
+                      <span className="text-gray-500">평균단가</span>
+                      <span className="font-medium text-gray-900">{Math.round(tooltipData.close).toLocaleString()}원</span>
+                    </div>
+                    <div className="flex justify-between gap-4">
+                      <span className="text-gray-500">최고단가</span>
+                      <span className="font-medium text-red-600">{Math.round(tooltipData.high).toLocaleString()}원</span>
+                    </div>
+                    <div className="flex justify-between gap-4">
+                      <span className="text-gray-500">최저단가</span>
+                      <span className="font-medium text-blue-600">{Math.round(tooltipData.low).toLocaleString()}원</span>
+                    </div>
+                    <div className="flex justify-between gap-4 pt-1 border-t border-gray-100">
+                      <span className="text-gray-500">낙찰건수</span>
+                      <span className="font-medium text-gray-900">{Math.round(tooltipData.volume).toLocaleString()}건</span>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* 시세 테이블 */}

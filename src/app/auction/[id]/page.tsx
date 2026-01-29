@@ -1043,7 +1043,8 @@ function AuctionDetailContent({ params }: PageProps) {
                   <div className="flex-1 overflow-y-auto">
                     {/* 매도호가 (위쪽, 높은 가격) */}
                     {partsData.map((item, index) => {
-                      const bidInfo = globalBids[item.listingNo];
+                      // Hydration 오류 방지: 마운트 전에는 빈 데이터로 처리
+                      const bidInfo = isHydrated ? globalBids[item.listingNo] : undefined;
                       const hasBid = !!bidInfo;
                       const minPrice = baseMinPrices[item.part] || 50000;
                       const hasMarketBid = !!item.marketHighestBid; // 시장 최고가 존재 여부
@@ -1230,7 +1231,7 @@ function AuctionDetailContent({ params }: PageProps) {
                           }}
                           placeholder={selectedPart ? (() => {
                             const partData = partsData.find(p => p.part === selectedPart);
-                            const bidInfo = partData ? globalBids[partData.listingNo] : null;
+                            const bidInfo = isHydrated && partData ? globalBids[partData.listingNo] : null;
                             const highestBid = bidInfo?.highestBid || partData?.marketHighestBid;
                             if (highestBid) {
                               return `최고입찰가 ${highestBid.toLocaleString()}`;
@@ -1253,7 +1254,7 @@ function AuctionDetailContent({ params }: PageProps) {
                               let basePrice = 0;
                               if (bidPrice === '') {
                                 const partData = partsData.find(p => p.part === selectedPart);
-                                const bidInfo = partData ? globalBids[partData.listingNo] : null;
+                                const bidInfo = isHydrated && partData ? globalBids[partData.listingNo] : null;
                                 basePrice = bidInfo?.highestBid || partData?.marketHighestBid || baseMinPrices[selectedPart || ''] || 50000;
                               } else {
                                 basePrice = parseFloat(removeCommas(bidPrice));

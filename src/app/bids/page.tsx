@@ -30,10 +30,16 @@ const addYieldGradeIfMissing = (grade: string) => {
 
 export default function BidsPage() {
   const router = useRouter();
+  const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState<'진행중' | '경매결과'>('진행중');
   const [statusFilter, setStatusFilter] = useState<'전체' | '최고순위' | '차순위'>('전체');
   const [resultFilter, setResultFilter] = useState<'전체' | '낙찰' | '미낙찰'>('전체');
   const { bids: globalBids, cleanOldBids, setBid, auctionResults } = useBidStore();
+  
+  // Hydration 오류 방지를 위해 클라이언트에서만 마운트
+  useEffect(() => {
+    setMounted(true);
+  }, []);
   
   // 조회기간 (기본값: 1월 26일)
   const getDefaultDate = () => new Date(2026, 0, 26); // 2026년 1월 26일
@@ -349,7 +355,14 @@ export default function BidsPage() {
 
           {/* 컨텐츠 */}
           <div className="flex-1 min-h-0 overflow-y-auto bg-white">
-            {activeTab === '진행중' ? (
+            {!mounted ? (
+              // Hydration 오류 방지: 마운트 전 로딩 상태
+              <div className="flex items-center justify-center h-full">
+                <div className="text-center py-20">
+                  <p className="text-gray-500 text-sm">로딩중...</p>
+                </div>
+              </div>
+            ) : activeTab === '진행중' ? (
               allTodayBids.length === 0 ? (
                 <div className="flex items-center justify-center h-full">
                   <div className="text-center py-20">
@@ -365,7 +378,7 @@ export default function BidsPage() {
                         <span className="text-xs text-gray-500">예상 낙찰금액</span>
                         <span className="text-xs text-gray-400 ml-2">총 {expectedAmounts.highestCount + expectedAmounts.secondHighestCount}건, 최고순위 {expectedAmounts.highestCount}건, 차순위 {expectedAmounts.secondHighestCount}건</span>
                       </div>
-                      <span className="text-sm font-semibold text-gray-900">{expectedAmounts.highestTotal.toLocaleString()}원</span>
+                      <span className="text-sm font-semibold text-gray-900">{Math.round(expectedAmounts.highestTotal).toLocaleString()}원</span>
                     </div>
                   </div>
 
@@ -516,7 +529,7 @@ export default function BidsPage() {
                           <div className="text-center text-[13px] font-medium text-gray-900">
                             {(() => {
                               const weight = parseFloat(productInfo.weight.replace('kg', ''));
-                              return (bid.myBid * weight).toLocaleString();
+                              return Math.round(bid.myBid * weight).toLocaleString();
                             })()}
                           </div>
                           {/* 상태 */}
@@ -554,7 +567,7 @@ export default function BidsPage() {
                         <span className="text-xs text-gray-500">낙찰금액</span>
                         <span className="text-xs text-gray-400 ml-2">총 {resultSummary.wonCount + resultSummary.lostCount}건, 낙찰 {resultSummary.wonCount}건, 미낙찰 {resultSummary.lostCount}건</span>
                       </div>
-                      <span className="text-sm font-semibold text-gray-900">{resultSummary.wonTotal.toLocaleString()}원</span>
+                      <span className="text-sm font-semibold text-gray-900">{Math.round(resultSummary.wonTotal).toLocaleString()}원</span>
                     </div>
                   </div>
 
@@ -697,7 +710,7 @@ export default function BidsPage() {
                             </div>
                             {/* 총입찰가격 */}
                             <div className="text-center text-[13px] font-medium text-gray-900">
-                              {totalPrice.toLocaleString()}
+                              {Math.round(totalPrice).toLocaleString()}
                             </div>
                             {/* 시간 */}
                             <div className="text-center text-[11px] text-gray-500 whitespace-nowrap">

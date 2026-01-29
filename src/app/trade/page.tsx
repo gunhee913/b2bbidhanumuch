@@ -579,7 +579,7 @@ export default function TradePage() {
                           
                           {/* 경락대금 */}
                           <div className="text-center text-[13px] font-medium text-gray-900">
-                            {totalPrice.toLocaleString()}
+                            {Math.round(totalPrice).toLocaleString()}
                           </div>
                           
                           {/* 입찰일자 */}
