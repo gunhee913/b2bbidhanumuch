@@ -56,64 +56,172 @@ interface AuctionResult {
   };
 }
 
-// 일일 입찰 데이터 생성 함수 (최고순위 3개 + 차순위 12개, 매일 새로 생성)
+// ============== 개체별/부위별 연동을 위한 공통 데이터 ==============
+
+// 부위별 최저단가 (auction/page.tsx의 partMinPrices와 동일)
+const partMinPrices: Record<string, number> = {
+  '등심(좌)': 85000, '등심(우)': 85000,
+  '안심': 95000, '채끝': 82000,
+  '갈비(좌)': 78000, '갈비(우)': 78000,
+  '특수부위': 72000, '앞다리': 55000,
+  '우둔': 58000, '목심': 62000,
+  '양지(좌)': 52000, '양지(우)': 52000,
+  '설도(좌)': 56000, '설도(우)': 56000,
+  '사태': 48000, '꼬리': 35000,
+  '족': 25000, '사골': 20000, '잡뼈': 15000,
+};
+
+// 전체 부위 순서 (auction/page.tsx와 동일) - 상장번호 partNo 계산용
+const allSubPartsOrder = [
+  '등심(좌)', '등심(우)', '안심', '채끝', '갈비(좌)', '갈비(우)', 
+  '특수부위', '앞다리', '우둔', '목심', '양지(좌)', '양지(우)', 
+  '설도(좌)', '설도(우)', '사태', '꼬리', '족', '사골', '잡뼈'
+];
+
+// 개체 정보 (auction/page.tsx의 auctionEntities와 동일)
+const auctionEntities: Array<{
+  id: number;
+  type: string;
+  grade: string;
+  gradeCategory: '1++' | '1+' | '1' | '2' | '3';
+  company: string;
+}> = [
+  // 건화 (101~106)
+  { id: 101, type: '한우거세', grade: '1++A(9)', gradeCategory: '1++', company: '건화' },
+  { id: 102, type: '한우거세', grade: '1+A', gradeCategory: '1+', company: '건화' },
+  { id: 103, type: '한우거세', grade: '1++B(8)', gradeCategory: '1++', company: '건화' },
+  { id: 104, type: '한우거세', grade: '1B', gradeCategory: '1', company: '건화' },
+  { id: 105, type: '한우거세', grade: '1++A(7)', gradeCategory: '1++', company: '건화' },
+  { id: 106, type: '한우암', grade: '1+B', gradeCategory: '1+', company: '건화' },
+  // 대진엠이스 (201~206)
+  { id: 201, type: '한우거세', grade: '1++A(9)', gradeCategory: '1++', company: '대진엠이스' },
+  { id: 202, type: '한우거세', grade: '1++A(8)', gradeCategory: '1++', company: '대진엠이스' },
+  { id: 203, type: '한우거세', grade: '1+B', gradeCategory: '1+', company: '대진엠이스' },
+  { id: 204, type: '한우거세', grade: '1A', gradeCategory: '1', company: '대진엠이스' },
+  { id: 205, type: '한우거세', grade: '1++B(7)', gradeCategory: '1++', company: '대진엠이스' },
+  { id: 206, type: '한우암', grade: '1+A', gradeCategory: '1+', company: '대진엠이스' },
+  // 안심엘피시 (301~306)
+  { id: 301, type: '한우거세', grade: '1++B(9)', gradeCategory: '1++', company: '안심엘피시' },
+  { id: 302, type: '한우거세', grade: '1+A', gradeCategory: '1+', company: '안심엘피시' },
+  { id: 303, type: '한우거세', grade: '1++A(8)', gradeCategory: '1++', company: '안심엘피시' },
+  { id: 304, type: '한우거세', grade: '1B', gradeCategory: '1', company: '안심엘피시' },
+  { id: 305, type: '한우거세', grade: '1++C(7)', gradeCategory: '1++', company: '안심엘피시' },
+  { id: 306, type: '한우암', grade: '1+C', gradeCategory: '1+', company: '안심엘피시' },
+  // 정직한고기 (401~406)
+  { id: 401, type: '한우거세', grade: '1++C(9)', gradeCategory: '1++', company: '정직한고기' },
+  { id: 402, type: '한우거세', grade: '1++C(8)', gradeCategory: '1++', company: '정직한고기' },
+  { id: 403, type: '한우거세', grade: '1+C', gradeCategory: '1+', company: '정직한고기' },
+  { id: 404, type: '한우거세', grade: '1C', gradeCategory: '1', company: '정직한고기' },
+  { id: 405, type: '한우거세', grade: '1++A(7)', gradeCategory: '1++', company: '정직한고기' },
+  { id: 406, type: '한우암', grade: '1+A', gradeCategory: '1+', company: '정직한고기' },
+];
+
+// 부위별 중량 범위 (auction/page.tsx와 동일)
+const partWeightRanges: Record<string, [number, number]> = {
+  '등심(좌)': [15, 16], '등심(우)': [15, 16],
+  '안심': [4, 5], '채끝': [7.5, 8.5],
+  '갈비(좌)': [12, 13], '갈비(우)': [12, 13],
+  '특수부위': [3, 4], '앞다리': [24, 26],
+  '우둔': [20, 22], '목심': [14, 15],
+  '양지(좌)': [12, 13], '양지(우)': [12, 13],
+  '설도(좌)': [16, 17.5], '설도(우)': [16, 17.5],
+  '사태': [14.5, 15.5], '꼬리': [15.5, 16.5],
+  '족': [10, 11], '사골': [3, 4], '잡뼈': [21, 23],
+};
+
+// 등급 카테고리별 가격 배수 (auction/page.tsx와 동일한 로직)
+const getGradeMultiplier = (gradeCategory: string, grade: string): number => {
+  if (gradeCategory === '1++') {
+    const marblingMatch = grade.match(/\((\d+)\)/);
+    const marblingNo = marblingMatch ? parseInt(marblingMatch[1]) : 8;
+    if (marblingNo === 9) return 1.20;
+    if (marblingNo === 8) return 1.15;
+    return 1.10;
+  } else if (gradeCategory === '1+') {
+    return 1.05;
+  } else if (gradeCategory === '1') {
+    return 1.00;
+  } else if (gradeCategory === '2') {
+    return 0.90;
+  }
+  return 0.80;
+};
+
+// 최저단가 계산 함수 (auction/page.tsx의 partProducts와 완전히 동일한 로직)
+const calculateMinPrice = (partName: string, gradeCategory: string, grade: string): number => {
+  const basePrice = partMinPrices[partName] || 50000;
+  const gradeMultiplier = getGradeMultiplier(gradeCategory, grade);
+  return Math.round((basePrice * gradeMultiplier) / 1000) * 1000;
+};
+
+// 중량 계산 함수 (auction/page.tsx의 partProducts와 완전히 동일한 로직)
+const calculateWeight = (partName: string, entityId: number): string => {
+  const [minW, maxW] = partWeightRanges[partName] || [10, 15];
+  const variation = (entityId * 0.17) % 1;
+  return (minW + (maxW - minW) * variation).toFixed(1);
+};
+
+// 상장번호 생성 함수 (auction/page.tsx의 partProducts와 완전히 동일한 로직)
+const generateListingNo = (dateCode: string, entityId: number, partName: string): string => {
+  const partIndex = allSubPartsOrder.indexOf(partName);
+  const listingNumber = partIndex + 1;
+  return `${dateCode}-${String(entityId).padStart(3, '0')}-${String(listingNumber).padStart(2, '0')}`;
+};
+
+// ============== 일일 입찰 데이터 생성 ==============
+// 상장번호로 개체별/부위별 연동됨
 const generateDailyBids = (): Record<string, BidInfo> => {
   const dateCode = getTodayDateCode();
   const dateStr = `${dateCode.slice(0, 2)}.${dateCode.slice(2, 4)}.${dateCode.slice(4, 6)}`;
   const seed = getDailySeed();
   
-  // 차순위 부위 목록 (12개)
-  const secondHighestParts = [
-    { name: '등심(좌)', basePrice: 95000, weight: 15.3 },
-    { name: '등심(우)', basePrice: 92000, weight: 15.6 },
-    { name: '안심', basePrice: 110000, weight: 4.8 },
-    { name: '채끝', basePrice: 85000, weight: 8.4 },
-    { name: '갈비(좌)', basePrice: 78000, weight: 12.1 },
-    { name: '갈비(우)', basePrice: 76000, weight: 11.8 },
-    { name: '목심', basePrice: 62000, weight: 13.5 },
-    { name: '앞다리', basePrice: 55000, weight: 25.2 },
-    { name: '우둔', basePrice: 52000, weight: 19.8 },
-    { name: '설도(좌)', basePrice: 48000, weight: 16.5 },
-    { name: '양지(좌)', basePrice: 45000, weight: 12.2 },
-    { name: '사태', basePrice: 42000, weight: 15.0 },
-  ];
-  
-  // 최고순위 부위 목록 (3개)
-  const highestParts = [
-    { name: '등심(좌)', basePrice: 98000, weight: 14.5 },
-    { name: '안심', basePrice: 115000, weight: 5.2 },
-    { name: '갈비(좌)', basePrice: 82000, weight: 13.2 },
-  ];
-  
-  // 등급 목록
-  const grades = ['1++A(9)', '1++A(8)', '1++B(7)', '1+A', '1+B', '1A', '1B', '2A'];
-  const types = ['한우거세', '한우암'];
-  
   const bids: Record<string, BidInfo> = {};
   
-  // 차순위 12개 생성
-  secondHighestParts.forEach((part, index) => {
+  // 차순위 입찰 타겟: 특정 개체의 특정 부위 (상장번호로 연동)
+  const secondHighestTargets = [
+    { entityId: 101, partName: '등심(우)' },  // 260127-101-02
+    { entityId: 102, partName: '등심(좌)' },  // 260127-102-01
+    { entityId: 102, partName: '등심(우)' },  // 260127-102-02
+    { entityId: 103, partName: '등심(좌)' },  // 260127-103-01
+    { entityId: 201, partName: '안심' },      // 260127-201-03
+    { entityId: 202, partName: '채끝' },      // 260127-202-04
+    { entityId: 301, partName: '갈비(좌)' },  // 260127-301-05
+    { entityId: 302, partName: '갈비(우)' },  // 260127-302-06
+    { entityId: 401, partName: '목심' },      // 260127-401-10
+    { entityId: 402, partName: '앞다리' },    // 260127-402-08
+    { entityId: 403, partName: '우둔' },      // 260127-403-09
+    { entityId: 404, partName: '설도(좌)' },  // 260127-404-13
+  ];
+  
+  // 최고순위 입찰 타겟
+  const highestTargets = [
+    { entityId: 101, partName: '등심(좌)' },  // 260127-101-01 (부위별 등심 첫 행)
+    { entityId: 201, partName: '등심(좌)' },  // 260127-201-01
+    { entityId: 301, partName: '안심' },      // 260127-301-03
+  ];
+  
+  // 차순위 입찰 생성
+  secondHighestTargets.forEach((target, index) => {
+    const entity = auctionEntities.find(e => e.id === target.entityId);
+    if (!entity) return;
+    
     const itemSeed = seed + index * 137;
-    const priceVariation = Math.floor(seededRandom(itemSeed) * 10000) - 5000;
-    const weightVariation = (seededRandom(itemSeed + 1) * 2 - 1);
-    const gradeIndex = Math.floor(seededRandom(itemSeed + 2) * grades.length);
-    const typeIndex = Math.floor(seededRandom(itemSeed + 3) * types.length);
+    const listingNo = generateListingNo(dateCode, entity.id, target.partName);
+    const weight = calculateWeight(target.partName, entity.id);
     
-    const basePrice = part.basePrice + priceVariation;
-    const myBid = basePrice - Math.floor(seededRandom(itemSeed + 4) * 5000) - 2000;
-    const highestBid = basePrice + Math.floor(seededRandom(itemSeed + 5) * 3000) + 1000;
-    const weight = (part.weight + weightVariation).toFixed(1);
+    // 최저단가 계산 (개체의 등급 기준) - auction/page.tsx와 완전히 동일
+    const minPrice = calculateMinPrice(target.partName, entity.gradeCategory, entity.grade);
     
-    // 시간 생성 (09:00 ~ 10:30 사이)
+    // 최고입찰가 = 최저단가 + 3000~8000원
+    const highestBid = minPrice + Math.floor(seededRandom(itemSeed + 5) * 5000) + 3000;
+    // 내 입찰가 = 최고입찰가 - 2000~7000원
+    const myBid = highestBid - Math.floor(seededRandom(itemSeed + 4) * 5000) - 2000;
+    
+    // 시간 생성
     const minuteOffset = Math.floor(seededRandom(itemSeed + 6) * 90);
     const hour = 9 + Math.floor(minuteOffset / 60);
     const minute = minuteOffset % 60;
     const timeStr = `${dateStr} ${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
-    
-    // 상장번호 생성 (101-XX ~ 112-XX)
-    const entityNo = 101 + index;
-    const partNo = String(Math.floor(seededRandom(itemSeed + 7) * 12) + 1).padStart(2, '0');
-    const listingNo = `${dateCode}-${entityNo}-${partNo}`;
     
     bids[listingNo] = {
       myBid,
@@ -122,38 +230,36 @@ const generateDailyBids = (): Record<string, BidInfo> => {
       time: timeStr,
       productInfo: {
         listingNo,
-        partName: part.name,
+        partName: target.partName,
         weight: `${weight}kg`,
-        type: types[typeIndex],
-        grade: grades[gradeIndex],
-        price: highestBid,
+        type: entity.type,
+        grade: entity.grade,
+        price: minPrice,
       }
     };
   });
   
-  // 최고순위 3개 생성
-  highestParts.forEach((part, index) => {
-    const itemSeed = seed + (index + 100) * 137; // 차순위와 다른 시드 사용
-    const priceVariation = Math.floor(seededRandom(itemSeed) * 8000) - 4000;
-    const weightVariation = (seededRandom(itemSeed + 1) * 2 - 1);
-    const gradeIndex = Math.floor(seededRandom(itemSeed + 2) * 4); // 상위 등급만 (1++, 1+)
-    const typeIndex = Math.floor(seededRandom(itemSeed + 3) * types.length);
+  // 최고순위 입찰 생성
+  highestTargets.forEach((target, index) => {
+    const entity = auctionEntities.find(e => e.id === target.entityId);
+    if (!entity) return;
     
-    const basePrice = part.basePrice + priceVariation;
-    const myBid = basePrice + Math.floor(seededRandom(itemSeed + 4) * 3000) + 1000; // 최고가
-    const highestBid = myBid; // 최고순위이므로 내 입찰가 = 최고가
-    const weight = (part.weight + weightVariation).toFixed(1);
+    const itemSeed = seed + (index + 100) * 137;
+    const listingNo = generateListingNo(dateCode, entity.id, target.partName);
+    const weight = calculateWeight(target.partName, entity.id);
     
-    // 시간 생성 (09:30 ~ 10:00 사이)
+    // 최저단가 계산
+    const minPrice = calculateMinPrice(target.partName, entity.gradeCategory, entity.grade);
+    
+    // 최고입찰가 = 최저단가 + 5000~10000원
+    const highestBid = minPrice + Math.floor(seededRandom(itemSeed + 5) * 5000) + 5000;
+    const myBid = highestBid; // 최고순위이므로 내 입찰가 = 최고가
+    
+    // 시간 생성
     const minuteOffset = Math.floor(seededRandom(itemSeed + 6) * 30) + 30;
     const hour = 9 + Math.floor(minuteOffset / 60);
     const minute = minuteOffset % 60;
     const timeStr = `${dateStr} ${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
-    
-    // 상장번호 생성 (201-XX ~ 203-XX)
-    const entityNo = 201 + index;
-    const partNo = String(Math.floor(seededRandom(itemSeed + 7) * 12) + 1).padStart(2, '0');
-    const listingNo = `${dateCode}-${entityNo}-${partNo}`;
     
     bids[listingNo] = {
       myBid,
@@ -162,11 +268,11 @@ const generateDailyBids = (): Record<string, BidInfo> => {
       time: timeStr,
       productInfo: {
         listingNo,
-        partName: part.name,
+        partName: target.partName,
         weight: `${weight}kg`,
-        type: types[typeIndex],
-        grade: grades[gradeIndex],
-        price: highestBid,
+        type: entity.type,
+        grade: entity.grade,
+        price: minPrice,
       }
     };
   });
@@ -310,12 +416,12 @@ const generateDailyAuctionResults = (): AuctionResult[] => {
 // 앱 로드 시 즉시 잘못된 입찰 데이터 삭제 (스토어 생성 전에 실행)
 if (typeof window !== 'undefined') {
   // 모든 이전 버전 삭제
-  ['bid-storage', 'bid-storage-v2', 'bid-storage-v3', 'bid-storage-v4', 'bid-storage-v5', 'bid-storage-v6', 'bid-storage-v7', 'bid-storage-v8', 'bid-storage-v9', 'bid-storage-v10', 'bid-storage-v11', 'bid-storage-v12', 'bid-storage-v13', 'bid-storage-v14', 'bid-storage-v15', 'bid-storage-v16', 'bid-storage-v17'].forEach(key => {
+  ['bid-storage', 'bid-storage-v2', 'bid-storage-v3', 'bid-storage-v4', 'bid-storage-v5', 'bid-storage-v6', 'bid-storage-v7', 'bid-storage-v8', 'bid-storage-v9', 'bid-storage-v10', 'bid-storage-v11', 'bid-storage-v12', 'bid-storage-v13', 'bid-storage-v14', 'bid-storage-v15', 'bid-storage-v16', 'bid-storage-v17', 'bid-storage-v18', 'bid-storage-v19', 'bid-storage-v20', 'bid-storage-v21', 'bid-storage-v22', 'bid-storage-v23'].forEach(key => {
     localStorage.removeItem(key);
   });
   
   // 현재 버전에서 잘못된 데이터 정리
-  const currentKey = 'bid-storage-v18';
+  const currentKey = 'bid-storage-v24';
   const data = localStorage.getItem(currentKey);
   if (data) {
     try {
@@ -574,22 +680,17 @@ export const useBidStore = create<BidStore>()(
       },
     }),
     {
-      name: 'bid-storage-v19',
+      name: 'bid-storage-v24',
       onRehydrateStorage: () => (state) => {
         if (state) {
           // 오래된 입찰 데이터 정리
           state.cleanOldBids();
           
-          // 오늘 날짜의 입찰 데이터가 없으면 새로 생성
-          const todayCode = getTodayDateCode();
-          const todayBids = Object.keys(state.bids).filter(key => key.startsWith(todayCode));
-          
-          if (todayBids.length === 0) {
-            const dailyBids = generateDailyBids();
-            Object.entries(dailyBids).forEach(([listingNo, bidInfo]) => {
-              state.setBid(listingNo, bidInfo);
-            });
-          }
+          // 테스트 입찰 데이터 항상 새로 덮어쓰기 (상장번호 연동 보장)
+          const dailyBids = generateDailyBids();
+          Object.entries(dailyBids).forEach(([listingNo, bidInfo]) => {
+            state.setBid(listingNo, bidInfo);
+          });
         }
       },
     }

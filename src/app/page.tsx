@@ -225,7 +225,7 @@ function MainPageContent() {
             price: adjustedPrice,
             auctionNo: `${getTodayDateCode()}-${String(entityNo).padStart(3, '0')}`,
             listingNo,
-            historyNo: `002-1486-7293-${entityNo}`,
+            historyNo: `002-1486-7293-${entityNo % 10 || 1}`,
             company: entity.company,
             months: entity.months,
             entityId: entityNo,
@@ -1154,63 +1154,81 @@ function MainPageContent() {
                                         </div>
                                       </div>
 
-                                      {/* 개체정보 패널 - 테이블 형식 */}
+                                      {/* 개체정보 패널 - 3줄 테이블 형식 */}
                                       <div className="px-3 py-3 border-t border-gray-200">
-                                        {/* 첫 번째 테이블: 등급 정보 */}
+                                        {/* 1행: 축종, 성별, 등급, 개월령, 이력번호 */}
                                         <div className="bg-white border border-gray-200 rounded overflow-hidden mb-2">
-                                          <table className="w-full text-[11px]">
+                                          <table className="w-full text-[13px]">
                                             <thead>
                                               <tr className="bg-gray-100/80 border-b border-gray-200">
-                                                <th className="py-1.5 px-1 text-center font-medium text-gray-500">등급</th>
-                                                <th className="py-1.5 px-1 text-center font-medium text-gray-500">개월령</th>
-                                                <th className="py-1.5 px-1 text-center font-medium text-gray-500">등지방</th>
-                                                <th className="py-1.5 px-1 text-center font-medium text-gray-500">등심면적</th>
-                                                <th className="py-1.5 px-1 text-center font-medium text-gray-500">근내지방</th>
-                                                <th className="py-1.5 px-1 text-center font-medium text-gray-500">육색</th>
-                                                <th className="py-1.5 px-1 text-center font-medium text-gray-500">지방색</th>
-                                                <th className="py-1.5 px-1 text-center font-medium text-gray-500">조직감</th>
-                                                <th className="py-1.5 px-1 text-center font-medium text-gray-500">성숙도</th>
+                                                <th className="py-2.5 px-2 text-center font-medium text-gray-500">축종</th>
+                                                <th className="py-2.5 px-2 text-center font-medium text-gray-500">성별</th>
+                                                <th className="py-2.5 px-2 text-center font-medium text-gray-500">등급</th>
+                                                <th className="py-2.5 px-2 text-center font-medium text-gray-500">개월령</th>
+                                                <th className="py-2.5 px-2 text-center font-medium text-gray-500">이력번호</th>
                                               </tr>
                                             </thead>
                                             <tbody>
                                               <tr>
-                                                <td className="py-2 px-1 text-center text-gray-700">{product.grade}</td>
-                                                <td className="py-2 px-1 text-center text-gray-700">{product.months}</td>
-                                                <td className="py-2 px-1 text-center text-gray-700">16</td>
-                                                <td className="py-2 px-1 text-center text-gray-700">123</td>
-                                                <td className="py-2 px-1 text-center text-gray-700">9</td>
-                                                <td className="py-2 px-1 text-center text-gray-700">5</td>
-                                                <td className="py-2 px-1 text-center text-gray-700">3</td>
-                                                <td className="py-2 px-1 text-center text-gray-700">1</td>
-                                                <td className="py-2 px-1 text-center text-gray-700">2</td>
+                                                <td className="py-3 px-2 text-center text-gray-900 font-medium">한우</td>
+                                                <td className="py-3 px-2 text-center text-gray-900 font-medium">{product.type.includes('거세') ? '거세' : '암'}</td>
+                                                <td className="py-3 px-2 text-center text-gray-900 font-medium">{product.grade}</td>
+                                                <td className="py-3 px-2 text-center text-gray-900 font-medium">{product.months}</td>
+                                                <td className="py-3 px-2 text-center text-gray-900 font-medium text-[11px]">{product.historyNo}</td>
                                               </tr>
                                             </tbody>
                                           </table>
                                         </div>
 
-                                        {/* 두 번째 테이블: 도축/가공 정보 */}
-                                        <div className="bg-white border border-gray-200 rounded overflow-hidden">
-                                          <table className="w-full text-[11px]">
+                                        {/* 2행: 등지방, 등심면적, 근내지방, 육색, 지방색, 조직감, 성숙도 */}
+                                        <div className="bg-white border border-gray-200 rounded overflow-hidden mb-2">
+                                          <table className="w-full text-[13px]">
                                             <thead>
                                               <tr className="bg-gray-100/80 border-b border-gray-200">
-                                                <th className="py-1.5 px-1 text-center font-medium text-gray-500">이력번호</th>
-                                                <th className="py-1.5 px-1 text-center font-medium text-gray-500">도축장</th>
-                                                <th className="py-1.5 px-1 text-center font-medium text-gray-500">도축번호</th>
-                                                <th className="py-1.5 px-1 text-center font-medium text-gray-500">도체중</th>
-                                                <th className="py-1.5 px-1 text-center font-medium text-gray-500">상장업체</th>
-                                                <th className="py-1.5 px-1 text-center font-medium text-gray-500">가공일</th>
-                                                <th className="py-1.5 px-1 text-center font-medium text-gray-500">가공중량</th>
+                                                <th className="py-2.5 px-2 text-center font-medium text-gray-500">등지방</th>
+                                                <th className="py-2.5 px-2 text-center font-medium text-gray-500">등심면적</th>
+                                                <th className="py-2.5 px-2 text-center font-medium text-gray-500">근내지방</th>
+                                                <th className="py-2.5 px-2 text-center font-medium text-gray-500">육색</th>
+                                                <th className="py-2.5 px-2 text-center font-medium text-gray-500">지방색</th>
+                                                <th className="py-2.5 px-2 text-center font-medium text-gray-500">조직감</th>
+                                                <th className="py-2.5 px-2 text-center font-medium text-gray-500">성숙도</th>
                                               </tr>
                                             </thead>
                                             <tbody>
                                               <tr>
-                                                <td className="py-2 px-1 text-center text-gray-700">{product.historyNo}</td>
-                                                <td className="py-2 px-1 text-center text-gray-700">음성</td>
-                                                <td className="py-2 px-1 text-center text-gray-700">201</td>
-                                                <td className="py-2 px-1 text-center text-gray-700">520</td>
-                                                <td className="py-2 px-1 text-center text-gray-700">{product.company}</td>
-                                                <td className="py-2 px-1 text-center text-gray-700">26.01.17</td>
-                                                <td className="py-2 px-1 text-center text-gray-700">312</td>
+                                                <td className="py-3 px-2 text-center text-gray-900 font-medium">16</td>
+                                                <td className="py-3 px-2 text-center text-gray-900 font-medium">123</td>
+                                                <td className="py-3 px-2 text-center text-gray-900 font-medium">9</td>
+                                                <td className="py-3 px-2 text-center text-gray-900 font-medium">5</td>
+                                                <td className="py-3 px-2 text-center text-gray-900 font-medium">3</td>
+                                                <td className="py-3 px-2 text-center text-gray-900 font-medium">1</td>
+                                                <td className="py-3 px-2 text-center text-gray-900 font-medium">2</td>
+                                              </tr>
+                                            </tbody>
+                                          </table>
+                                        </div>
+
+                                        {/* 3행: 도축장, 도축번호, 도체중, 상장업체, 가공일, 가공중량 */}
+                                        <div className="bg-white border border-gray-200 rounded overflow-hidden">
+                                          <table className="w-full text-[13px]">
+                                            <thead>
+                                              <tr className="bg-gray-100/80 border-b border-gray-200">
+                                                <th className="py-2.5 px-2 text-center font-medium text-gray-500">도축장</th>
+                                                <th className="py-2.5 px-2 text-center font-medium text-gray-500">도축번호</th>
+                                                <th className="py-2.5 px-2 text-center font-medium text-gray-500">도체중</th>
+                                                <th className="py-2.5 px-2 text-center font-medium text-gray-500">상장업체</th>
+                                                <th className="py-2.5 px-2 text-center font-medium text-gray-500">가공일</th>
+                                                <th className="py-2.5 px-2 text-center font-medium text-gray-500">가공중량</th>
+                                              </tr>
+                                            </thead>
+                                            <tbody>
+                                              <tr>
+                                                <td className="py-3 px-2 text-center text-gray-900 font-medium">음성</td>
+                                                <td className="py-3 px-2 text-center text-gray-900 font-medium">201</td>
+                                                <td className="py-3 px-2 text-center text-gray-900 font-medium">520</td>
+                                                <td className="py-3 px-2 text-center text-gray-900 font-medium">{product.company}</td>
+                                                <td className="py-3 px-2 text-center text-gray-900 font-medium">26.01.17</td>
+                                                <td className="py-3 px-2 text-center text-gray-900 font-medium">312</td>
                                               </tr>
                                             </tbody>
                                           </table>

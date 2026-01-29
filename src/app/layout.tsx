@@ -14,8 +14,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html suppressHydrationWarning className="light">
-      <body className="antialiased bg-white text-black">
+    <html suppressHydrationWarning>
+      <body className="antialiased bg-white text-foreground">
         <Providers><AuthProvider>{children}</AuthProvider></Providers>
       </body>
     </html>

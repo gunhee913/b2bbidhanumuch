@@ -24,11 +24,15 @@ export default function BottomNav() {
       // 경매내역 페이지
       return pathname.startsWith('/bids');
     }
+    if (href === '/profile') {
+      // 내정보 또는 설정 페이지일 때 '내정보' 활성화
+      return pathname.startsWith('/profile') || pathname.startsWith('/settings');
+    }
     return pathname.startsWith(href);
   };
 
   return (
-    <div className="flex-shrink-0 bg-white border-t border-gray-200 px-2 md:px-4 pt-2 pb-5 safe-area-pb">
+    <div className="flex-shrink-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 px-2 md:px-4 pt-2 pb-5 safe-area-pb transition-colors">
       <div className="flex items-center justify-around">
         {navItems.map((item) => {
           const active = isActive(item.href);
@@ -39,7 +43,7 @@ export default function BottomNav() {
               key={item.href}
               href={item.href}
               className={`flex-1 flex flex-col items-center py-2 transition-colors ${
-                active ? 'text-gray-900' : 'text-gray-400'
+                active ? 'text-gray-900 dark:text-gray-100' : 'text-gray-400 dark:text-gray-500'
               }`}
             >
               <Icon className="h-6 w-6 mb-1" />

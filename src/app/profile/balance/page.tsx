@@ -108,6 +108,48 @@ function BalanceHistoryContent() {
     setIsDragging(false);
   };
 
+  // 모바일 터치 방향 잠금 (direction lock)
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+  const touchDirectionRef = useRef<'horizontal' | 'vertical' | null>(null);
+  const initialScrollLeftRef = useRef(0);
+  const initialScrollTopRef = useRef(0);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (!scrollContainerRef.current) return;
+    const touch = e.touches[0];
+    touchStartRef.current = { x: touch.clientX, y: touch.clientY };
+    touchDirectionRef.current = null;
+    initialScrollLeftRef.current = scrollContainerRef.current.scrollLeft;
+    initialScrollTopRef.current = scrollContainerRef.current.scrollTop;
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!scrollContainerRef.current || !touchStartRef.current) return;
+    
+    const touch = e.touches[0];
+    const deltaX = touch.clientX - touchStartRef.current.x;
+    const deltaY = touch.clientY - touchStartRef.current.y;
+    
+    // 방향 결정 (threshold: 10px)
+    if (touchDirectionRef.current === null) {
+      if (Math.abs(deltaX) > 10 || Math.abs(deltaY) > 10) {
+        touchDirectionRef.current = Math.abs(deltaX) > Math.abs(deltaY) ? 'horizontal' : 'vertical';
+      }
+    }
+    
+    // 방향에 따라 스크롤
+    if (touchDirectionRef.current === 'horizontal') {
+      e.preventDefault(); // 세로 스크롤 방지
+      scrollContainerRef.current.scrollLeft = initialScrollLeftRef.current - deltaX;
+    }
+    // vertical일 때는 기본 스크롤 동작 유지
+  };
+
+  const handleTouchEnd = () => {
+    touchStartRef.current = null;
+    touchDirectionRef.current = null;
+  };
+
   // 더미 데이터 - 낙찰대금차감 후 입금하는 패턴
   const [balanceHistory] = useState<BalanceHistory[]>([
     { id: '1', date: '2026-01-21 09:00', type: 'auction', deposit: 0, withdraw: 8520000, balance: -8280000, description: '낙찰대금차감' },
@@ -488,6 +530,9 @@ function BalanceHistoryContent() {
               onMouseMove={handleMouseMove}
               onMouseUp={handleMouseUp}
               onMouseLeave={handleMouseLeave}
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
               className={`flex-1 min-h-0 overflow-y-auto overflow-x-auto bg-white hide-scrollbar ${isDragging ? 'cursor-grabbing select-none' : 'cursor-grab'}`}
             >
               <table className="w-full border-collapse min-w-[480px]">
