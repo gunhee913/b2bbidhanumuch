@@ -81,6 +81,16 @@ function TradeRegisterContent() {
             msOverflowStyle: 'none'
           }}
         >
+          <style jsx global>{`
+            .hide-scrollbar::-webkit-scrollbar {
+              display: none;
+            }
+            .hide-scrollbar {
+              -ms-overflow-style: none;
+              scrollbar-width: none;
+            }
+          `}</style>
+          
           {/* 헤더 */}
           <div className="flex-shrink-0 bg-white border-b border-gray-200">
             <div className="px-4 py-3">
@@ -96,58 +106,58 @@ function TradeRegisterContent() {
             </div>
           </div>
 
-          {/* 낙찰 정보 테이블 */}
-          {auctionItem && (
-            <div className="flex-shrink-0 bg-white border-b border-gray-200 px-4 py-3">
-              <div className="border border-gray-200 rounded overflow-hidden">
-                {/* 테이블 헤더 */}
-                <div className="bg-gray-100 border-b border-gray-200">
-                  <div className="grid h-9 items-center text-[13px] font-medium text-gray-500" style={{gridTemplateColumns: '2fr 1fr 1fr 1fr 1.2fr 1.5fr'}}>
-                    <div className="text-center">상장번호</div>
-                    <div className="text-center">부위</div>
-                    <div className="text-center">등급</div>
-                    <div className="text-center">중량</div>
-                    <div className="text-center">낙찰가</div>
-                    <div className="text-center">경락대금</div>
+          {/* 스크롤 영역 */}
+          <div className="flex-1 min-h-0 overflow-y-auto bg-white hide-scrollbar">
+            {/* 낙찰 정보 테이블 - 스크롤 영역에 포함 */}
+            {auctionItem && (
+              <div className="bg-white border-b border-gray-200 px-4 py-3">
+                <div className="border border-gray-200 rounded overflow-hidden">
+                  {/* 테이블 헤더 */}
+                  <div className="bg-gray-100 border-b border-gray-200">
+                    <div className="grid h-9 items-center text-[13px] font-medium text-gray-500" style={{gridTemplateColumns: '2fr 1fr 1fr 1fr 1.2fr 1.5fr'}}>
+                      <div className="text-center">상장번호</div>
+                      <div className="text-center">부위</div>
+                      <div className="text-center">등급</div>
+                      <div className="text-center">중량</div>
+                      <div className="text-center">낙찰가</div>
+                      <div className="text-center">경락대금</div>
+                    </div>
                   </div>
-                </div>
-                {/* 테이블 데이터 */}
-                <div className="bg-white">
-                  <div className="grid py-3 text-[13px]" style={{gridTemplateColumns: '2fr 1fr 1fr 1fr 1.2fr 1.5fr'}}>
-                    <div className="text-center font-medium text-gray-900 whitespace-nowrap">{listingNo}</div>
-                    <div className="text-center text-gray-700">{auctionItem.productInfo.partName}</div>
-                    <div className="text-center text-gray-700">{auctionItem.productInfo.grade}</div>
-                    <div className="text-center text-gray-700">{auctionItem.productInfo.weight}</div>
-                    <div className="text-center font-medium text-gray-900">{auctionItem.myBid.toLocaleString()}</div>
-                    <div className="text-center font-medium text-gray-900">
-                      {(() => {
-                        const weight = parseFloat(auctionItem.productInfo.weight.replace('kg', ''));
-                        return (auctionItem.myBid * weight).toLocaleString();
-                      })()}
+                  {/* 테이블 데이터 */}
+                  <div className="bg-white">
+                    <div className="grid py-3 text-[13px]" style={{gridTemplateColumns: '2fr 1fr 1fr 1fr 1.2fr 1.5fr'}}>
+                      <div className="text-center font-medium text-gray-900 whitespace-nowrap">{listingNo}</div>
+                      <div className="text-center text-gray-700">{auctionItem.productInfo.partName}</div>
+                      <div className="text-center text-gray-700">{auctionItem.productInfo.grade}</div>
+                      <div className="text-center text-gray-700">{auctionItem.productInfo.weight}</div>
+                      <div className="text-center font-medium text-gray-900">{auctionItem.myBid.toLocaleString()}</div>
+                      <div className="text-center font-medium text-gray-900">
+                        {(() => {
+                          const weight = parseFloat(auctionItem.productInfo.weight.replace('kg', ''));
+                          return Math.round(auctionItem.myBid * weight).toLocaleString();
+                        })()}
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* 검색창 */}
-          <div className="flex-shrink-0 bg-white px-4 py-3 border-b border-gray-200">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="거래처명, 대표자, 주소, 사업자번호 검색"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 text-sm bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400 focus:border-transparent"
-              />
+            {/* 검색창 - 스크롤 영역에 포함 */}
+            <div className="bg-white px-4 py-3 border-b border-gray-200">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="거래처명, 대표자, 주소, 사업자번호 검색"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2 text-sm bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400 focus:border-transparent"
+                />
+              </div>
             </div>
-          </div>
 
-          {/* 거래처 테이블 */}
-          <div className="flex-1 min-h-0 overflow-y-auto bg-white">
-            {/* 테이블 헤더 */}
+            {/* 거래처 테이블 헤더 - sticky로 상단 헤더 아래 고정 */}
             <div className="sticky top-0 z-10 bg-gray-100 border-b border-gray-200">
               <div className="grid px-3 h-9 items-center text-[13px] font-medium text-gray-500" style={{gridTemplateColumns: '36px 1fr 55px 95px 100px'}}>
                 <div></div>
@@ -158,7 +168,7 @@ function TradeRegisterContent() {
               </div>
             </div>
 
-            {/* 테이블 데이터 */}
+            {/* 거래처 테이블 데이터 */}
             {filteredDealers.length === 0 ? (
               <div className="text-center py-12">
                 <p className="text-sm text-gray-500">검색 결과가 없습니다</p>

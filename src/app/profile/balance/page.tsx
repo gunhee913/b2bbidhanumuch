@@ -80,6 +80,34 @@ function BalanceHistoryContent() {
   const [displayCount, setDisplayCount] = useState(20);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
+  // 마우스 드래그 스크롤 상태 (가로만)
+  const [isDragging, setIsDragging] = useState(false);
+  const [startX, setStartX] = useState(0);
+  const [scrollLeft, setScrollLeft] = useState(0);
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (!scrollContainerRef.current) return;
+    setIsDragging(true);
+    setStartX(e.pageX - scrollContainerRef.current.offsetLeft);
+    setScrollLeft(scrollContainerRef.current.scrollLeft);
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging || !scrollContainerRef.current) return;
+    e.preventDefault();
+    const x = e.pageX - scrollContainerRef.current.offsetLeft;
+    const walkX = (startX - x) * 1.5;
+    scrollContainerRef.current.scrollLeft = scrollLeft + walkX;
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  const handleMouseLeave = () => {
+    setIsDragging(false);
+  };
+
   // 더미 데이터 - 낙찰대금차감 후 입금하는 패턴
   const [balanceHistory] = useState<BalanceHistory[]>([
     { id: '1', date: '2026-01-21 09:00', type: 'auction', deposit: 0, withdraw: 8520000, balance: -8280000, description: '낙찰대금차감' },
@@ -204,9 +232,12 @@ function BalanceHistoryContent() {
     return new Intl.NumberFormat('ko-KR').format(Math.abs(amount));
   };
 
-  // 날짜 포맷
+  // 날짜 포맷 (축약형: 26.01.21 09:00)
   const formatDate = (dateStr: string) => {
-    return dateStr; // 2026-01-21 10:00 형식 그대로 사용
+    // 2026-01-21 09:00 -> 26.01.21 09:00
+    const [datePart, timePart] = dateStr.split(' ');
+    const [year, month, day] = datePart.split('-');
+    return `${year.slice(2)}.${month}.${day} ${timePart}`;
   };
 
   return (
@@ -220,9 +251,13 @@ function BalanceHistoryContent() {
               msOverflowStyle: 'none'
             }}
           >
-            <style jsx>{`
-              div::-webkit-scrollbar {
+            <style jsx global>{`
+              .hide-scrollbar::-webkit-scrollbar {
                 display: none;
+              }
+              .hide-scrollbar {
+                -ms-overflow-style: none;
+                scrollbar-width: none;
               }
             `}</style>
             
@@ -261,7 +296,7 @@ function BalanceHistoryContent() {
             </div>
 
             {/* 필터 영역 */}
-            <div className="flex-shrink-0 bg-white border-b border-gray-200 px-4 py-2.5">
+            <div className="flex-shrink-0 bg-white border-b border-gray-200 px-4 py-3">
               <div className="flex gap-2">
                 {/* 구분 필터 드롭다운 */}
                 <div className="relative" ref={typeDropdownRef}>
@@ -270,11 +305,11 @@ function BalanceHistoryContent() {
                       setShowTypeDropdown(!showTypeDropdown);
                       setShowPeriodDropdown(false);
                     }}
-                    className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors"
+                    className="flex items-center gap-1.5 px-4 py-2 text-[13px] font-medium bg-gray-100 text-gray-600 rounded-md hover:bg-gray-200 transition-colors"
                   >
                     {typeFilter === 'all' ? '구분' : 
                      typeFilter === 'deposit' ? '입금' : '낙찰대금차감'}
-                    <ChevronDown className={`h-3 w-3 transition-transform ${showTypeDropdown ? 'rotate-180' : ''}`} />
+                    <ChevronDown className={`h-4 w-4 transition-transform ${showTypeDropdown ? 'rotate-180' : ''}`} />
                   </button>
                   
                   <AnimatePresence>
@@ -296,7 +331,7 @@ function BalanceHistoryContent() {
                               setTypeFilter(option.value as TypeFilter);
                               setShowTypeDropdown(false);
                             }}
-                            className={`block w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 transition-colors whitespace-nowrap ${
+                            className={`block w-full text-left px-4 py-2 text-[13px] hover:bg-gray-100 transition-colors whitespace-nowrap ${
                               typeFilter === option.value ? 'bg-gray-100 text-gray-900 font-medium' : 'text-gray-700'
                             }`}
                           >
@@ -315,13 +350,13 @@ function BalanceHistoryContent() {
                       setShowPeriodDropdown(!showPeriodDropdown);
                       setShowTypeDropdown(false);
                     }}
-                    className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors"
+                    className="flex items-center gap-1.5 px-4 py-2 text-[13px] font-medium bg-gray-100 text-gray-600 rounded-md hover:bg-gray-200 transition-colors"
                   >
                     {periodFilter === 'all' ? '기간' : 
                      periodFilter === 'today' ? '오늘' :
                      periodFilter === 'week' ? '1주일' : 
                      periodFilter === 'month' ? '1개월' : '기간 직접 선택'}
-                    <ChevronDown className={`h-3 w-3 transition-transform ${showPeriodDropdown ? 'rotate-180' : ''}`} />
+                    <ChevronDown className={`h-4 w-4 transition-transform ${showPeriodDropdown ? 'rotate-180' : ''}`} />
                   </button>
                   
                   <AnimatePresence>
@@ -348,7 +383,7 @@ function BalanceHistoryContent() {
                                 setCustomDateRange({ from: undefined, to: undefined });
                               }
                             }}
-                            className={`block w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 transition-colors whitespace-nowrap ${
+                            className={`block w-full text-left px-4 py-2 text-[13px] hover:bg-gray-100 transition-colors whitespace-nowrap ${
                               periodFilter === option.value ? 'bg-gray-100 text-gray-900 font-medium' : 'text-gray-700'
                             }`}
                           >
@@ -362,14 +397,14 @@ function BalanceHistoryContent() {
 
                 {/* 기간 직접 선택 시 시작일/마감일 버튼 */}
                 {periodFilter === 'custom' && (
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1.5">
                     {/* 시작일 */}
                     <Popover>
                       <PopoverTrigger asChild>
                         <button
-                          className="flex items-center gap-1 px-2.5 py-1.5 bg-gray-100 rounded-lg text-xs font-medium text-gray-700 hover:bg-gray-200 transition-colors"
+                          className="flex items-center gap-1.5 px-3 py-2 bg-gray-100 rounded-md text-[13px] font-medium text-gray-700 hover:bg-gray-200 transition-colors"
                         >
-                          <CalendarIcon className="h-3 w-3" />
+                          <CalendarIcon className="h-4 w-4" />
                           <span>
                             {customDateRange.from
                               ? format(customDateRange.from, 'yy.M.d', { locale: ko })
@@ -401,15 +436,15 @@ function BalanceHistoryContent() {
                       </PopoverContent>
                     </Popover>
 
-                    <span className="text-xs text-gray-400">~</span>
+                    <span className="text-[13px] text-gray-400">~</span>
 
                     {/* 마감일 */}
                     <Popover>
                       <PopoverTrigger asChild>
                         <button
-                          className="flex items-center gap-1 px-2.5 py-1.5 bg-gray-100 rounded-lg text-xs font-medium text-gray-700 hover:bg-gray-200 transition-colors"
+                          className="flex items-center gap-1.5 px-3 py-2 bg-gray-100 rounded-md text-[13px] font-medium text-gray-700 hover:bg-gray-200 transition-colors"
                         >
-                          <CalendarIcon className="h-3 w-3" />
+                          <CalendarIcon className="h-4 w-4" />
                           <span>
                             {customDateRange.to
                               ? format(customDateRange.to, 'yy.M.d', { locale: ko })
@@ -449,23 +484,20 @@ function BalanceHistoryContent() {
             <div 
               ref={scrollContainerRef}
               onScroll={handleScroll}
-              className="flex-1 min-h-0 overflow-y-auto bg-white"
+              onMouseDown={handleMouseDown}
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUp}
+              onMouseLeave={handleMouseLeave}
+              className={`flex-1 min-h-0 overflow-y-auto overflow-x-auto bg-white hide-scrollbar ${isDragging ? 'cursor-grabbing select-none' : 'cursor-grab'}`}
             >
-              <table className="w-full border-collapse table-fixed">
-                <colgroup>
-                  <col className="w-[115px]" />
-                  <col className="w-[75px]" />
-                  <col className="w-[75px]" />
-                  <col className="w-[85px]" />
-                  <col className="w-[75px]" />
-                </colgroup>
+              <table className="w-full border-collapse min-w-[480px]">
                 <thead className="sticky top-0 bg-gray-50 border-b border-gray-200">
                   <tr>
-                    <th className="px-2 py-2 text-[10px] font-semibold text-gray-500 text-center border-r border-gray-200">거래일시</th>
-                    <th className="px-2 py-2 text-[10px] font-semibold text-gray-500 text-center border-r border-gray-200">입금</th>
-                    <th className="px-2 py-2 text-[10px] font-semibold text-gray-500 text-center border-r border-gray-200">출금(차감)</th>
-                    <th className="px-2 py-2 text-[10px] font-semibold text-gray-500 text-center border-r border-gray-200">거래가능금액</th>
-                    <th className="px-2 py-2 text-[10px] font-semibold text-gray-500 text-center">비고</th>
+                    <th className="px-2 py-2.5 text-[13px] font-semibold text-gray-500 text-center border-r border-gray-200 w-[105px]">거래일시</th>
+                    <th className="px-2 py-2.5 text-[13px] font-semibold text-gray-500 text-center border-r border-gray-200 w-[90px]">입금</th>
+                    <th className="px-2 py-2.5 text-[13px] font-semibold text-gray-500 text-center border-r border-gray-200 w-[90px]">출금(차감)</th>
+                    <th className="px-2 py-2.5 text-[13px] font-semibold text-gray-500 text-center border-r border-gray-200 w-[100px]">잔액</th>
+                    <th className="px-2 py-2.5 text-[13px] font-semibold text-gray-500 text-center w-[75px]">비고</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -478,19 +510,19 @@ function BalanceHistoryContent() {
                   ) : (
                     displayedHistory.map((item) => (
                       <tr key={item.id} className="hover:bg-gray-50">
-                        <td className="px-2 py-2.5 text-[10px] text-gray-600 text-center border-r border-gray-100">
+                        <td className="px-2 py-3 text-[12px] text-gray-600 text-center border-r border-gray-100 whitespace-nowrap">
                           {formatDate(item.date)}
                         </td>
-                        <td className="px-2 py-2.5 text-[11px] text-right font-medium text-gray-900 border-r border-gray-100">
+                        <td className="px-2 py-3 text-[12px] text-right font-medium text-gray-900 border-r border-gray-100 whitespace-nowrap">
                           {item.deposit > 0 ? `+${formatCurrency(item.deposit)}` : ''}
                         </td>
-                        <td className="px-2 py-2.5 text-[11px] text-right font-medium text-gray-900 border-r border-gray-100">
+                        <td className="px-2 py-3 text-[12px] text-right font-medium text-gray-900 border-r border-gray-100 whitespace-nowrap">
                           {item.withdraw > 0 ? `-${formatCurrency(item.withdraw)}` : ''}
                         </td>
-                        <td className={`px-2 py-2.5 text-[11px] text-right font-semibold border-r border-gray-100 ${item.balance < 0 ? 'text-red-600' : 'text-gray-900'}`}>
+                        <td className={`px-2 py-3 text-[12px] text-right font-semibold border-r border-gray-100 whitespace-nowrap ${item.balance < 0 ? 'text-red-600' : 'text-gray-900'}`}>
                           {item.balance < 0 ? `-${formatCurrency(item.balance)}` : formatCurrency(item.balance)}
                         </td>
-                        <td className="px-2 py-2.5 text-[10px] text-gray-600 text-center truncate">
+                        <td className="px-2 py-3 text-[12px] text-gray-600 text-center whitespace-nowrap">
                           {item.description}
                         </td>
                       </tr>

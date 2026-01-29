@@ -390,85 +390,86 @@ export default function TradePage() {
             </div>
           </div>
 
-          {/* 검색 */}
-          <div className="flex-shrink-0 bg-white px-4 py-2 border-b border-gray-200">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="상장번호, 부위, 등급, 거래처 검색"
-                className="w-full pl-9 pr-8 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-gray-400 bg-gray-50"
-              />
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                >
-                  ✕
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* 일자 */}
-          <div className="bg-white px-4 py-2.5">
-            <div className="flex items-center gap-2.5">
-              <span className="text-[13px] text-gray-500">일자</span>
-              <input
-                type="date"
-                value={`20${formatDateDisplay(startDate).replace(/\./g, '-')}`}
-                onChange={(e) => setStartDate(new Date(e.target.value))}
-                className="text-[13px] text-gray-700 bg-white border border-gray-200 rounded px-2.5 py-1.5 [&::-webkit-calendar-picker-indicator]:dark:invert-0 [&::-webkit-calendar-picker-indicator]:brightness-0"
-              />
-              <span className="text-[13px] text-gray-400">~</span>
-              <input
-                type="date"
-                value={`20${formatDateDisplay(endDate).replace(/\./g, '-')}`}
-                onChange={(e) => setEndDate(new Date(e.target.value))}
-                className="text-[13px] text-gray-700 bg-white border border-gray-200 rounded px-2.5 py-1.5 [&::-webkit-calendar-picker-indicator]:dark:invert-0 [&::-webkit-calendar-picker-indicator]:brightness-0"
-              />
-              <button
-                onClick={handleSearch}
-                className="px-3.5 py-1.5 text-[13px] font-medium text-white bg-gray-800 rounded hover:bg-gray-900 transition-colors"
-              >
-                조회
-              </button>
-            </div>
-          </div>
-
-          {/* 요약 정보 + 필터 영역 */}
-          <div className="flex-shrink-0 bg-white border-b border-gray-200 px-4 py-2.5">
-            <div className="flex items-center justify-between">
-              {/* 필터 버튼 */}
-              <div className="flex gap-2">
-                {(['all', 'registered', 'unregistered'] as const).map((filter) => (
-                  <button
-                    key={filter}
-                    onClick={() => setDealerFilter(filter)}
-                    className={`px-3.5 py-2 text-[13px] font-medium rounded-md transition-colors ${
-                      dealerFilter === filter
-                        ? 'bg-gray-900 text-white'
-                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                    }`}
-                  >
-                    {filter === 'all' ? '전체' : filter === 'registered' ? '등록' : '미등록'}
-                  </button>
-                ))}
-              </div>
-              
-              {/* 요약 정보 */}
-              <div className="text-[13px] text-gray-500">
-                총 <span className="font-medium text-gray-700">{summaryInfo.total}</span>건, 
-                등록 <span className="font-medium text-gray-700">{summaryInfo.registered}</span>건, 
-                미등록 <span className="font-medium text-gray-700">{summaryInfo.unregistered}</span>건
-              </div>
-            </div>
-          </div>
-
-          {/* 메인 콘텐츠 - 테이블 */}
+          {/* 메인 콘텐츠 - 스크롤 영역 */}
           <div className="flex-1 min-h-0 overflow-y-auto bg-gray-50 hide-scrollbar">
+            {/* 검색 - 스크롤 영역에 포함 */}
+            <div className="bg-white px-4 py-2 border-b border-gray-200">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="상장번호, 부위, 등급, 거래처 검색"
+                  className="w-full pl-9 pr-8 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-gray-400 bg-gray-50"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* 일자 - 스크롤 영역에 포함 */}
+            <div className="bg-white px-4 py-2.5">
+              <div className="flex items-center gap-2.5">
+                <span className="text-[13px] text-gray-500">일자</span>
+                <input
+                  type="date"
+                  value={`20${formatDateDisplay(startDate).replace(/\./g, '-')}`}
+                  onChange={(e) => setStartDate(new Date(e.target.value))}
+                  className="text-[13px] text-gray-700 bg-white border border-gray-200 rounded px-2.5 py-1.5 [&::-webkit-calendar-picker-indicator]:dark:invert-0 [&::-webkit-calendar-picker-indicator]:brightness-0"
+                />
+                <span className="text-[13px] text-gray-400">~</span>
+                <input
+                  type="date"
+                  value={`20${formatDateDisplay(endDate).replace(/\./g, '-')}`}
+                  onChange={(e) => setEndDate(new Date(e.target.value))}
+                  className="text-[13px] text-gray-700 bg-white border border-gray-200 rounded px-2.5 py-1.5 [&::-webkit-calendar-picker-indicator]:dark:invert-0 [&::-webkit-calendar-picker-indicator]:brightness-0"
+                />
+                <button
+                  onClick={handleSearch}
+                  className="px-3.5 py-1.5 text-[13px] font-medium text-white bg-gray-800 rounded hover:bg-gray-900 transition-colors"
+                >
+                  조회
+                </button>
+              </div>
+            </div>
+
+            {/* 요약 정보 + 필터 영역 - 스크롤 영역에 포함 */}
+            <div className="bg-white border-b border-gray-200 px-4 py-2.5">
+              <div className="flex items-center justify-between">
+                {/* 필터 버튼 */}
+                <div className="flex gap-2">
+                  {(['all', 'registered', 'unregistered'] as const).map((filter) => (
+                    <button
+                      key={filter}
+                      onClick={() => setDealerFilter(filter)}
+                      className={`px-3.5 py-2 text-[13px] font-medium rounded-md transition-colors ${
+                        dealerFilter === filter
+                          ? 'bg-gray-900 text-white'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                    >
+                      {filter === 'all' ? '전체' : filter === 'registered' ? '등록' : '미등록'}
+                    </button>
+                  ))}
+                </div>
+                
+                {/* 요약 정보 */}
+                <div className="text-[13px] text-gray-500">
+                  총 <span className="font-medium text-gray-700">{summaryInfo.total}</span>건, 
+                  등록 <span className="font-medium text-gray-700">{summaryInfo.registered}</span>건, 
+                  미등록 <span className="font-medium text-gray-700">{summaryInfo.unregistered}</span>건
+                </div>
+              </div>
+            </div>
+
+            {/* 테이블 영역 */}
             {filteredItems.length === 0 ? (
               <div className="text-center py-20">
                 <FileText className="h-16 w-16 text-gray-300 mx-auto mb-4" />
@@ -490,7 +491,7 @@ export default function TradePage() {
               </div>
             ) : (
               <div className="pb-24">
-                {/* 테이블 헤더 - sticky로 고정 */}
+                {/* 테이블 헤더 - sticky로 상단 헤더 아래 고정 */}
                 <div 
                   ref={headerRef}
                   className="sticky top-0 z-10 bg-gray-100 border-b border-gray-200 overflow-x-hidden"

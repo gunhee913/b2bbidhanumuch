@@ -182,7 +182,7 @@ export default function ProfilePage() {
 
                 {/* 고객센터 */}
                 <div className="w-full px-4 py-3.5">
-                  <span className="text-sm text-gray-900">중부미트센터</span>
+                  <span className="text-sm text-gray-900">농협 중부미트센터</span>
                   <div className="mt-2 flex flex-col gap-1.5">
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-gray-500">전화</span>

@@ -644,7 +644,7 @@ function AuctionPageContent() {
                               transition={{ duration: 0.2 }}
                               className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden z-50 max-h-40 overflow-y-auto"
                             >
-                              {['전체', '건화', '대진엠에스', '안심엘피씨', '정직한고기'].map((option) => (
+                              {['전체', '건화', '대진엠이스', '안심엘피시', '정직한고기'].map((option) => (
                                 <motion.button
                                   key={option}
                                   onClick={() => {
@@ -876,7 +876,7 @@ function AuctionPageContent() {
                   
 
                   {/* 부위별 필터 - 메인 페이지 개체별과 동일한 스타일 */}
-                  <div className="px-4 py-3 bg-white border-b border-gray-100">
+                  <div className="px-4 py-3 bg-white border-b border-gray-100 filter-dropdown">
                     <div className="flex items-center gap-2.5 flex-wrap">
                       {/* 등급 필터 */}
                       <div className="relative">
@@ -925,7 +925,7 @@ function AuctionPageContent() {
                         {/* 업체 드롭다운 메뉴 */}
                         {openDropdown === 'partCompany' && (
                           <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-20 min-w-[110px]">
-                            {['전체', '건화', '대진엠에스', '안심엘피씨', '정직한고기'].map((option) => (
+                            {['전체', '건화', '대진엠이스', '안심엘피시', '정직한고기'].map((option) => (
                               <button
                                 key={option}
                                 onClick={(e) => {

@@ -163,29 +163,29 @@ export default function NotificationsPage() {
                 <p className="text-sm">알림이 없습니다</p>
               </div>
             ) : (
-              <div className="p-3 space-y-2">
+                <div className="p-3 space-y-2.5">
                 {displayNotifications.map((notification) => (
                   <div
                     key={notification.id}
                     onClick={() => handleNotificationClick(notification)}
-                    className={`p-4 rounded bg-white border cursor-pointer transition-colors ${
+                    className={`p-4 rounded-lg bg-white border cursor-pointer transition-colors ${
                       notification.isRead 
                         ? 'border-gray-200' 
                         : 'border-gray-300 bg-gray-50'
                     }`}
                   >
-                    <div className="flex items-center gap-2 mb-1">
+                    <div className="flex items-center gap-2 mb-1.5">
                       {!notification.isRead && (
-                        <span className="w-1.5 h-1.5 bg-red-500 rounded-full flex-shrink-0" />
+                        <span className="w-2 h-2 bg-red-500 rounded-full flex-shrink-0" />
                       )}
-                      <p className={`text-sm ${notification.isRead ? 'text-gray-700' : 'text-gray-900 font-medium'}`}>
+                      <p className={`text-[15px] ${notification.isRead ? 'text-gray-700' : 'text-gray-900 font-semibold'}`}>
                         {notification.title}
                       </p>
                     </div>
-                    <p className="text-xs text-gray-600 leading-relaxed mb-2 whitespace-pre-line">
+                    <p className="text-[13px] text-gray-600 leading-relaxed mb-2.5 whitespace-pre-line">
                       {notification.message}
                     </p>
-                    <p className="text-[10px] text-gray-400">
+                    <p className="text-[12px] text-gray-400">
                       {notification.time}
                     </p>
                   </div>
