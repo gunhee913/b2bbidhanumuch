@@ -1,52 +1,180 @@
 'use client';
 
+import React, { useState, useMemo } from 'react';
 import CompanyLayout from '@/components/company/CompanyLayout';
-import { Search, Download } from 'lucide-react';
+import { Download } from 'lucide-react';
+import * as XLSX from 'xlsx';
+import { useSession } from 'next-auth/react';
+
+// 오늘 날짜 (YYYY-MM-DD)
+const getTodayDateValue = () => {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const todayDateValue = getTodayDateValue();
+
+// 19부위 목록
+const PARTS = [
+  '등심(좌)', '등심(우)', '안심', '채끝', '갈비(좌)', '갈비(우)', '특수부위',
+  '설도(좌)', '설도(우)', '앞다리', '우둔', '목심', '양지(좌)', '양지(우)',
+  '사태', '꼬리', '족', '사골', '잡뼈'
+];
+
+// 유찰 부위 인덱스
+const FAILED_PARTS = [12, 15]; // 특수부위, 꼬리 유찰
+
+// 낙찰률 데이터 계산
+interface ResultData {
+  listed: number;
+  awarded: number;
+  rate: number;
+}
+
+// 부위별 데이터 생성
+const generateResultData = () => {
+  const data: Record<string, ResultData> = {};
+  
+  // 각 부위별로 초기화
+  PARTS.forEach(part => {
+    data[part] = { listed: 0, awarded: 0, rate: 0 };
+  });
+  data['합계'] = { listed: 0, awarded: 0, rate: 0 };
+  
+  // 2두 데이터
+  for (let cattleIdx = 0; cattleIdx < 2; cattleIdx++) {
+    PARTS.forEach((part, partIdx) => {
+      const isFailed = FAILED_PARTS.includes(partIdx);
+      
+      data[part].listed += 1;
+      data[part].awarded += isFailed ? 0 : 1;
+      
+      data['합계'].listed += 1;
+      data['합계'].awarded += isFailed ? 0 : 1;
+    });
+  }
+  
+  // 낙찰률 계산
+  PARTS.forEach(part => {
+    const d = data[part];
+    d.rate = d.listed > 0 ? Math.round((d.awarded / d.listed) * 100) : 0;
+  });
+  
+  const grandTotal = data['합계'];
+  grandTotal.rate = grandTotal.listed > 0 ? Math.round((grandTotal.awarded / grandTotal.listed) * 100) : 0;
+  
+  return data;
+};
 
 export default function CompanyAuctionResultsPage() {
+  const { data: session } = useSession();
+  const companyName = session?.company?.name || '';
+  
+  const [startDate, setStartDate] = useState(todayDateValue);
+  const [endDate, setEndDate] = useState(todayDateValue);
+
+  const resultData = useMemo(() => generateResultData(), []);
+
+  const thClass = "px-3 py-2 text-center text-xs font-semibold text-gray-500 whitespace-nowrap border border-gray-200";
+  const tdClass = "px-2 py-1.5 text-xs text-gray-600 text-center whitespace-nowrap border border-gray-200";
+
+  // 엑셀 다운로드
+  const handleExcelDownload = () => {
+    const excelData: Record<string, string | number>[] = [];
+    
+    [...PARTS, '합계'].forEach(part => {
+      const d = resultData[part];
+      excelData.push({
+        '부위': part,
+        '상장': d.listed,
+        '낙찰': d.awarded,
+        '낙찰률': `${d.rate}%`,
+      });
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(excelData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, '낙찰률 조회');
+
+    const today = new Date();
+    const fileName = `${companyName}_낙찰률조회_${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}${String(today.getDate()).padStart(2, '0')}.xlsx`;
+    XLSX.writeFile(workbook, fileName);
+  };
+
   return (
     <CompanyLayout>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">낙찰조회</h1>
-        <p className="text-sm text-gray-500 mt-1">내 업체의 낙찰 내역을 조회합니다</p>
+        <h1 className="text-2xl font-bold text-gray-900">부분육 낙찰률 조회</h1>
+        <p className="text-sm text-gray-500 mt-1">{companyName}</p>
       </div>
 
-      {/* 검색 필터 */}
+      {/* 필터 섹션 */}
       <div className="bg-white border border-gray-200 p-4 mb-4">
         <div className="flex flex-wrap items-center gap-4">
-          <input
-            type="date"
-            className="px-3 py-1.5 border border-gray-200 text-xs outline-none bg-white"
-          />
-          <span className="text-gray-400">~</span>
-          <input
-            type="date"
-            className="px-3 py-1.5 border border-gray-200 text-xs outline-none bg-white"
-          />
-          <button className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-blue-600 text-white hover:bg-blue-700 text-xs font-medium">
-            <Search className="w-3.5 h-3.5" />
-            검색
-          </button>
-          <button className="inline-flex items-center gap-1.5 px-4 py-1.5 border border-gray-300 hover:bg-gray-50 text-xs font-medium text-gray-700 bg-white ml-auto">
-            <Download className="w-3.5 h-3.5" />
-            엑셀
-          </button>
+          {/* 기간 선택 */}
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-gray-600">기간</span>
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="w-36 px-3 py-1.5 border border-gray-200 text-xs outline-none bg-white"
+            />
+            <span className="text-gray-400">~</span>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="w-36 px-3 py-1.5 border border-gray-200 text-xs outline-none bg-white"
+            />
+          </div>
+
+          {/* 초기화/엑셀 버튼 */}
+          <div className="flex items-center gap-2 ml-auto">
+            <button
+              type="button"
+              onClick={() => {
+                setStartDate(todayDateValue);
+                setEndDate(todayDateValue);
+              }}
+              className="px-4 py-1.5 border border-gray-300 text-gray-600 text-xs hover:bg-gray-50"
+            >
+              초기화
+            </button>
+            <button
+              type="button"
+              onClick={handleExcelDownload}
+              className="flex items-center gap-1.5 px-4 py-1.5 bg-gray-700 text-white text-xs hover:bg-gray-800"
+            >
+              <Download className="w-3.5 h-3.5" />
+              엑셀
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* 통계 */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-        <div className="bg-white border border-gray-200 p-4">
-          <p className="text-sm text-gray-500">총 낙찰건수</p>
-          <p className="text-2xl font-bold text-gray-900">0건</p>
-        </div>
-        <div className="bg-white border border-gray-200 p-4">
-          <p className="text-sm text-gray-500">총 낙찰금액</p>
-          <p className="text-2xl font-bold text-gray-900">0원</p>
-        </div>
-        <div className="bg-white border border-gray-200 p-4">
-          <p className="text-sm text-gray-500">낙찰률</p>
-          <p className="text-2xl font-bold text-gray-900">0%</p>
+      {/* 요약 정보 */}
+      <div className="bg-white border border-gray-200 p-4 mb-4">
+        <div className="flex items-center gap-8">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-500">총 상장</span>
+            <span className="text-sm font-semibold text-gray-900">{resultData['합계'].listed}건</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-500">총 낙찰</span>
+            <span className="text-sm font-semibold text-gray-900">{resultData['합계'].awarded}건</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-500">총 유찰</span>
+            <span className="text-sm font-semibold text-gray-900">{resultData['합계'].listed - resultData['합계'].awarded}건</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-500">평균 낙찰률</span>
+            <span className="text-sm font-semibold text-gray-900">{resultData['합계'].rate}%</span>
+          </div>
         </div>
       </div>
 
@@ -54,23 +182,36 @@ export default function CompanyAuctionResultsPage() {
       <div className="bg-white border border-gray-200 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full border-collapse">
-            <thead>
+            <thead className="bg-gray-50">
               <tr>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">낙찰일</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">품목</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">품종</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">부위</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">등급</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">중량(kg)</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">낙찰가(원/kg)</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">낙찰총액</th>
+                <th className={`${thClass} bg-gray-50 min-w-[100px]`}>부위</th>
+                <th className={`${thClass} bg-gray-50 min-w-[80px]`}>상장</th>
+                <th className={`${thClass} bg-gray-50 min-w-[80px]`}>낙찰</th>
+                <th className={`${thClass} bg-gray-50 min-w-[80px]`}>낙찰률</th>
               </tr>
             </thead>
             <tbody>
-              <tr>
-                <td colSpan={8} className="px-4 py-8 text-center text-gray-500 border border-gray-200">
-                  낙찰 내역이 없습니다.
-                </td>
+              {PARTS.map((part) => {
+                const d = resultData[part];
+                return (
+                  <tr key={part} className="hover:bg-gray-50">
+                    <td className={`${tdClass} font-medium`}>{part}</td>
+                    <td className={tdClass}>{d.listed}</td>
+                    <td className={`${tdClass} ${d.awarded > 0 ? 'text-gray-900' : 'text-gray-400'}`}>
+                      {d.awarded}
+                    </td>
+                    <td className={`${tdClass} text-gray-600`}>
+                      {d.rate}%
+                    </td>
+                  </tr>
+                );
+              })}
+              {/* 합계 행 */}
+              <tr className="bg-white font-semibold border-t-2 border-gray-200">
+                <td className={`${tdClass} font-bold`}>합계</td>
+                <td className={tdClass}>{resultData['합계'].listed}</td>
+                <td className={`${tdClass} text-gray-900`}>{resultData['합계'].awarded}</td>
+                <td className={`${tdClass} font-bold`}>{resultData['합계'].rate}%</td>
               </tr>
             </tbody>
           </table>
