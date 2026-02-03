@@ -1,41 +1,17 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import Link from 'next/link';
+import { useSession, signOut } from 'next-auth/react';
 import { 
-  User,
-  Users,
   ChevronRight,
-  Phone,
-  Building2,
-  CreditCard,
-  Settings,
   Bell,
-  LogOut,
-  Gavel,
-  FileText,
-  Megaphone
+  Loader2,
 } from 'lucide-react';
 import BottomNav from '@/components/BottomNav';
 
-// 사용자 정보 타입
-interface UserProfile {
-  name: string;
-  phone: string;
-  userType: '중도매인' | '매참인';
-  registrationNo: string;
-  market: string;
-}
-
 export default function ProfilePage() {
-  // 사용자 정보 (임시 데이터 - 추후 Zustand/Supabase로 관리)
-  const [userProfile] = useState<UserProfile>({
-    name: '김하누',
-    phone: '010-1234-5678',
-    userType: '중도매인',
-    registrationNo: '72',
-    market: '음성축산물공판장',
-  });
+  const { data: session, status } = useSession();
 
   // 동적 viewport 높이 설정
   useEffect(() => {
@@ -51,6 +27,26 @@ export default function ProfilePage() {
       window.removeEventListener('orientationchange', setViewportHeight);
     };
   }, []);
+
+  const handleLogout = async () => {
+    await signOut({ callbackUrl: '/login' });
+  };
+
+  // 로딩 상태
+  if (status === 'loading') {
+    return (
+      <div className="fixed inset-0 bg-white flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+      </div>
+    );
+  }
+
+  // 세션에서 정보 추출
+  const userName = session?.user?.name || '사용자';
+  const userPhone = session?.user?.phone || '';
+  const userRole = session?.user?.role === 'employee' ? '직원' : '중도매인';
+  const dealerNo = session?.dealer?.dealerNo || '';
+  const displayNo = dealerNo.slice(-2) || '00'; // 마지막 2자리
 
   return (
     <div className="fixed inset-0 bg-white flex justify-center items-center z-[9999] overflow-hidden">
@@ -95,19 +91,19 @@ export default function ProfilePage() {
 
             {/* 메인 콘텐츠 */}
             <div className="flex-1 min-h-0 overflow-y-auto bg-white">
-              {/* 사용자 환영 섹션 - 메인페이지와 동일 */}
+              {/* 사용자 환영 섹션 */}
               <div className="px-4 pt-5 pb-3 bg-white">
                 <div className="flex items-center gap-2.5">
                   {/* 프로필 이미지 */}
                   <div className="flex-shrink-0">
                     <div className="w-10 h-10 rounded-full bg-gray-400 flex items-center justify-center text-white font-bold text-sm">
-                      {userProfile.registrationNo}
+                      {displayNo}
                     </div>
                   </div>
                   {/* 환영 메시지 */}
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-bold text-gray-900 truncate">
-                      {userProfile.name}님({userProfile.registrationNo}번 {userProfile.userType}) 안녕하세요.
+                      {userName}님({displayNo}번 {userRole}) 안녕하세요.
                     </p>
                     <p className="text-xs text-gray-600">오늘도 즐거운 하루 되세요.</p>
                   </div>
@@ -197,7 +193,10 @@ export default function ProfilePage() {
 
                 {/* 로그아웃 */}
                 <div className="my-2 border-t border-gray-200"></div>
-                <button className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-gray-50 transition-colors">
+                <button 
+                  onClick={handleLogout}
+                  className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-gray-50 transition-colors"
+                >
                   <span className="text-sm text-gray-900">로그아웃</span>
                 </button>
               </div>

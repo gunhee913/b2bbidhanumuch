@@ -2,54 +2,27 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useSession } from 'next-auth/react';
 import { 
   ChevronLeft,
   ChevronRight,
   User,
   Phone,
-  Mail,
   Lock,
   Fingerprint,
   KeyRound,
   Settings,
   Bell,
   Camera,
-  Gavel
+  Gavel,
+  Loader2,
 } from 'lucide-react';
 import BottomNav from '@/components/BottomNav';
 
-// 사용자 계정 정보 타입
-interface AccountInfo {
-  profileImage: string | null;
-  name: string;
-  userId: string;
-  registrationNo: string;
-  userType: '중도매인' | '매참인';
-  joinDate: string;
-  phone: string;
-  email: string;
-  emergencyContact: string;
-  pinEnabled: boolean;
-  biometricEnabled: boolean;
-}
-
 export default function AccountPage() {
-  // 사용자 계정 정보 (임시 데이터)
-  const [accountInfo] = useState<AccountInfo>({
-    profileImage: null,
-    name: '김하누',
-    userId: '010-1234-5678',
-    registrationNo: '7000072',
-    userType: '중도매인',
-    joinDate: '2026.01.15',
-    phone: '010-1234-5678',
-    email: 'hanumuch@email.com',
-    emergencyContact: '010-9876-5432',
-    pinEnabled: true,
-    biometricEnabled: false,
-  });
+  const { data: session, status } = useSession();
 
-  const [biometricEnabled, setBiometricEnabled] = useState(accountInfo.biometricEnabled);
+  const [biometricEnabled, setBiometricEnabled] = useState(false);
   const [auctionPasswordEnabled, setAuctionPasswordEnabled] = useState(false);
 
   // 동적 viewport 높이 설정
@@ -66,6 +39,33 @@ export default function AccountPage() {
       window.removeEventListener('orientationchange', setViewportHeight);
     };
   }, []);
+
+  // 로딩 상태
+  if (status === 'loading') {
+    return (
+      <div className="fixed inset-0 bg-white flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+      </div>
+    );
+  }
+
+  // 세션에서 정보 추출
+  const userName = session?.user?.name || '사용자';
+  const userPhone = session?.user?.phone || '';
+  const userRole = session?.user?.role === 'employee' ? '직원' : '중도매인';
+  const dealerNo = session?.dealer?.dealerNo || '';
+  const dealerName = session?.dealer?.name || '';
+  const dealerAddress = session?.dealer?.address || '';
+  const displayNo = dealerNo.slice(-2) || '00';
+  
+  // 가입일 포맷
+  const createdAt = session?.dealer?.createdAt 
+    ? new Date(session.dealer.createdAt).toLocaleDateString('ko-KR', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      }).replace(/\. /g, '.').replace(/\.$/, '')
+    : '-';
 
   return (
     <div className="fixed inset-0 bg-white flex justify-center items-center z-[9999] overflow-hidden">
@@ -124,22 +124,17 @@ export default function AccountPage() {
             <div className="bg-white px-4 py-6 flex flex-col items-center">
               <div className="relative">
                 <div className="w-20 h-20 rounded-full bg-gray-300 flex items-center justify-center text-white text-2xl font-bold overflow-hidden">
-                  {accountInfo.profileImage ? (
-                    <img 
-                      src={accountInfo.profileImage} 
-                      alt="프로필" 
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    '72'
-                  )}
+                  {displayNo}
                 </div>
                 <button className="absolute bottom-0 right-0 w-7 h-7 bg-gray-800 rounded-full flex items-center justify-center border-2 border-white">
                   <Camera className="w-3.5 h-3.5 text-white" />
                 </button>
               </div>
-              <p className="mt-3 text-base font-bold text-gray-900">{accountInfo.name}</p>
-              <p className="text-sm text-gray-500">72번 {accountInfo.userType}</p>
+              <p className="mt-3 text-base font-bold text-gray-900">{userName}</p>
+              <p className="text-sm text-gray-500">{displayNo}번 {userRole}</p>
+              {session?.user?.role === 'employee' && (
+                <p className="text-xs text-gray-400 mt-1">소속: {dealerName}</p>
+              )}
             </div>
 
             {/* 기본 정보 섹션 */}
@@ -154,7 +149,7 @@ export default function AccountPage() {
                     <User className="w-5 h-5 text-gray-400" />
                     <span className="text-sm text-gray-500">아이디</span>
                   </div>
-                  <span className="text-sm text-gray-900">{accountInfo.userId}</span>
+                  <span className="text-sm text-gray-900">{userPhone}</span>
                 </div>
                 
                 <div className="flex items-center justify-between px-4 py-3.5">
@@ -162,7 +157,7 @@ export default function AccountPage() {
                     <User className="w-5 h-5 text-gray-400" />
                     <span className="text-sm text-gray-500">이름</span>
                   </div>
-                  <span className="text-sm text-gray-900">{accountInfo.name}</span>
+                  <span className="text-sm text-gray-900">{userName}</span>
                 </div>
                 
                 <div className="flex items-center justify-between px-4 py-3.5">
@@ -170,7 +165,7 @@ export default function AccountPage() {
                     <User className="w-5 h-5 text-gray-400" />
                     <span className="text-sm text-gray-500">거래인번호</span>
                   </div>
-                  <span className="text-sm text-gray-900">{accountInfo.registrationNo}</span>
+                  <span className="text-sm text-gray-900">{dealerNo}</span>
                 </div>
                 
                 <div className="flex items-center justify-between px-4 py-3.5">
@@ -178,7 +173,7 @@ export default function AccountPage() {
                     <User className="w-5 h-5 text-gray-400" />
                     <span className="text-sm text-gray-500">회원유형</span>
                   </div>
-                  <span className="text-sm text-gray-900">{accountInfo.userType}</span>
+                  <span className="text-sm text-gray-900">{userRole}</span>
                 </div>
                 
                 <div className="flex items-center justify-between px-4 py-3.5">
@@ -186,16 +181,15 @@ export default function AccountPage() {
                     <User className="w-5 h-5 text-gray-400" />
                     <span className="text-sm text-gray-500">가입일</span>
                   </div>
-                  <span className="text-sm text-gray-900">{accountInfo.joinDate}</span>
+                  <span className="text-sm text-gray-900">{createdAt}</span>
                 </div>
               </div>
             </div>
 
             {/* 연락처 정보 섹션 */}
             <div className="mx-4 mt-3 rounded-lg bg-white border border-gray-200 shadow-sm overflow-hidden">
-              <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+              <div className="px-4 py-3 border-b border-gray-100">
                 <p className="text-gray-600 text-sm font-bold">연락처 정보</p>
-                <button className="text-sm text-gray-500 hover:text-gray-700">수정</button>
               </div>
               
               <div className="divide-y divide-gray-100">
@@ -204,24 +198,18 @@ export default function AccountPage() {
                     <Phone className="w-5 h-5 text-gray-400" />
                     <span className="text-sm text-gray-500">휴대폰</span>
                   </div>
-                  <span className="text-sm text-gray-900">{accountInfo.phone}</span>
+                  <span className="text-sm text-gray-900">{userPhone}</span>
                 </div>
                 
-                <div className="flex items-center justify-between px-4 py-3.5">
-                  <div className="flex items-center gap-3">
-                    <Mail className="w-5 h-5 text-gray-400" />
-                    <span className="text-sm text-gray-500">이메일</span>
+                {dealerAddress && (
+                  <div className="flex items-center justify-between px-4 py-3.5">
+                    <div className="flex items-center gap-3">
+                      <User className="w-5 h-5 text-gray-400" />
+                      <span className="text-sm text-gray-500">주소</span>
+                    </div>
+                    <span className="text-sm text-gray-900">{dealerAddress}</span>
                   </div>
-                  <span className="text-sm text-gray-900">{accountInfo.email}</span>
-                </div>
-                
-                <div className="flex items-center justify-between px-4 py-3.5">
-                  <div className="flex items-center gap-3">
-                    <Phone className="w-5 h-5 text-gray-400" />
-                    <span className="text-sm text-gray-500">비상연락처</span>
-                  </div>
-                  <span className="text-sm text-gray-900">{accountInfo.emergencyContact || '-'}</span>
-                </div>
+                )}
               </div>
             </div>
 
@@ -232,13 +220,13 @@ export default function AccountPage() {
               </div>
               
               <div className="divide-y divide-gray-100">
-                <button className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-gray-50 transition-colors">
+                <div className="w-full flex items-center justify-between px-4 py-3.5">
                   <div className="flex items-center gap-3">
                     <Lock className="w-5 h-5 text-gray-400" />
                     <span className="text-sm text-gray-900">비밀번호 변경</span>
                   </div>
-                  <ChevronRight className="w-5 h-5 text-gray-400" />
-                </button>
+                  <span className="text-xs text-gray-400">관리자에게 문의</span>
+                </div>
                 
                 <button className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-gray-50 transition-colors">
                   <div className="flex items-center gap-3">
@@ -270,7 +258,7 @@ export default function AccountPage() {
                 <div className="flex items-center justify-between px-4 py-3.5">
                   <div className="flex items-center gap-3">
                     <Gavel className="w-5 h-5 text-gray-400" />
-                    <span className="text-sm text-gray-900">경매 비밀번호</span>
+                    <span className="text-sm text-gray-900">경매 비밀번호 사용</span>
                   </div>
                   <button
                     onClick={() => setAuctionPasswordEnabled(!auctionPasswordEnabled)}
@@ -286,13 +274,13 @@ export default function AccountPage() {
                   </button>
                 </div>
                 
-                <button className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-gray-50 transition-colors">
+                <div className="w-full flex items-center justify-between px-4 py-3.5">
                   <div className="flex items-center gap-3">
                     <Gavel className="w-5 h-5 text-gray-400" />
                     <span className="text-sm text-gray-900">경매 비밀번호 변경</span>
                   </div>
-                  <ChevronRight className="w-5 h-5 text-gray-400" />
-                </button>
+                  <span className="text-xs text-gray-400">관리자에게 문의</span>
+                </div>
               </div>
             </div>
           </div>

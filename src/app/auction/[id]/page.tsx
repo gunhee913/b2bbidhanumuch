@@ -21,6 +21,8 @@ import BottomNav from '@/components/BottomNav';
 import { Button } from '@/components/ui/button';
 import { useBidStore } from '@/stores/bidStore';
 import { getTodayDateCode, getTodayTimeFormatted } from '@/constants/auction';
+import { useAuctionAuth } from '@/hooks/useAuctionAuth';
+import { AuctionPasswordModal } from '@/components/auth/AuctionPasswordModal';
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -85,6 +87,17 @@ function AuctionDetailContent({ params }: PageProps) {
     toggleFavorite,
     isFavorite
   } = useBidStore();
+
+  // 경매 비밀번호 인증
+  const {
+    isVerified: isAuctionVerified,
+    isVerifying,
+    error: auctionAuthError,
+    verifyAuctionPassword,
+    requireAuctionAuth,
+    showModal: showAuctionAuthModal,
+    setShowModal: setShowAuctionAuthModal,
+  } = useAuctionAuth();
   
   // hydration 완료 여부
   const [isHydrated, setIsHydrated] = useState(false);
@@ -249,7 +262,10 @@ function AuctionDetailContent({ params }: PageProps) {
       return;
     }
     
-    setShowBidDialog(true);
+    // 경매 비밀번호 인증 후 입찰 다이얼로그 표시
+    requireAuctionAuth(() => {
+      setShowBidDialog(true);
+    });
   };
 
   // 입찰 추가 함수
@@ -1538,6 +1554,15 @@ function AuctionDetailContent({ params }: PageProps) {
             </div>
           </div>
         )}
+
+        {/* 경매 비밀번호 인증 모달 */}
+        <AuctionPasswordModal
+          isOpen={showAuctionAuthModal}
+          onClose={() => setShowAuctionAuthModal(false)}
+          onVerify={verifyAuctionPassword}
+          isVerifying={isVerifying}
+          error={auctionAuthError}
+        />
 
         {/* 토스트 메시지 */}
         {showToast && (

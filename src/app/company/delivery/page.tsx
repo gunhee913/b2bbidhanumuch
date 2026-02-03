@@ -1,0 +1,72 @@
+'use client';
+
+import CompanyLayout from '@/components/company/CompanyLayout';
+import { Search, Download, Printer } from 'lucide-react';
+
+export default function CompanyDeliveryPage() {
+  return (
+    <CompanyLayout>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">출고지시서</h1>
+        <p className="text-sm text-gray-500 mt-1">내 업체의 출고 지시서를 조회합니다</p>
+      </div>
+
+      {/* 검색 필터 */}
+      <div className="bg-white border border-gray-200 p-4 mb-4">
+        <div className="flex flex-wrap items-center gap-4">
+          <input
+            type="date"
+            className="px-3 py-1.5 border border-gray-200 text-xs outline-none bg-white"
+          />
+          <span className="text-gray-400">~</span>
+          <input
+            type="date"
+            className="px-3 py-1.5 border border-gray-200 text-xs outline-none bg-white"
+          />
+          <button className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-blue-600 text-white hover:bg-blue-700 text-xs font-medium">
+            <Search className="w-3.5 h-3.5" />
+            검색
+          </button>
+          <div className="flex items-center gap-2 ml-auto">
+            <button className="inline-flex items-center gap-1.5 px-4 py-1.5 border border-gray-300 hover:bg-gray-50 text-xs font-medium text-gray-700 bg-white">
+              <Printer className="w-3.5 h-3.5" />
+              인쇄
+            </button>
+            <button className="inline-flex items-center gap-1.5 px-4 py-1.5 border border-gray-300 hover:bg-gray-50 text-xs font-medium text-gray-700 bg-white">
+              <Download className="w-3.5 h-3.5" />
+              엑셀
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* 테이블 */}
+      <div className="bg-white border border-gray-200 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse">
+            <thead>
+              <tr>
+                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">출고일</th>
+                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">지시서번호</th>
+                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">품목</th>
+                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">품종</th>
+                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">부위</th>
+                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">중량(kg)</th>
+                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">낙찰자</th>
+                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">배송지</th>
+                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">상태</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td colSpan={9} className="px-4 py-8 text-center text-gray-500 border border-gray-200">
+                  출고 지시서가 없습니다.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </CompanyLayout>
+  );
+}
