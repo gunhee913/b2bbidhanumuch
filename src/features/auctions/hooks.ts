@@ -70,7 +70,7 @@ export function useUpdateAuction() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: auctionKeys.lists() });
       queryClient.setQueryData(auctionKeys.detail(data.id), (old: unknown) =>
-        old ? { ...old, ...data } : data
+        old ? { ...(old as Auction), ...data } : data
       );
     },
   });
@@ -97,7 +97,7 @@ export function useOpenAuction() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: auctionKeys.lists() });
       queryClient.setQueryData(auctionKeys.detail(data.id), (old: unknown) =>
-        old ? { ...old, ...data } : data
+        old ? { ...(old as Auction), ...data } : data
       );
     },
   });
