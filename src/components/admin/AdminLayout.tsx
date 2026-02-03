@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
+import { useSession, signOut } from 'next-auth/react';
 import {
   LayoutDashboard,
   Users,
@@ -160,6 +161,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { setTheme, theme } = useTheme();
+  const { data: session } = useSession();
   
   // 초기값을 현재 경로 기반으로 설정 (애니메이션 없이 바로 열림)
   const [expandedMenus, setExpandedMenus] = useState<string[]>(() => getInitialExpandedMenus(pathname));
@@ -170,6 +172,11 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   // 열린 탭 관리
   const [openTabs, setOpenTabs] = useState<OpenTab[]>([]);
   const [isTabsLoaded, setIsTabsLoaded] = useState(false);
+
+  // 로그아웃 처리
+  const handleLogout = async () => {
+    await signOut({ callbackUrl: '/admin/login' });
+  };
   
   // 관리자 페이지에서는 항상 라이트 모드 강제 적용
   useEffect(() => {
@@ -383,9 +390,11 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         <div className="absolute bottom-0 left-0 right-0 border-t border-gray-800">
           <div className="flex items-center gap-2 px-4 py-3 bg-gray-800">
             <div className="w-7 h-7 bg-gray-600 rounded-full flex items-center justify-center">
-              <span className="text-white font-medium text-xs">관</span>
+              <span className="text-white font-medium text-xs">
+                {session?.admin?.name?.charAt(0) || '관'}
+              </span>
             </div>
-            <span className="text-white text-sm">관리자</span>
+            <span className="text-white text-sm">{session?.admin?.name || '관리자'}</span>
           </div>
         </div>
       </aside>
@@ -399,7 +408,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
             <div className="flex items-center gap-4">
               {/* 로그인 정보 */}
               <span className="text-xs text-gray-600">
-                [ <span className="font-medium text-gray-700">관리자</span> ] 로그인
+                [ <span className="font-medium text-gray-700">{session?.admin?.name || '관리자'}</span> ] 로그인
               </span>
 
               {/* 구분선 */}
@@ -407,7 +416,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
               {/* 로그아웃 */}
               <button
-                onClick={() => {/* 로그아웃 처리 */}}
+                onClick={handleLogout}
                 className="text-xs text-gray-500 hover:text-gray-700"
               >
                 로그아웃
