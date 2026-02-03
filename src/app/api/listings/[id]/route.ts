@@ -53,10 +53,13 @@ export async function GET(
     const result = {
       ...toFrontendListing(listing),
       companyName: listing.companies?.name || '',
-      parts: parts?.map((part: { dealers: { name: string } | null } & Record<string, unknown>) => ({
-        ...toFrontendPart(part as never),
-        winningDealerName: part.dealers?.name || null,
-      })) || [],
+      parts: (parts || []).map((part: unknown) => {
+        const item = part as { dealers: { name: string } | null } & Record<string, unknown>;
+        return {
+          ...toFrontendPart(item as never),
+          winningDealerName: item.dealers?.name || null,
+        };
+      }),
     };
 
     return NextResponse.json(result);

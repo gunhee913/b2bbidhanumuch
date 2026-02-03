@@ -50,11 +50,14 @@ export async function GET(
       .order('display_order', { ascending: true });
 
     // 상장 정보 변환
-    const listings = auctionListings?.map((al: { listing_id: string; display_order: number; cattle_listings: CattleListingRow & { companies: { name: string } | null } }) => ({
-      ...toFrontendListing(al.cattle_listings),
-      companyName: al.cattle_listings.companies?.name || '',
-      displayOrder: al.display_order,
-    })) || [];
+    const listings = (auctionListings || []).map((al: unknown) => {
+      const item = al as { listing_id: string; display_order: number; cattle_listings: CattleListingRow & { companies: { name: string } | null } };
+      return {
+        ...toFrontendListing(item.cattle_listings),
+        companyName: item.cattle_listings?.companies?.name || '',
+        displayOrder: item.display_order,
+      };
+    });
 
     // 각 상장의 부위 정보 조회
     if (listings.length > 0) {
@@ -88,16 +91,19 @@ export async function GET(
       .eq('auction_id', id)
       .order('created_at', { ascending: false });
 
-    const formattedBids = bids?.map((bid: BidRow & { 
-      dealers: { name: string; dealer_no: string } | null;
-      cattle_parts: { part_name: string; listing_part_no: string } | null;
-    }) => ({
-      ...toFrontendBid(bid),
-      dealerName: bid.dealers?.name || '',
-      dealerNo: bid.dealers?.dealer_no || '',
-      partName: bid.cattle_parts?.part_name || '',
-      listingPartNo: bid.cattle_parts?.listing_part_no || '',
-    })) || [];
+    const formattedBids = (bids || []).map((bid: unknown) => {
+      const item = bid as BidRow & { 
+        dealers: { name: string; dealer_no: string } | null;
+        cattle_parts: { part_name: string; listing_part_no: string } | null;
+      };
+      return {
+        ...toFrontendBid(item),
+        dealerName: item.dealers?.name || '',
+        dealerNo: item.dealers?.dealer_no || '',
+        partName: item.cattle_parts?.part_name || '',
+        listingPartNo: item.cattle_parts?.listing_part_no || '',
+      };
+    });
 
     return NextResponse.json({
       ...toFrontendAuction(auction),

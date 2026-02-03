@@ -43,17 +43,20 @@ export async function GET(
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    const result = bids.map((bid: Record<string, unknown> & { 
-      dealers: { name: string; dealer_no: string } | null;
-      cattle_parts: { part_name: string; listing_part_no: string; weight: number } | null;
-    }) => ({
-      ...toFrontendBid(bid as never),
-      dealerName: bid.dealers?.name || '',
-      dealerNo: bid.dealers?.dealer_no || '',
-      partName: bid.cattle_parts?.part_name || '',
-      listingPartNo: bid.cattle_parts?.listing_part_no || '',
-      weight: bid.cattle_parts?.weight || 0,
-    }));
+    const result = (bids || []).map((bid: unknown) => {
+      const item = bid as Record<string, unknown> & { 
+        dealers: { name: string; dealer_no: string } | null;
+        cattle_parts: { part_name: string; listing_part_no: string; weight: number } | null;
+      };
+      return {
+        ...toFrontendBid(item as never),
+        dealerName: item.dealers?.name || '',
+        dealerNo: item.dealers?.dealer_no || '',
+        partName: item.cattle_parts?.part_name || '',
+        listingPartNo: item.cattle_parts?.listing_part_no || '',
+        weight: item.cattle_parts?.weight || 0,
+      };
+    });
 
     return NextResponse.json(result);
   } catch (error) {

@@ -59,14 +59,17 @@ export async function GET(request: NextRequest) {
     }
 
     // 프론트엔드 타입으로 변환
-    const result = listings.map((row: CattleListingRow & { companies: { name: string } | null }) => ({
-      ...toFrontendListing(row),
-      companyName: row.companies?.name || '',
-    }));
+    const result = (listings || []).map((row: unknown) => {
+      const item = row as CattleListingRow & { companies: { name: string } | null };
+      return {
+        ...toFrontendListing(item),
+        companyName: item.companies?.name || '',
+      };
+    });
 
     // 부위 정보 포함 요청 시
-    if (includeParts && listings.length > 0) {
-      const listingIds = listings.map((l: CattleListingRow) => l.id);
+    if (includeParts && listings && listings.length > 0) {
+      const listingIds = listings.map((l: unknown) => (l as CattleListingRow).id);
       const { data: parts, error: partsError } = await supabase
         .from('cattle_parts')
         .select('*')
