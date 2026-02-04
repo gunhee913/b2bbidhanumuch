@@ -67,7 +67,11 @@ function MainPageContent() {
   
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isBalanceVisible, setIsBalanceVisible] = useState(false);
-  const [activeTab, setActiveTab] = useState('개체별');
+  const [activeTab, setActiveTab] = useState(() => {
+    const tab = searchParams.get('tab');
+    if (tab === '부위별' || tab === '경매정보' || tab === '관심') return tab;
+    return '개체별';
+  });
   const [showReBidDialog, setShowReBidDialog] = useState(false);
   const [selectedBid, setSelectedBid] = useState<any>(null);
   const [customBidPrice, setCustomBidPrice] = useState('');
@@ -389,17 +393,18 @@ function MainPageContent() {
     setBalanceAmount(newValue.toLocaleString());
   };
 
-  // URL 파라미터로 탭 설정
+  // URL 파라미터로 탭 설정 (뒤로가기/앞으로가기 시 동기화)
   useEffect(() => {
     const tab = searchParams.get('tab');
     
-    if (tab === '개체별' || tab === '부위별') {
-      // 부위별도 개체별 탭으로 이동
-      setActiveTab('개체별');
+    if (tab === '부위별') {
+      setActiveTab('부위별');
     } else if (tab === '경매정보') {
       setActiveTab('경매정보');
     } else if (tab === '관심') {
       setActiveTab('관심');
+    } else {
+      setActiveTab('개체별');
     }
   }, [searchParams]);
 
@@ -579,7 +584,10 @@ function MainPageContent() {
               <div className="mt-4 px-4">
                 <div className="flex items-center gap-5">
                   <button
-                    onClick={() => setActiveTab('개체별')}
+                    onClick={() => {
+                      setActiveTab('개체별');
+                      router.push('/?tab=개체별', { scroll: false });
+                    }}
                     className={`text-[15px] font-semibold pb-1.5 transition-colors ${
                       activeTab === '개체별'
                         ? 'text-gray-900 dark:text-gray-100 border-b-2 border-gray-900 dark:border-gray-100'
@@ -589,7 +597,10 @@ function MainPageContent() {
                     개체별
                   </button>
                   <button
-                    onClick={() => setActiveTab('부위별')}
+                    onClick={() => {
+                      setActiveTab('부위별');
+                      router.push('/?tab=부위별', { scroll: false });
+                    }}
                     className={`text-[15px] font-semibold pb-1.5 transition-colors ${
                       activeTab === '부위별'
                         ? 'text-gray-900 dark:text-gray-100 border-b-2 border-gray-900 dark:border-gray-100'
@@ -599,7 +610,10 @@ function MainPageContent() {
                     부위별
                   </button>
                   <button
-                    onClick={() => setActiveTab('경매정보')}
+                    onClick={() => {
+                      setActiveTab('경매정보');
+                      router.push('/?tab=경매정보', { scroll: false });
+                    }}
                     className={`text-[15px] font-semibold pb-1.5 transition-colors ${
                       activeTab === '경매정보'
                         ? 'text-gray-900 dark:text-gray-100 border-b-2 border-gray-900 dark:border-gray-100'
@@ -609,7 +623,10 @@ function MainPageContent() {
                     경매정보
                   </button>
                   <button
-                    onClick={() => setActiveTab('관심')}
+                    onClick={() => {
+                      setActiveTab('관심');
+                      router.push('/?tab=관심', { scroll: false });
+                    }}
                     className={`text-[15px] font-semibold pb-1.5 transition-colors ${
                       activeTab === '관심'
                         ? 'text-gray-900 dark:text-gray-100 border-b-2 border-gray-900 dark:border-gray-100'
