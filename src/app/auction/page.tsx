@@ -53,11 +53,15 @@ function AuctionPageContent() {
   const [isPlaying, setIsPlaying] = useState(true);
   const [showNotice, setShowNotice] = useState(true);
   
-  // 탭 상태
-  const [activeTab, setActiveTab] = useState<'individual' | 'part'>('individual');
+  // 탭 상태 (URL 파라미터에서 초기값 설정)
+  const [activeTab, setActiveTab] = useState<'individual' | 'part'>(
+    searchParams.get('tab') === 'part' ? 'part' : 'individual'
+  );
   
-  // 부위별 상세 보기 상태
-  const [selectedPartId, setSelectedPartId] = useState<string | null>(null);
+  // 부위별 상세 보기 상태 (URL 파라미터에서 초기값 설정)
+  const [selectedPartId, setSelectedPartId] = useState<string | null>(
+    searchParams.get('part')
+  );
   
   // 선택된 개체 상태 (부위별 목록에서 클릭 시)
   const [selectedProduct, setSelectedProduct] = useState<any>(null);

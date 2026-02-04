@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, Suspense, useMemo, useCallback } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   ShoppingCart,
@@ -39,6 +39,7 @@ const COMPANY_AUCTION_DATA = getCompanyAuctionSummary();
 
 function MainPageContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   
   // zustand 스토어에서 입찰 관련 상태 가져오기
   const { 
@@ -761,7 +762,7 @@ function MainPageContent() {
                             {filteredCattleData.map((item, index) => (
                             <tr 
                               key={item.id}
-                              onClick={() => window.location.href = `/auction/${item.id}`}
+                              onClick={() => router.push(`/auction/${item.id}`)}
                               className={`border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer active:bg-gray-100 dark:active:bg-gray-700 transition-colors ${index % 2 === 1 ? 'bg-gray-50/50 dark:bg-gray-800/50' : ''}`}
                             >
                                 <td className="py-3 pl-4 pr-8 text-center font-medium text-gray-900 dark:text-gray-100 whitespace-nowrap">{item.id}</td>
@@ -816,7 +817,7 @@ function MainPageContent() {
                           key={part.name}
                           className="relative overflow-hidden rounded-xl cursor-pointer group"
                           onClick={() => {
-                            window.location.href = `/auction?tab=part&part=${part.slug}`;
+                            router.push(`/auction?tab=part&part=${part.slug}`);
                           }}
                         >
                           {/* 이미지 */}
@@ -893,7 +894,7 @@ function MainPageContent() {
                             {cattleData.filter(item => isHydrated && isFavorite(item.id)).map((item, index) => (
                               <tr 
                                 key={item.id} 
-                                onClick={() => window.location.href = `/auction/${item.id}`}
+                                onClick={() => router.push(`/auction/${item.id}`)}
                                 className={`border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer active:bg-gray-100 dark:active:bg-gray-700 transition-colors ${index % 2 === 1 ? 'bg-gray-50/50 dark:bg-gray-800/50' : ''}`}
                               >
                                     <td className="py-3 pl-4 pr-8 text-center font-medium text-gray-900 dark:text-gray-100 whitespace-nowrap">{item.id}</td>
