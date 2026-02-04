@@ -79,6 +79,25 @@ export async function GET(request: NextRequest) {
       if (partsError) {
         console.error('부위 조회 오류:', partsError);
       } else {
+        // 각 부위의 입찰 현황 조회
+        const partIds = (parts || []).map((p: CattlePartRow) => p.id);
+        let bidsByPart: Record<string, any[]> = {};
+        
+        if (partIds.length > 0) {
+          const { data: bidsData } = await supabase
+            .from('bids')
+            .select('id, part_id, dealer_id, bid_price, bid_amount')
+            .in('part_id', partIds)
+            .order('bid_price', { ascending: false });
+          
+          (bidsData || []).forEach((bid: any) => {
+            if (!bidsByPart[bid.part_id]) {
+              bidsByPart[bid.part_id] = [];
+            }
+            bidsByPart[bid.part_id].push(bid);
+          });
+        }
+
         const partsMap = new Map<string, CattlePartRow[]>();
         parts?.forEach((part: CattlePartRow) => {
           const existing = partsMap.get(part.listing_id) || [];
@@ -86,7 +105,22 @@ export async function GET(request: NextRequest) {
         });
 
         result.forEach((listing: { id: string; parts?: unknown[] }) => {
-          listing.parts = (partsMap.get(listing.id) || []).map(toFrontendPart);
+          listing.parts = (partsMap.get(listing.id) || []).map((part: CattlePartRow) => {
+            const partBids = bidsByPart[part.id] || [];
+            const highestBid = partBids.length > 0 ? partBids[0] : null;
+            return {
+              ...toFrontendPart(part),
+              bidCount: partBids.length,
+              highestBid: highestBid ? {
+                bidPrice: highestBid.bid_price,
+                dealerId: highestBid.dealer_id,
+              } : null,
+              allBids: partBids.map((b: any) => ({
+                dealerId: b.dealer_id,
+                bidPrice: b.bid_price,
+              })),
+            };
+          });
         });
       }
     }

@@ -6,8 +6,10 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import BottomNav from '@/components/BottomNav';
-import { useBidStore } from '@/stores/bidStore';
-import { getTodayDateCode } from '@/constants/auction';
+import { useSession } from 'next-auth/react';
+import { useMyBidsWithStatus } from '@/features/bids/hooks';
+import { MyBidItem } from '@/features/bids/types';
+import { format } from 'date-fns';
 
 // 숫자 포맷팅 함수
 const formatNumber = (value: string) => {
@@ -34,7 +36,15 @@ export default function BidsPage() {
   const [activeTab, setActiveTab] = useState<'진행중' | '경매결과'>('진행중');
   const [statusFilter, setStatusFilter] = useState<'전체' | '최고순위' | '차순위'>('전체');
   const [resultFilter, setResultFilter] = useState<'전체' | '낙찰' | '미낙찰'>('전체');
-  const { bids: globalBids, cleanOldBids, setBid, auctionResults } = useBidStore();
+  
+  // 세션에서 dealerId 가져오기
+  const { data: session } = useSession();
+  const dealer = (session as any)?.dealer;
+  const employee = (session as any)?.employee;
+  const dealerId = dealer?.id || employee?.dealerId || null;
+  
+  // DB에서 나의 입찰 목록 조회
+  const { data: myBids, isLoading: bidsLoading, refetch: refetchBids } = useMyBidsWithStatus(dealerId);
   
   // Hydration 오류 방지를 위해 클라이언트에서만 마운트
   useEffect(() => {
@@ -85,10 +95,6 @@ export default function BidsPage() {
   const [bidPrice, setBidPrice] = useState('');
   const [showBidDialog, setShowBidDialog] = useState(false);
 
-  // 앱 로드 시 오래된 입찰 데이터 정리
-  useEffect(() => {
-    cleanOldBids();
-  }, [cleanOldBids]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     if (!tableRef.current) return;
@@ -129,31 +135,45 @@ export default function BidsPage() {
     setShowBidDialog(true);
   };
 
-  // 최종 입찰 처리
-  const confirmBid = () => {
-    if (!selectedBidInfo || !bidPrice) return;
+  // 최종 입찰 처리 (DB 저장)
+  const confirmBid = async () => {
+    if (!selectedBidInfo || !bidPrice || !dealerId) return;
     
     const price = parseFloat(removeCommas(bidPrice));
     const weight = parseFloat(selectedBidInfo.productInfo.weight.replace('kg', ''));
-    const now = new Date();
-    const timeStr = `${now.getFullYear().toString().slice(-2)}.${String(now.getMonth() + 1).padStart(2, '0')}.${String(now.getDate()).padStart(2, '0')}(${['일', '월', '화', '수', '목', '금', '토'][now.getDay()]}) ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
     
-    setBid(selectedBidInfo.listingNo, {
-      myBid: price,
-      highestBid: price,
-      status: 'highest',
-      time: timeStr,
-      productInfo: selectedBidInfo.productInfo
-    });
-    
-    setShowBidDialog(false);
-    setSelectedBidInfo(null);
-    setBidPrice('');
+    try {
+      const response = await fetch('/api/bids', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          partId: selectedBidInfo.bid.partId,
+          dealerId: dealerId,
+          bidPrice: price,
+          weight: weight,
+        }),
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        alert(error.error || '입찰 중 오류가 발생했습니다.');
+        return;
+      }
+      
+      // 입찰 목록 갱신
+      refetchBids();
+      
+      setShowBidDialog(false);
+      setSelectedBidInfo(null);
+      setBidPrice('');
+    } catch (error) {
+      console.error('입찰 오류:', error);
+      alert('입찰 중 오류가 발생했습니다.');
+    }
   };
 
-  // 오늘 날짜의 모든 입찰 (필터 적용 전)
-  const allTodayBids = Object.entries(globalBids)
-    .filter(([listingNo]) => listingNo.startsWith(getTodayDateCode()));
+  // DB에서 가져온 모든 입찰 (오늘 날짜 필터는 DB에서 처리 가능하지만 현재는 전체)
+  const allMyBids = myBids || [];
 
   // 예상 낙찰금액 계산
   const expectedAmounts = React.useMemo(() => {
@@ -162,9 +182,8 @@ export default function BidsPage() {
     let secondHighestCount = 0;
     let secondHighestTotal = 0;
 
-    allTodayBids.forEach(([, bid]) => {
-      const weight = bid.productInfo?.weight ? parseFloat(bid.productInfo.weight.replace('kg', '')) : 0;
-      const totalPrice = bid.myBid * weight;
+    allMyBids.forEach((bid) => {
+      const totalPrice = bid.totalAmount;
 
       if (bid.status === 'highest') {
         highestCount++;
@@ -182,17 +201,17 @@ export default function BidsPage() {
       secondHighestTotal,
       total: highestTotal + secondHighestTotal
     };
-  }, [allTodayBids]);
+  }, [allMyBids]);
 
   // 필터 적용된 입찰 목록
-  const todayBids = allTodayBids
-    .filter(([, bid]) => {
+  const filteredBids = allMyBids
+    .filter((bid) => {
       if (statusFilter === '전체') return true;
       if (statusFilter === '최고순위') return bid.status === 'highest';
       if (statusFilter === '차순위') return bid.status === 'secondHighest';
       return true;
     })
-    .sort(([, a], [, b]) => {
+    .sort((a, b) => {
       // 최고순위가 먼저 오도록 정렬
       if (a.status !== b.status) {
         return a.status === 'highest' ? -1 : 1;
@@ -208,6 +227,10 @@ export default function BidsPage() {
       return parseTime(b.time) - parseTime(a.time);
     });
 
+  // 경매결과는 현재 DB에 별도 테이블이 없으므로 빈 배열 사용
+  // TODO: 경매 마감 후 낙찰 결과 테이블 생성 필요
+  const auctionResults: any[] = [];
+  
   // 경매결과 필터 적용
   const filteredResults = auctionResults
     .filter((result) => {
@@ -244,7 +267,6 @@ export default function BidsPage() {
     });
 
   // 경매결과 요약 계산
-  // 날짜 필터링된 결과 (결과 타입 필터 제외)
   const dateFilteredResults = auctionResults.filter((result) => {
     const match = result.time.match(/(\d{2})\.(\d{2})\.(\d{2})/);
     if (match) {
@@ -265,7 +287,7 @@ export default function BidsPage() {
     let lostTotal = 0;
 
     dateFilteredResults.forEach((result) => {
-      const weight = parseFloat(result.productInfo.weight.replace('kg', ''));
+      const weight = parseFloat(result.productInfo?.weight?.replace('kg', '') || '0');
       const totalPrice = result.myBid * weight;
 
       if (result.result === 'won') {
@@ -363,10 +385,16 @@ export default function BidsPage() {
                 </div>
               </div>
             ) : activeTab === '진행중' ? (
-              allTodayBids.length === 0 ? (
+              bidsLoading ? (
                 <div className="flex items-center justify-center h-full">
                   <div className="text-center py-20">
-                    <p className="text-gray-500 text-sm">진행중인 입찰 내역이 없습니다</p>
+                    <p className="text-gray-500 text-sm">입찰 내역을 불러오는 중...</p>
+                  </div>
+                </div>
+              ) : allMyBids.length === 0 ? (
+                <div className="flex items-center justify-center h-full">
+                  <div className="text-center py-20">
+                    <p className="text-gray-500 text-sm">{dealerId ? '진행중인 입찰 내역이 없습니다' : '로그인 후 이용해주세요'}</p>
                   </div>
                 </div>
               ) : (
@@ -435,19 +463,35 @@ export default function BidsPage() {
                     <div className="min-w-[730px]">
 
                     {/* 필터 결과 없음 */}
-                    {todayBids.length === 0 ? (
+                    {filteredBids.length === 0 ? (
                       <div className="py-12 text-center">
                         <p className="text-gray-500 text-sm">해당 조건의 입찰 내역이 없습니다</p>
                       </div>
                     ) : (
                     /* 테이블 데이터 */
-                    todayBids.map(([listingNo, bid]) => {
-                      const productInfo = bid.productInfo;
-                      if (!productInfo) return null;
+                    filteredBids.map((bid) => {
+                      const getPartUrlId = (partName: string) => {
+                        if (partName.includes('등심')) return 'sirloin';
+                        if (partName.includes('채끝')) return 'striploin';
+                        if (partName.includes('목심')) return 'chuck';
+                        if (partName.includes('앞다리')) return 'foreleg';
+                        if (partName.includes('갈비')) return 'ribs';
+                        if (partName.includes('설도')) return 'round';
+                        if (partName.includes('양지')) return 'brisket';
+                        if (partName.includes('우둔')) return 'rump';
+                        if (partName.includes('사태')) return 'shank';
+                        if (partName.includes('안심')) return 'tenderloin';
+                        if (partName.includes('특수')) return 'special';
+                        if (partName.includes('꼬리')) return 'tail';
+                        if (partName.includes('족')) return 'feet';
+                        if (partName.includes('사골')) return 'bone';
+                        if (partName.includes('잡뼈')) return 'misc';
+                        return 'sirloin';
+                      };
                       
                       return (
                         <div 
-                          key={listingNo}
+                          key={bid.id}
                           className={`grid px-2 py-3 border-b border-gray-100 transition-colors items-center ${
                             bid.status === 'highest' 
                               ? 'bg-blue-50/50' 
@@ -463,7 +507,12 @@ export default function BidsPage() {
                               <span className="text-gray-400 text-[11px]">-</span>
                             ) : (
                               <button
-                                onClick={() => handleReBidClick(listingNo, bid, productInfo)}
+                                onClick={() => handleReBidClick(bid.listingNo, bid, {
+                                  partName: bid.partName,
+                                  grade: bid.grade,
+                                  weight: `${bid.weight}kg`,
+                                  gender: bid.gender,
+                                })}
                                 className="px-2 py-1 text-[11px] font-medium text-white bg-gray-800 rounded hover:bg-gray-900 transition-colors"
                               >
                                 재입찰
@@ -474,48 +523,31 @@ export default function BidsPage() {
                           <div className="text-center">
                             <button 
                               onClick={() => {
-                                const entityNo = listingNo.split('-')[1];
-                                router.push(`/auction/${getTodayDateCode()}-${entityNo}`);
+                                router.push(`/auction/${bid.entityListingNo}`);
                               }}
                               className="text-[13px] font-medium text-gray-900 underline cursor-pointer"
                             >
-                              {listingNo}
+                              {bid.listingNo}
                             </button>
                           </div>
                           {/* 부위 */}
                           <div className="text-center">
                             <button
                               onClick={() => {
-                                const partId = 
-                                  productInfo.partName.includes('등심') ? 'sirloin' :
-                                  productInfo.partName.includes('채끝') ? 'striploin' :
-                                  productInfo.partName.includes('목심') ? 'chuck' :
-                                  productInfo.partName.includes('앞다리') ? 'foreleg' :
-                                  productInfo.partName.includes('갈비') ? 'ribs' :
-                                  productInfo.partName.includes('설도') ? 'round' :
-                                  productInfo.partName.includes('양지') ? 'brisket' :
-                                  productInfo.partName.includes('우둔') ? 'rump' :
-                                  productInfo.partName.includes('사태') ? 'shank' :
-                                  productInfo.partName.includes('안심') ? 'tenderloin' :
-                                  productInfo.partName.includes('특수') ? 'special' :
-                                  productInfo.partName.includes('꼬리') ? 'tail' :
-                                  productInfo.partName.includes('족') ? 'feet' :
-                                  productInfo.partName.includes('사골') ? 'bone' :
-                                  productInfo.partName.includes('잡뼈') ? 'misc' : 'sirloin';
-                                router.push(`/auction?tab=part&part=${partId}`);
+                                router.push(`/auction?tab=part&part=${getPartUrlId(bid.partName)}`);
                               }}
                               className="text-[13px] text-gray-900 underline cursor-pointer"
                             >
-                              {productInfo.partName}
+                              {bid.partName}
                             </button>
                           </div>
                           {/* 등급 */}
                           <div className="text-center text-[13px] text-gray-700" style={{ letterSpacing: '-0.05em' }}>
-                            {addYieldGradeIfMissing(productInfo.grade)}
+                            {addYieldGradeIfMissing(bid.grade)}
                           </div>
                           {/* 중량 */}
                           <div className="text-center text-[13px] text-gray-700">
-                            {productInfo.weight.includes('kg') ? productInfo.weight : `${productInfo.weight}kg`}
+                            {bid.weight.toFixed(1)}kg
                           </div>
                           {/* 최고입찰가 */}
                           <div className="text-center text-[13px] font-medium text-gray-900">
@@ -527,10 +559,7 @@ export default function BidsPage() {
                           </div>
                           {/* 총입찰가격 */}
                           <div className="text-center text-[13px] font-medium text-gray-900">
-                            {(() => {
-                              const weight = parseFloat(productInfo.weight.replace('kg', ''));
-                              return Math.round(bid.myBid * weight).toLocaleString();
-                            })()}
+                            {bid.totalAmount.toLocaleString()}
                           </div>
                           {/* 상태 */}
                           <div className="text-center flex items-center justify-center">
@@ -542,7 +571,7 @@ export default function BidsPage() {
                           </div>
                           {/* 시간 */}
                           <div className="text-center text-[11px] text-gray-500 whitespace-nowrap">
-                            {bid.time.replace(/\([^)]+\)\s*/, ' ')}
+                            {bid.time}
                           </div>
                         </div>
                       );

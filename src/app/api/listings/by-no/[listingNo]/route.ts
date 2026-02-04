@@ -29,8 +29,7 @@ export async function GET(
         companies (
           id,
           name,
-          company_no,
-          address
+          company_no
         ),
         cattle_parts (
           id,
@@ -69,38 +68,46 @@ export async function GET(
 
     // 각 부위의 입찰 현황 조회
     const partIds = (listing.cattle_parts || []).map((p: any) => p.id);
-    const { data: bidsData } = await supabase
-      .from('bids')
-      .select(`
-        id,
-        part_id,
-        dealer_id,
-        bid_price,
-        bid_amount,
-        created_at,
-        dealers (
-          id,
-          name
-        )
-      `)
-      .in('part_id', partIds)
-      .order('bid_price', { ascending: false });
-
-    // 부위별 입찰 그룹화
     const bidsByPart: Record<string, any[]> = {};
-    (bidsData || []).forEach((bid: any) => {
-      if (!bidsByPart[bid.part_id]) {
-        bidsByPart[bid.part_id] = [];
+    
+    // partIds가 있을 때만 입찰 조회
+    if (partIds.length > 0) {
+      const { data: bidsData, error: bidsError } = await supabase
+        .from('bids')
+        .select(`
+          id,
+          part_id,
+          dealer_id,
+          bid_price,
+          bid_amount,
+          created_at,
+          dealers (
+            id,
+            name
+          )
+        `)
+        .in('part_id', partIds)
+        .order('bid_price', { ascending: false });
+
+      if (bidsError) {
+        console.error('입찰 조회 오류:', bidsError);
       }
-      bidsByPart[bid.part_id].push({
-        id: bid.id,
-        dealerId: bid.dealer_id,
-        dealerName: bid.dealers?.name || '',
-        bidPrice: bid.bid_price,
-        bidAmount: bid.bid_amount,
-        createdAt: bid.created_at,
+
+      // 부위별 입찰 그룹화
+      (bidsData || []).forEach((bid: any) => {
+        if (!bidsByPart[bid.part_id]) {
+          bidsByPart[bid.part_id] = [];
+        }
+        bidsByPart[bid.part_id].push({
+          id: bid.id,
+          dealerId: bid.dealer_id,
+          dealerName: bid.dealers?.name || '',
+          bidPrice: bid.bid_price,
+          bidAmount: bid.bid_amount,
+          createdAt: bid.created_at,
+        });
       });
-    });
+    }
 
     // snake_case -> camelCase 변환
     const formattedListing = {
@@ -140,7 +147,6 @@ export async function GET(
         id: listing.companies.id,
         name: listing.companies.name,
         companyNo: listing.companies.company_no,
-        address: listing.companies.address,
       } : null,
       // 부위 정보 (입찰 현황 포함)
       parts: (listing.cattle_parts || []).map((part: any) => {

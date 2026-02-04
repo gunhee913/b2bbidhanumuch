@@ -22,10 +22,19 @@ import BottomNav from '@/components/BottomNav';
 import { Button } from '@/components/ui/button';
 import { useBidStore } from '@/stores/bidStore';
 import { AUCTION_PRODUCTS, getTodayDateCode, getYesterdayDateFormatted } from '@/constants/auction';
+import { useListings } from '@/features/listings/hooks';
+import { format } from 'date-fns';
+import { useSession } from 'next-auth/react';
 
 function AuctionPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  
+  // 세션 정보 (중도매인 ID 가져오기)
+  const { data: session } = useSession();
+  const dealer = (session as any)?.dealer;
+  const employee = (session as any)?.employee;
+  const dealerId = dealer?.id || employee?.dealerId || null;
   
   // zustand 스토어에서 입찰 관련 상태 가져오기
   const { 
@@ -303,68 +312,70 @@ function AuctionPageContent() {
     setIsPlaying(!isPlaying);
   };
 
-  // 부위별 데이터 (좌/우 합침, 총 15개 부위) - 14두 기준
-  const partsData = [
-    { id: 'sirloin', name: '등심', image: '/등심1.png', count: 28 },  // 14두 × (좌+우)
-    { id: 'tenderloin', name: '안심', image: '/등심2.png', count: 14 },   // 14두 × 1
-    { id: 'striploin', name: '채끝', image: '/등심3.png', count: 14 },
-    { id: 'ribs', name: '갈비', image: '/등심4.png', count: 28 },     // 14두 × (좌+우)
-    { id: 'special', name: '특수부위', image: '/등심1.png', count: 14 },
-    { id: 'foreleg', name: '앞다리', image: '/등심2.png', count: 14 },
-    { id: 'rump', name: '우둔', image: '/등심3.png', count: 14 },
-    { id: 'chuck', name: '목심', image: '/등심4.png', count: 14 },
-    { id: 'brisket', name: '양지', image: '/등심1.png', count: 28 },  // 14두 × (좌+우)
-    { id: 'round', name: '설도', image: '/등심2.png', count: 28 },    // 14두 × (좌+우)
-    { id: 'shank', name: '사태', image: '/등심3.png', count: 14 },
-    { id: 'tail', name: '꼬리', image: '/등심4.png', count: 14 },
-    { id: 'feet', name: '족', image: '/등심1.png', count: 14 },
-    { id: 'bone', name: '사골', image: '/등심2.png', count: 14 },
-    { id: 'misc', name: '잡뼈', image: '/등심3.png', count: 14 },
+  // 부위별 데이터 (좌/우 합침, 총 15개 부위) - 실제 데이터 기반
+  const partsDataBase = [
+    { id: 'sirloin', name: '등심', image: '/등심1.png' },
+    { id: 'tenderloin', name: '안심', image: '/등심2.png' },
+    { id: 'striploin', name: '채끝', image: '/등심3.png' },
+    { id: 'ribs', name: '갈비', image: '/등심4.png' },
+    { id: 'special', name: '특수부위', image: '/등심1.png' },
+    { id: 'foreleg', name: '앞다리', image: '/등심2.png' },
+    { id: 'rump', name: '우둔', image: '/등심3.png' },
+    { id: 'chuck', name: '목심', image: '/등심4.png' },
+    { id: 'brisket', name: '양지', image: '/등심1.png' },
+    { id: 'round', name: '설도', image: '/등심2.png' },
+    { id: 'shank', name: '사태', image: '/등심3.png' },
+    { id: 'tail', name: '꼬리', image: '/등심4.png' },
+    { id: 'feet', name: '족', image: '/등심1.png' },
+    { id: 'bone', name: '사골', image: '/등심2.png' },
+    { id: 'misc', name: '잡뼈', image: '/등심3.png' },
   ];
 
   // 경매 상품 데이터 (공통 상수에서 가져옴)
   const products = AUCTION_PRODUCTS;
 
-  // 개체 정보 (메인 페이지 cattleData와 동일한 24두 기준)
-  // 부위별 데이터 생성용
-  const auctionEntities: Array<{
-    id: number;
-    type: string;
-    grade: string;
-    gradeCategory: '1++' | '1+' | '1' | '2' | '3';
-    historyNo: string;
-    company: string;
-    image: string;
-  }> = [
-    // 건화 (101~106) - 거세 5, 암 1
-    { id: 101, type: '한우거세', grade: '1++A(9)', gradeCategory: '1++', historyNo: '002-1486-7293-101', company: '건화', image: '/등심1.png' },
-    { id: 102, type: '한우거세', grade: '1+A', gradeCategory: '1+', historyNo: '002-1486-7293-102', company: '건화', image: '/등심2.png' },
-    { id: 103, type: '한우거세', grade: '1++B(8)', gradeCategory: '1++', historyNo: '002-1486-7293-103', company: '건화', image: '/등심3.png' },
-    { id: 104, type: '한우거세', grade: '1B', gradeCategory: '1', historyNo: '002-1486-7293-104', company: '건화', image: '/등심4.png' },
-    { id: 105, type: '한우거세', grade: '1++A(7)', gradeCategory: '1++', historyNo: '002-1486-7293-105', company: '건화', image: '/등심1.png' },
-    { id: 106, type: '한우암', grade: '1+B', gradeCategory: '1+', historyNo: '002-1486-7293-106', company: '건화', image: '/등심2.png' },
-    // 대진엠이스 (201~206) - 거세 5, 암 1
-    { id: 201, type: '한우거세', grade: '1++A(9)', gradeCategory: '1++', historyNo: '002-1486-7293-201', company: '대진엠이스', image: '/등심3.png' },
-    { id: 202, type: '한우거세', grade: '1++A(8)', gradeCategory: '1++', historyNo: '002-1486-7293-202', company: '대진엠이스', image: '/등심4.png' },
-    { id: 203, type: '한우거세', grade: '1+B', gradeCategory: '1+', historyNo: '002-1486-7293-203', company: '대진엠이스', image: '/등심1.png' },
-    { id: 204, type: '한우거세', grade: '1A', gradeCategory: '1', historyNo: '002-1486-7293-204', company: '대진엠이스', image: '/등심2.png' },
-    { id: 205, type: '한우거세', grade: '1++B(7)', gradeCategory: '1++', historyNo: '002-1486-7293-205', company: '대진엠이스', image: '/등심3.png' },
-    { id: 206, type: '한우암', grade: '1+A', gradeCategory: '1+', historyNo: '002-1486-7293-206', company: '대진엠이스', image: '/등심4.png' },
-    // 안심엘피시 (301~306) - 거세 5, 암 1
-    { id: 301, type: '한우거세', grade: '1++B(9)', gradeCategory: '1++', historyNo: '002-1486-7293-301', company: '안심엘피시', image: '/등심1.png' },
-    { id: 302, type: '한우거세', grade: '1+A', gradeCategory: '1+', historyNo: '002-1486-7293-302', company: '안심엘피시', image: '/등심2.png' },
-    { id: 303, type: '한우거세', grade: '1++A(8)', gradeCategory: '1++', historyNo: '002-1486-7293-303', company: '안심엘피시', image: '/등심3.png' },
-    { id: 304, type: '한우거세', grade: '1B', gradeCategory: '1', historyNo: '002-1486-7293-304', company: '안심엘피시', image: '/등심4.png' },
-    { id: 305, type: '한우거세', grade: '1++C(7)', gradeCategory: '1++', historyNo: '002-1486-7293-305', company: '안심엘피시', image: '/등심1.png' },
-    { id: 306, type: '한우암', grade: '1+C', gradeCategory: '1+', historyNo: '002-1486-7293-306', company: '안심엘피시', image: '/등심2.png' },
-    // 정직한고기 (401~406) - 거세 5, 암 1
-    { id: 401, type: '한우거세', grade: '1++C(9)', gradeCategory: '1++', historyNo: '002-1486-7293-401', company: '정직한고기', image: '/등심3.png' },
-    { id: 402, type: '한우거세', grade: '1++C(8)', gradeCategory: '1++', historyNo: '002-1486-7293-402', company: '정직한고기', image: '/등심4.png' },
-    { id: 403, type: '한우거세', grade: '1+C', gradeCategory: '1+', historyNo: '002-1486-7293-403', company: '정직한고기', image: '/등심1.png' },
-    { id: 404, type: '한우거세', grade: '1C', gradeCategory: '1', historyNo: '002-1486-7293-404', company: '정직한고기', image: '/등심2.png' },
-    { id: 405, type: '한우거세', grade: '1++A(7)', gradeCategory: '1++', historyNo: '002-1486-7293-405', company: '정직한고기', image: '/등심3.png' },
-    { id: 406, type: '한우암', grade: '1+A', gradeCategory: '1+', historyNo: '002-1486-7293-406', company: '정직한고기', image: '/등심4.png' },
-  ];
+  // 오늘 날짜 (API 호출용)
+  const todayStr = useMemo(() => format(new Date(), 'yyyy-MM-dd'), []);
+
+  // 승인된 상장 목록 조회 (DB 연동)
+  const { data: listingsData, isLoading: isListingsLoading } = useListings({
+    status: 'approved',
+    listingDateFrom: todayStr,
+    listingDateTo: todayStr,
+    includeParts: true,
+  });
+
+  // DB 데이터를 auctionEntities 형식으로 변환
+  const auctionEntities = useMemo(() => {
+    if (!listingsData || listingsData.length === 0) return [];
+    
+    return listingsData.map((listing, index) => {
+      // 등급 카테고리 추출
+      const grade = listing.grade || '1';
+      let gradeCategory: '1++' | '1+' | '1' | '2' | '3' = '1';
+      if (grade.startsWith('1++')) gradeCategory = '1++';
+      else if (grade.startsWith('1+')) gradeCategory = '1+';
+      else if (grade.startsWith('1')) gradeCategory = '1';
+      else if (grade.startsWith('2')) gradeCategory = '2';
+      else gradeCategory = '3';
+      
+      // listingNo에서 ID 추출 (예: 260204-201 → 201)
+      const listingNoParts = listing.listingNo.split('-');
+      const entityId = listingNoParts.length > 1 ? parseInt(listingNoParts[1]) : index + 101;
+      
+      return {
+        id: entityId,
+        type: listing.gender === '암' ? '한우암' : '한우거세',
+        grade: listing.grade || '1',
+        gradeCategory,
+        historyNo: listing.traceNo || '',
+        company: listing.companyName || '',
+        image: listing.images?.[0] || '/등심1.png',
+        listingNo: listing.listingNo,
+        parts: listing.parts || [],
+      };
+    });
+  }, [listingsData]);
 
   // 부위별 세부 부위 매핑 (좌/우 포함)
   const partSubParts: Record<string, string[]> = {
@@ -411,9 +422,17 @@ function AuctionPageContent() {
     '족': [10, 11], '사골': [3, 4], '잡뼈': [21, 23],
   };
 
-  // 부위별 경매 상품 데이터 생성 (5두 기반)
+  // 부위별 경매 상품 데이터 생성 (DB 데이터 기반)
   const partProducts = useMemo(() => {
     const allProducts: Record<string, any[]> = {};
+    
+    // DB 데이터가 없으면 빈 객체 반환
+    if (auctionEntities.length === 0) {
+      Object.keys(partSubParts).forEach(partId => {
+        allProducts[partId] = [];
+      });
+      return allProducts;
+    }
     
     // 전체 부위 순서 (상장번호 계산용)
     const allSubPartsOrder = [
@@ -425,60 +444,58 @@ function AuctionPageContent() {
     Object.entries(partSubParts).forEach(([partId, subParts]) => {
       const products: any[] = [];
       
-      // 5두 각각에 대해 해당 부위 생성
-      auctionEntities.forEach((entity) => {
+      // 각 개체에 대해 해당 부위 생성
+      auctionEntities.forEach((entity: any) => {
         subParts.forEach((subPart) => {
-          const [minW, maxW] = partWeightRanges[subPart] || [10, 15];
-          const variation = ((entity.id) * 0.17) % 1;
-          const weight = (minW + (maxW - minW) * variation).toFixed(1);
+          // DB에서 부위 정보가 있으면 사용
+          const dbPart = entity.parts?.find((p: any) => p.partName === subPart && p.isIncluded);
           
-          // 상장번호 계산: 개체별로 부위 인덱스에 따라 01부터 시작
-          const partIndex = allSubPartsOrder.indexOf(subPart);
-          const listingNumber = partIndex + 1;
-          
-          // 등급에 따른 가격 조정 (근내지방도 기준)
-          // 근내지방도: 7,8,9 = 1++등급 / 6 = 1+등급 / 4,5 = 1등급 / 2,3 = 2등급 / 1 = 3등급
-          const basePrice = partMinPrices[subPart] || 50000;
-          let gradeMultiplier = 1.0;
-          
-          // 등급 카테고리별 가격 배수 (1++ 등급의 경우 근내지방도로 세분화)
-          if (entity.gradeCategory === '1++') {
-          const marblingMatch = entity.grade.match(/\((\d+)\)/);
-            const marblingNo = marblingMatch ? parseInt(marblingMatch[1]) : 8;
-            if (marblingNo === 9) gradeMultiplier = 1.20;
-            else if (marblingNo === 8) gradeMultiplier = 1.15;
-            else gradeMultiplier = 1.10;
-          } else if (entity.gradeCategory === '1+') {
-            gradeMultiplier = 1.05;
-          } else if (entity.gradeCategory === '1') {
-            gradeMultiplier = 1.00;
-          } else if (entity.gradeCategory === '2') {
-            gradeMultiplier = 0.90;
-          } else {
-            gradeMultiplier = 0.80;
+          if (dbPart) {
+            // DB 원본 listing 데이터 찾기
+            const originalListing = listingsData?.find(l => l.listingNo === entity.listingNo);
+            
+            // DB 데이터 사용
+            products.push({
+              id: `${partId}-${entity.id}-${subPart}`,
+              partId,
+              partName: subPart,
+              image: entity.image,
+              images: originalListing?.images || [], // DB 이미지 배열
+              type: entity.type,
+              grade: entity.grade,
+              weight: `${dbPart.weight?.toFixed(1) || '0.0'}kg`,
+              price: dbPart.minPrice || partMinPrices[subPart] || 50000,
+              auctionNo: entity.listingNo || `${getTodayDateCode()}-${String(entity.id).padStart(3, '0')}`,
+              listingNo: dbPart.listingPartNo || `${entity.listingNo}-${String(dbPart.partNo).padStart(2, '0')}`,
+              historyNo: entity.historyNo,
+              company: entity.company,
+              date: getTodayFormatted(),
+              entityId: entity.id,
+              partDbId: dbPart.id, // DB 부위 ID (입찰 시 사용)
+              createdAt: Date.now() - entity.id * 600000,
+              // 개체 상세 정보 (DB에서)
+              breed: originalListing?.breed || '한우',
+              monthAge: originalListing?.monthAge || 0,
+              traceNo: originalListing?.traceNo || '',
+              carcassWeight: originalListing?.carcassWeight || 0,
+              backFat: originalListing?.backFat || 0,
+              eyeMuscle: originalListing?.eyeMuscle || 0,
+              marblingScore: originalListing?.marblingScore || 0,
+              meatColor: originalListing?.meatColor || 0,
+              fatColor: originalListing?.fatColor || 0,
+              texture: originalListing?.texture || 0,
+              maturity: originalListing?.maturity || 0,
+              slaughterHouse: originalListing?.slaughterHouse || '',
+              slaughterDate: originalListing?.slaughterDate || '',
+              slaughterNo: originalListing?.slaughterNo || '',
+              gradeCert: originalListing?.gradeCert || null,
+              slaughterCert: originalListing?.slaughterCert || null,
+              // DB 입찰 현황
+              dbHighestBid: dbPart.highestBid?.bidPrice || null,
+              dbBidCount: dbPart.bidCount || 0,
+              dbAllBids: dbPart.allBids || [],
+            });
           }
-          
-          // 최종 가격 계산 (1000원 단위로 반올림)
-          const adjustedPrice = Math.round((basePrice * gradeMultiplier) / 1000) * 1000;
-          
-          // 개체별 페이지와 연동: entity.id가 이미 101, 201 등 형식
-          products.push({
-            id: `${partId}-${entity.id}-${subPart}`,
-            partId,
-            partName: subPart,
-            image: entity.image,
-            type: entity.type,
-            grade: entity.grade,
-            weight: `${weight}kg`,
-            price: adjustedPrice,
-            auctionNo: `${getTodayDateCode()}-${String(entity.id).padStart(3, '0')}`,
-            listingNo: `${getTodayDateCode()}-${String(entity.id).padStart(3, '0')}-${String(listingNumber).padStart(2, '0')}`,
-            historyNo: entity.historyNo,
-            company: entity.company,
-            date: '2025.08.05.(화)',
-            entityId: entity.id,
-            createdAt: Date.now() - entity.id * 600000
-          });
         });
       });
       
@@ -486,12 +503,20 @@ function AuctionPageContent() {
     });
     
     return allProducts;
-  }, []);
+  }, [auctionEntities]);
+
+  // partsData에 실제 개수 반영
+  const partsData = useMemo(() => {
+    return partsDataBase.map(part => ({
+      ...part,
+      count: partProducts[part.id]?.length || 0,
+    }));
+  }, [partProducts]);
 
   // 선택된 부위 정보
   const selectedPart = useMemo(() => {
     return partsData.find(p => p.id === selectedPartId);
-  }, [selectedPartId]);
+  }, [selectedPartId, partsData]);
 
   // 부위별 상품 필터링 및 정렬
   const filteredPartProducts = useMemo(() => {
@@ -566,10 +591,6 @@ function AuctionPageContent() {
     
     return true;
   });
-
-  // 디버깅용 로그
-  console.log('Filters:', { selectedType, selectedGrade, selectedNo });
-  console.log('Filtered Products:', filteredProducts.length);
 
   // 드롭다운 외부 클릭 시 닫기
   useEffect(() => {
@@ -976,16 +997,24 @@ function AuctionPageContent() {
                       </div>
                     ) : (
                       filteredPartProducts.map((product) => {
-                        const bid = globalBids[product.listingNo];
+                        // DB 입찰 데이터 사용
+                        const dbHighestBid = product.dbHighestBid || 0;
+                        const myBidFromDB = dealerId 
+                          ? product.dbAllBids?.find((b: any) => b.dealerId === dealerId)?.bidPrice 
+                          : undefined;
+                        const hasBid = !!myBidFromDB;
+                        const isMyBidHighest = hasBid && myBidFromDB >= dbHighestBid;
+                        const bidStatus = hasBid ? (isMyBidHighest ? 'highest' : 'secondHighest') : null;
+                        
                         const isExpanded = expandedProductId === product.id;
                         const isHighlighted = highlightedProductId === product.id;
                         return (
                           <div key={product.id} id={`product-row-${product.id}`} className={`${isHighlighted ? 'border-2 border-red-500 dark:border-red-400' : ''}`}>
                             <div 
                               className={`grid px-2 py-3 border-b border-gray-100 dark:border-gray-800 cursor-pointer transition-colors items-center ${
-                                bid?.status === 'highest' 
+                                bidStatus === 'highest' 
                                   ? 'bg-blue-50/50 dark:bg-blue-900/30' 
-                                  : bid?.status === 'secondHighest'
+                                  : bidStatus === 'secondHighest'
                                     ? 'bg-red-50/50 dark:bg-red-900/30'
                                     : 'bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800'
                               }`}
@@ -1008,31 +1037,31 @@ function AuctionPageContent() {
                                 {product.price.toLocaleString()}
                               </div>
                               <div className="text-center text-[13px] font-medium text-gray-900 dark:text-gray-100">
-                                {bid?.highestBid ? bid.highestBid.toLocaleString() : '-'}
+                                {dbHighestBid > 0 ? dbHighestBid.toLocaleString() : '-'}
                               </div>
                               <div 
                                 className="text-center flex items-center justify-center"
                                 onClick={(e) => e.stopPropagation()}
                               >
-                                {bid?.myBid ? (
+                                {hasBid ? (
                                   <div className="flex flex-col items-center">
                                     <span 
                                       onClick={() => {
-                                        if (bid.status !== 'highest') {
+                                        if (bidStatus !== 'highest') {
                                           setSelectedProduct(product);
-                                          setPartBidPrice(bid.highestBid + quickReBidAmount);
+                                          setPartBidPrice(dbHighestBid + quickReBidAmount);
                                           setShowPartBidSheet(true);
                                         }
                                       }}
-                                      className={`text-[13px] font-medium text-gray-900 dark:text-gray-100 leading-none ${bid.status !== 'highest' ? 'cursor-pointer' : ''}`}
+                                      className={`text-[13px] font-medium text-gray-900 dark:text-gray-100 leading-none ${bidStatus !== 'highest' ? 'cursor-pointer' : ''}`}
                                     >
-                                      {bid.myBid.toLocaleString()}
+                                      {myBidFromDB.toLocaleString()}
                                     </span>
-                                    {bid.status !== 'highest' && (
+                                    {bidStatus !== 'highest' && (
                                       <button
                                         onClick={() => {
                                           setSelectedProduct(product);
-                                          setPartBidPrice(bid.highestBid + quickReBidAmount);
+                                          setPartBidPrice(dbHighestBid + quickReBidAmount);
                                           setShowPartBidSheet(true);
                                         }}
                                         className="mt-1 px-2 py-0.5 text-[11px] font-medium text-white bg-gray-800 dark:bg-gray-700 rounded hover:bg-gray-900 dark:hover:bg-gray-600 transition-colors"
@@ -1055,9 +1084,9 @@ function AuctionPageContent() {
                                 )}
                               </div>
                               <div className="text-center flex items-center justify-center">
-                                {bid?.status === 'highest' ? (
+                                {bidStatus === 'highest' ? (
                                   <span className="text-[11px] font-medium text-blue-600 dark:text-blue-400">최고순위</span>
-                                ) : bid?.status === 'secondHighest' ? (
+                                ) : bidStatus === 'secondHighest' ? (
                                   <span className="text-[11px] font-medium text-red-500 dark:text-red-400">차순위</span>
                                 ) : (
                                   <span className="text-[13px] text-gray-400 dark:text-gray-500">-</span>
@@ -1102,150 +1131,188 @@ function AuctionPageContent() {
                                     onMouseLeave={handleImageMouseLeave}
                                   >
                                     <div className="w-full aspect-square bg-gray-200 dark:bg-gray-800">
-                                      {(expandedImageIndex[product.id] || 0) === 4 ? (
-                                        // 등급판정확인서
-                                        <div className="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-gray-700 p-4">
-                                          <div className="w-full max-w-[280px] bg-white dark:bg-gray-200 shadow-lg border border-gray-300 p-4 aspect-[1/1.414]">
-                                            <div className="h-full flex flex-col text-[8px] text-gray-700">
-                                              <div className="text-center border-b border-gray-400 pb-2 mb-2">
-                                                <p className="text-[12px] font-bold text-gray-900">등급판정확인서</p>
-                                                <p className="text-gray-500 mt-1">Grade Certification</p>
-                                              </div>
-                                              <div className="flex-1 space-y-1.5">
-                                                <div className="flex"><span className="w-16 text-gray-500">접수번호:</span><span className="font-medium">{product.auctionNo}</span></div>
-                                                <div className="flex"><span className="w-16 text-gray-500">축종:</span><span>한우</span></div>
-                                                <div className="flex"><span className="w-16 text-gray-500">성별:</span><span>{product.type.includes('거세') ? '거세' : '암'}</span></div>
-                                                <div className="flex"><span className="w-16 text-gray-500">등급:</span><span className="font-bold text-gray-900">{product.grade}</span></div>
-                                                <div className="flex"><span className="w-16 text-gray-500">개월령:</span><span>32개월</span></div>
-                                                <div className="flex"><span className="w-16 text-gray-500">도체중량:</span><span>520kg</span></div>
-                                                <div className="flex"><span className="w-16 text-gray-500">등지방:</span><span>16mm</span></div>
-                                                <div className="flex"><span className="w-16 text-gray-500">등심면적:</span><span>123㎠</span></div>
-                                                <div className="flex"><span className="w-16 text-gray-500">근내지방:</span><span>9</span></div>
-                                                <div className="flex"><span className="w-16 text-gray-500">육색:</span><span>5</span></div>
-                                                <div className="flex"><span className="w-16 text-gray-500">지방색:</span><span>3</span></div>
-                                                <div className="flex"><span className="w-16 text-gray-500">조직감:</span><span>1</span></div>
-                                                <div className="flex"><span className="w-16 text-gray-500">성숙도:</span><span>2</span></div>
-                                              </div>
-                                              <div className="border-t border-gray-300 pt-2 mt-2 text-center">
-                                                <p className="text-gray-500">축산물품질평가원</p>
-                                                <p className="text-[6px] text-gray-400 mt-1">본 확인서는 법적 효력이 있습니다</p>
+                                      {(() => {
+                                        const imgIndex = expandedImageIndex[product.id] || 0;
+                                        const dbImages = product.images || [];
+                                        const totalImages = dbImages.length + 2; // 이미지 + 서류 2개
+                                        
+                                        // 등급판정확인서 (마지막에서 두번째)
+                                        if (imgIndex === Math.max(dbImages.length, 4)) {
+                                          return product.gradeCert?.fileData ? (
+                                            <div className="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-gray-700 p-4">
+                                              <img src={product.gradeCert.fileData} alt="등급판정확인서" className="max-w-full max-h-full object-contain shadow-lg" />
+                                            </div>
+                                          ) : (
+                                            <div className="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-gray-700 p-4">
+                                              <div className="w-full max-w-[280px] bg-white dark:bg-gray-200 shadow-lg border border-gray-300 p-4 aspect-[1/1.414]">
+                                                <div className="h-full flex flex-col text-[8px] text-gray-700">
+                                                  <div className="text-center border-b border-gray-400 pb-2 mb-2">
+                                                    <p className="text-[12px] font-bold text-gray-900">등급판정확인서</p>
+                                                    <p className="text-gray-500 mt-1">Grade Certification</p>
+                                                  </div>
+                                                  <div className="flex-1 space-y-1.5">
+                                                    <div className="flex"><span className="w-16 text-gray-500">접수번호:</span><span className="font-medium">{product.auctionNo}</span></div>
+                                                    <div className="flex"><span className="w-16 text-gray-500">축종:</span><span>{product.breed || '한우'}</span></div>
+                                                    <div className="flex"><span className="w-16 text-gray-500">성별:</span><span>{product.type.includes('거세') ? '거세' : '암'}</span></div>
+                                                    <div className="flex"><span className="w-16 text-gray-500">등급:</span><span className="font-bold text-gray-900">{product.grade}</span></div>
+                                                    <div className="flex"><span className="w-16 text-gray-500">개월령:</span><span>{product.monthAge || '-'}개월</span></div>
+                                                    <div className="flex"><span className="w-16 text-gray-500">도체중량:</span><span>{product.carcassWeight || '-'}kg</span></div>
+                                                    <div className="flex"><span className="w-16 text-gray-500">등지방:</span><span>{product.backFat || '-'}mm</span></div>
+                                                    <div className="flex"><span className="w-16 text-gray-500">등심면적:</span><span>{product.eyeMuscle || '-'}㎠</span></div>
+                                                    <div className="flex"><span className="w-16 text-gray-500">근내지방:</span><span>{product.marblingScore || '-'}</span></div>
+                                                    <div className="flex"><span className="w-16 text-gray-500">육색:</span><span>{product.meatColor || '-'}</span></div>
+                                                    <div className="flex"><span className="w-16 text-gray-500">지방색:</span><span>{product.fatColor || '-'}</span></div>
+                                                    <div className="flex"><span className="w-16 text-gray-500">조직감:</span><span>{product.texture || '-'}</span></div>
+                                                    <div className="flex"><span className="w-16 text-gray-500">성숙도:</span><span>{product.maturity || '-'}</span></div>
+                                                  </div>
+                                                  <div className="border-t border-gray-300 pt-2 mt-2 text-center">
+                                                    <p className="text-gray-500">축산물품질평가원</p>
+                                                  </div>
+                                                </div>
                                               </div>
                                             </div>
-                                          </div>
-                                        </div>
-                                      ) : (expandedImageIndex[product.id] || 0) === 5 ? (
-                                        // 도축검사증명서
-                                        <div className="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-gray-700 p-4">
-                                          <div className="w-full max-w-[280px] bg-white dark:bg-gray-200 shadow-lg border border-gray-300 p-4 aspect-[1/1.414]">
-                                            <div className="h-full flex flex-col text-[8px] text-gray-700">
-                                              <div className="text-center border-b border-gray-400 pb-2 mb-2">
-                                                <p className="text-[12px] font-bold text-gray-900">도축검사증명서</p>
-                                                <p className="text-gray-500 mt-1">Slaughter Inspection Certificate</p>
-                                              </div>
-                                              <div className="flex-1 space-y-1.5">
-                                                <div className="flex"><span className="w-16 text-gray-500">접수번호:</span><span className="font-medium">{product.auctionNo}</span></div>
-                                                <div className="flex"><span className="w-16 text-gray-500">도축일:</span><span>2026.01.16</span></div>
-                                                <div className="flex"><span className="w-16 text-gray-500">도축장:</span><span>음성축산물공판장</span></div>
-                                                <div className="flex"><span className="w-16 text-gray-500">도축번호:</span><span>201</span></div>
-                                                <div className="flex"><span className="w-16 text-gray-500">이력번호:</span><span>002-1486-7293-1</span></div>
-                                                <div className="flex"><span className="w-16 text-gray-500">출하농가:</span><span>건화</span></div>
-                                                <div className="flex"><span className="w-16 text-gray-500">검사결과:</span><span className="font-bold text-green-600">적합</span></div>
-                                                <div className="flex"><span className="w-16 text-gray-500">검사항목:</span><span>일반검사</span></div>
-                                                <div className="flex"><span className="w-16 text-gray-500">생체중량:</span><span>720kg</span></div>
-                                                <div className="flex"><span className="w-16 text-gray-500">도체중량:</span><span>520kg</span></div>
-                                                <div className="flex"><span className="w-16 text-gray-500">지육율:</span><span>72.2%</span></div>
-                                              </div>
-                                              <div className="border-t border-gray-300 pt-2 mt-2 text-center">
-                                                <p className="text-gray-500">농림축산검역본부</p>
-                                                <p className="text-[6px] text-gray-400 mt-1">본 증명서는 법적 효력이 있습니다</p>
+                                          );
+                                        }
+                                        
+                                        // 도축검사증명서 (마지막)
+                                        if (imgIndex === Math.max(dbImages.length, 4) + 1) {
+                                          return product.slaughterCert?.fileData ? (
+                                            <div className="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-gray-700 p-4">
+                                              <img src={product.slaughterCert.fileData} alt="도축검사증명서" className="max-w-full max-h-full object-contain shadow-lg" />
+                                            </div>
+                                          ) : (
+                                            <div className="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-gray-700 p-4">
+                                              <div className="w-full max-w-[280px] bg-white dark:bg-gray-200 shadow-lg border border-gray-300 p-4 aspect-[1/1.414]">
+                                                <div className="h-full flex flex-col text-[8px] text-gray-700">
+                                                  <div className="text-center border-b border-gray-400 pb-2 mb-2">
+                                                    <p className="text-[12px] font-bold text-gray-900">도축검사증명서</p>
+                                                    <p className="text-gray-500 mt-1">Slaughter Inspection Certificate</p>
+                                                  </div>
+                                                  <div className="flex-1 space-y-1.5">
+                                                    <div className="flex"><span className="w-16 text-gray-500">접수번호:</span><span className="font-medium">{product.auctionNo}</span></div>
+                                                    <div className="flex"><span className="w-16 text-gray-500">도축일:</span><span>{product.slaughterDate || '-'}</span></div>
+                                                    <div className="flex"><span className="w-16 text-gray-500">도축장:</span><span>{product.slaughterHouse || '-'}</span></div>
+                                                    <div className="flex"><span className="w-16 text-gray-500">도축번호:</span><span>{product.slaughterNo || '-'}</span></div>
+                                                    <div className="flex"><span className="w-16 text-gray-500">이력번호:</span><span>{product.traceNo || '-'}</span></div>
+                                                    <div className="flex"><span className="w-16 text-gray-500">출하농가:</span><span>{product.company || '-'}</span></div>
+                                                    <div className="flex"><span className="w-16 text-gray-500">검사결과:</span><span className="font-bold text-green-600">적합</span></div>
+                                                    <div className="flex"><span className="w-16 text-gray-500">도체중량:</span><span>{product.carcassWeight || '-'}kg</span></div>
+                                                  </div>
+                                                  <div className="border-t border-gray-300 pt-2 mt-2 text-center">
+                                                    <p className="text-gray-500">농림축산검역본부</p>
+                                                  </div>
+                                                </div>
                                               </div>
                                             </div>
-                                          </div>
-                                        </div>
-                                      ) : (
-                                        // 일반 이미지
-                                        <img 
-                                          src={`/등심${((expandedImageIndex[product.id] || 0) % 4) + 1}.png`}
-                                          alt="개체 이미지"
-                                          className="w-full h-full object-cover select-none pointer-events-none"
-                                          draggable="false"
-                                        />
-                                      )}
+                                          );
+                                        }
+                                        
+                                        // 일반 이미지 (DB 이미지 사용)
+                                        const imageSrc = dbImages[imgIndex] || `/등심${(imgIndex % 4) + 1}.png`;
+                                        return (
+                                          <img 
+                                            src={imageSrc}
+                                            alt="개체 이미지"
+                                            className="w-full h-full object-cover select-none pointer-events-none"
+                                            draggable="false"
+                                          />
+                                        );
+                                      })()}
                                     </div>
                                     
                                     {/* 이미지 인디케이터 */}
-                                    <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2">
-                                      {[0,1,2,3,4,5].map((index) => (
-                                        <button
-                                          key={index}
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            setExpandedImageIndex(prev => ({ ...prev, [product.id]: index }));
-                                          }}
-                                          className={`w-2 h-2 rounded-full transition-colors ${
-                                            (expandedImageIndex[product.id] || 0) === index ? 'bg-white' : 'bg-white/50'
-                                          }`}
-                                        />
-                                      ))}
-                                    </div>
+                                    {(() => {
+                                      const dbImages = product.images || [];
+                                      const totalCount = Math.max(dbImages.length, 4) + 2; // 이미지 + 서류 2개
+                                      return (
+                                        <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2">
+                                          {Array.from({ length: totalCount }).map((_, index) => (
+                                            <button
+                                              key={index}
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                setExpandedImageIndex(prev => ({ ...prev, [product.id]: index }));
+                                              }}
+                                              className={`w-2 h-2 rounded-full transition-colors ${
+                                                (expandedImageIndex[product.id] || 0) === index ? 'bg-white' : 'bg-white/50'
+                                              }`}
+                                            />
+                                          ))}
+                                        </div>
+                                      );
+                                    })()}
                                   </div>
 
                                   {/* 썸네일 이미지 */}
                                   <div className="px-3 py-2">
                                     <div className="flex gap-1.5 justify-start overflow-x-auto">
-                                      {/* 등심 이미지 4개 */}
-                                      {[1,2,3,4].map((num, index) => (
-                                        <button
-                                          key={index}
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            setExpandedImageIndex(prev => ({ ...prev, [product.id]: index }));
-                                          }}
-                                          className={`w-14 h-14 flex-shrink-0 rounded overflow-hidden transition-all ${
-                                            (expandedImageIndex[product.id] || 0) === index 
-                                              ? 'border-2 border-gray-400 dark:border-gray-500' 
-                                              : 'border-2 border-transparent hover:border-gray-300 dark:hover:border-gray-600'
-                                          }`}
-                                        >
-                                          <img 
-                                            src={`/등심${num}.png`}
-                                            alt={`등심${num}`}
-                                            className="w-full h-full object-cover"
-                                          />
-                                        </button>
-                                      ))}
+                                      {/* DB 이미지 또는 폴백 이미지 */}
+                                      {(() => {
+                                        const dbImages = product.images || [];
+                                        const imageCount = Math.max(dbImages.length, 4);
+                                        return Array.from({ length: imageCount }).map((_, index) => (
+                                          <button
+                                            key={index}
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              setExpandedImageIndex(prev => ({ ...prev, [product.id]: index }));
+                                            }}
+                                            className={`w-14 h-14 flex-shrink-0 rounded overflow-hidden transition-all ${
+                                              (expandedImageIndex[product.id] || 0) === index 
+                                                ? 'border-2 border-gray-400 dark:border-gray-500' 
+                                                : 'border-2 border-transparent hover:border-gray-300 dark:hover:border-gray-600'
+                                            }`}
+                                          >
+                                            <img 
+                                              src={dbImages[index] || `/등심${(index % 4) + 1}.png`}
+                                              alt={`이미지 ${index + 1}`}
+                                              className="w-full h-full object-cover"
+                                            />
+                                          </button>
+                                        ));
+                                      })()}
                                       {/* 등급판정확인서 썸네일 */}
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setExpandedImageIndex(prev => ({ ...prev, [product.id]: 4 }));
-                                        }}
-                                        className={`w-14 h-14 flex-shrink-0 rounded overflow-hidden transition-all ${
-                                          (expandedImageIndex[product.id] || 0) === 4 
-                                            ? 'border-2 border-gray-400 dark:border-gray-500' 
-                                            : 'border-2 border-transparent hover:border-gray-300 dark:hover:border-gray-600'
-                                        }`}
-                                      >
-                                        <div className="w-full h-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
-                                          <div className="w-8 h-10 bg-white dark:bg-gray-200 border border-gray-300"></div>
-                                        </div>
-                                      </button>
+                                      {(() => {
+                                        const certIndex = Math.max((product.images || []).length, 4);
+                                        return (
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              setExpandedImageIndex(prev => ({ ...prev, [product.id]: certIndex }));
+                                            }}
+                                            className={`w-14 h-14 flex-shrink-0 rounded overflow-hidden transition-all ${
+                                              (expandedImageIndex[product.id] || 0) === certIndex 
+                                                ? 'border-2 border-gray-400 dark:border-gray-500' 
+                                                : 'border-2 border-transparent hover:border-gray-300 dark:hover:border-gray-600'
+                                            }`}
+                                          >
+                                            <div className="w-full h-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
+                                              <div className="w-8 h-10 bg-white dark:bg-gray-200 border border-gray-300"></div>
+                                            </div>
+                                          </button>
+                                        );
+                                      })()}
                                       {/* 도축검사증명서 썸네일 */}
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setExpandedImageIndex(prev => ({ ...prev, [product.id]: 5 }));
-                                        }}
-                                        className={`w-14 h-14 flex-shrink-0 rounded overflow-hidden transition-all ${
-                                          (expandedImageIndex[product.id] || 0) === 5 
-                                            ? 'border-2 border-gray-400 dark:border-gray-500' 
-                                            : 'border-2 border-transparent hover:border-gray-300 dark:hover:border-gray-600'
-                                        }`}
-                                      >
-                                        <div className="w-full h-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
-                                          <div className="w-8 h-10 bg-white dark:bg-gray-200 border border-gray-300"></div>
-                                        </div>
-                                      </button>
+                                      {(() => {
+                                        const certIndex = Math.max((product.images || []).length, 4) + 1;
+                                        return (
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              setExpandedImageIndex(prev => ({ ...prev, [product.id]: certIndex }));
+                                            }}
+                                            className={`w-14 h-14 flex-shrink-0 rounded overflow-hidden transition-all ${
+                                              (expandedImageIndex[product.id] || 0) === certIndex 
+                                                ? 'border-2 border-gray-400 dark:border-gray-500' 
+                                                : 'border-2 border-transparent hover:border-gray-300 dark:hover:border-gray-600'
+                                            }`}
+                                          >
+                                            <div className="w-full h-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
+                                              <div className="w-8 h-10 bg-white dark:bg-gray-200 border border-gray-300"></div>
+                                            </div>
+                                          </button>
+                                        );
+                                      })()}
                                     </div>
                                   </div>
 
@@ -1265,11 +1332,11 @@ function AuctionPageContent() {
                                         </thead>
                                         <tbody>
                                           <tr>
-                                            <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">한우</td>
-                                            <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">암</td>
+                                            <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">{product.breed || '한우'}</td>
+                                            <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">{product.type?.includes('거세') ? '거세' : '암'}</td>
                                             <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">{product.grade}</td>
-                                            <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">32</td>
-                                            <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium text-[11px]">002-1486-7293-1</td>
+                                            <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">{product.monthAge || '-'}</td>
+                                            <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium text-[11px]">{product.traceNo || '-'}</td>
                                           </tr>
                                         </tbody>
                                       </table>
@@ -1291,19 +1358,19 @@ function AuctionPageContent() {
                                         </thead>
                                         <tbody>
                                           <tr>
-                                            <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">16</td>
-                                            <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">123</td>
-                                            <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">9</td>
-                                            <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">5</td>
-                                            <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">3</td>
-                                            <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">1</td>
-                                            <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">2</td>
+                                            <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">{product.backFat || '-'}</td>
+                                            <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">{product.eyeMuscle || '-'}</td>
+                                            <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">{product.marblingScore || '-'}</td>
+                                            <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">{product.meatColor || '-'}</td>
+                                            <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">{product.fatColor || '-'}</td>
+                                            <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">{product.texture || '-'}</td>
+                                            <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">{product.maturity || '-'}</td>
                                           </tr>
                                         </tbody>
                                       </table>
                                     </div>
 
-                                    {/* 3행: 도축장, 도축번호, 도체중, 상장업체, 가공일, 가공중량 */}
+                                    {/* 3행: 도축장, 도축번호, 도체중, 상장업체 */}
                                     <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded overflow-hidden">
                                       <table className="w-full text-[13px]">
                                         <thead>
@@ -1312,18 +1379,14 @@ function AuctionPageContent() {
                                             <th className="py-2.5 px-2 text-center font-medium text-gray-500 dark:text-gray-400">도축번호</th>
                                             <th className="py-2.5 px-2 text-center font-medium text-gray-500 dark:text-gray-400">도체중</th>
                                             <th className="py-2.5 px-2 text-center font-medium text-gray-500 dark:text-gray-400">상장업체</th>
-                                            <th className="py-2.5 px-2 text-center font-medium text-gray-500 dark:text-gray-400">가공일</th>
-                                            <th className="py-2.5 px-2 text-center font-medium text-gray-500 dark:text-gray-400">가공중량</th>
                                           </tr>
                                         </thead>
                                         <tbody>
                                           <tr>
-                                            <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">음성</td>
-                                            <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">201</td>
-                                            <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">520</td>
-                                            <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">건화</td>
-                                            <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">26.01.17</td>
-                                            <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">312</td>
+                                            <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">{product.slaughterHouse || '-'}</td>
+                                            <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">{product.slaughterNo || '-'}</td>
+                                            <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">{product.carcassWeight || '-'}</td>
+                                            <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">{product.company || '-'}</td>
                                           </tr>
                                         </tbody>
                                       </table>

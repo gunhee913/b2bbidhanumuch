@@ -38,7 +38,7 @@ function AuctionDetailContent({ params }: PageProps) {
   const fromMyBids = searchParams.get('from') === 'myBids';
 
   // DB에서 상장 정보 조회
-  const { data: listingData, isLoading: listingLoading, error: listingError } = useListingByNo(resolvedParams.id);
+  const { data: listingData, isLoading: listingLoading, error: listingError, refetch: refetchListing } = useListingByNo(resolvedParams.id);
 
   // DB 데이터 기반 개체 정보
   const currentCattle = useMemo(() => {
@@ -93,16 +93,16 @@ function AuctionDetailContent({ params }: PageProps) {
   
   // 세션 정보 (중도매인 ID 가져오기)
   const { data: session } = useSession();
-  const dealerEmployee = (session?.user as any)?.dealerEmployee;
-  const dealerId = dealerEmployee?.dealerId || null;
+  // 중도매인으로 로그인하면 session.dealer, 직원으로 로그인하면 session.employee
+  const dealer = (session as any)?.dealer;
+  const employee = (session as any)?.employee;
+  const dealerId = dealer?.id || employee?.dealerId || null;
 
   // 입찰 생성 훅
   const createBid = useCreateBid();
 
-  // zustand 스토어에서 입찰 관련 상태 가져오기
+  // zustand 스토어에서 설정 관련 상태 가져오기
   const { 
-    bids: globalBids, 
-    setBid,
     quickReBidAmount, 
     setQuickReBidAmount,
     isSecondBidNotificationOn,
@@ -127,25 +127,6 @@ function AuctionDetailContent({ params }: PageProps) {
   
   useEffect(() => {
     setIsHydrated(true);
-    
-    // 샘플 차순위 데이터 추가 (디자인 확인용)
-    const sampleListingNo = `${getTodayDateCode()}-101-02`; // 등심(우)
-    if (!globalBids[sampleListingNo]) {
-      setBid(sampleListingNo, {
-        myBid: 90000,
-        highestBid: 95000,
-        status: 'secondHighest',
-        time: '26.01.26.(일) 10:30',
-        productInfo: {
-          listingNo: sampleListingNo,
-          partName: '등심(우)',
-          weight: '15.6',
-          type: '한우거세',
-          grade: '1++(9)',
-          price: 85000
-        }
-      });
-    }
   }, []);
   
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -351,21 +332,8 @@ function AuctionDetailContent({ params }: PageProps) {
       setSelectedWeight('');
       setBidPrice('0');
       
-      // zustand 스토어에도 저장 (UI 즉시 반영용)
-      setBid(listingNo, {
-        myBid: myPrice,
-        highestBid: myPrice,
-        status: 'highest',
-        time: timeString,
-        productInfo: {
-          listingNo: listingNo,
-          partName: selectedPart,
-          weight: selectedWeight,
-          type: currentAuctionInfo.breed,
-          grade: currentAuctionInfo.grade,
-          price: baseMinPrices[selectedPart] || 50000
-        }
-      });
+      // DB 데이터 새로고침
+      refetchListing();
     } catch (error: any) {
       showToastMessage(error.message || '입찰 중 오류가 발생했습니다.');
     }
@@ -565,6 +533,9 @@ function AuctionDetailContent({ params }: PageProps) {
         minPrice: defaultMinPrices[item.part] || 50000,
         marketHighestBid: undefined,
         partId: undefined as string | undefined, // DB 파트 ID (폴백시 없음)
+        bidCount: 0,
+        highestBid: null as any,
+        allBids: [] as any[],
       };
     });
   }, [listingData, resolvedParams.id]);
@@ -728,50 +699,6 @@ function AuctionDetailContent({ params }: PageProps) {
     return () => clearInterval(timer);
   }, []);
 
-  // 테스트용 입찰 데이터 (차순위 포함)
-  useEffect(() => {
-    const dateCode = getTodayDateCode();
-    const todayPrefix = `${dateCode.slice(0, 2)}.${dateCode.slice(2, 4)}.${dateCode.slice(4, 6)}`; // "26.01.19"
-    
-    // 기존 데이터가 없거나 time이 오늘 날짜가 아니면 업데이트
-    const existingBid1 = globalBids[`${dateCode}-001-0001`];
-    if (!existingBid1 || !existingBid1.time.startsWith(todayPrefix)) {
-      setBid(`${dateCode}-001-0001`, {
-        myBid: 150000,
-        highestBid: 150000,
-        status: 'highest',
-        time: getTodayTimeFormatted(0, 5), // 5분 전
-        productInfo: {
-          listingNo: `${dateCode}-001-0001`,
-          partName: '등심(좌)',
-          weight: '9kg',
-          type: '한우 거세',
-          grade: '1++A',
-          price: 150000
-        }
-      });
-    }
-    
-    // 차순위 데이터
-    const existingBid2 = globalBids[`${dateCode}-001-0002`];
-    if (!existingBid2 || !existingBid2.time.startsWith(todayPrefix)) {
-      setBid(`${dateCode}-001-0002`, {
-        myBid: 143000,
-        highestBid: 148000,
-        status: 'secondHighest',
-        time: getTodayTimeFormatted(0, 10), // 10분 전
-        productInfo: {
-          listingNo: `${dateCode}-001-0002`,
-          partName: '등심(우)',
-          weight: '9kg',
-          type: '한우 거세',
-          grade: '1++A',
-          price: 143000
-        }
-      });
-    }
-  }, [globalBids, setBid]);
-
   // 시간 포맷팅 함수
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -891,8 +818,8 @@ function AuctionDetailContent({ params }: PageProps) {
                 <div className="w-full aspect-square bg-gray-200 dark:bg-gray-800">
                   {(mainImages[currentImageIndex] as any).isDocument ? (
                     // 서류 이미지
-                    (mainImages[currentImageIndex] as any).src?.startsWith('data:') ? (
-                      // DB에서 가져온 실제 서류 이미지 (base64)
+                    ((mainImages[currentImageIndex] as any).src?.startsWith('data:') || (mainImages[currentImageIndex] as any).src?.startsWith('http')) ? (
+                      // DB에서 가져온 실제 서류 이미지 (base64 또는 URL)
                       <div className="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-gray-700 p-4">
                         <img 
                           src={mainImages[currentImageIndex].src}
@@ -1144,24 +1071,20 @@ function AuctionDetailContent({ params }: PageProps) {
                   <div className="flex-1 overflow-y-auto">
                     {/* 매도호가 (위쪽, 높은 가격) */}
                     {partsData.map((item: any, index) => {
-                      // Hydration 오류 방지: 마운트 전에는 빈 데이터로 처리
-                      const localBidInfo = isHydrated ? globalBids[item.listingNo] : undefined;
                       const minPrice = item.minPrice || baseMinPrices[item.part] || 50000;
                       
                       // DB에서 가져온 입찰 현황
-                      const dbHighestBid = item.highestBid?.bidPrice || item.marketHighestBid || 0;
-                      const dbBidCount = item.bidCount || 0;
+                      const dbHighestBid = item.highestBid?.bidPrice || 0;
                       
-                      // 내 입찰 정보 (zustand 또는 DB에서)
-                      const myBidFromLocal = localBidInfo?.myBid;
+                      // 내 입찰 정보 (DB에서)
                       const myBidFromDB = dealerId 
                         ? item.allBids?.find((b: any) => b.dealerId === dealerId)?.bidPrice 
                         : undefined;
-                      const myBid = myBidFromLocal || myBidFromDB;
+                      const myBid = myBidFromDB;
                       const hasBid = !!myBid;
                       
                       // 최고 입찰가 (DB 기준)
-                      const displayHighestBid = dbHighestBid || (localBidInfo?.highestBid);
+                      const displayHighestBid = dbHighestBid;
                       const hasMarketBid = displayHighestBid > 0;
                       
                       // 상태 결정: 내 입찰이 최고가인지
@@ -1348,13 +1271,12 @@ function AuctionDetailContent({ params }: PageProps) {
                             setBidPrice(formattedValue);
                           }}
                           placeholder={selectedPart ? (() => {
-                            const partData = partsData.find(p => p.part === selectedPart);
-                            const bidInfo = isHydrated && partData ? globalBids[partData.listingNo] : null;
-                            const highestBid = bidInfo?.highestBid || partData?.marketHighestBid;
+                            const partData = partsData.find((p: any) => p.part === selectedPart);
+                            const highestBid = partData?.highestBid?.bidPrice || partData?.marketHighestBid;
                             if (highestBid) {
                               return `최고입찰가 ${highestBid.toLocaleString()}`;
                             }
-                            return `최저단가 ${(baseMinPrices[selectedPart] || 50000).toLocaleString()}`;
+                            return `최저단가 ${(partData?.minPrice || baseMinPrices[selectedPart] || 50000).toLocaleString()}`;
                           })() : '0'}
                           className="w-full px-4 py-3.5 pr-12 text-right text-xl font-bold border border-gray-200 dark:border-gray-700 rounded focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500 focus:border-gray-400 dark:focus:border-gray-500 bg-white dark:bg-gray-800 text-black dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500"
                         />
@@ -1371,9 +1293,8 @@ function AuctionDetailContent({ params }: PageProps) {
                               // 비어있으면 최고입찰가 또는 최저단가에서 시작
                               let basePrice = 0;
                               if (bidPrice === '') {
-                                const partData = partsData.find(p => p.part === selectedPart);
-                                const bidInfo = isHydrated && partData ? globalBids[partData.listingNo] : null;
-                                basePrice = bidInfo?.highestBid || partData?.marketHighestBid || baseMinPrices[selectedPart || ''] || 50000;
+                                const partData = partsData.find((p: any) => p.part === selectedPart);
+                                basePrice = partData?.highestBid?.bidPrice || partData?.marketHighestBid || partData?.minPrice || baseMinPrices[selectedPart || ''] || 50000;
                               } else {
                                 basePrice = parseFloat(removeCommas(bidPrice));
                               }

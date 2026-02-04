@@ -30,8 +30,7 @@ export async function GET(request: NextRequest) {
         created_at,
         dealers (
           id,
-          name,
-          company
+          name
         ),
         cattle_parts (
           id,

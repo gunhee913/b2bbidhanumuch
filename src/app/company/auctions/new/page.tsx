@@ -2,12 +2,13 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import CompanyLayout from '@/components/company/CompanyLayout';
-import { Save, Upload, X, Plus, ChevronDown, ChevronUp, Trash2, Download, FileSpreadsheet } from 'lucide-react';
+import { Save, Upload, X, Plus, ChevronDown, ChevronUp, Trash2, Download, FileSpreadsheet, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import * as XLSX from 'xlsx';
 import { useSession } from 'next-auth/react';
 import { useCreateListing } from '@/features/listings/hooks';
 import { CreateListingInput } from '@/features/listings/types';
+import { uploadImage } from '@/lib/upload';
 
 // number input 스피너, date input 달력 아이콘 숨기기 스타일
 const hideSpinnerStyle = `
@@ -307,11 +308,14 @@ export default function CompanyNewAuctionPage() {
     ));
   };
 
+  // 이미지 업로드 중 상태
+  const [uploadingImages, setUploadingImages] = useState<{ [key: number]: boolean }>({});
+
   // 이미지 업로드 ref
   const imageInputRefs = useRef<{ [key: number]: HTMLInputElement | null }>({});
 
-  // 이미지 업로드 처리
-  const handleImageUpload = (cattleId: number, e: React.ChangeEvent<HTMLInputElement>) => {
+  // 이미지 업로드 처리 (Storage 사용)
+  const handleImageUpload = async (cattleId: number, e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
@@ -321,24 +325,42 @@ export default function CompanyNewAuctionPage() {
     const remainingSlots = 4 - cattle.images.length;
     const filesToProcess = Array.from(files).slice(0, remainingSlots);
 
-    filesToProcess.forEach(file => {
+    // 업로드 중 상태 설정
+    setUploadingImages(prev => ({ ...prev, [cattleId]: true }));
+
+    for (const file of filesToProcess) {
       if (!file.type.startsWith('image/')) {
         alert('이미지 파일만 업로드 가능합니다.');
-        return;
+        continue;
       }
 
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const imageUrl = event.target?.result as string;
-        setCattleList(prev => prev.map(c => {
-          if (c.id !== cattleId) return c;
-          if (c.images.length >= 4) return c;
-          return { ...c, images: [...c.images, imageUrl] };
-        }));
-      };
-      reader.readAsDataURL(file);
-    });
+      try {
+        // Base64로 변환
+        const base64 = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = (event) => resolve(event.target?.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
 
+        // Storage에 업로드
+        const url = await uploadImage(base64, 'listings');
+        
+        if (url) {
+          setCattleList(prev => prev.map(c => {
+            if (c.id !== cattleId) return c;
+            if (c.images.length >= 4) return c;
+            return { ...c, images: [...c.images, url] };
+          }));
+        }
+      } catch (error) {
+        console.error('이미지 업로드 오류:', error);
+        alert('이미지 업로드에 실패했습니다.');
+      }
+    }
+
+    // 업로드 완료
+    setUploadingImages(prev => ({ ...prev, [cattleId]: false }));
     e.target.value = '';
   };
 
@@ -354,8 +376,11 @@ export default function CompanyNewAuctionPage() {
   const slaughterCertInputRefs = useRef<{ [key: number]: HTMLInputElement | null }>({});
   const gradeCertInputRefs = useRef<{ [key: number]: HTMLInputElement | null }>({});
 
-  // 증명서 업로드 처리
-  const handleCertUpload = (
+  // 증명서 업로드 중 상태
+  const [uploadingCerts, setUploadingCerts] = useState<{ [key: string]: boolean }>({});
+
+  // 증명서 업로드 처리 (Storage 사용)
+  const handleCertUpload = async (
     cattleId: number, 
     certType: 'slaughterCert' | 'gradeCert', 
     e: React.ChangeEvent<HTMLInputElement>
@@ -375,22 +400,39 @@ export default function CompanyNewAuctionPage() {
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const fileData = event.target?.result as string;
-      const certData: CertificateData = {
-        fileName: file.name,
-        fileData,
-        fileType: 'image'
-      };
-      
-      setCattleList(prev => prev.map(c => {
-        if (c.id !== cattleId) return c;
-        return { ...c, [certType]: certData };
-      }));
-    };
-    reader.readAsDataURL(file);
+    const uploadKey = `${cattleId}-${certType}`;
+    setUploadingCerts(prev => ({ ...prev, [uploadKey]: true }));
 
+    try {
+      // Base64로 변환
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (event) => resolve(event.target?.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+
+      // Storage에 업로드
+      const url = await uploadImage(base64, 'certificates');
+      
+      if (url) {
+        const certData: CertificateData = {
+          fileName: file.name,
+          fileData: url, // URL 저장
+          fileType: 'image'
+        };
+        
+        setCattleList(prev => prev.map(c => {
+          if (c.id !== cattleId) return c;
+          return { ...c, [certType]: certData };
+        }));
+      }
+    } catch (error) {
+      console.error('증명서 업로드 오류:', error);
+      alert('증명서 업로드에 실패했습니다.');
+    }
+
+    setUploadingCerts(prev => ({ ...prev, [uploadKey]: false }));
     e.target.value = '';
   };
 
@@ -999,10 +1041,17 @@ export default function CompanyNewAuctionPage() {
                       <button 
                         type="button" 
                         onClick={() => imageInputRefs.current[cattle.id]?.click()} 
-                        className="w-14 h-14 border border-dashed border-gray-300 flex flex-col items-center justify-center text-gray-400 hover:border-gray-500 hover:text-gray-500 transition-colors bg-white"
+                        disabled={uploadingImages[cattle.id]}
+                        className="w-14 h-14 border border-dashed border-gray-300 flex flex-col items-center justify-center text-gray-400 hover:border-gray-500 hover:text-gray-500 transition-colors bg-white disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        <Upload className="w-3.5 h-3.5" />
-                        <span className="text-[9px] mt-0.5">업로드</span>
+                        {uploadingImages[cattle.id] ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <>
+                            <Upload className="w-3.5 h-3.5" />
+                            <span className="text-[9px] mt-0.5">업로드</span>
+                          </>
+                        )}
                       </button>
                     </>
                   )}
