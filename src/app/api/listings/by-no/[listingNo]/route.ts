@@ -67,6 +67,41 @@ export async function GET(
       listing.cattle_parts.sort((a: any, b: any) => a.part_no - b.part_no);
     }
 
+    // 각 부위의 입찰 현황 조회
+    const partIds = (listing.cattle_parts || []).map((p: any) => p.id);
+    const { data: bidsData } = await supabase
+      .from('bids')
+      .select(`
+        id,
+        part_id,
+        dealer_id,
+        bid_price,
+        bid_amount,
+        created_at,
+        dealers (
+          id,
+          name
+        )
+      `)
+      .in('part_id', partIds)
+      .order('bid_price', { ascending: false });
+
+    // 부위별 입찰 그룹화
+    const bidsByPart: Record<string, any[]> = {};
+    (bidsData || []).forEach((bid: any) => {
+      if (!bidsByPart[bid.part_id]) {
+        bidsByPart[bid.part_id] = [];
+      }
+      bidsByPart[bid.part_id].push({
+        id: bid.id,
+        dealerId: bid.dealer_id,
+        dealerName: bid.dealers?.name || '',
+        bidPrice: bid.bid_price,
+        bidAmount: bid.bid_amount,
+        createdAt: bid.created_at,
+      });
+    });
+
     // snake_case -> camelCase 변환
     const formattedListing = {
       id: listing.id,
@@ -107,20 +142,28 @@ export async function GET(
         companyNo: listing.companies.company_no,
         address: listing.companies.address,
       } : null,
-      // 부위 정보
-      parts: (listing.cattle_parts || []).map((part: any) => ({
-        id: part.id,
-        partNo: part.part_no,
-        partName: part.part_name,
-        listingPartNo: part.listing_part_no,
-        weight: part.weight,
-        minPrice: part.min_price,
-        isIncluded: part.is_included,
-        bidPrice: part.bid_price,
-        bidAmount: part.bid_amount,
-        winningDealerId: part.winning_dealer_id,
-        bidAt: part.bid_at,
-      })),
+      // 부위 정보 (입찰 현황 포함)
+      parts: (listing.cattle_parts || []).map((part: any) => {
+        const partBids = bidsByPart[part.id] || [];
+        const highestBid = partBids.length > 0 ? partBids[0] : null;
+        return {
+          id: part.id,
+          partNo: part.part_no,
+          partName: part.part_name,
+          listingPartNo: part.listing_part_no,
+          weight: part.weight,
+          minPrice: part.min_price,
+          isIncluded: part.is_included,
+          bidPrice: part.bid_price,
+          bidAmount: part.bid_amount,
+          winningDealerId: part.winning_dealer_id,
+          bidAt: part.bid_at,
+          // 입찰 현황
+          bidCount: partBids.length,
+          highestBid: highestBid,
+          allBids: partBids,
+        };
+      }),
     };
 
     return NextResponse.json(formattedListing);
