@@ -120,22 +120,18 @@ export async function POST(request: NextRequest) {
       .limit(1)
       .single();
 
-    // 업체별 prefix 가져오기
+    // 업체 정보 가져오기 (company_no 사용)
     const { data: company } = await supabase
       .from('companies')
-      .select('name')
+      .select('company_no')
       .eq('id', listingData.companyId)
       .single();
 
-    const companyPrefixMap: Record<string, string> = {
-      '건화': '100',
-      '대진엠에스': '200',
-      '안심엘피씨': '300',
-      '정직한고기': '400',
-    };
-    const prefix = companyPrefixMap[company?.name || ''] || '100';
+    // 업체번호 첫자리 추출 (200 → 2)
+    const companyNoPrefix = company?.company_no?.charAt(0) || '1';
 
-    let nextSeq = parseInt(prefix) + 1;
+    // 해당 날짜, 업체의 순번 계산
+    let nextSeq = parseInt(`${companyNoPrefix}01`);
     if (lastListing?.listing_no) {
       const lastSeq = parseInt(lastListing.listing_no.split('-')[1]);
       nextSeq = lastSeq + 1;

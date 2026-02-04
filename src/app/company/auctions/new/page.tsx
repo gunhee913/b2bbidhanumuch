@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import CompanyLayout from '@/components/company/CompanyLayout';
 import { Save, Upload, X, Plus, ChevronDown, ChevronUp, Trash2, Download, FileSpreadsheet } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -120,13 +120,6 @@ const createNewCattle = (id: number, seqNo: string): CattleData => ({
   isExpanded: true,
 });
 
-// 가공업체별 접수번호 prefix
-const COMPANY_PREFIX: Record<string, string> = {
-  '건화': '100',
-  '대진엠에스': '200',
-  '안심엘피씨': '300',
-  '정직한고기': '400',
-};
 
 // 내일 날짜 (YYYY-MM-DD) - input date용
 const getTomorrowDateString = () => {
@@ -145,6 +138,7 @@ export default function CompanyNewAuctionPage() {
   const { data: session } = useSession();
   const companyName = session?.company?.name || '';
   const companyId = session?.company?.id || '';
+  const companyNo = session?.company?.companyNo || '';
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const createListingMutation = useCreateListing();
@@ -152,13 +146,52 @@ export default function CompanyNewAuctionPage() {
   // 공통 정보
   const [listingDate, setListingDate] = useState(tomorrowDateString);
   
+  // 다음 순번 (DB에서 조회)
+  const [startSeq, setStartSeq] = useState<number>(1);
+  
+  // 다음 순번 조회
+  const fetchNextSeq = useCallback(async () => {
+    if (!companyId || !listingDate) {
+      setStartSeq(1);
+      return;
+    }
+    
+    try {
+      const response = await fetch(
+        `/api/listings/next-seq?companyId=${companyId}&listingDate=${listingDate}`
+      );
+      if (response.ok) {
+        const data = await response.json();
+        // nextSeq에서 업체번호 prefix를 제외한 순번만 추출 (203 → 3)
+        const companyNoPrefix = data.companyNoPrefix;
+        const seqOnly = data.nextSeq - parseInt(`${companyNoPrefix}00`);
+        setStartSeq(seqOnly);
+      }
+    } catch (error) {
+      console.error('다음 순번 조회 실패:', error);
+    }
+  }, [companyId, listingDate]);
+  
+  // 업체/날짜 변경 시 다음 순번 조회
+  useEffect(() => {
+    fetchNextSeq();
+  }, [fetchNextSeq]);
+  
   // 이미지 확대 모달
   const [viewingImage, setViewingImage] = useState<string | null>(null);
   
-  // 개체 목록
+  // 개체 목록 (startSeq 기반으로 초기화)
   const [cattleList, setCattleList] = useState<CattleData[]>([
     createNewCattle(1, '1')
   ]);
+  
+  // startSeq 변경 시 개체 목록 순번 업데이트
+  useEffect(() => {
+    setCattleList(prev => prev.map((cattle, index) => ({
+      ...cattle,
+      seqNo: String(startSeq + index),
+    })));
+  }, [startSeq]);
 
   // 상장일자 기반 날짜 코드 생성 (YYMMDD)
   const getDateCode = () => {
@@ -170,24 +203,24 @@ export default function CompanyNewAuctionPage() {
     return `${year}${month}${day}`;
   };
 
-  // 접수번호 생성
+  // 접수번호 생성 (업체번호 첫자리 + 순번)
+  // 예: 대구축협(업체번호 200), 순번 3 → 260205-203
   const getAuctionNo = (seqNo: string) => {
-    if (!companyName) return '-';
+    if (!companyNo) return '-';
     const dateCode = getDateCode();
-    const basePrefix = COMPANY_PREFIX[companyName] || '100';
-    const prefixBase = basePrefix.charAt(0);
-    const seq = String(seqNo || '1').padStart(2, '0');
-    return `${dateCode}-${prefixBase}${seq}`;
+    const companyNoPrefix = companyNo.charAt(0); // 업체번호 첫자리 (200 → 2)
+    const fullSeq = parseInt(`${companyNoPrefix}00`) + parseInt(seqNo || '1');
+    return `${dateCode}-${fullSeq}`;
   };
 
-  // 상장번호 생성
+  // 상장번호 생성 (접수번호 + 부위번호)
+  // 예: 260205-203-01
   const getListingNo = (seqNo: string, partIndex: number) => {
-    if (!companyName) return '-';
+    if (!companyNo) return '-';
     const dateCode = getDateCode();
-    const basePrefix = COMPANY_PREFIX[companyName] || '100';
-    const prefixBase = basePrefix.charAt(0);
-    const seq = String(seqNo || '1').padStart(2, '0');
-    return `${dateCode}-${prefixBase}${seq}-${String(partIndex + 1).padStart(2, '0')}`;
+    const companyNoPrefix = companyNo.charAt(0);
+    const fullSeq = parseInt(`${companyNoPrefix}00`) + parseInt(seqNo || '1');
+    return `${dateCode}-${fullSeq}-${String(partIndex + 1).padStart(2, '0')}`;
   };
 
   // 이력번호 포맷팅
@@ -204,7 +237,7 @@ export default function CompanyNewAuctionPage() {
       alert('최대 10두까지 등록할 수 있습니다.');
       return;
     }
-    const newSeqNo = String(cattleList.length + 1);
+    const newSeqNo = String(startSeq + cattleList.length);
     setCattleList([...cattleList, createNewCattle(Date.now(), newSeqNo)]);
   };
 
@@ -215,7 +248,8 @@ export default function CompanyNewAuctionPage() {
       return;
     }
     const newList = cattleList.filter(c => c.id !== id);
-    setCattleList(newList.map((c, idx) => ({ ...c, seqNo: String(idx + 1) })));
+    // 순번 재정렬 (startSeq 기반)
+    setCattleList(newList.map((c, idx) => ({ ...c, seqNo: String(startSeq + idx) })));
   };
 
   // 개체 정보 수정
