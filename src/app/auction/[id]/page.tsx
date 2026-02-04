@@ -405,14 +405,12 @@ function AuctionDetailContent({ params }: PageProps) {
     setCustomBidPrice('');
   };
 
-  // 폴백용 기본 이미지
+  // 폴백용 기본 이미지 (증명서는 실제 데이터가 있을 때만 표시)
   const defaultImages = [
     { id: 1, src: "/등심1.png", alt: "등심1" },
     { id: 2, src: "/등심2.png", alt: "등심2" },
     { id: 3, src: "/등심3.png", alt: "등심3" },
     { id: 4, src: "/등심4.png", alt: "등심4" },
-    { id: 5, src: "grade-certificate", alt: "등급판정확인서", isDocument: true },
-    { id: 6, src: "slaughter-certificate", alt: "도축검사증명서", isDocument: true }
   ];
 
   // DB 기반 이미지 배열 (있으면 DB, 없으면 폴백)
@@ -428,7 +426,7 @@ function AuctionDetailContent({ params }: PageProps) {
         isDocument: false,
       }));
       
-      // 서류 이미지 추가 (등급판정확인서, 도축검사증명서)
+      // 서류 이미지 추가 (증명서가 있을 때만)
       if (data.gradeCert?.fileData) {
         dbImages.push({
           id: dbImages.length + 1,
@@ -437,8 +435,6 @@ function AuctionDetailContent({ params }: PageProps) {
           isDocument: true,
           isGradeCert: true,
         });
-      } else {
-        dbImages.push({ id: dbImages.length + 1, src: "grade-certificate", alt: "등급판정확인서", isDocument: true });
       }
       
       if (data.slaughterCert?.fileData) {
@@ -449,8 +445,6 @@ function AuctionDetailContent({ params }: PageProps) {
           isDocument: true,
           isSlaughterCert: true,
         });
-      } else {
-        dbImages.push({ id: dbImages.length + 1, src: "slaughter-certificate", alt: "도축검사증명서", isDocument: true });
       }
       
       return dbImages.map((img: any) => ({
@@ -459,14 +453,14 @@ function AuctionDetailContent({ params }: PageProps) {
       }));
     }
     
-    // 폴백: 기본 이미지 사용
+    // 폴백: 기본 이미지 사용 (증명서 제외)
     const id = parseInt(resolvedParams.id.split('-')[1] || '1');
     const patterns: number[][] = [
-      [0, 1, 2, 3, 4, 5],
-      [1, 3, 0, 2, 4, 5],
-      [2, 0, 3, 1, 4, 5],
-      [3, 2, 1, 0, 4, 5],
-      [1, 0, 3, 2, 4, 5],
+      [0, 1, 2, 3],
+      [1, 3, 0, 2],
+      [2, 0, 3, 1],
+      [3, 2, 1, 0],
+      [1, 0, 3, 2],
     ];
     const patternIndex = (id - 1) % patterns.length;
     const pattern = patterns[patternIndex];
@@ -817,73 +811,14 @@ function AuctionDetailContent({ params }: PageProps) {
               >
                 <div className="w-full aspect-square bg-gray-200 dark:bg-gray-800">
                   {(mainImages[currentImageIndex] as any).isDocument ? (
-                    // 서류 이미지
-                    ((mainImages[currentImageIndex] as any).src?.startsWith('data:') || (mainImages[currentImageIndex] as any).src?.startsWith('http')) ? (
-                      // DB에서 가져온 실제 서류 이미지 (base64 또는 URL)
-                      <div className="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-gray-700 p-4">
-                        <img 
-                          src={mainImages[currentImageIndex].src}
-                          alt={mainImages[currentImageIndex].alt}
-                          className="max-w-full max-h-full object-contain shadow-lg"
-                        />
-                      </div>
-                    ) : (
-                      // 폴백: 더미 서류 양식
-                      <div className="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-gray-700 p-4">
-                        <div className="w-full max-w-[280px] bg-white dark:bg-gray-200 shadow-lg border border-gray-300 p-4 aspect-[1/1.414]">
-                          {mainImages[currentImageIndex].src === 'grade-certificate' ? (
-                            // 등급판정확인서
-                            <div className="h-full flex flex-col text-[8px] text-gray-700">
-                              <div className="text-center border-b border-gray-400 pb-2 mb-2">
-                                <p className="text-[12px] font-bold text-gray-900">등급판정확인서</p>
-                                <p className="text-gray-500 mt-1">Grade Certification</p>
-                              </div>
-                              <div className="flex-1 space-y-1.5">
-                                <div className="flex"><span className="w-16 text-gray-500">접수번호:</span><span className="font-medium">{currentCattle.id}</span></div>
-                                <div className="flex"><span className="w-16 text-gray-500">축종:</span><span>{currentCattle.type}</span></div>
-                                <div className="flex"><span className="w-16 text-gray-500">성별:</span><span>{currentCattle.gender}</span></div>
-                                <div className="flex"><span className="w-16 text-gray-500">등급:</span><span className="font-bold text-gray-900">{currentCattle.grade}</span></div>
-                                <div className="flex"><span className="w-16 text-gray-500">개월령:</span><span>{currentCattle.months}개월</span></div>
-                                <div className="flex"><span className="w-16 text-gray-500">도체중량:</span><span>{currentCattle.carcassWeight || '-'}kg</span></div>
-                                <div className="flex"><span className="w-16 text-gray-500">등지방:</span><span>{currentCattle.backFat || '-'}mm</span></div>
-                                <div className="flex"><span className="w-16 text-gray-500">등심면적:</span><span>{currentCattle.eyeMuscle || '-'}㎠</span></div>
-                                <div className="flex"><span className="w-16 text-gray-500">근내지방:</span><span>{currentCattle.marblingScore || '-'}</span></div>
-                                <div className="flex"><span className="w-16 text-gray-500">육색:</span><span>{currentCattle.meatColor || '-'}</span></div>
-                                <div className="flex"><span className="w-16 text-gray-500">지방색:</span><span>{currentCattle.fatColor || '-'}</span></div>
-                                <div className="flex"><span className="w-16 text-gray-500">조직감:</span><span>{currentCattle.texture || '-'}</span></div>
-                                <div className="flex"><span className="w-16 text-gray-500">성숙도:</span><span>{currentCattle.maturity || '-'}</span></div>
-                              </div>
-                              <div className="border-t border-gray-300 pt-2 mt-2 text-center">
-                                <p className="text-gray-500">축산물품질평가원</p>
-                                <p className="text-[6px] text-gray-400 mt-1">본 확인서는 법적 효력이 있습니다</p>
-                              </div>
-                            </div>
-                          ) : (
-                            // 도축검사증명서
-                            <div className="h-full flex flex-col text-[8px] text-gray-700">
-                              <div className="text-center border-b border-gray-400 pb-2 mb-2">
-                                <p className="text-[12px] font-bold text-gray-900">도축검사증명서</p>
-                                <p className="text-gray-500 mt-1">Slaughter Inspection Certificate</p>
-                              </div>
-                              <div className="flex-1 space-y-1.5">
-                                <div className="flex"><span className="w-16 text-gray-500">접수번호:</span><span className="font-medium">{currentCattle.id}</span></div>
-                                <div className="flex"><span className="w-16 text-gray-500">도축일:</span><span>{currentCattle.slaughterDate || '-'}</span></div>
-                                <div className="flex"><span className="w-16 text-gray-500">도축장:</span><span>{currentCattle.slaughterHouse || '-'}</span></div>
-                                <div className="flex"><span className="w-16 text-gray-500">도축번호:</span><span>{currentCattle.slaughterNo || '-'}</span></div>
-                                <div className="flex"><span className="w-16 text-gray-500">이력번호:</span><span>{currentCattle.traceNo || '-'}</span></div>
-                                <div className="flex"><span className="w-16 text-gray-500">출하농가:</span><span>{currentCattle.company}</span></div>
-                                <div className="flex"><span className="w-16 text-gray-500">검사결과:</span><span className="font-bold text-green-600">적합</span></div>
-                                <div className="flex"><span className="w-16 text-gray-500">도체중량:</span><span>{currentCattle.carcassWeight || '-'}kg</span></div>
-                              </div>
-                              <div className="border-t border-gray-300 pt-2 mt-2 text-center">
-                                <p className="text-gray-500">농림축산검역본부</p>
-                                <p className="text-[6px] text-gray-400 mt-1">본 증명서는 법적 효력이 있습니다</p>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )
+                    // 서류 이미지 (실제 데이터만 표시)
+                    <div className="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-gray-700 p-4">
+                      <img 
+                        src={mainImages[currentImageIndex].src}
+                        alt={mainImages[currentImageIndex].alt}
+                        className="max-w-full max-h-full object-contain shadow-lg"
+                      />
+                    </div>
                   ) : (
                     // 일반 이미지
                     <img 

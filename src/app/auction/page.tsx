@@ -1138,75 +1138,25 @@ function AuctionPageContent() {
                                       {(() => {
                                         const imgIndex = expandedImageIndex[product.id] || 0;
                                         const dbImages = product.images || [];
-                                        const totalImages = dbImages.length + 2; // 이미지 + 서류 2개
+                                        const imageCount = Math.max(dbImages.length, 4);
+                                        const hasGradeCert = !!product.gradeCert?.fileData;
+                                        const hasSlaughterCert = !!product.slaughterCert?.fileData;
                                         
-                                        // 등급판정확인서 (마지막에서 두번째)
-                                        if (imgIndex === Math.max(dbImages.length, 4)) {
-                                          return product.gradeCert?.fileData ? (
+                                        // 등급판정확인서 (이미지 다음)
+                                        if (hasGradeCert && imgIndex === imageCount) {
+                                          return (
                                             <div className="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-gray-700 p-4">
                                               <img src={product.gradeCert.fileData} alt="등급판정확인서" className="max-w-full max-h-full object-contain shadow-lg" />
-                                            </div>
-                                          ) : (
-                                            <div className="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-gray-700 p-4">
-                                              <div className="w-full max-w-[280px] bg-white dark:bg-gray-200 shadow-lg border border-gray-300 p-4 aspect-[1/1.414]">
-                                                <div className="h-full flex flex-col text-[8px] text-gray-700">
-                                                  <div className="text-center border-b border-gray-400 pb-2 mb-2">
-                                                    <p className="text-[12px] font-bold text-gray-900">등급판정확인서</p>
-                                                    <p className="text-gray-500 mt-1">Grade Certification</p>
-                                                  </div>
-                                                  <div className="flex-1 space-y-1.5">
-                                                    <div className="flex"><span className="w-16 text-gray-500">접수번호:</span><span className="font-medium">{product.auctionNo}</span></div>
-                                                    <div className="flex"><span className="w-16 text-gray-500">축종:</span><span>{product.breed || '한우'}</span></div>
-                                                    <div className="flex"><span className="w-16 text-gray-500">성별:</span><span>{product.type.includes('거세') ? '거세' : '암'}</span></div>
-                                                    <div className="flex"><span className="w-16 text-gray-500">등급:</span><span className="font-bold text-gray-900">{product.grade}</span></div>
-                                                    <div className="flex"><span className="w-16 text-gray-500">개월령:</span><span>{product.monthAge || '-'}개월</span></div>
-                                                    <div className="flex"><span className="w-16 text-gray-500">도체중량:</span><span>{product.carcassWeight || '-'}kg</span></div>
-                                                    <div className="flex"><span className="w-16 text-gray-500">등지방:</span><span>{product.backFat || '-'}mm</span></div>
-                                                    <div className="flex"><span className="w-16 text-gray-500">등심면적:</span><span>{product.eyeMuscle || '-'}㎠</span></div>
-                                                    <div className="flex"><span className="w-16 text-gray-500">근내지방:</span><span>{product.marblingScore || '-'}</span></div>
-                                                    <div className="flex"><span className="w-16 text-gray-500">육색:</span><span>{product.meatColor || '-'}</span></div>
-                                                    <div className="flex"><span className="w-16 text-gray-500">지방색:</span><span>{product.fatColor || '-'}</span></div>
-                                                    <div className="flex"><span className="w-16 text-gray-500">조직감:</span><span>{product.texture || '-'}</span></div>
-                                                    <div className="flex"><span className="w-16 text-gray-500">성숙도:</span><span>{product.maturity || '-'}</span></div>
-                                                  </div>
-                                                  <div className="border-t border-gray-300 pt-2 mt-2 text-center">
-                                                    <p className="text-gray-500">축산물품질평가원</p>
-                                                  </div>
-                                                </div>
-                                              </div>
                                             </div>
                                           );
                                         }
                                         
-                                        // 도축검사증명서 (마지막)
-                                        if (imgIndex === Math.max(dbImages.length, 4) + 1) {
-                                          return product.slaughterCert?.fileData ? (
+                                        // 도축검사증명서 (등급판정확인서 다음 또는 이미지 바로 다음)
+                                        const slaughterCertIndex = imageCount + (hasGradeCert ? 1 : 0);
+                                        if (hasSlaughterCert && imgIndex === slaughterCertIndex) {
+                                          return (
                                             <div className="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-gray-700 p-4">
                                               <img src={product.slaughterCert.fileData} alt="도축검사증명서" className="max-w-full max-h-full object-contain shadow-lg" />
-                                            </div>
-                                          ) : (
-                                            <div className="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-gray-700 p-4">
-                                              <div className="w-full max-w-[280px] bg-white dark:bg-gray-200 shadow-lg border border-gray-300 p-4 aspect-[1/1.414]">
-                                                <div className="h-full flex flex-col text-[8px] text-gray-700">
-                                                  <div className="text-center border-b border-gray-400 pb-2 mb-2">
-                                                    <p className="text-[12px] font-bold text-gray-900">도축검사증명서</p>
-                                                    <p className="text-gray-500 mt-1">Slaughter Inspection Certificate</p>
-                                                  </div>
-                                                  <div className="flex-1 space-y-1.5">
-                                                    <div className="flex"><span className="w-16 text-gray-500">접수번호:</span><span className="font-medium">{product.auctionNo}</span></div>
-                                                    <div className="flex"><span className="w-16 text-gray-500">도축일:</span><span>{product.slaughterDate || '-'}</span></div>
-                                                    <div className="flex"><span className="w-16 text-gray-500">도축장:</span><span>{product.slaughterHouse || '-'}</span></div>
-                                                    <div className="flex"><span className="w-16 text-gray-500">도축번호:</span><span>{product.slaughterNo || '-'}</span></div>
-                                                    <div className="flex"><span className="w-16 text-gray-500">이력번호:</span><span>{product.traceNo || '-'}</span></div>
-                                                    <div className="flex"><span className="w-16 text-gray-500">출하농가:</span><span>{product.company || '-'}</span></div>
-                                                    <div className="flex"><span className="w-16 text-gray-500">검사결과:</span><span className="font-bold text-green-600">적합</span></div>
-                                                    <div className="flex"><span className="w-16 text-gray-500">도체중량:</span><span>{product.carcassWeight || '-'}kg</span></div>
-                                                  </div>
-                                                  <div className="border-t border-gray-300 pt-2 mt-2 text-center">
-                                                    <p className="text-gray-500">농림축산검역본부</p>
-                                                  </div>
-                                                </div>
-                                              </div>
                                             </div>
                                           );
                                         }
@@ -1227,7 +1177,10 @@ function AuctionPageContent() {
                                     {/* 이미지 인디케이터 */}
                                     {(() => {
                                       const dbImages = product.images || [];
-                                      const totalCount = Math.max(dbImages.length, 4) + 2; // 이미지 + 서류 2개
+                                      const imageCount = Math.max(dbImages.length, 4);
+                                      const hasGradeCert = !!product.gradeCert?.fileData;
+                                      const hasSlaughterCert = !!product.slaughterCert?.fileData;
+                                      const totalCount = imageCount + (hasGradeCert ? 1 : 0) + (hasSlaughterCert ? 1 : 0);
                                       return (
                                         <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2">
                                           {Array.from({ length: totalCount }).map((_, index) => (
@@ -1275,8 +1228,8 @@ function AuctionPageContent() {
                                           </button>
                                         ));
                                       })()}
-                                      {/* 등급판정확인서 썸네일 */}
-                                      {(() => {
+                                      {/* 등급판정확인서 썸네일 - 증명서가 있을 때만 표시 */}
+                                      {product.gradeCert?.fileData && (() => {
                                         const certIndex = Math.max((product.images || []).length, 4);
                                         return (
                                           <button
@@ -1290,15 +1243,18 @@ function AuctionPageContent() {
                                                 : 'border-2 border-transparent hover:border-gray-300 dark:hover:border-gray-600'
                                             }`}
                                           >
-                                            <div className="w-full h-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
-                                              <div className="w-8 h-10 bg-white dark:bg-gray-200 border border-gray-300"></div>
-                                            </div>
+                                            <img 
+                                              src={product.gradeCert.fileData} 
+                                              alt="등급판정확인서" 
+                                              className="w-full h-full object-cover"
+                                            />
                                           </button>
                                         );
                                       })()}
-                                      {/* 도축검사증명서 썸네일 */}
-                                      {(() => {
-                                        const certIndex = Math.max((product.images || []).length, 4) + 1;
+                                      {/* 도축검사증명서 썸네일 - 증명서가 있을 때만 표시 */}
+                                      {product.slaughterCert?.fileData && (() => {
+                                        const hasGradeCert = !!product.gradeCert?.fileData;
+                                        const certIndex = Math.max((product.images || []).length, 4) + (hasGradeCert ? 1 : 0);
                                         return (
                                           <button
                                             onClick={(e) => {
@@ -1311,9 +1267,11 @@ function AuctionPageContent() {
                                                 : 'border-2 border-transparent hover:border-gray-300 dark:hover:border-gray-600'
                                             }`}
                                           >
-                                            <div className="w-full h-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
-                                              <div className="w-8 h-10 bg-white dark:bg-gray-200 border border-gray-300"></div>
-                                            </div>
+                                            <img 
+                                              src={product.slaughterCert.fileData} 
+                                              alt="도축검사증명서" 
+                                              className="w-full h-full object-cover"
+                                            />
                                           </button>
                                         );
                                       })()}
