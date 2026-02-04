@@ -342,12 +342,15 @@ function AuctionPageContent() {
   const todayStr = useMemo(() => format(new Date(), 'yyyy-MM-dd'), []);
 
   // 승인된 상장 목록 조회 (DB 연동)
-  const { data: listingsData, isLoading: isListingsLoading } = useListings({
+  const { data: listingsData, isLoading: isListingsLoading, refetch: refetchListings } = useListings({
     status: 'approved',
     listingDateFrom: todayStr,
     listingDateTo: todayStr,
     includeParts: true,
   });
+  
+  // 부위별 입찰 로딩 상태
+  const [isPartBidding, setIsPartBidding] = useState(false);
 
   // DB 데이터를 auctionEntities 형식으로 변환
   const auctionEntities = useMemo(() => {
@@ -1566,10 +1569,9 @@ function AuctionPageContent() {
                               key={amount}
                               onClick={() => {
                                 setPartBidPrice(prev => {
-                                  // 0이면 최고입찰가 또는 최저단가에서 시작
+                                  // 0이면 DB 최고입찰가 또는 최저단가에서 시작
                                   if (prev === 0 && selectedProduct) {
-                                    const bidInfo = globalBids[selectedProduct.listingNo];
-                                    const basePrice = bidInfo?.highestBid || selectedProduct.price || 0;
+                                    const basePrice = selectedProduct.dbHighestBid || selectedProduct.price || 0;
                                     return basePrice + amount;
                                   }
                                   return prev + amount;
@@ -1684,32 +1686,73 @@ function AuctionPageContent() {
                       취소
                     </button>
                     <button
-                      onClick={() => {
-                        // 입찰 처리 - 내 입찰가가 최고입찰가가 됨
-                        const now = new Date();
-                        const timeStr = `${now.getFullYear().toString().slice(2)}.${String(now.getMonth() + 1).padStart(2, '0')}.${String(now.getDate()).padStart(2, '0')}.(${['일','월','화','수','목','금','토'][now.getDay()]}) ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-                        setBid(selectedProduct.listingNo, {
-                          myBid: partBidPrice,
-                          highestBid: partBidPrice,
-                          status: 'highest',
-                          time: timeStr,
-                          productInfo: {
-                            listingNo: selectedProduct.listingNo,
-                            partName: selectedProduct.partName,
-                            weight: selectedProduct.weight,
-                            type: selectedProduct.type,
-                            grade: selectedProduct.grade,
-                            price: selectedProduct.price
-                          }
-                        });
+                      onClick={async () => {
+                        if (!dealerId) {
+                          showToastMessage('로그인이 필요합니다.', 'warning');
+                          return;
+                        }
                         
-                        setShowPartBidDialog(false);
-                        setShowPartBidSheet(false);
-                        showToastMessage('입찰이 완료되었습니다.', 'success');
+                        if (!selectedProduct.partDbId) {
+                          showToastMessage('부위 정보를 찾을 수 없습니다.', 'warning');
+                          return;
+                        }
+                        
+                        setIsPartBidding(true);
+                        
+                        try {
+                          const response = await fetch('/api/bids', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              partId: selectedProduct.partDbId,
+                              dealerId: dealerId,
+                              bidPrice: partBidPrice,
+                              weight: parseFloat(selectedProduct.weight),
+                            }),
+                          });
+                          
+                          const result = await response.json();
+                          
+                          if (!response.ok) {
+                            showToastMessage(result.error || '입찰에 실패했습니다.', 'warning');
+                            return;
+                          }
+                          
+                          // 로컬 스토어에도 저장 (UI 즉시 반영용)
+                          const now = new Date();
+                          const timeStr = `${now.getFullYear().toString().slice(2)}.${String(now.getMonth() + 1).padStart(2, '0')}.${String(now.getDate()).padStart(2, '0')}.(${['일','월','화','수','목','금','토'][now.getDay()]}) ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+                          setBid(selectedProduct.listingNo, {
+                            myBid: partBidPrice,
+                            highestBid: partBidPrice,
+                            status: 'highest',
+                            time: timeStr,
+                            productInfo: {
+                              listingNo: selectedProduct.listingNo,
+                              partName: selectedProduct.partName,
+                              weight: selectedProduct.weight,
+                              type: selectedProduct.type,
+                              grade: selectedProduct.grade,
+                              price: selectedProduct.price
+                            }
+                          });
+                          
+                          // DB 데이터 새로고침
+                          await refetchListings();
+                          
+                          setShowPartBidDialog(false);
+                          setShowPartBidSheet(false);
+                          showToastMessage(result.isUpdate ? '입찰가가 수정되었습니다.' : '입찰이 완료되었습니다.', 'success');
+                        } catch (error) {
+                          console.error('입찰 오류:', error);
+                          showToastMessage('입찰 중 오류가 발생했습니다.', 'warning');
+                        } finally {
+                          setIsPartBidding(false);
+                        }
                       }}
-                      className="flex-1 py-2.5 px-4 bg-gray-800 dark:bg-gray-700 text-white rounded font-medium hover:bg-gray-900 dark:hover:bg-gray-600 transition-colors"
+                      disabled={isPartBidding}
+                      className="flex-1 py-2.5 px-4 bg-gray-800 dark:bg-gray-700 text-white rounded font-medium hover:bg-gray-900 dark:hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      입찰하기
+                      {isPartBidding ? '입찰 중...' : '입찰하기'}
                     </button>
                   </div>
                 </div>

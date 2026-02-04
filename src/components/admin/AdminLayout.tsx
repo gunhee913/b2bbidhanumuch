@@ -16,18 +16,13 @@ import {
   TrendingUp,
   ClipboardList,
   Truck,
-  Wallet,
-  X
+  Wallet
 } from 'lucide-react';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
 }
 
-interface OpenTab {
-  href: string;
-  title: string;
-}
 
 // 사이드바 메뉴 아이템
 const menuItems = [
@@ -115,24 +110,6 @@ const menuItems = [
   },
 ];
 
-// href로 페이지 타이틀 찾기
-const getPageTitle = (href: string): string => {
-  if (href === '/admin') return '대시보드';
-  
-  for (const item of menuItems) {
-    if (item.href === href && !item.subItems) return item.title;
-    if (item.subItems) {
-      for (const subItem of item.subItems) {
-        if (subItem.href === href) return subItem.title;
-      }
-    }
-  }
-  return '페이지';
-};
-
-// 탭 저장 키
-const TABS_STORAGE_KEY = 'admin_open_tabs';
-
 // 현재 경로에 해당하는 메뉴를 계산하는 함수
 const getInitialExpandedMenus = (currentPathname: string) => {
   const openMenus: string[] = [];
@@ -169,10 +146,6 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   const prevPathnameRef = useRef(pathname);
   const previousThemeRef = useRef<string | undefined>(undefined);
   
-  // 열린 탭 관리
-  const [openTabs, setOpenTabs] = useState<OpenTab[]>([]);
-  const [isTabsLoaded, setIsTabsLoaded] = useState(false);
-
   // 로그아웃 처리
   const handleLogout = async () => {
     await signOut({ callbackUrl: '/admin/login' });
@@ -197,65 +170,6 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   
-  // 탭 초기화 (localStorage에서 불러오기)
-  useEffect(() => {
-    const savedTabs = localStorage.getItem(TABS_STORAGE_KEY);
-    if (savedTabs) {
-      try {
-        const parsed = JSON.parse(savedTabs) as OpenTab[];
-        setOpenTabs(parsed);
-      } catch {
-        setOpenTabs([{ href: '/admin', title: '대시보드' }]);
-      }
-    } else {
-      setOpenTabs([{ href: '/admin', title: '대시보드' }]);
-    }
-    setIsTabsLoaded(true);
-  }, []);
-  
-  // 현재 경로를 탭에 추가 (경로 변경 시에만)
-  useEffect(() => {
-    if (!isTabsLoaded) return;
-    
-    setOpenTabs(prevTabs => {
-      const existingTab = prevTabs.find(tab => tab.href === pathname);
-      if (!existingTab) {
-        const title = getPageTitle(pathname);
-        const newTabs = [...prevTabs, { href: pathname, title }];
-        localStorage.setItem(TABS_STORAGE_KEY, JSON.stringify(newTabs));
-        return newTabs;
-      }
-      return prevTabs;
-    });
-  }, [pathname, isTabsLoaded]);
-  
-  // 탭 닫기
-  const closeTab = (href: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    e.preventDefault();
-    
-    // 대시보드 탭은 닫지 않음
-    if (href === '/admin') return;
-    
-    const newTabs = openTabs.filter(tab => tab.href !== href);
-    setOpenTabs(newTabs);
-    localStorage.setItem(TABS_STORAGE_KEY, JSON.stringify(newTabs));
-    
-    // 현재 탭을 닫으면 이전 탭으로 이동
-    if (pathname === href) {
-      const currentIdx = openTabs.findIndex(tab => tab.href === href);
-      const prevTab = newTabs[currentIdx - 1] || newTabs[0];
-      if (prevTab) {
-        router.push(prevTab.href);
-      }
-    }
-  };
-  
-  // 탭 클릭 (해당 페이지로 이동)
-  const handleTabClick = (href: string) => {
-    router.push(href);
-  };
-
   // 마운트 후 애니메이션 활성화
   useEffect(() => {
     // 약간의 지연 후 애니메이션 활성화
@@ -426,38 +340,9 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         </header>
 
         {/* 메인 콘텐츠 */}
-        <main className="p-4 lg:p-6 pb-16">
+        <main className="p-4 lg:p-6">
           {children}
         </main>
-
-        {/* 하단 탭 바 */}
-        {isTabsLoaded && openTabs.length > 0 && (
-          <div className="fixed bottom-0 left-64 right-0 z-40 bg-gray-200 border-t border-gray-300">
-            <div className="flex items-center h-8 gap-px px-1 overflow-x-auto">
-              {openTabs.map((tab) => (
-                <button
-                  key={tab.href}
-                  onClick={() => handleTabClick(tab.href)}
-                  className={`flex items-center gap-1 h-full px-3 text-xs transition-colors whitespace-nowrap ${
-                    pathname === tab.href
-                      ? 'bg-white text-gray-900 font-medium border-t-2 border-gray-900'
-                      : 'bg-gray-100 text-gray-600 border-t-2 border-transparent hover:bg-gray-50 hover:text-gray-800'
-                  } ${tab.href !== '/admin' ? 'pr-1.5' : ''}`}
-                >
-                  <span className="max-w-32 truncate">{tab.title}</span>
-                  {tab.href !== '/admin' && (
-                    <span
-                      onClick={(e) => closeTab(tab.href, e)}
-                      className="ml-1.5 p-0.5 rounded hover:bg-gray-200 text-gray-400 hover:text-gray-600"
-                    >
-                      <X className="w-3 h-3" />
-                    </span>
-                  )}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

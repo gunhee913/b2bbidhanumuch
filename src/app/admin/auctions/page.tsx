@@ -142,12 +142,23 @@ const convertToAuction = (listing: CattleListing): Auction => {
     parts.push(...createDefaultParts());
   }
 
+  // 등급 포맷팅: 1++ 등급만 marblingScore 표시
+  const formatGrade = (grade: string, marblingScore: number | null) => {
+    if (!grade) return '';
+    if (grade.includes('(')) return grade; // 이미 조합된 형식 (예: 1++A(9))
+    // 1++ 등급만 (숫자) 추가
+    if (marblingScore && grade.startsWith('1++')) {
+      return `${grade}(${marblingScore})`;
+    }
+    return grade;
+  };
+
   return {
     id: listing.id,
     auctionNo: listing.listingNo,
     breed: listing.breed,
     gender: listing.gender,
-    grade: listing.grade,
+    grade: formatGrade(listing.grade, listing.marblingScore),
     monthAge: listing.monthAge || 0,
     backFat: listing.backFat || 0,
     eyeMuscle: listing.eyeMuscle || 0,
@@ -1002,13 +1013,17 @@ export default function AuctionsListPage() {
                   {/* 도축검사증명서 */}
                   <div className="space-y-2 w-32">
                     <p className="text-xs font-medium text-gray-600 text-center">도축검사증명서</p>
-                    {photoModalAuction.slaughterCert ? (
+                    {photoModalAuction.slaughterCert?.fileData ? (
                       <div 
-                        className="w-full border border-gray-200 cursor-pointer hover:bg-gray-200 bg-gray-100 flex items-center justify-center transition-colors"
+                        className="w-full border border-gray-200 cursor-pointer hover:opacity-80 overflow-hidden transition-opacity"
                         style={{ aspectRatio: '210/297' }}
-                        onClick={() => setEnlargedImage('도축검사증명서')}
+                        onClick={() => setEnlargedImage(photoModalAuction.slaughterCert?.fileData || null)}
                       >
-                        <span className="text-xs text-gray-500">보기</span>
+                        <img 
+                          src={photoModalAuction.slaughterCert.fileData} 
+                          alt="도축검사증명서"
+                          className="w-full h-full object-cover"
+                        />
                       </div>
                     ) : (
                       <div 
@@ -1023,13 +1038,17 @@ export default function AuctionsListPage() {
                   {/* 등급판정확인서 */}
                   <div className="space-y-2 w-32">
                     <p className="text-xs font-medium text-gray-600 text-center">등급판정확인서</p>
-                    {photoModalAuction.gradeCert ? (
+                    {photoModalAuction.gradeCert?.fileData ? (
                       <div 
-                        className="w-full border border-gray-200 cursor-pointer hover:bg-gray-200 bg-gray-100 flex items-center justify-center transition-colors"
+                        className="w-full border border-gray-200 cursor-pointer hover:opacity-80 overflow-hidden transition-opacity"
                         style={{ aspectRatio: '210/297' }}
-                        onClick={() => setEnlargedImage('등급판정확인서')}
+                        onClick={() => setEnlargedImage(photoModalAuction.gradeCert?.fileData || null)}
                       >
-                        <span className="text-xs text-gray-500">보기</span>
+                        <img 
+                          src={photoModalAuction.gradeCert.fileData} 
+                          alt="등급판정확인서"
+                          className="w-full h-full object-cover"
+                        />
                       </div>
                     ) : (
                       <div 
@@ -1063,38 +1082,31 @@ export default function AuctionsListPage() {
           className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80"
           onClick={() => setEnlargedImage(null)}
         >
-          <div className="relative mx-4" onClick={(e) => e.stopPropagation()}>
-            <div 
+          <div className="relative mx-4 max-w-4xl max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
+            <img 
               id="print-area"
-              className="bg-white border border-gray-300 flex items-center justify-center"
-              style={{ width: '420px', height: '594px' }}
-            >
-              <span className="text-gray-400 text-sm">{enlargedImage}</span>
-            </div>
+              src={enlargedImage}
+              alt="증명서"
+              className="max-w-full max-h-[90vh] object-contain bg-white shadow-lg"
+            />
             <div className="absolute top-2 right-2 flex gap-2">
               <button
                 onClick={() => {
-                  const printContent = document.getElementById('print-area');
-                  if (!printContent) return;
-                  
                   const printWindow = window.open('', '_blank');
                   if (!printWindow) return;
                   
                   printWindow.document.write(`
                     <html>
                       <head>
-                        <title>${enlargedImage}</title>
+                        <title>증명서 인쇄</title>
                         <style>
-                          @page { size: A4; margin: 0; }
+                          @page { size: A4; margin: 10mm; }
                           body { margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
-                          .print-box { width: 210mm; height: 297mm; background: #f3f4f6; display: flex; align-items: center; justify-content: center; border: 1px solid #d1d5db; }
-                          .print-text { color: #9ca3af; font-size: 14px; }
+                          img { max-width: 100%; max-height: 100%; object-fit: contain; }
                         </style>
                       </head>
                       <body>
-                        <div class="print-box">
-                          <span class="print-text">${enlargedImage}</span>
-                        </div>
+                        <img src="${enlargedImage}" />
                       </body>
                     </html>
                   `);

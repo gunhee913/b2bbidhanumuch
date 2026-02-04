@@ -24,6 +24,7 @@ export async function GET(request: NextRequest) {
         breed,
         gender,
         grade,
+        marbling_score,
         status,
         company_id,
         companies (
@@ -62,32 +63,47 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    // 각 상장의 부위에 대한 입찰 정보 조회
-    const listingIds = listings?.map(l => l.id) || [];
+    // 모든 부위 ID 수집
+    const partIds: string[] = [];
+    (listings || []).forEach((listing: any) => {
+      (listing.cattle_parts || []).forEach((part: any) => {
+        if (part.is_included) {
+          partIds.push(part.id);
+        }
+      });
+    });
     
-    // 입찰 정보 조회
-    const { data: allBids, error: bidsError } = await supabase
-      .from('bids')
-      .select(`
-        id,
-        part_id,
-        dealer_id,
-        bid_price,
-        bid_amount,
-        rank,
-        is_winning,
-        created_at,
-        dealers (
+    // 입찰 정보 조회 (part_id로 직접 조회)
+    let allBids: any[] = [];
+    
+    if (partIds.length > 0) {
+      const { data: bidsData, error: bidsError } = await supabase
+        .from('bids')
+        .select(`
           id,
-          name,
-          company
-        )
-      `)
-      .in('listing_id', listingIds)
-      .order('bid_price', { ascending: false });
+          part_id,
+          dealer_id,
+          bid_price,
+          bid_amount,
+          rank,
+          is_winning,
+          created_at,
+          updated_at,
+          updated_by,
+          dealers (
+            id,
+            name,
+            dealer_no
+          )
+        `)
+        .in('part_id', partIds)
+        .order('bid_price', { ascending: false });
 
-    if (bidsError) {
-      console.error('입찰 조회 오류:', bidsError);
+      if (bidsError) {
+        console.error('입찰 조회 오류:', bidsError);
+      } else {
+        allBids = bidsData || [];
+      }
     }
 
     // 부위별 입찰 그룹화
@@ -99,13 +115,15 @@ export async function GET(request: NextRequest) {
       bidsByPart[bid.part_id].push({
         id: bid.id,
         dealerId: bid.dealer_id,
+        dealerNo: bid.dealers?.dealer_no || '',
         dealerName: bid.dealers?.name || '',
-        dealerCompany: bid.dealers?.company || '',
         bidPrice: bid.bid_price,
         bidAmount: bid.bid_amount,
         bidAt: bid.created_at,
         rank: bid.rank,
         isWinning: bid.is_winning,
+        updatedAt: bid.updated_at,
+        updatedBy: bid.updated_by,
       });
     });
 
@@ -138,6 +156,7 @@ export async function GET(request: NextRequest) {
         breed: listing.breed,
         gender: listing.gender,
         grade: listing.grade,
+        marblingScore: listing.marbling_score,
         status: listing.status,
         companyId: listing.company_id,
         companyName: listing.companies?.name || '',

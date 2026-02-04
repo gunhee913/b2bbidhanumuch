@@ -30,6 +30,7 @@ import { useBidStore } from '@/stores/bidStore';
 import { GRADES, getCompanyAuctionSummary, calcTotal, getTodayDateCode } from '@/constants/auction';
 import { useListings } from '@/features/listings/hooks';
 import { format } from 'date-fns';
+import { useSession } from 'next-auth/react';
 
 // 한국어 로케일 등록
 registerLocale('ko', ko);
@@ -40,6 +41,12 @@ const COMPANY_AUCTION_DATA = getCompanyAuctionSummary();
 function MainPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  
+  // 세션 정보 (중도매인 ID 가져오기)
+  const { data: session } = useSession();
+  const dealer = (session as any)?.dealer;
+  const employee = (session as any)?.employee;
+  const dealerId = dealer?.id || employee?.dealerId || null;
   
   // zustand 스토어에서 입찰 관련 상태 가져오기
   const { 
@@ -108,12 +115,15 @@ function MainPageContent() {
   }, [selectedDate]);
 
   // 승인된 상장 목록 조회 (DB 연동)
-  const { data: listingsData, isLoading: isListingsLoading } = useListings({
+  const { data: listingsData, isLoading: isListingsLoading, refetch: refetchListings } = useListings({
     status: 'approved',
     listingDateFrom: selectedDateStr,
     listingDateTo: selectedDateStr,
     includeParts: true,
   });
+  
+  // 부위별 관심 입찰 로딩 상태
+  const [isFavoritePartBidding, setIsFavoritePartBidding] = useState(false);
 
   // API 데이터를 기존 cattleData 형식으로 변환
   const cattleData = useMemo(() => {
@@ -225,7 +235,9 @@ function MainPageContent() {
             company: entity.company,
             months: entity.months,
             entityId: entityNo,
-            partId_db: part.id, // DB 파트 ID (입찰 시 사용)
+            partDbId: part.id, // DB 파트 ID (입찰 시 사용)
+            dbHighestBid: part.highestBid?.bidPrice || null,
+            dbBidCount: part.bidCount || 0,
           });
         });
       } else {
@@ -281,6 +293,9 @@ function MainPageContent() {
               company: entity.company,
               months: entity.months,
               entityId: entityNo,
+              partDbId: null, // 폴백 데이터는 DB ID 없음
+              dbHighestBid: null,
+              dbBidCount: 0,
             });
           });
         });
@@ -1882,10 +1897,9 @@ function MainPageContent() {
                               key={amount}
                               onClick={() => {
                                 setFavoritePartBidPrice(prev => {
-                                  // 0이면 최고입찰가 또는 최저단가에서 시작
+                                  // 0이면 DB 최고입찰가 또는 최저단가에서 시작
                                   if (prev === 0 && selectedFavoritePart) {
-                                    const bidInfo = bids[selectedFavoritePart.listingNo];
-                                    const basePrice = bidInfo?.highestBid || selectedFavoritePart.price || 0;
+                                    const basePrice = selectedFavoritePart.dbHighestBid || selectedFavoritePart.price || 0;
                                     return basePrice + amount;
                                   }
                                   return prev + amount;
@@ -2020,34 +2034,75 @@ function MainPageContent() {
                         취소
                       </button>
                       <button
-                        onClick={() => {
-                          // 입찰 저장 (kg당 가격으로 저장)
-                          const now = new Date();
-                          const timeStr = `${now.getFullYear().toString().slice(2)}.${String(now.getMonth() + 1).padStart(2, '0')}.${String(now.getDate()).padStart(2, '0')}.(${['일','월','화','수','목','금','토'][now.getDay()]}) ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+                        onClick={async () => {
+                          if (!dealerId) {
+                            showToastMessage('로그인이 필요합니다.', 'warning');
+                            return;
+                          }
                           
-                          setBid(selectedFavoritePart.listingNo, {
-                            myBid: favoritePartBidPrice,
-                            highestBid: favoritePartBidPrice,
-                            status: 'highest',
-                            time: timeStr,
-                            productInfo: {
-                              listingNo: selectedFavoritePart.listingNo,
-                              partName: selectedFavoritePart.partName,
-                              weight: selectedFavoritePart.weight,
-                              type: selectedFavoritePart.type,
-                              grade: selectedFavoritePart.grade,
-                              price: selectedFavoritePart.price,
+                          if (!selectedFavoritePart.partDbId) {
+                            showToastMessage('부위 정보를 찾을 수 없습니다.', 'warning');
+                            return;
+                          }
+                          
+                          setIsFavoritePartBidding(true);
+                          
+                          try {
+                            const response = await fetch('/api/bids', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({
+                                partId: selectedFavoritePart.partDbId,
+                                dealerId: dealerId,
+                                bidPrice: favoritePartBidPrice,
+                                weight: parseFloat(selectedFavoritePart.weight),
+                              }),
+                            });
+                            
+                            const result = await response.json();
+                            
+                            if (!response.ok) {
+                              showToastMessage(result.error || '입찰에 실패했습니다.', 'warning');
+                              return;
                             }
-                          });
-                          
-                          setShowFavoritePartBidConfirm(false);
-                          setSelectedFavoritePart(null);
-                          setFavoritePartBidPrice(0);
-                          showToastMessage('입찰이 완료되었습니다.', 'success');
+                            
+                            // 로컬 스토어에도 저장 (UI 즉시 반영용)
+                            const now = new Date();
+                            const timeStr = `${now.getFullYear().toString().slice(2)}.${String(now.getMonth() + 1).padStart(2, '0')}.${String(now.getDate()).padStart(2, '0')}.(${['일','월','화','수','목','금','토'][now.getDay()]}) ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+                            
+                            setBid(selectedFavoritePart.listingNo, {
+                              myBid: favoritePartBidPrice,
+                              highestBid: favoritePartBidPrice,
+                              status: 'highest',
+                              time: timeStr,
+                              productInfo: {
+                                listingNo: selectedFavoritePart.listingNo,
+                                partName: selectedFavoritePart.partName,
+                                weight: selectedFavoritePart.weight,
+                                type: selectedFavoritePart.type,
+                                grade: selectedFavoritePart.grade,
+                                price: selectedFavoritePart.price,
+                              }
+                            });
+                            
+                            // DB 데이터 새로고침
+                            await refetchListings();
+                            
+                            setShowFavoritePartBidConfirm(false);
+                            setSelectedFavoritePart(null);
+                            setFavoritePartBidPrice(0);
+                            showToastMessage(result.isUpdate ? '입찰가가 수정되었습니다.' : '입찰이 완료되었습니다.', 'success');
+                          } catch (error) {
+                            console.error('입찰 오류:', error);
+                            showToastMessage('입찰 중 오류가 발생했습니다.', 'warning');
+                          } finally {
+                            setIsFavoritePartBidding(false);
+                          }
                         }}
-                        className="flex-1 py-2.5 px-4 bg-gray-800 dark:bg-gray-700 text-white rounded hover:bg-gray-900 dark:hover:bg-gray-600 transition-colors font-medium"
+                        disabled={isFavoritePartBidding}
+                        className="flex-1 py-2.5 px-4 bg-gray-800 dark:bg-gray-700 text-white rounded hover:bg-gray-900 dark:hover:bg-gray-600 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        입찰하기
+                        {isFavoritePartBidding ? '입찰 중...' : '입찰하기'}
                       </button>
                     </div>
                   </motion.div>

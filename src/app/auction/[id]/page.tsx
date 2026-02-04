@@ -858,18 +858,11 @@ function AuctionDetailContent({ params }: PageProps) {
                           : 'border-2 border-transparent hover:border-gray-300 dark:hover:border-gray-600'
                       }`}
                     >
-                      {(image as any).isDocument ? (
-                        // 서류 썸네일
-                        <div className="w-full h-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
-                          <div className="w-9 h-11 bg-white dark:bg-gray-200 border border-gray-300"></div>
-                        </div>
-                      ) : (
-                        <img 
-                          src={image.src}
-                          alt={image.alt}
-                          className="w-full h-full object-cover"
-                        />
-                      )}
+                      <img 
+                        src={image.src}
+                        alt={image.alt}
+                        className="w-full h-full object-cover"
+                      />
                     </button>
                   ))}
                 </div>

@@ -5,16 +5,20 @@ import AdminLayout from '@/components/admin/AdminLayout';
 import { ChevronDown, ChevronUp, RefreshCw, Square } from 'lucide-react';
 import { useLiveListings } from '@/features/listings/hooks';
 import { useCompanies } from '@/features/companies/hooks';
+import { useSession } from 'next-auth/react';
 import { format } from 'date-fns';
 
 // 입찰 내역 타입
 interface BidRecord {
   id: string;
+  bidId: string; // DB의 실제 bid id
   dealerNo: string;
   dealerName: string;
   bidPrice: number;
   bidTime: string;
   rank: number;
+  updatedAt: string | null;
+  updatedBy: string | null;
 }
 
 // 경매 항목 타입
@@ -33,7 +37,18 @@ interface AuctionItem {
   bids: BidRecord[];
 }
 
+// 등급 포맷팅: 1++ 등급만 marblingScore 표시
+const formatGrade = (grade: string, marblingScore: number | null) => {
+  if (!grade) return '';
+  if (grade.includes('(')) return grade;
+  if (marblingScore && grade.startsWith('1++')) {
+    return `${grade}(${marblingScore})`;
+  }
+  return grade;
+};
+
 export default function AuctionLivePage() {
+  const { data: session } = useSession();
   const today = new Date();
   const todayStr = format(today, 'yyyy-MM-dd');
   
@@ -47,6 +62,11 @@ export default function AuctionLivePage() {
   // 마감 모달
   const [showCloseModal, setShowCloseModal] = useState(false);
   const [closingListingId, setClosingListingId] = useState<string | null>(null);
+
+  // 인라인 편집
+  const [editingBidId, setEditingBidId] = useState<string | null>(null);
+  const [editPrice, setEditPrice] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // 오늘 날짜인지 확인
   const isToday = selectedDate === todayStr;
@@ -72,18 +92,21 @@ export default function AuctionLivePage() {
           listingNo: part.listingPartNo || `${listing.listingNo}-${String(part.partNo).padStart(2, '0')}`,
           partName: part.partName,
           companyName: listing.companyName || '',
-          grade: listing.grade || '',
+          grade: formatGrade(listing.grade || '', listing.marblingScore),
           weight: part.weight || 0,
           minPrice: part.minPrice || 0,
           currentHighestBid: part.highestBid?.bidPrice || 0,
           bidCount: part.bidCount || 0,
           bids: (part.allBids || []).map((bid: any, idx: number) => ({
             id: `${part.id}-${idx}`,
-            dealerNo: bid.dealerId?.slice(-7) || '',
+            bidId: bid.id, // DB의 실제 bid id
+            dealerNo: bid.dealerNo || '',
             dealerName: bid.dealerName || '',
             bidPrice: bid.bidPrice,
             bidTime: bid.bidAt ? format(new Date(bid.bidAt), 'yy.MM.dd HH:mm:ss') : '',
             rank: idx + 1,
+            updatedAt: bid.updatedAt ? format(new Date(bid.updatedAt), 'yy.MM.dd HH:mm:ss') : null,
+            updatedBy: bid.updatedBy || null,
           })),
         });
       });
@@ -187,6 +210,86 @@ export default function AuctionLivePage() {
   // 새로고침
   const handleRefresh = () => {
     refetch();
+  };
+
+  // 숫자만 추출
+  const parseNumber = (value: string) => {
+    return value.replace(/[^0-9]/g, '');
+  };
+
+  // 인라인 편집 시작
+  const startEdit = (bidId: string, currentPrice: number) => {
+    setEditingBidId(bidId);
+    setEditPrice(currentPrice.toString());
+  };
+
+  // 인라인 편집 취소
+  const cancelEdit = () => {
+    setEditingBidId(null);
+    setEditPrice('');
+  };
+
+  // 인라인 편집 저장
+  const saveEdit = async (bidId: string, minPrice: number) => {
+    const price = parseInt(parseNumber(editPrice), 10);
+    if (isNaN(price) || price <= 0) {
+      alert('유효한 입찰가를 입력해주세요.');
+      return;
+    }
+
+    if (price < minPrice) {
+      alert(`최저가(${minPrice.toLocaleString()}원) 이상으로 입력해주세요.`);
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const response = await fetch(`/api/bids/${bidId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          bidPrice: price,
+          updatedBy: session?.user?.name || '관리자',
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || '수정 실패');
+      }
+
+      setEditingBidId(null);
+      setEditPrice('');
+      refetch();
+    } catch (error: any) {
+      alert(error.message || '입찰 수정 중 오류가 발생했습니다.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // 입찰 삭제
+  const handleDeleteBid = async (bidId: string, dealerName: string, isTopBid: boolean) => {
+    const warningMsg = isTopBid 
+      ? `⚠️ [${dealerName}]님의 입찰은 현재 1위입니다.\n정말 삭제하시겠습니까?`
+      : `[${dealerName}]님의 입찰을 삭제하시겠습니까?`;
+    
+    if (!confirm(warningMsg)) return;
+
+    try {
+      const response = await fetch(`/api/bids/${bidId}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || '삭제 실패');
+      }
+
+      refetch();
+    } catch (error: any) {
+      alert(error.message || '입찰 삭제 중 오류가 발생했습니다.');
+    }
   };
 
   const thClass = "px-2 py-1.5 text-xs font-medium text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50 text-center";
@@ -396,14 +499,18 @@ export default function AuctionLivePage() {
                             <td colSpan={11} className="p-0">
                               <div className="p-3 border-t border-gray-200 bg-gray-50">
                                 <div className="text-xs font-semibold text-gray-700 mb-2">입찰 내역 ({item.bids.length}건)</div>
-                                <table className="w-full border-collapse">
+                                <table className="w-full border-collapse table-fixed">
                                   <thead>
                                     <tr>
-                                      <th className="px-2 py-1 text-xs font-medium text-gray-600 bg-white border border-gray-200 text-center w-[70px]">순위</th>
-                                      <th className="px-2 py-1 text-xs font-medium text-gray-600 bg-white border border-gray-200 text-center w-[100px]">중도매인명</th>
-                                      <th className="px-2 py-1 text-xs font-medium text-gray-600 bg-white border border-gray-200 text-center w-[100px]">입찰가</th>
-                                      <th className="px-2 py-1 text-xs font-medium text-gray-600 bg-white border border-gray-200 text-center w-[120px]">총입찰금액</th>
-                                      <th className="px-2 py-1 text-xs font-medium text-gray-600 bg-white border border-gray-200 text-center w-[140px]">입찰시간</th>
+                                      <th className="px-2 py-1 text-xs font-medium text-gray-600 bg-white border border-gray-200 text-center w-[60px]">순위</th>
+                                      <th className="px-2 py-1 text-xs font-medium text-gray-600 bg-white border border-gray-200 text-center w-[75px]">중도매인번호</th>
+                                      <th className="px-2 py-1 text-xs font-medium text-gray-600 bg-white border border-gray-200 text-center w-[65px]">중도매인명</th>
+                                      <th className="px-2 py-1 text-xs font-medium text-gray-600 bg-white border border-gray-200 text-center w-[120px]">입찰가</th>
+                                      <th className="px-2 py-1 text-xs font-medium text-gray-600 bg-white border border-gray-200 text-center w-[90px]">총입찰금액</th>
+                                      <th className="px-2 py-1 text-xs font-medium text-gray-600 bg-white border border-gray-200 text-center w-[110px]">입찰시간</th>
+                                      <th className="px-2 py-1 text-xs font-medium text-gray-600 bg-white border border-gray-200 text-center w-[55px]">수정자</th>
+                                      <th className="px-2 py-1 text-xs font-medium text-gray-600 bg-white border border-gray-200 text-center w-[110px]">수정시간</th>
+                                      <th className="px-2 py-1 text-xs font-medium text-gray-600 bg-white border border-gray-200 text-center w-[75px]">관리</th>
                                     </tr>
                                   </thead>
                                   <tbody>
@@ -412,14 +519,80 @@ export default function AuctionLivePage() {
                                         <td className={`px-2 py-1 text-xs border border-gray-200 text-center ${bid.rank === 1 ? 'font-bold text-green-600' : 'text-gray-500'}`}>
                                           {bid.rank === 1 ? '1위 (최고)' : `${bid.rank}위`}
                                         </td>
+                                        <td className="px-2 py-1 text-xs border border-gray-200 text-center text-gray-600">{bid.dealerNo || '-'}</td>
                                         <td className="px-2 py-1 text-xs border border-gray-200 text-center">{bid.dealerName}</td>
                                         <td className={`px-2 py-1 text-xs border border-gray-200 text-right ${bid.rank === 1 ? 'font-bold text-gray-900' : ''}`}>
-                                          {bid.bidPrice.toLocaleString()}원
+                                          {editingBidId === bid.bidId ? (
+                                            <div className="flex items-center gap-1 justify-end">
+                                              <input
+                                                type="text"
+                                                inputMode="numeric"
+                                                value={editPrice}
+                                                onChange={(e) => setEditPrice(parseNumber(e.target.value))}
+                                                onKeyDown={(e) => {
+                                                  if (e.key === 'Enter') saveEdit(bid.bidId, item.minPrice);
+                                                  if (e.key === 'Escape') cancelEdit();
+                                                }}
+                                                className="w-20 px-2 py-0.5 text-xs border border-gray-300 outline-none text-right"
+                                                autoFocus
+                                                disabled={isSubmitting}
+                                              />
+                                              <button
+                                                onClick={() => saveEdit(bid.bidId, item.minPrice)}
+                                                className="px-2 py-0.5 text-[10px] text-white bg-gray-700 hover:bg-gray-800 disabled:opacity-50 min-w-[40px]"
+                                                disabled={isSubmitting}
+                                              >
+                                                {isSubmitting ? '저장 중...' : '저장'}
+                                              </button>
+                                              <button
+                                                onClick={cancelEdit}
+                                                className="px-2 py-0.5 text-[10px] text-gray-600 border border-gray-300 hover:bg-gray-50"
+                                                disabled={isSubmitting}
+                                              >
+                                                취소
+                                              </button>
+                                            </div>
+                                          ) : (
+                                            <span>{bid.bidPrice.toLocaleString()}원</span>
+                                          )}
                                         </td>
                                         <td className={`px-2 py-1 text-xs border border-gray-200 text-right ${bid.rank === 1 ? 'font-bold text-gray-900' : ''}`}>
-                                          {Math.round(bid.bidPrice * item.weight).toLocaleString()}원
+                                          {editingBidId === bid.bidId 
+                                            ? `${Math.round(parseInt(parseNumber(editPrice) || '0', 10) * item.weight).toLocaleString()}원`
+                                            : `${Math.round(bid.bidPrice * item.weight).toLocaleString()}원`
+                                          }
                                         </td>
                                         <td className="px-2 py-1 text-xs border border-gray-200 text-center text-gray-500">{bid.bidTime}</td>
+                                        <td className="px-2 py-1 text-xs border border-gray-200 text-center text-gray-500">
+                                          {bid.updatedBy || '-'}
+                                        </td>
+                                        <td className="px-2 py-1 text-xs border border-gray-200 text-center text-gray-500">
+                                          {bid.updatedAt || '-'}
+                                        </td>
+                                        <td className="px-2 py-1 text-xs border border-gray-200 text-center">
+                                          <div className="flex items-center justify-center gap-1">
+                                            {editingBidId !== bid.bidId && (
+                                              <button
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  startEdit(bid.bidId, bid.bidPrice);
+                                                }}
+                                                className="px-2 py-0.5 text-[10px] text-gray-600 border border-gray-300 hover:bg-gray-50 min-w-[32px]"
+                                              >
+                                                수정
+                                              </button>
+                                            )}
+                                            <button
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleDeleteBid(bid.bidId, bid.dealerName, bid.rank === 1);
+                                              }}
+                                              className="px-2 py-0.5 text-[10px] text-white bg-gray-700 hover:bg-gray-800 min-w-[32px]"
+                                            >
+                                              삭제
+                                            </button>
+                                          </div>
+                                        </td>
                                       </tr>
                                     ))}
                                   </tbody>
@@ -490,6 +663,7 @@ export default function AuctionLivePage() {
           </table>
         </div>
       )}
+
     </AdminLayout>
   );
 }
