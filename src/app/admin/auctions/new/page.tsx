@@ -1,10 +1,13 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Save, Upload, X, Plus, ChevronDown, ChevronUp, Trash2, Download, FileSpreadsheet } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import * as XLSX from 'xlsx';
+import { useCreateListing } from '@/features/listings/hooks';
+import { useCompanies } from '@/features/companies/hooks';
+import { CreateListingInput, CreatePartInput } from '@/features/listings/types';
 
 // number input 스피너, date input 달력 아이콘 숨기기 스타일
 const hideSpinnerStyle = `
@@ -141,9 +144,23 @@ export default function NewAuctionPage() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   
+  // 업체 목록 조회
+  const { data: companiesData } = useCompanies();
+  const companies = useMemo(() => {
+    return companiesData?.map(c => ({ id: c.id, name: c.name })) || [];
+  }, [companiesData]);
+  
+  // 상장 등록 mutation
+  const createListing = useCreateListing();
+  
   // 공통 정보
   const [listingDate, setListingDate] = useState(tomorrowDateString);
-  const [company, setCompany] = useState('');
+  const [companyId, setCompanyId] = useState('');
+  
+  // 선택된 업체 이름
+  const selectedCompanyName = useMemo(() => {
+    return companies.find(c => c.id === companyId)?.name || '';
+  }, [companies, companyId]);
   
   // 이미지 확대 모달
   const [viewingImage, setViewingImage] = useState<string | null>(null);
@@ -165,9 +182,9 @@ export default function NewAuctionPage() {
 
   // 접수번호 생성
   const getAuctionNo = (seqNo: string) => {
-    if (!company) return '-';
+    if (!companyId) return '-';
     const dateCode = getDateCode();
-    const basePrefix = COMPANY_PREFIX[company] || '100';
+    const basePrefix = COMPANY_PREFIX[selectedCompanyName] || '100';
     const prefixBase = basePrefix.charAt(0);
     const seq = String(seqNo || '1').padStart(2, '0');
     return `${dateCode}-${prefixBase}${seq}`;
@@ -175,9 +192,9 @@ export default function NewAuctionPage() {
 
   // 상장번호 생성
   const getListingNo = (seqNo: string, partIndex: number) => {
-    if (!company) return '-';
+    if (!companyId) return '-';
     const dateCode = getDateCode();
-    const basePrefix = COMPANY_PREFIX[company] || '100';
+    const basePrefix = COMPANY_PREFIX[selectedCompanyName] || '100';
     const prefixBase = basePrefix.charAt(0);
     const seq = String(seqNo || '1').padStart(2, '0');
     return `${dateCode}-${prefixBase}${seq}-${String(partIndex + 1).padStart(2, '0')}`;
@@ -374,10 +391,75 @@ export default function NewAuctionPage() {
   // 폼 제출
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!companyId) {
+      alert('상장업체를 선택해주세요.');
+      return;
+    }
+    
     setIsSubmitting(true);
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    alert(`${cattleList.length}두 상장 등록이 완료되었습니다.`);
-    router.push('/admin/auctions');
+    
+    try {
+      // 각 개체별로 상장 등록
+      for (const cattle of cattleList) {
+        // 부위 데이터 변환
+        const parts: CreatePartInput[] = cattle.parts
+          .filter(part => part.isIncluded)
+          .map((part, index) => ({
+            partNo: index + 1,
+            partName: part.name,
+            weight: parseFloat(part.weight) || 0,
+            minPrice: parseInt(part.minPrice.replace(/,/g, '')) || 0,
+            isIncluded: part.isIncluded,
+          }));
+
+        // 상장 데이터 생성
+        const listingInput: CreateListingInput = {
+          listingDate,
+          companyId,
+          breed: cattle.breed,
+          gender: cattle.gender,
+          grade: cattle.grade,
+          marblingScore: parseInt(cattle.fatMarbling) || null,
+          monthAge: parseInt(cattle.monthAge) || null,
+          carcassWeight: parseFloat(cattle.carcassWeight) || null,
+          traceNo: cattle.traceNo || null,
+          backFat: parseFloat(cattle.backFat) || null,
+          eyeMuscle: parseFloat(cattle.eyeMuscle) || null,
+          meatColor: parseInt(cattle.meatColor) || null,
+          fatColor: parseInt(cattle.fatColor) || null,
+          texture: parseInt(cattle.texture) || null,
+          maturity: parseInt(cattle.maturity) || null,
+          slaughterHouse: cattle.slaughterHouse || null,
+          slaughterDate: cattle.slaughterDate || null,
+          slaughterNo: cattle.slaughterNo || null,
+          processDate: cattle.processDate || null,
+          processWeight: parseFloat(cattle.processWeight) || null,
+          images: cattle.images,
+          slaughterCert: cattle.slaughterCert ? {
+            fileName: cattle.slaughterCert.fileName,
+            fileData: cattle.slaughterCert.fileData,
+            fileType: cattle.slaughterCert.fileType,
+          } : null,
+          gradeCert: cattle.gradeCert ? {
+            fileName: cattle.gradeCert.fileName,
+            fileData: cattle.gradeCert.fileData,
+            fileType: cattle.gradeCert.fileType,
+          } : null,
+          parts,
+        };
+
+        await createListing.mutateAsync(listingInput);
+      }
+
+      alert(`${cattleList.length}두 상장 등록이 완료되었습니다.`);
+      router.push('/admin/auctions');
+    } catch (error) {
+      console.error('상장 등록 실패:', error);
+      alert('상장 등록에 실패했습니다. 다시 시도해주세요.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // 숫자 천단위 콤마 포맷
@@ -561,16 +643,15 @@ export default function NewAuctionPage() {
               <div className="flex items-center gap-2">
                 <span className="text-sm font-medium text-gray-600">상장업체</span>
                 <select
-                  value={company}
-                  onChange={(e) => setCompany(e.target.value)}
+                  value={companyId}
+                  onChange={(e) => setCompanyId(e.target.value)}
                   required
                   className="px-3 py-1.5 border border-gray-200 text-xs outline-none bg-white min-w-[120px]"
                 >
                   <option value="">선택</option>
-                  <option value="건화">건화</option>
-                  <option value="대진엠에스">대진엠에스</option>
-                  <option value="안심엘피씨">안심엘피씨</option>
-                  <option value="정직한고기">정직한고기</option>
+                  {companies.map(company => (
+                    <option key={company.id} value={company.id}>{company.name}</option>
+                  ))}
                 </select>
               </div>
             </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { 
   ChevronLeft,
@@ -12,6 +12,9 @@ import {
   Printer,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import { useListings, useApproveListing, useDeleteListing, useUpdateListing } from '@/features/listings/hooks';
+import { useCompanies } from '@/features/companies/hooks';
+import { CattleListing, CattlePart } from '@/features/listings/types';
 
 // number input 스피너 숨기기 스타일
 const hideSpinnerStyle = `
@@ -102,16 +105,6 @@ interface Auction {
   gradeCert: CertificateData | null;
 }
 
-// 내일 날짜 코드 생성 (YYMMDD)
-const getTomorrowDateCode = () => {
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const year = String(tomorrow.getFullYear()).slice(-2);
-  const month = String(tomorrow.getMonth() + 1).padStart(2, '0');
-  const day = String(tomorrow.getDate()).padStart(2, '0');
-  return `${year}${month}${day}`;
-};
-
 // 내일 날짜 문자열 (YYYY-MM-DD) - input date용
 const getTomorrowDateString = () => {
   const tomorrow = new Date();
@@ -122,240 +115,63 @@ const getTomorrowDateString = () => {
   return `${year}-${month}-${day}`;
 };
 
-const tomorrowCode = getTomorrowDateCode();
 const tomorrowDateString = getTomorrowDateString();
 
-// 더미 데이터 (업체별 2개씩)
-const dummyAuctions: Auction[] = [
-  // 건화 - 2두
-  { 
-    id: '1', 
-    auctionNo: `${tomorrowCode}-101`, 
-    breed: '한우', 
-    gender: '거세', 
-    grade: '1++A(9)', 
-    monthAge: 32,
-    backFat: 15, 
-    eyeMuscle: 98, 
-    fatMarbling: 9,
-    meatColor: 5, 
-    fatColor: 3, 
-    texture: 1, 
-    maturity: 2, 
-    traceNo: '1486-7293-1',
-    slaughterHouse: '음성',
-    slaughterDate: "26.01.16",
-    slaughterNo: '201',
-    carcassWeight: 520, 
-    company: '건화',
-    processDate: "26.01.17",
-    processWeight: 312,
-    status: '승인',
-    parts: createDefaultParts(),
-    images: ['/등심1.png', '/등심2.png', '/등심3.png', '/등심4.png'],
-    slaughterCert: { fileName: '도축검사증명서.png', fileData: 'https://picsum.photos/seed/cert1/400/300' },
-    gradeCert: { fileName: '등급판정확인서.png', fileData: 'https://picsum.photos/seed/grade1/400/300' },
-  },
-  { 
-    id: '2', 
-    auctionNo: `${tomorrowCode}-102`, 
-    breed: '한우', 
-    gender: '암', 
-    grade: '1+A', 
-    monthAge: 29,
-    backFat: 13, 
-    eyeMuscle: 91, 
-    fatMarbling: 6,
-    meatColor: 5, 
-    fatColor: 3, 
-    texture: 1, 
-    maturity: 2, 
-    traceNo: '1486-7294-2',
-    slaughterHouse: '음성',
-    slaughterDate: "26.01.16",
-    slaughterNo: '205',
-    carcassWeight: 478, 
-    company: '건화',
-    processDate: "26.01.17",
-    processWeight: 287,
-    status: '승인',
-    parts: createDefaultParts(),
-    images: ['/등심1.png', '/등심2.png'],
-    slaughterCert: { fileName: '도축검사증명서.png', fileData: 'https://picsum.photos/seed/cert2/400/300' },
-    gradeCert: null,
-  },
-  // 대진엠에스 - 2두
-  { 
-    id: '3', 
-    auctionNo: `${tomorrowCode}-201`, 
-    breed: '한우', 
-    gender: '암', 
-    grade: '1+A', 
-    monthAge: 30,
-    backFat: 12, 
-    eyeMuscle: 92, 
-    fatMarbling: 6,
-    meatColor: 5, 
-    fatColor: 3, 
-    texture: 1, 
-    maturity: 2, 
-    traceNo: '1523-8842-3',
-    slaughterHouse: '음성',
-    slaughterDate: "26.01.16",
-    slaughterNo: '202',
-    carcassWeight: 485, 
-    company: '대진엠에스',
-    processDate: "26.01.17",
-    processWeight: 291,
-    status: '승인',
-    parts: createDefaultParts(),
-    images: ['/등심1.png', '/등심3.png'],
-    slaughterCert: null,
-    gradeCert: { fileName: '등급판정확인서.png', fileData: 'https://picsum.photos/seed/grade3/400/300' },
-  },
-  { 
-    id: '4', 
-    auctionNo: `${tomorrowCode}-202`, 
-    breed: '한우', 
-    gender: '거세', 
-    grade: '1++B(8)', 
-    monthAge: 33,
-    backFat: 14, 
-    eyeMuscle: 96, 
-    fatMarbling: 8,
-    meatColor: 5, 
-    fatColor: 3, 
-    texture: 1, 
-    maturity: 2, 
-    traceNo: '1523-8843-4',
-    slaughterHouse: '음성',
-    slaughterDate: "26.01.16",
-    slaughterNo: '206',
-    carcassWeight: 508, 
-    company: '대진엠에스',
-    processDate: "26.01.17",
-    processWeight: 305,
-    status: '승인',
-    parts: createDefaultParts(),
-    images: ['/등심2.png', '/등심4.png'],
-    slaughterCert: { fileName: '도축검사증명서.png', fileData: 'https://picsum.photos/seed/cert4/400/300' },
-    gradeCert: { fileName: '등급판정확인서.png', fileData: 'https://picsum.photos/seed/grade4/400/300' },
-  },
-  // 안심엘피씨 - 2두
-  { 
-    id: '5', 
-    auctionNo: `${tomorrowCode}-301`, 
-    breed: '한우', 
-    gender: '거세', 
-    grade: '1++B(8)', 
-    monthAge: 34,
-    backFat: 14, 
-    eyeMuscle: 95, 
-    fatMarbling: 8,
-    meatColor: 5, 
-    fatColor: 3, 
-    texture: 1, 
-    maturity: 2, 
-    traceNo: '1498-6521-7',
-    slaughterHouse: '음성',
-    slaughterDate: "26.01.16",
-    slaughterNo: '203',
-    carcassWeight: 512, 
-    company: '안심엘피씨',
-    processDate: "26.01.17",
-    processWeight: 307,
-    status: '대기',
-    parts: createDefaultParts(),
-    images: ['/등심1.png'],
-    slaughterCert: null,
-    gradeCert: null,
-  },
-  { 
-    id: '6', 
-    auctionNo: `${tomorrowCode}-302`, 
-    breed: '한우', 
-    gender: '암', 
-    grade: '1+B', 
-    monthAge: 31,
-    backFat: 12, 
-    eyeMuscle: 89, 
-    fatMarbling: 5,
-    meatColor: 5, 
-    fatColor: 3, 
-    texture: 1, 
-    maturity: 2, 
-    traceNo: '1498-6522-8',
-    slaughterHouse: '음성',
-    slaughterDate: "26.01.16",
-    slaughterNo: '207',
-    carcassWeight: 472, 
-    company: '안심엘피씨',
-    processDate: "26.01.17",
-    processWeight: 283,
-    status: '대기',
-    parts: createDefaultParts(),
-    images: [],
-    slaughterCert: { fileName: '도축검사증명서.png', fileData: 'https://picsum.photos/seed/cert6/400/300' },
-    gradeCert: { fileName: '등급판정확인서.png', fileData: 'https://picsum.photos/seed/grade6/400/300' },
-  },
-  // 정직한고기 - 2두
-  { 
-    id: '7', 
-    auctionNo: `${tomorrowCode}-401`, 
-    breed: '한우', 
-    gender: '암', 
-    grade: '1+B', 
-    monthAge: 28,
-    backFat: 11, 
-    eyeMuscle: 88, 
-    fatMarbling: 5,
-    meatColor: 5, 
-    fatColor: 3, 
-    texture: 1, 
-    maturity: 2, 
-    traceNo: '1512-9934-2',
-    slaughterHouse: '음성',
-    slaughterDate: "26.01.16",
-    slaughterNo: '204',
-    carcassWeight: 468, 
-    company: '정직한고기',
-    processDate: "26.01.17",
-    processWeight: 281,
-    status: '대기',
-    parts: createDefaultParts(),
-    images: ['/등심1.png', '/등심2.png', '/등심3.png'],
-    slaughterCert: null,
-    gradeCert: { fileName: '등급판정확인서.png', fileData: 'https://picsum.photos/seed/grade7/400/300' },
-  },
-  { 
-    id: '8', 
-    auctionNo: `${tomorrowCode}-402`, 
-    breed: '한우', 
-    gender: '거세', 
-    grade: '1++A(9)', 
-    monthAge: 35,
-    backFat: 16, 
-    eyeMuscle: 99, 
-    fatMarbling: 9,
-    meatColor: 5, 
-    fatColor: 3, 
-    texture: 1, 
-    maturity: 2, 
-    traceNo: '1512-9935-3',
-    slaughterHouse: '음성',
-    slaughterDate: "26.01.16",
-    slaughterNo: '208',
-    carcassWeight: 535, 
-    company: '정직한고기',
-    processDate: "26.01.17",
-    processWeight: 321,
-    status: '승인',
-    parts: createDefaultParts(),
-    images: ['/등심1.png', '/등심2.png', '/등심3.png', '/등심4.png'],
-    slaughterCert: { fileName: '도축검사증명서.png', fileData: 'https://picsum.photos/seed/cert8/400/300' },
-    gradeCert: { fileName: '등급판정확인서.png', fileData: 'https://picsum.photos/seed/grade8/400/300' },
-  },
-];
+// CattleListing을 기존 Auction 타입으로 변환
+const convertToAuction = (listing: CattleListing): Auction => {
+  const formatDate = (dateStr: string | null) => {
+    if (!dateStr) return '';
+    const date = new Date(dateStr);
+    const year = String(date.getFullYear()).slice(-2);
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}.${month}.${day}`;
+  };
+
+  const parts: PartData[] = (listing.parts || []).map((part: CattlePart) => ({
+    id: part.partNo,
+    name: part.partName,
+    weight: part.weight || 0,
+    minPrice: part.minPrice || 0,
+    bidPrice: part.bidPrice,
+    isIncluded: part.isIncluded,
+  }));
+
+  // 부위가 없으면 기본 부위 생성
+  if (parts.length === 0) {
+    parts.push(...createDefaultParts());
+  }
+
+  return {
+    id: listing.id,
+    auctionNo: listing.listingNo,
+    breed: listing.breed,
+    gender: listing.gender,
+    grade: listing.grade,
+    monthAge: listing.monthAge || 0,
+    backFat: listing.backFat || 0,
+    eyeMuscle: listing.eyeMuscle || 0,
+    fatMarbling: listing.marblingScore || 0,
+    meatColor: listing.meatColor || 0,
+    fatColor: listing.fatColor || 0,
+    texture: listing.texture || 0,
+    maturity: listing.maturity || 0,
+    traceNo: listing.traceNo || '',
+    slaughterHouse: listing.slaughterHouse || '',
+    slaughterDate: formatDate(listing.slaughterDate),
+    slaughterNo: listing.slaughterNo || '',
+    carcassWeight: listing.carcassWeight || 0,
+    company: listing.companyName || '',
+    processDate: formatDate(listing.processDate),
+    processWeight: listing.processWeight || 0,
+    status: listing.status === 'approved' ? '승인' : '대기',
+    parts,
+    images: listing.images || [],
+    slaughterCert: listing.slaughterCert,
+    gradeCert: listing.gradeCert,
+  };
+};
+
 
 // 수정 폼 데이터 타입
 interface EditFormData {
@@ -383,8 +199,34 @@ export default function AuctionsListPage() {
   const [startDate, setStartDate] = useState<string>(tomorrowDateString);
   const [endDate, setEndDate] = useState<string>(tomorrowDateString);
   const [companyFilter, setCompanyFilter] = useState<string>('all');
-  const [auctions, setAuctions] = useState<Auction[]>(dummyAuctions);
   const itemsPerPage = 10;
+
+  // 실제 데이터 조회
+  const { data: listingsData, isLoading } = useListings({
+    companyId: companyFilter !== 'all' ? companyFilter : undefined,
+    listingDateFrom: startDate || undefined,
+    listingDateTo: endDate || undefined,
+    includeParts: true,
+  });
+
+  // 업체 목록 조회
+  const { data: companiesData } = useCompanies();
+
+  // Mutation 훅
+  const approveListing = useApproveListing();
+  const deleteListing = useDeleteListing();
+  const updateListing = useUpdateListing();
+
+  // CattleListing -> Auction 변환
+  const auctions = useMemo(() => {
+    if (!listingsData) return [];
+    return listingsData.map(convertToAuction);
+  }, [listingsData]);
+
+  // 업체 목록 (드롭다운용)
+  const companies = useMemo(() => {
+    return companiesData?.map(c => ({ id: c.id, name: c.name })) || [];
+  }, [companiesData]);
 
   // 날짜 입력 refs
   const startDateRef = useRef<HTMLInputElement>(null);
@@ -419,9 +261,6 @@ export default function AuctionsListPage() {
     processWeight: '',
   });
 
-  // 고유 업체 목록
-  const companies = [...new Set(auctions.map(a => a.company))];
-
   // 수정 시작
   const startEditing = (auction: Auction) => {
     setEditingId(auction.id);
@@ -454,7 +293,7 @@ export default function AuctionsListPage() {
   };
 
   // 수정 저장
-  const saveEditing = () => {
+  const saveEditing = async () => {
     if (!editingId) return;
     
     // 2차 비밀번호 확인
@@ -463,103 +302,93 @@ export default function AuctionsListPage() {
       return;
     }
     
-    setAuctions(prev => prev.map(auction => {
-      if (auction.id !== editingId) return auction;
-      return {
-        ...auction,
-        gender: editFormData.gender,
-        grade: editFormData.grade,
-        monthAge: parseInt(editFormData.monthAge) || 0,
-        backFat: parseInt(editFormData.backFat) || 0,
-        eyeMuscle: parseInt(editFormData.eyeMuscle) || 0,
-        fatMarbling: parseInt(editFormData.fatMarbling) || 0,
-        meatColor: parseInt(editFormData.meatColor) || 0,
-        fatColor: parseInt(editFormData.fatColor) || 0,
-        texture: parseInt(editFormData.texture) || 0,
-        maturity: parseInt(editFormData.maturity) || 0,
-        traceNo: editFormData.traceNo,
-        slaughterDate: editFormData.slaughterDate,
-        slaughterNo: editFormData.slaughterNo,
-        carcassWeight: parseInt(editFormData.carcassWeight) || 0,
-        processDate: editFormData.processDate,
-        processWeight: parseInt(editFormData.processWeight) || 0,
+    try {
+      // 날짜 형식 변환 (YY.MM.DD -> YYYY-MM-DD)
+      const convertDate = (dateStr: string) => {
+        if (!dateStr) return null;
+        const parts = dateStr.split('.');
+        if (parts.length !== 3) return dateStr;
+        const year = parts[0].length === 2 ? `20${parts[0]}` : parts[0];
+        return `${year}-${parts[1]}-${parts[2]}`;
       };
-    }));
-    setEditingId(null);
-    setSecondaryPassword('');
-    setPasswordError(false);
+
+      await updateListing.mutateAsync({
+        id: editingId,
+        input: {
+          gender: editFormData.gender,
+          grade: editFormData.grade,
+          monthAge: parseInt(editFormData.monthAge) || null,
+          backFat: parseFloat(editFormData.backFat) || null,
+          eyeMuscle: parseFloat(editFormData.eyeMuscle) || null,
+          marblingScore: parseInt(editFormData.fatMarbling) || null,
+          meatColor: parseInt(editFormData.meatColor) || null,
+          fatColor: parseInt(editFormData.fatColor) || null,
+          texture: parseInt(editFormData.texture) || null,
+          maturity: parseInt(editFormData.maturity) || null,
+          traceNo: editFormData.traceNo || null,
+          slaughterDate: convertDate(editFormData.slaughterDate),
+          slaughterNo: editFormData.slaughterNo || null,
+          carcassWeight: parseFloat(editFormData.carcassWeight) || null,
+          processDate: convertDate(editFormData.processDate),
+          processWeight: parseFloat(editFormData.processWeight) || null,
+        },
+      });
+      setEditingId(null);
+      setSecondaryPassword('');
+      setPasswordError(false);
+    } catch (error) {
+      console.error('수정 실패:', error);
+      alert('수정에 실패했습니다.');
+    }
   };
 
   // 상태 변경 핸들러
-  const handleStatusChange = (auctionId: string, newStatus: AuctionStatus) => {
-    setAuctions(prev => prev.map(auction => 
-      auction.id === auctionId ? { ...auction, status: newStatus } : auction
-    ));
+  const handleStatusChange = async (auctionId: string, newStatus: AuctionStatus) => {
+    if (newStatus === '승인') {
+      try {
+        await approveListing.mutateAsync({ id: auctionId });
+      } catch (error) {
+        console.error('승인 실패:', error);
+        alert('승인에 실패했습니다.');
+      }
+    }
+    // '대기' 상태로 되돌리는 것은 현재 미지원
   };
 
-  // 부위 정보 수정
-  const updatePart = (auctionId: string, partId: number, field: 'weight' | 'minPrice', value: string) => {
-    const numValue = parseFloat(value) || 0;
-    setAuctions(prev => prev.map(auction => {
-      if (auction.id !== auctionId) return auction;
-      return {
-        ...auction,
-        parts: auction.parts.map(part => 
-          part.id === partId ? { ...part, [field]: numValue } : part
-        ),
-      };
-    }));
-  };
-
-  // 부위 포함/제외 토글
-  const togglePartIncluded = (auctionId: string, partId: number) => {
-    setAuctions(prev => prev.map(auction => {
-      if (auction.id !== auctionId) return auction;
-      return {
-        ...auction,
-        parts: auction.parts.map(part => 
-          part.id === partId ? { ...part, isIncluded: !part.isIncluded } : part
-        ),
-      };
-    }));
-  };
-
-  // 날짜를 6자리 코드로 변환 (YYMMDD)
-  const dateToCode = (dateStr: string) => {
-    const date = new Date(dateStr);
-    const year = String(date.getFullYear()).slice(-2);
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}${month}${day}`;
-  };
-
-  // 접수번호에서 날짜 코드 추출
-  const extractDateCode = (auctionNo: string) => {
-    return auctionNo.split('-')[0];
-  };
-
-  // 필터링된 데이터
-  const filteredAuctions = auctions.filter(auction => {
-    const matchesCompany = companyFilter === 'all' || auction.company === companyFilter;
+  // 상장 삭제 핸들러
+  const handleDelete = async (auctionId: string) => {
+    const auction = auctions.find(a => a.id === auctionId);
+    if (!auction) return;
     
-    // 날짜 범위 필터
-    let matchesDate = true;
-    const auctionDateCode = extractDateCode(auction.auctionNo);
-    
-    if (startDate && endDate) {
-      const startCode = dateToCode(startDate);
-      const endCode = dateToCode(endDate);
-      matchesDate = auctionDateCode >= startCode && auctionDateCode <= endCode;
-    } else if (startDate) {
-      const startCode = dateToCode(startDate);
-      matchesDate = auctionDateCode >= startCode;
-    } else if (endDate) {
-      const endCode = dateToCode(endDate);
-      matchesDate = auctionDateCode <= endCode;
+    if (auction.status === '승인') {
+      alert('승인된 상장은 삭제할 수 없습니다.');
+      return;
     }
     
-    return matchesCompany && matchesDate;
-  });
+    if (!confirm('정말 삭제하시겠습니까?')) return;
+    
+    try {
+      await deleteListing.mutateAsync(auctionId);
+    } catch (error) {
+      console.error('삭제 실패:', error);
+      alert('삭제에 실패했습니다.');
+    }
+  };
+
+  // 부위 정보 수정 (TODO: API 연동 필요)
+  const updatePart = (auctionId: string, partId: number, field: 'weight' | 'minPrice', value: string) => {
+    // 부위 수정은 현재 지원하지 않음 - 추후 구현 예정
+    console.log('부위 수정:', auctionId, partId, field, value);
+  };
+
+  // 부위 포함/제외 토글 (TODO: API 연동 필요)
+  const togglePartIncluded = (auctionId: string, partId: number) => {
+    // 부위 토글은 현재 지원하지 않음 - 추후 구현 예정
+    console.log('부위 토글:', auctionId, partId);
+  };
+
+  // 필터링된 데이터 (API에서 이미 필터링됨)
+  const filteredAuctions = auctions;
 
   // 페이지네이션
   const totalPages = Math.ceil(filteredAuctions.length / itemsPerPage);
@@ -673,7 +502,7 @@ export default function AuctionsListPage() {
             >
               <option value="all">전체</option>
               {companies.map(company => (
-                <option key={company} value={company}>{company}</option>
+                <option key={company.id} value={company.id}>{company.name}</option>
               ))}
             </select>
           </div>
@@ -738,7 +567,19 @@ export default function AuctionsListPage() {
               </tr>
             </thead>
             <tbody>
-              {paginatedAuctions.map((auction) => (
+              {isLoading ? (
+                <tr>
+                  <td colSpan={23} className="px-4 py-8 text-center text-gray-500 border border-gray-200">
+                    데이터를 불러오는 중...
+                  </td>
+                </tr>
+              ) : paginatedAuctions.length === 0 ? (
+                <tr>
+                  <td colSpan={23} className="px-4 py-8 text-center text-gray-500 border border-gray-200">
+                    등록된 상장이 없습니다.
+                  </td>
+                </tr>
+              ) : paginatedAuctions.map((auction) => (
                 <React.Fragment key={auction.id}>
                   <tr 
                     className="hover:bg-gray-50 transition-colors cursor-pointer"
@@ -1050,11 +891,10 @@ export default function AuctionsListPage() {
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
-                              if (confirm(`${auction.auctionNo}을(를) 삭제하시겠습니까?`)) {
-                                setAuctions(prev => prev.filter(a => a.id !== auction.id));
-                              }
+                              handleDelete(auction.id);
                             }}
-                            className="px-4 py-1.5 text-xs font-medium text-white bg-gray-700 hover:bg-gray-800 transition-colors"
+                            disabled={auction.status === '승인' || deleteListing.isPending}
+                            className="px-4 py-1.5 text-xs font-medium text-white bg-gray-700 hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             삭제
                           </button>
