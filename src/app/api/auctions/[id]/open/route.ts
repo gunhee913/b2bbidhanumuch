@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { toFrontendAuction } from '@/features/auctions/types';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -23,34 +22,34 @@ export async function POST(
       .single();
 
     if (fetchError) {
-      if (fetchError.code === 'PGRST116') {
-        return NextResponse.json({ error: '경매를 찾을 수 없습니다.' }, { status: 404 });
-      }
-      return NextResponse.json({ error: fetchError.message }, { status: 500 });
+      return NextResponse.json(
+        { error: '경매를 찾을 수 없습니다.' },
+        { status: 404 }
+      );
     }
 
     if (auction.status !== 'scheduled') {
       return NextResponse.json(
-        { error: '예정 상태인 경매만 시작할 수 있습니다.' },
+        { error: '예정 상태의 경매만 시작할 수 있습니다.' },
         { status: 400 }
       );
     }
 
-    // 경매에 상장이 있는지 확인
+    // 경매에 포함된 상장이 있는지 확인
     const { count } = await supabase
       .from('auction_listings')
-      .select('*', { count: 'exact', head: true })
+      .select('id', { count: 'exact', head: true })
       .eq('auction_id', id);
 
     if (!count || count === 0) {
       return NextResponse.json(
-        { error: '상장이 없는 경매는 시작할 수 없습니다.' },
+        { error: '상장이 포함되지 않은 경매는 시작할 수 없습니다.' },
         { status: 400 }
       );
     }
 
-    // 경매 시작
-    const { data, error } = await supabase
+    // 경매 상태를 open으로 변경
+    const { data: updatedAuction, error } = await supabase
       .from('auctions')
       .update({ status: 'open' })
       .eq('id', id)
@@ -62,7 +61,7 @@ export async function POST(
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json(toFrontendAuction(data));
+    return NextResponse.json(updatedAuction);
   } catch (error) {
     console.error('경매 시작 오류:', error);
     return NextResponse.json(

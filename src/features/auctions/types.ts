@@ -1,9 +1,10 @@
-// 경매/입찰 관련 타입 정의
+// 경매 및 입찰 관련 타입 정의
 
-// 경매 상태
-export type AuctionStatus = 'scheduled' | 'open' | 'closed' | 'cancelled';
+// =============================================
+// DB Row 타입
+// =============================================
 
-// DB Row 타입 - auctions
+// 경매 테이블 Row
 export interface AuctionRow {
   id: string;
   auction_date: string;
@@ -17,7 +18,7 @@ export interface AuctionRow {
   created_by: string | null;
 }
 
-// DB Row 타입 - bids
+// 입찰 테이블 Row
 export interface BidRow {
   id: string;
   auction_id: string;
@@ -30,7 +31,7 @@ export interface BidRow {
   created_at: string;
 }
 
-// DB Row 타입 - auction_listings
+// 경매-상장 연결 Row
 export interface AuctionListingRow {
   id: string;
   auction_id: string;
@@ -39,7 +40,14 @@ export interface AuctionListingRow {
   created_at: string;
 }
 
-// 프론트엔드용 타입 - 경매
+// =============================================
+// 프론트엔드 타입
+// =============================================
+
+// 경매 상태
+export type AuctionStatus = 'scheduled' | 'open' | 'closed' | 'cancelled';
+
+// 경매
 export interface Auction {
   id: string;
   auctionDate: string;
@@ -51,12 +59,12 @@ export interface Auction {
   createdAt: string;
   updatedAt: string;
   createdBy: string | null;
-  // 조인 데이터
+  // JOIN 시 포함
   listingCount?: number;
   bidCount?: number;
 }
 
-// 프론트엔드용 타입 - 입찰
+// 입찰
 export interface Bid {
   id: string;
   auctionId: string;
@@ -67,14 +75,13 @@ export interface Bid {
   rank: number | null;
   isWinning: boolean;
   createdAt: string;
-  // 조인 데이터
+  // JOIN 시 포함
   dealerName?: string;
-  dealerNo?: string;
   partName?: string;
   listingNo?: string;
 }
 
-// 프론트엔드용 타입 - 경매-상장 연결
+// 경매-상장 연결
 export interface AuctionListing {
   id: string;
   auctionId: string;
@@ -83,17 +90,20 @@ export interface AuctionListing {
   createdAt: string;
 }
 
-// 경매 생성 입력
+// =============================================
+// 입력 타입
+// =============================================
+
+// 경매 생성
 export interface CreateAuctionInput {
   auctionDate: string;
   title?: string;
   startTime?: string;
   endTime?: string;
   listingIds?: string[]; // 포함할 상장 ID 목록
-  createdBy?: string;
 }
 
-// 경매 수정 입력
+// 경매 수정
 export interface UpdateAuctionInput {
   title?: string;
   startTime?: string;
@@ -101,7 +111,7 @@ export interface UpdateAuctionInput {
   status?: AuctionStatus;
 }
 
-// 입찰 생성 입력
+// 입찰 생성
 export interface CreateBidInput {
   auctionId: string;
   partId: string;
@@ -110,6 +120,10 @@ export interface CreateBidInput {
   weight: number; // bid_amount 계산용
 }
 
+// =============================================
+// 필터 타입
+// =============================================
+
 // 경매 필터
 export interface AuctionFilter {
   status?: AuctionStatus;
@@ -117,7 +131,18 @@ export interface AuctionFilter {
   auctionDateTo?: string;
 }
 
-// Row -> 프론트엔드 타입 변환
+// 입찰 필터
+export interface BidFilter {
+  auctionId?: string;
+  partId?: string;
+  dealerId?: string;
+  isWinning?: boolean;
+}
+
+// =============================================
+// 변환 함수
+// =============================================
+
 export function toFrontendAuction(row: AuctionRow): Auction {
   return {
     id: row.id,
@@ -147,7 +172,10 @@ export function toFrontendBid(row: BidRow): Bid {
   };
 }
 
-// 상태 라벨
+// =============================================
+// 상수
+// =============================================
+
 export const AUCTION_STATUS_LABELS: Record<AuctionStatus, string> = {
   scheduled: '예정',
   open: '진행중',
@@ -155,9 +183,8 @@ export const AUCTION_STATUS_LABELS: Record<AuctionStatus, string> = {
   cancelled: '취소',
 };
 
-// 상태 색상 (Tailwind)
 export const AUCTION_STATUS_COLORS: Record<AuctionStatus, string> = {
-  scheduled: 'bg-yellow-100 text-yellow-800',
+  scheduled: 'bg-blue-100 text-blue-800',
   open: 'bg-green-100 text-green-800',
   closed: 'bg-gray-100 text-gray-800',
   cancelled: 'bg-red-100 text-red-800',

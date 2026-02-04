@@ -9,143 +9,186 @@ import {
   deleteAuction,
   openAuction,
   closeAuction,
+  fetchAuctionListings,
+  addAuctionListings,
+  removeAuctionListing,
   fetchBids,
   createBid,
+  fetchLiveBids,
+  fetchTodayOpenAuction,
 } from './api';
-import {
-  Auction,
-  Bid,
-  CreateAuctionInput,
-  UpdateAuctionInput,
-  CreateBidInput,
+import type {
   AuctionFilter,
+  BidFilter,
+  CreateAuctionInput,
+  CreateBidInput,
+  UpdateAuctionInput,
 } from './types';
 
-// Query Keys
-export const auctionKeys = {
-  all: ['auctions'] as const,
-  lists: () => [...auctionKeys.all, 'list'] as const,
-  list: (filter?: AuctionFilter) => [...auctionKeys.lists(), filter] as const,
-  details: () => [...auctionKeys.all, 'detail'] as const,
-  detail: (id: string) => [...auctionKeys.details(), id] as const,
-  bids: (auctionId: string) => [...auctionKeys.all, 'bids', auctionId] as const,
-};
+// =============================================
+// 경매 Hooks
+// =============================================
 
-// 경매 목록 조회 훅
+// 경매 목록 조회
 export function useAuctions(filter?: AuctionFilter) {
   return useQuery({
-    queryKey: auctionKeys.list(filter),
+    queryKey: ['auctions', filter],
     queryFn: () => fetchAuctions(filter),
   });
 }
 
-// 경매 상세 조회 훅
-export function useAuction(id: string) {
+// 경매 상세 조회
+export function useAuction(id: string | null) {
   return useQuery({
-    queryKey: auctionKeys.detail(id),
-    queryFn: () => fetchAuction(id),
+    queryKey: ['auction', id],
+    queryFn: () => fetchAuction(id!),
     enabled: !!id,
   });
 }
 
-// 경매 생성 훅
+// 오늘 진행중인 경매 조회
+export function useTodayOpenAuction() {
+  return useQuery({
+    queryKey: ['todayOpenAuction'],
+    queryFn: fetchTodayOpenAuction,
+    refetchInterval: 30000, // 30초마다 재조회
+  });
+}
+
+// 경매 생성
 export function useCreateAuction() {
   const queryClient = useQueryClient();
-
   return useMutation({
     mutationFn: (input: CreateAuctionInput) => createAuction(input),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: auctionKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: ['auctions'] });
     },
   });
 }
 
-// 경매 수정 훅
+// 경매 수정
 export function useUpdateAuction() {
   const queryClient = useQueryClient();
-
   return useMutation({
     mutationFn: ({ id, input }: { id: string; input: UpdateAuctionInput }) =>
       updateAuction(id, input),
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: auctionKeys.lists() });
-      queryClient.setQueryData(auctionKeys.detail(data.id), (old: unknown) =>
-        old ? { ...(old as Auction), ...data } : data
-      );
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ['auctions'] });
+      queryClient.invalidateQueries({ queryKey: ['auction', id] });
     },
   });
 }
 
-// 경매 삭제 훅
+// 경매 삭제
 export function useDeleteAuction() {
   const queryClient = useQueryClient();
-
   return useMutation({
     mutationFn: (id: string) => deleteAuction(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: auctionKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: ['auctions'] });
     },
   });
 }
 
-// 경매 시작 훅
+// 경매 시작
 export function useOpenAuction() {
   const queryClient = useQueryClient();
-
   return useMutation({
     mutationFn: (id: string) => openAuction(id),
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: auctionKeys.lists() });
-      queryClient.setQueryData(auctionKeys.detail(data.id), (old: unknown) =>
-        old ? { ...(old as Auction), ...data } : data
-      );
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: ['auctions'] });
+      queryClient.invalidateQueries({ queryKey: ['auction', id] });
+      queryClient.invalidateQueries({ queryKey: ['todayOpenAuction'] });
     },
   });
 }
 
-// 경매 마감 훅
+// 경매 마감
 export function useCloseAuction() {
   const queryClient = useQueryClient();
-
   return useMutation({
     mutationFn: (id: string) => closeAuction(id),
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: auctionKeys.lists() });
-      queryClient.invalidateQueries({ queryKey: auctionKeys.detail(data.id) });
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: ['auctions'] });
+      queryClient.invalidateQueries({ queryKey: ['auction', id] });
+      queryClient.invalidateQueries({ queryKey: ['todayOpenAuction'] });
+      queryClient.invalidateQueries({ queryKey: ['liveBids'] });
     },
   });
 }
 
-// 입찰 목록 조회 훅
-export function useBids(auctionId: string, options?: { partId?: string; dealerId?: string }) {
+// =============================================
+// 경매-상장 Hooks
+// =============================================
+
+// 경매에 포함된 상장 조회
+export function useAuctionListings(auctionId: string | null) {
   return useQuery({
-    queryKey: [...auctionKeys.bids(auctionId), options],
-    queryFn: () => fetchBids(auctionId, options),
+    queryKey: ['auctionListings', auctionId],
+    queryFn: () => fetchAuctionListings(auctionId!),
     enabled: !!auctionId,
   });
 }
 
-// 입찰 등록 훅
-export function useCreateBid() {
+// 경매에 상장 추가
+export function useAddAuctionListings() {
   const queryClient = useQueryClient();
-
   return useMutation({
-    mutationFn: (input: CreateBidInput) => createBid(input),
-    onSuccess: (data, variables) => {
-      // 입찰 목록 갱신
-      queryClient.invalidateQueries({ queryKey: auctionKeys.bids(variables.auctionId) });
-      // 경매 상세 갱신
-      queryClient.invalidateQueries({ queryKey: auctionKeys.detail(variables.auctionId) });
+    mutationFn: ({ auctionId, listingIds }: { auctionId: string; listingIds: string[] }) =>
+      addAuctionListings(auctionId, listingIds),
+    onSuccess: (_, { auctionId }) => {
+      queryClient.invalidateQueries({ queryKey: ['auctionListings', auctionId] });
+      queryClient.invalidateQueries({ queryKey: ['auction', auctionId] });
+      queryClient.invalidateQueries({ queryKey: ['listings'] });
     },
   });
 }
 
-// 진행 중인 경매 조회 (편의 훅)
-export function useOpenAuctions() {
-  return useAuctions({ status: 'open' });
+// 경매에서 상장 제거
+export function useRemoveAuctionListing() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ auctionId, listingId }: { auctionId: string; listingId: string }) =>
+      removeAuctionListing(auctionId, listingId),
+    onSuccess: (_, { auctionId }) => {
+      queryClient.invalidateQueries({ queryKey: ['auctionListings', auctionId] });
+      queryClient.invalidateQueries({ queryKey: ['auction', auctionId] });
+      queryClient.invalidateQueries({ queryKey: ['listings'] });
+    },
+  });
 }
 
-// 예정된 경매 조회 (편의 훅)
-export function useScheduledAuctions() {
-  return useAuctions({ status: 'scheduled' });
+// =============================================
+// 입찰 Hooks
+// =============================================
+
+// 입찰 목록 조회
+export function useBids(filter?: BidFilter) {
+  return useQuery({
+    queryKey: ['bids', filter],
+    queryFn: () => fetchBids(filter),
+    enabled: !!(filter?.auctionId || filter?.dealerId),
+  });
+}
+
+// 입찰 등록
+export function useCreateBid() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: CreateBidInput) => createBid(input),
+    onSuccess: (_, input) => {
+      queryClient.invalidateQueries({ queryKey: ['bids'] });
+      queryClient.invalidateQueries({ queryKey: ['liveBids', input.auctionId] });
+    },
+  });
+}
+
+// 실시간 입찰 현황 조회
+export function useLiveBids(auctionId: string | null, options?: { refetchInterval?: number | false }) {
+  return useQuery({
+    queryKey: ['liveBids', auctionId],
+    queryFn: () => fetchLiveBids(auctionId!),
+    enabled: !!auctionId,
+    refetchInterval: options?.refetchInterval ?? 5000, // 기본 5초마다 갱신
+  });
 }
