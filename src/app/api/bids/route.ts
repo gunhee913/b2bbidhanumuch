@@ -93,44 +93,34 @@ export async function GET(request: NextRequest) {
 }
 
 // POST: 입찰 등록
+// auctionId는 이제 optional - 상장이 approved 상태면 바로 입찰 가능
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { auctionId, partId, dealerId, bidPrice, weight } = body;
 
-    // 필수 값 검증
-    if (!auctionId || !partId || !dealerId || !bidPrice) {
+    // 필수 값 검증 (auctionId는 이제 optional)
+    if (!partId || !dealerId || !bidPrice) {
       return NextResponse.json(
         { error: '필수 정보가 누락되었습니다.' },
         { status: 400 }
       );
     }
 
-    // 경매 상태 확인
-    const { data: auction, error: auctionError } = await supabase
-      .from('auctions')
-      .select('status')
-      .eq('id', auctionId)
-      .single();
-
-    if (auctionError || !auction) {
-      return NextResponse.json(
-        { error: '경매를 찾을 수 없습니다.' },
-        { status: 404 }
-      );
-    }
-
-    if (auction.status !== 'open') {
-      return NextResponse.json(
-        { error: '진행 중인 경매에만 입찰할 수 있습니다.' },
-        { status: 400 }
-      );
-    }
-
-    // 부위 정보 조회 (최저가, 중량)
+    // 부위 정보 조회 (최저가, 중량, 상장 정보 포함)
     const { data: part, error: partError } = await supabase
       .from('cattle_parts')
-      .select('min_price, weight, is_included')
+      .select(`
+        id,
+        min_price, 
+        weight, 
+        is_included,
+        listing_id,
+        cattle_listings (
+          id,
+          status
+        )
+      `)
       .eq('id', partId)
       .single();
 
@@ -148,6 +138,34 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // 상장 상태 확인 (approved 또는 auction 상태만 입찰 가능)
+    const listingStatus = (part.cattle_listings as any)?.status;
+    if (!['approved', 'auction'].includes(listingStatus)) {
+      return NextResponse.json(
+        { error: '입찰 가능한 상태가 아닙니다. 승인된 상장에만 입찰할 수 있습니다.' },
+        { status: 400 }
+      );
+    }
+
+    // auctionId가 있으면 경매 상태도 확인
+    if (auctionId) {
+      const { data: auction, error: auctionError } = await supabase
+        .from('auctions')
+        .select('status')
+        .eq('id', auctionId)
+        .single();
+
+      if (auctionError || !auction) {
+        // 경매가 없어도 상장이 approved면 입찰 가능
+        console.log('경매를 찾을 수 없지만 상장이 approved 상태이므로 입찰 진행');
+      } else if (auction.status !== 'open') {
+        return NextResponse.json(
+          { error: '진행 중인 경매에만 입찰할 수 있습니다.' },
+          { status: 400 }
+        );
+      }
+    }
+
     // 최저가 확인
     if (part.min_price && bidPrice < part.min_price) {
       return NextResponse.json(
@@ -160,11 +178,10 @@ export async function POST(request: NextRequest) {
     const partWeight = weight || part.weight || 0;
     const bidAmount = Math.round(bidPrice * partWeight);
 
-    // 기존 입찰 확인 (같은 경매, 같은 부위, 같은 중도매인)
+    // 기존 입찰 확인 (같은 부위, 같은 중도매인)
     const { data: existingBid } = await supabase
       .from('bids')
       .select('id, bid_price')
-      .eq('auction_id', auctionId)
       .eq('part_id', partId)
       .eq('dealer_id', dealerId)
       .single();
@@ -176,6 +193,7 @@ export async function POST(request: NextRequest) {
         .update({
           bid_price: bidPrice,
           bid_amount: bidAmount,
+          auction_id: auctionId || null,
         })
         .eq('id', existingBid.id)
         .select()
@@ -197,7 +215,8 @@ export async function POST(request: NextRequest) {
     const { data: newBid, error: insertError } = await supabase
       .from('bids')
       .insert({
-        auction_id: auctionId,
+        auction_id: auctionId || null,
+        listing_id: part.listing_id,
         part_id: partId,
         dealer_id: dealerId,
         bid_price: bidPrice,

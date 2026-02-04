@@ -23,42 +23,13 @@ import { useBidStore } from '@/stores/bidStore';
 import { getTodayDateCode, getTodayTimeFormatted } from '@/constants/auction';
 import { useAuctionAuth } from '@/hooks/useAuctionAuth';
 import { AuctionPasswordModal } from '@/components/auth/AuctionPasswordModal';
+import { useListingByNo } from '@/features/listings/hooks';
+import { useCreateBid } from '@/features/auctions/hooks';
+import { useSession } from 'next-auth/react';
 
 interface PageProps {
   params: Promise<{ id: string }>;
 }
-
-// 개체 데이터
-const cattleData = [
-  // 건화 (101~)
-  { id: '260126-101', type: '한우', gender: '암', grade: '1++(9)', months: 32, company: '건화' },
-  { id: '260126-102', type: '한우', gender: '거세', grade: '1+', months: 30, company: '건화' },
-  { id: '260126-103', type: '한우', gender: '암', grade: '1++(8)', months: 34, company: '건화' },
-  { id: '260126-104', type: '한우', gender: '거세', grade: '1', months: 28, company: '건화' },
-  { id: '260126-105', type: '한우', gender: '암', grade: '1++(7)', months: 31, company: '건화' },
-  { id: '260126-106', type: '한우', gender: '거세', grade: '1+', months: 29, company: '건화' },
-  // 대진엠이스 (201~)
-  { id: '260126-201', type: '한우', gender: '암', grade: '1++(9)', months: 33, company: '대진엠이스' },
-  { id: '260126-202', type: '한우', gender: '거세', grade: '1++(8)', months: 31, company: '대진엠이스' },
-  { id: '260126-203', type: '한우', gender: '암', grade: '1+', months: 30, company: '대진엠이스' },
-  { id: '260126-204', type: '한우', gender: '거세', grade: '1', months: 27, company: '대진엠이스' },
-  { id: '260126-205', type: '한우', gender: '암', grade: '1++(7)', months: 32, company: '대진엠이스' },
-  { id: '260126-206', type: '한우', gender: '거세', grade: '1+', months: 29, company: '대진엠이스' },
-  // 안심엘피시 (301~)
-  { id: '260126-301', type: '한우', gender: '암', grade: '1++(9)', months: 34, company: '안심엘피시' },
-  { id: '260126-302', type: '한우', gender: '거세', grade: '1+', months: 30, company: '안심엘피시' },
-  { id: '260126-303', type: '한우', gender: '암', grade: '1++(8)', months: 33, company: '안심엘피시' },
-  { id: '260126-304', type: '한우', gender: '거세', grade: '1', months: 28, company: '안심엘피시' },
-  { id: '260126-305', type: '한우', gender: '암', grade: '1++(7)', months: 31, company: '안심엘피시' },
-  { id: '260126-306', type: '한우', gender: '거세', grade: '1+', months: 29, company: '안심엘피시' },
-  // 정직한고기 (401~)
-  { id: '260126-401', type: '한우', gender: '암', grade: '1++(9)', months: 35, company: '정직한고기' },
-  { id: '260126-402', type: '한우', gender: '거세', grade: '1++(8)', months: 32, company: '정직한고기' },
-  { id: '260126-403', type: '한우', gender: '암', grade: '1+', months: 30, company: '정직한고기' },
-  { id: '260126-404', type: '한우', gender: '거세', grade: '1', months: 26, company: '정직한고기' },
-  { id: '260126-405', type: '한우', gender: '암', grade: '1++(7)', months: 33, company: '정직한고기' },
-  { id: '260126-406', type: '한우', gender: '거세', grade: '1+', months: 28, company: '정직한고기' },
-];
 
 function AuctionDetailContent({ params }: PageProps) {
   const resolvedParams = use(params);
@@ -66,16 +37,66 @@ function AuctionDetailContent({ params }: PageProps) {
   const searchParams = useSearchParams();
   const fromMyBids = searchParams.get('from') === 'myBids';
 
-  // URL에서 접수번호 가져와서 개체 정보 찾기
-  const currentCattle = cattleData.find(c => c.id === resolvedParams.id) || {
-    id: resolvedParams.id,
-    type: '한우',
-    gender: '거세',
-    grade: '1++(9)',
-    months: 30,
-    company: '건화'
-  };
+  // DB에서 상장 정보 조회
+  const { data: listingData, isLoading: listingLoading, error: listingError } = useListingByNo(resolvedParams.id);
+
+  // DB 데이터 기반 개체 정보
+  const currentCattle = useMemo(() => {
+    const data = listingData as any;
+    if (!data) {
+      return {
+        id: resolvedParams.id,
+        type: '한우',
+        gender: '거세',
+        grade: '1++(9)',
+        months: 30,
+        company: '상장업체',
+        traceNo: '',
+        carcassWeight: 0,
+        backFat: 0,
+        eyeMuscle: 0,
+        marblingScore: 0,
+        meatColor: 0,
+        fatColor: 0,
+        texture: 0,
+        maturity: 0,
+        slaughterHouse: '',
+        slaughterNo: '',
+        processDate: '',
+        processWeight: 0,
+      };
+    }
+    return {
+      id: data.listingNo,
+      type: data.breed || '한우',
+      gender: data.gender || '거세',
+      grade: data.grade || '1++',
+      months: data.monthAge || 30,
+      company: data.company?.name || '상장업체',
+      traceNo: data.traceNo || '',
+      carcassWeight: data.carcassWeight || 0,
+      backFat: data.backFat || 0,
+      eyeMuscle: data.eyeMuscle || 0,
+      marblingScore: data.marblingScore || 0,
+      meatColor: data.meatColor || 0,
+      fatColor: data.fatColor || 0,
+      texture: data.texture || 0,
+      maturity: data.maturity || 0,
+      slaughterHouse: data.slaughterHouse || '',
+      slaughterNo: data.slaughterNo || '',
+      processDate: data.processDate || '',
+      processWeight: data.processWeight || 0,
+    };
+  }, [listingData, resolvedParams.id]);
   
+  // 세션 정보 (중도매인 ID 가져오기)
+  const { data: session } = useSession();
+  const dealerEmployee = (session?.user as any)?.dealerEmployee;
+  const dealerId = dealerEmployee?.dealerId || null;
+
+  // 입찰 생성 훅
+  const createBid = useCreateBid();
+
   // zustand 스토어에서 입찰 관련 상태 가져오기
   const { 
     bids: globalBids, 
@@ -214,8 +235,8 @@ function AuctionDetailContent({ params }: PageProps) {
     }, 3000);
   };
 
-  // 부위별 최저단가
-  const baseMinPrices: Record<string, number> = {
+  // 부위별 최저단가 (DB 데이터 기반, 폴백용 기본값 포함)
+  const defaultMinPrices: Record<string, number> = {
     '등심(좌)': 85000, '등심(우)': 85000,
     '안심': 95000,
     '채끝': 82000,
@@ -232,6 +253,18 @@ function AuctionDetailContent({ params }: PageProps) {
     '사골': 20000,
     '잡뼈': 15000
   };
+
+  // DB에서 가져온 부위 정보로 최저단가 맵 생성
+  const baseMinPrices = useMemo(() => {
+    if (!listingData?.parts) return defaultMinPrices;
+    const priceMap: Record<string, number> = { ...defaultMinPrices };
+    listingData.parts.forEach((part: any) => {
+      if (part.minPrice) {
+        priceMap[part.partName] = part.minPrice;
+      }
+    });
+    return priceMap;
+  }, [listingData?.parts]);
 
   // 입찰하기 버튼 클릭 처리
   const handleBidClick = () => {
@@ -269,7 +302,7 @@ function AuctionDetailContent({ params }: PageProps) {
   };
 
   // 입찰 추가 함수
-  const addNewBid = () => {
+  const addNewBid = async () => {
     if (!selectedPart || !selectedWeight || !bidPrice) {
       return;
     }
@@ -278,57 +311,62 @@ function AuctionDetailContent({ params }: PageProps) {
     const days = ['일', '월', '화', '수', '목', '금', '토'];
     const timeString = `${String(now.getFullYear()).slice(2)}.${String(now.getMonth() + 1).padStart(2, '0')}.${String(now.getDate()).padStart(2, '0')}.(${days[now.getDay()]}) ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
     
-    // 선택된 부위의 상장번호 가져오기
+    // 선택된 부위의 정보 가져오기
     const selectedPartData = partsData.find(p => p.part === selectedPart);
     const listingNo = selectedPartData?.listingNo || '';
+    const partId = selectedPartData?.partId; // DB 부위 ID
     
-    const newBid = {
-      id: Date.now(), // 고유 ID 생성
-      auctionNumber: currentAuctionInfo.auctionNumber,
-      listingNo: listingNo,
-      part: selectedPart,
-      weight: selectedWeight,
-      price: removeCommas(bidPrice),
-      topBidPrice: parseInt(removeCommas(bidPrice)),
-      time: timeString,
-      status: 'active',
-      breed: currentAuctionInfo.breed,
-      gender: currentAuctionInfo.breed.includes('거세') ? '거세' : '암',
-      grade: currentAuctionInfo.grade,
-      months: currentAuctionInfo.months,
-      totalAmount: Math.round(parseFloat(removeCommas(bidPrice)) * parseFloat(selectedWeight)).toString()
-    };
-
-    setMyBids(prev => [newBid, ...prev]);
-    
-    // 부위별 입찰 정보 업데이트 (zustand 스토어에 저장)
     const myPrice = parseInt(removeCommas(bidPrice));
-    const existingBid = globalBids[listingNo];
-    const currentTopPrice = existingBid?.highestBid || 0;
     
-    // 나의 입찰가가 현재 최고가보다 높거나 같으면 최고가
-    const isTopBid = myPrice >= currentTopPrice;
-    const newTopPrice = isTopBid ? myPrice : currentTopPrice;
+    // 로그인 체크
+    if (!dealerId) {
+      showToastMessage('로그인 후 입찰할 수 있습니다.');
+      setShowBidDialog(false);
+      return;
+    }
     
-    setBid(listingNo, {
-      myBid: myPrice,
-      highestBid: newTopPrice,
-      status: isTopBid ? 'highest' : 'secondHighest',
-      time: timeString,
-      productInfo: {
-        listingNo: listingNo,
-        partName: selectedPart,
-        weight: selectedWeight,
-        type: currentAuctionInfo.breed,
-        grade: currentAuctionInfo.grade,
-        price: baseMinPrices[selectedPart] || 50000
-      }
-    });
+    // 부위 ID 체크 (DB 연동된 상장만 입찰 가능)
+    if (!partId) {
+      showToastMessage('입찰할 수 없는 상장입니다.');
+      setShowBidDialog(false);
+      return;
+    }
     
-    setShowBidDialog(false);
-    
-    // 입찰 완료 토스트 표시
-    showToastMessage('입찰이 완료되었습니다.', 'success');
+    // DB에 입찰
+    try {
+      await createBid.mutateAsync({
+        partId: partId,
+        dealerId: dealerId,
+        bidPrice: myPrice,
+        weight: parseFloat(selectedWeight),
+      });
+      
+      setShowBidDialog(false);
+      showToastMessage('입찰이 완료되었습니다.', 'success');
+      
+      // 폼 초기화
+      setSelectedPart('');
+      setSelectedWeight('');
+      setBidPrice('0');
+      
+      // zustand 스토어에도 저장 (UI 즉시 반영용)
+      setBid(listingNo, {
+        myBid: myPrice,
+        highestBid: myPrice,
+        status: 'highest',
+        time: timeString,
+        productInfo: {
+          listingNo: listingNo,
+          partName: selectedPart,
+          weight: selectedWeight,
+          type: currentAuctionInfo.breed,
+          grade: currentAuctionInfo.grade,
+          price: baseMinPrices[selectedPart] || 50000
+        }
+      });
+    } catch (error: any) {
+      showToastMessage(error.message || '입찰 중 오류가 발생했습니다.');
+    }
     
     // 폼 초기화
     setSelectedPart('');
@@ -431,21 +469,24 @@ function AuctionDetailContent({ params }: PageProps) {
 
   const mainImages = getImagesForAuction(resolvedParams.id);
 
-  // 상장번호 생성 함수
-  // 형식: 260126-{접수번호 뒷3자리}-{부위번호(01~19)}
-  const getListingNumber = (auctionId: string, partIndex: number) => {
-    // auctionId가 "260126-101" 형식일 경우 뒷 3자리 추출
-    const idParts = auctionId.split('-');
-    const idSuffix = idParts.length > 1 ? idParts[1] : auctionId;
-    const partNumber = String(partIndex + 1).padStart(2, '0'); // 01부터 시작
-    return `${getTodayDateCode()}-${idSuffix}-${partNumber}`;
-  };
-
-  // 개체별 부위 중량 데이터 생성
-  const getPartsData = (auctionId: string) => {
-    const id = parseInt(auctionId);
+  // DB 기반 부위 데이터 (있으면 DB, 없으면 폴백)
+  const partsData = useMemo(() => {
+    // DB 데이터가 있으면 사용
+    if (listingData?.parts && listingData.parts.length > 0) {
+      return listingData.parts
+        .filter((part: any) => part.isIncluded)
+        .map((part: any) => ({
+          part: part.partName,
+          weight: part.weight?.toFixed(1) || '0.0',
+          listingNo: part.listingPartNo || `${listingData.listingNo}-${String(part.partNo).padStart(2, '0')}`,
+          minPrice: part.minPrice || defaultMinPrices[part.partName] || 50000,
+          marketHighestBid: part.bidPrice || undefined,
+          partId: part.id, // DB 파트 ID (입찰 시 사용)
+        }));
+    }
     
-    // 부위별 중량 범위 (min, max) - allSubPartsOrder 순서와 동일하게 정렬
+    // 폴백: 기존 더미 데이터 생성 로직
+    const id = parseInt(resolvedParams.id.split('-')[1] || '1');
     const partsWithRange = [
       { part: '등심(좌)', min: 15.0, max: 16.0 },
       { part: '등심(우)', min: 15.0, max: 16.0 },
@@ -468,93 +509,52 @@ function AuctionDetailContent({ params }: PageProps) {
       { part: '잡뼈', min: 21.0, max: 23.0 }
     ];
 
-    // ID에 따라 결정론적으로 중량 계산 (범위 내에서)
     return partsWithRange.map((item, index) => {
-      const variation = ((id + index) * 0.17) % 1; // 0~1 사이 값
+      const variation = ((id + index) * 0.17) % 1;
       const weight = item.min + (item.max - item.min) * variation;
-      // 일부 부위에 시장 최고가 설정 (다른 사람이 입찰한 경우)
-      const marketHighestBid = index === 2 ? 125000 : undefined; // 안심에 시장 최고가 설정
+      const idParts = resolvedParams.id.split('-');
+      const idSuffix = idParts.length > 1 ? idParts[1] : resolvedParams.id;
+      const partNumber = String(index + 1).padStart(2, '0');
       return {
         part: item.part,
         weight: weight.toFixed(1),
-        listingNo: getListingNumber(auctionId, index),
-        marketHighestBid
+        listingNo: `${getTodayDateCode()}-${idSuffix}-${partNumber}`,
+        minPrice: defaultMinPrices[item.part] || 50000,
+        marketHighestBid: undefined,
+        partId: undefined as string | undefined, // DB 파트 ID (폴백시 없음)
       };
     });
-  };
+  }, [listingData, resolvedParams.id]);
 
-  const partsData = getPartsData(resolvedParams.id);
-
-  // 개체별 정보 생성
-  const getAuctionInfo = (auctionId: string) => {
-    const id = parseInt(auctionId);
+  // DB 기반 경매 정보
+  const currentAuctionInfo = useMemo(() => {
+    if (listingData) {
+      return {
+        auctionNumber: listingData.listingNo,
+        breed: listingData.gender === '암' ? '한우암' : '한우거세',
+        grade: listingData.grade || '1++',
+        months: String(listingData.monthAge || 30),
+      };
+    }
+    
+    // 폴백
+    const id = parseInt(resolvedParams.id.split('-')[1] || '1');
     const breeds = ['한우거세', '한우암', '한우거세', '한우거세', '한우암'];
-    const qualityGrades = ['1++', '1++', '1+', '1++', '1+']; // 육질 등급
-    const yieldGrades = ['A', 'B', 'A', 'A', 'C']; // 육량 지수
-    const marbling = ['9', '8', '7', '9', '8']; // 근내지방도
+    const qualityGrades = ['1++', '1++', '1+', '1++', '1+'];
+    const yieldGrades = ['A', 'B', 'A', 'A', 'C'];
+    const marbling = ['9', '8', '7', '9', '8'];
     const months = ['30', '28', '32', '29', '31'];
     
     return {
-      auctionNumber: `${getTodayDateCode()}-${String(id).padStart(3, '0')}`,
+      auctionNumber: resolvedParams.id,
       breed: breeds[(id - 1) % breeds.length],
       grade: `${qualityGrades[(id - 1) % qualityGrades.length]}${yieldGrades[(id - 1) % yieldGrades.length]}(${marbling[(id - 1) % marbling.length]})`,
       months: months[(id - 1) % months.length]
     };
-  };
+  }, [listingData, resolvedParams.id]);
 
-  const currentAuctionInfo = getAuctionInfo(resolvedParams.id);
-
-  // 모든 개체의 입찰내역 생성 함수
-  const generateAllMyBids = () => {
-    const allBids = [];
-    
-    // 5개 개체 모두에 대한 입찰 내역 생성
-    for (let auctionId = 1; auctionId <= 5; auctionId++) {
-      const auctionInfo = getAuctionInfo(auctionId.toString());
-      const parts = getPartsData(auctionId.toString());
-      
-      // 각 개체당 2-3개의 입찰 생성
-      allBids.push({
-        id: auctionId * 1000 + 1,
-        auctionNumber: auctionInfo.auctionNumber,
-        listingNo: parts[0].listingNo,
-        part: parts[0].part,
-        weight: parts[0].weight,
-        price: '83000',
-        topBidPrice: 84000,
-        time: getTodayTimeFormatted(0, 30),
-        status: 'active',
-        breed: auctionInfo.breed,
-        gender: auctionInfo.breed.includes('거세') ? '거세' : '암',
-        grade: auctionInfo.grade,
-        months: auctionInfo.months,
-        totalAmount: Math.round(83000 * parseFloat(parts[0].weight)).toString()
-      });
-      
-      if (auctionId <= 3) {
-        allBids.push({
-          id: auctionId * 1000 + 2,
-          auctionNumber: auctionInfo.auctionNumber,
-          listingNo: parts[4].listingNo,
-          part: parts[4].part,
-          weight: parts[4].weight,
-          price: '111000',
-          topBidPrice: 113000,
-          time: getTodayTimeFormatted(0, 20),
-          status: 'active',
-          breed: auctionInfo.breed,
-          gender: auctionInfo.breed.includes('거세') ? '거세' : '암',
-          grade: auctionInfo.grade,
-          months: auctionInfo.months,
-          totalAmount: Math.round(111000 * parseFloat(parts[4].weight)).toString()
-        });
-      }
-    }
-    
-    return allBids;
-  };
-
-  const [myBids, setMyBids] = useState(() => generateAllMyBids());
+  // 입찰 내역 상태 (DB 연동 후에는 실제 입찰 내역 사용)
+  const [myBids, setMyBids] = useState<any[]>([]);
   
   // 부위별 입찰 정보는 zustand 스토어(globalBids)에서 관리
 
@@ -767,6 +767,39 @@ function AuctionDetailContent({ params }: PageProps) {
   const togglePlayPause = () => {
     setIsPlaying(!isPlaying);
   };
+
+  // 로딩 상태
+  if (listingLoading) {
+    return (
+      <div className="fixed inset-0 bg-white dark:bg-gray-900 flex items-center justify-center z-[9999]">
+        <div className="text-center">
+          <div className="w-8 h-8 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin mx-auto mb-3"></div>
+          <p className="text-gray-500 dark:text-gray-400 text-sm">상장 정보를 불러오는 중...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // 에러 상태 (상장을 찾을 수 없음)
+  if (listingError) {
+    return (
+      <div className="fixed inset-0 bg-white dark:bg-gray-900 flex items-center justify-center z-[9999]">
+        <div className="text-center p-6">
+          <div className="text-5xl mb-4">😢</div>
+          <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2">상장을 찾을 수 없습니다</h2>
+          <p className="text-gray-500 dark:text-gray-400 text-sm mb-4">
+            상장번호: {resolvedParams.id}
+          </p>
+          <button
+            onClick={() => router.push('/')}
+            className="px-4 py-2 bg-gray-800 text-white rounded hover:bg-gray-900 transition-colors text-sm"
+          >
+            메인으로 돌아가기
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 bg-white flex justify-center items-center z-[9999] overflow-hidden">
@@ -994,7 +1027,7 @@ function AuctionDetailContent({ params }: PageProps) {
                             <td className="py-3 px-3 text-center text-gray-900 dark:text-gray-100 font-medium">{currentCattle.gender}</td>
                             <td className="py-3 px-3 text-center text-gray-900 dark:text-gray-100 font-medium">{currentCattle.grade}</td>
                             <td className="py-3 px-3 text-center text-gray-900 dark:text-gray-100 font-medium">{currentCattle.months}</td>
-                            <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium text-[11px]">002-1486-7293-1</td>
+                            <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium text-[11px]">{currentCattle.traceNo || '-'}</td>
                           </tr>
                         </tbody>
                       </table>
@@ -1016,13 +1049,13 @@ function AuctionDetailContent({ params }: PageProps) {
                         </thead>
                         <tbody>
                           <tr>
-                            <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">16</td>
-                            <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">123</td>
-                            <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">9</td>
-                            <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">5</td>
-                            <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">3</td>
-                            <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">1</td>
-                            <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">2</td>
+                            <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">{currentCattle.backFat || '-'}</td>
+                            <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">{currentCattle.eyeMuscle || '-'}</td>
+                            <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">{currentCattle.marblingScore || '-'}</td>
+                            <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">{currentCattle.meatColor || '-'}</td>
+                            <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">{currentCattle.fatColor || '-'}</td>
+                            <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">{currentCattle.texture || '-'}</td>
+                            <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">{currentCattle.maturity || '-'}</td>
                           </tr>
                         </tbody>
                       </table>
@@ -1043,12 +1076,12 @@ function AuctionDetailContent({ params }: PageProps) {
                         </thead>
                         <tbody>
                           <tr>
-                            <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">음성</td>
-                            <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">201</td>
-                            <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">520</td>
+                            <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">{currentCattle.slaughterHouse || '-'}</td>
+                            <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">{currentCattle.slaughterNo || '-'}</td>
+                            <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">{currentCattle.carcassWeight || '-'}</td>
                             <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">{currentCattle.company}</td>
-                            <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">26.01.17</td>
-                            <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">312</td>
+                            <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">{currentCattle.processDate ? currentCattle.processDate.replace(/-/g, '.').slice(2) : '-'}</td>
+                            <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">{currentCattle.processWeight || '-'}</td>
                           </tr>
                         </tbody>
                       </table>

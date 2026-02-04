@@ -4,11 +4,14 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   fetchListings,
   fetchListing,
+  fetchListingByNo,
   createListing,
   updateListing,
   deleteListing,
   approveListing,
   updatePart,
+  fetchLiveListings,
+  LiveListingsFilter,
 } from './api';
 import {
   CattleListing,
@@ -26,6 +29,7 @@ export const listingKeys = {
     [...listingKeys.lists(), filter] as const,
   details: () => [...listingKeys.all, 'detail'] as const,
   detail: (id: string) => [...listingKeys.details(), id] as const,
+  byNo: (listingNo: string) => [...listingKeys.all, 'byNo', listingNo] as const,
 };
 
 // 상장 목록 조회 훅
@@ -140,4 +144,25 @@ export function useApprovedListings(companyId?: string) {
 
 export function useCompanyListings(companyId: string, includeParts = false) {
   return useListings({ companyId, includeParts });
+}
+
+// 상장번호로 상장 조회 훅
+export function useListingByNo(listingNo: string | null) {
+  return useQuery({
+    queryKey: listingKeys.byNo(listingNo || ''),
+    queryFn: () => fetchListingByNo(listingNo!),
+    enabled: !!listingNo,
+  });
+}
+
+// 실시간 상장 현황 조회 훅 (입찰 정보 포함)
+export function useLiveListings(
+  filter?: LiveListingsFilter,
+  options?: { refetchInterval?: number | false }
+) {
+  return useQuery({
+    queryKey: [...listingKeys.all, 'live', filter] as const,
+    queryFn: () => fetchLiveListings(filter),
+    refetchInterval: options?.refetchInterval,
+  });
 }

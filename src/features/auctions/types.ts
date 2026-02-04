@@ -21,7 +21,8 @@ export interface AuctionRow {
 // 입찰 테이블 Row
 export interface BidRow {
   id: string;
-  auction_id: string;
+  auction_id: string | null; // optional
+  listing_id: string | null; // 상장 ID (편의용)
   part_id: string;
   dealer_id: string;
   bid_price: number;
@@ -67,7 +68,8 @@ export interface Auction {
 // 입찰
 export interface Bid {
   id: string;
-  auctionId: string;
+  auctionId: string | null; // optional
+  listingId: string | null; // 상장 ID
   partId: string;
   dealerId: string;
   bidPrice: number;
@@ -113,7 +115,7 @@ export interface UpdateAuctionInput {
 
 // 입찰 생성
 export interface CreateBidInput {
-  auctionId: string;
+  auctionId?: string; // optional - 경매 없이도 승인된 상장에 입찰 가능
   partId: string;
   dealerId: string;
   bidPrice: number;
@@ -162,6 +164,7 @@ export function toFrontendBid(row: BidRow): Bid {
   return {
     id: row.id,
     auctionId: row.auction_id,
+    listingId: row.listing_id,
     partId: row.part_id,
     dealerId: row.dealer_id,
     bidPrice: row.bid_price,

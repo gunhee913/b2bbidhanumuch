@@ -130,3 +130,51 @@ export async function updatePart(
 
   return response.json();
 }
+
+// 상장번호로 상장 조회
+export async function fetchListingByNo(listingNo: string): Promise<CattleListing> {
+  const response = await fetch(`${API_BASE}/by-no/${encodeURIComponent(listingNo)}`);
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || '상장 조회 실패');
+  }
+
+  return response.json();
+}
+
+// 실시간 상장 현황 조회 (입찰 정보 포함)
+export interface LiveListingsFilter {
+  listingDate?: string;
+  companyId?: string;
+}
+
+export interface LiveListingsResponse {
+  listings: any[];
+  stats: {
+    totalListings: number;
+    totalParts: number;
+    partsWithBids: number;
+    partsWithoutBids: number;
+    totalBidAmount: number;
+  };
+}
+
+export async function fetchLiveListings(
+  filter?: LiveListingsFilter
+): Promise<LiveListingsResponse> {
+  const params = new URLSearchParams();
+  
+  if (filter?.listingDate) params.append('listingDate', filter.listingDate);
+  if (filter?.companyId) params.append('companyId', filter.companyId);
+
+  const url = params.toString() ? `${API_BASE}/live?${params}` : `${API_BASE}/live`;
+  const response = await fetch(url);
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || '실시간 상장 조회 실패');
+  }
+
+  return response.json();
+}
