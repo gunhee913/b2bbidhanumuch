@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef, Suspense } from 'react';
+import React, { useState, useEffect, useRef, Suspense, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -28,6 +28,8 @@ import { ko } from 'date-fns/locale';
 import 'react-datepicker/dist/react-datepicker.css';
 import { useBidStore } from '@/stores/bidStore';
 import { GRADES, getCompanyAuctionSummary, calcTotal, getTodayDateCode } from '@/constants/auction';
+import { useListings } from '@/features/listings/hooks';
+import { format } from 'date-fns';
 
 // 한국어 로케일 등록
 registerLocale('ko', ko);
@@ -95,37 +97,40 @@ function MainPageContent() {
   const [favPartTouchEnd, setFavPartTouchEnd] = useState<number | null>(null);
   const [favPartCurrentProductId, setFavPartCurrentProductId] = useState<string | null>(null);
 
-  // 개체 데이터 (거세 20두, 암 4두)
-  const cattleData = [
-    // 건화 (101~) - 거세 5, 암 1
-    { id: '260126-101', type: '한우', gender: '거세', grade: '1++A(9)', months: 32, company: '건화' },
-    { id: '260126-102', type: '한우', gender: '거세', grade: '1+A', months: 30, company: '건화' },
-    { id: '260126-103', type: '한우', gender: '거세', grade: '1++B(8)', months: 34, company: '건화' },
-    { id: '260126-104', type: '한우', gender: '거세', grade: '1B', months: 28, company: '건화' },
-    { id: '260126-105', type: '한우', gender: '거세', grade: '1++A(7)', months: 31, company: '건화' },
-    { id: '260126-106', type: '한우', gender: '암', grade: '1+B', months: 29, company: '건화' },
-    // 대진엠이스 (201~) - 거세 5, 암 1
-    { id: '260126-201', type: '한우', gender: '거세', grade: '1++A(9)', months: 33, company: '대진엠이스' },
-    { id: '260126-202', type: '한우', gender: '거세', grade: '1++A(8)', months: 31, company: '대진엠이스' },
-    { id: '260126-203', type: '한우', gender: '거세', grade: '1+B', months: 30, company: '대진엠이스' },
-    { id: '260126-204', type: '한우', gender: '거세', grade: '1A', months: 27, company: '대진엠이스' },
-    { id: '260126-205', type: '한우', gender: '거세', grade: '1++B(7)', months: 32, company: '대진엠이스' },
-    { id: '260126-206', type: '한우', gender: '암', grade: '1+A', months: 29, company: '대진엠이스' },
-    // 안심엘피시 (301~) - 거세 5, 암 1
-    { id: '260126-301', type: '한우', gender: '거세', grade: '1++B(9)', months: 34, company: '안심엘피시' },
-    { id: '260126-302', type: '한우', gender: '거세', grade: '1+A', months: 30, company: '안심엘피시' },
-    { id: '260126-303', type: '한우', gender: '거세', grade: '1++A(8)', months: 33, company: '안심엘피시' },
-    { id: '260126-304', type: '한우', gender: '거세', grade: '1B', months: 28, company: '안심엘피시' },
-    { id: '260126-305', type: '한우', gender: '거세', grade: '1++C(7)', months: 31, company: '안심엘피시' },
-    { id: '260126-306', type: '한우', gender: '암', grade: '1+C', months: 29, company: '안심엘피시' },
-    // 정직한고기 (401~) - 거세 5, 암 1
-    { id: '260126-401', type: '한우', gender: '거세', grade: '1++C(9)', months: 35, company: '정직한고기' },
-    { id: '260126-402', type: '한우', gender: '거세', grade: '1++C(8)', months: 32, company: '정직한고기' },
-    { id: '260126-403', type: '한우', gender: '거세', grade: '1+C', months: 30, company: '정직한고기' },
-    { id: '260126-404', type: '한우', gender: '거세', grade: '1C', months: 26, company: '정직한고기' },
-    { id: '260126-405', type: '한우', gender: '거세', grade: '1++A(7)', months: 33, company: '정직한고기' },
-    { id: '260126-406', type: '한우', gender: '암', grade: '1+A', months: 28, company: '정직한고기' },
-  ];
+  // 선택된 날짜 포맷 (API 호출용)
+  const selectedDateStr = useMemo(() => {
+    return format(selectedDate, 'yyyy-MM-dd');
+  }, [selectedDate]);
+
+  // 승인된 상장 목록 조회 (DB 연동)
+  const { data: listingsData, isLoading: isListingsLoading } = useListings({
+    status: 'approved',
+    listingDateFrom: selectedDateStr,
+    listingDateTo: selectedDateStr,
+    includeParts: true,
+  });
+
+  // API 데이터를 기존 cattleData 형식으로 변환
+  const cattleData = useMemo(() => {
+    if (!listingsData || listingsData.length === 0) return [];
+    
+    return listingsData.map(listing => ({
+      id: listing.listingNo,
+      type: listing.breed,
+      gender: listing.gender,
+      grade: listing.grade,
+      months: listing.monthAge || 0,
+      company: listing.companyName || '',
+      // 추가 정보 (상세 페이지 등에서 사용)
+      listingId: listing.id,
+      traceNo: listing.traceNo,
+      carcassWeight: listing.carcassWeight,
+      backFat: listing.backFat,
+      eyeMuscle: listing.eyeMuscle,
+      marblingScore: listing.marblingScore,
+      parts: listing.parts || [],
+    }));
+  }, [listingsData]);
 
   // 부위별 관심 목록용 데이터 생성
   const partSubParts: Record<string, string[]> = {
@@ -170,68 +175,111 @@ function MainPageContent() {
     '족': [10, 11], '사골': [3, 4], '잡뼈': [21, 23],
   };
 
-  // 모든 부위 상품 데이터 생성
+  // 부위 슬러그 매핑
+  const partSlugMap: Record<string, string> = {
+    '등심(좌)': 'sirloin', '등심(우)': 'sirloin',
+    '안심': 'tenderloin', '채끝': 'striploin',
+    '갈비(좌)': 'ribs', '갈비(우)': 'ribs',
+    '특수부위': 'special', '앞다리': 'foreleg',
+    '우둔': 'rump', '목심': 'chuck',
+    '양지(좌)': 'brisket', '양지(우)': 'brisket',
+    '설도(좌)': 'round', '설도(우)': 'round',
+    '사태': 'shank', '꼬리': 'tail',
+    '족': 'feet', '사골': 'bone', '잡뼈': 'misc',
+  };
+
+  // 모든 부위 상품 데이터 생성 (DB 기반)
   const allPartProducts = React.useMemo(() => {
     const products: any[] = [];
-    const allSubPartsOrder = [
-      '등심(좌)', '등심(우)', '안심', '채끝', '갈비(좌)', '갈비(우)', 
-      '특수부위', '앞다리', '우둔', '목심', '양지(좌)', '양지(우)', 
-      '설도(좌)', '설도(우)', '사태', '꼬리', '족', '사골', '잡뼈'
-    ];
     
-    // 각 개체에 대해 모든 부위 생성
-    cattleData.forEach((entity) => {
+    // 각 개체에 대해 DB에서 가져온 부위 데이터 사용
+    cattleData.forEach((entity: any) => {
       const entityNo = parseInt(entity.id.split('-')[1]);
+      const entityParts = entity.parts || [];
       
-      Object.entries(partSubParts).forEach(([partId, subParts]) => {
-        subParts.forEach((subPart) => {
-          const [minW, maxW] = partWeightRanges[subPart] || [10, 15];
-          const variation = (entityNo * 0.17) % 1;
-          const weight = (minW + (maxW - minW) * variation).toFixed(1);
+      // DB에서 가져온 부위 정보 사용
+      if (entityParts.length > 0) {
+        entityParts.forEach((part: any) => {
+          if (!part.isIncluded) return; // 포함되지 않은 부위는 제외
           
-          const partIndex = allSubPartsOrder.indexOf(subPart);
-          const listingNumber = partIndex + 1;
-          
-          const basePrice = partMinPrices[subPart] || 50000;
-          let gradeMultiplier = 1.0;
-          
-          if (entity.grade.includes('1++')) {
-            const marblingMatch = entity.grade.match(/\((\d+)\)/);
-            const marblingNo = marblingMatch ? parseInt(marblingMatch[1]) : 8;
-            if (marblingNo === 9) gradeMultiplier = 1.20;
-            else if (marblingNo === 8) gradeMultiplier = 1.15;
-            else gradeMultiplier = 1.10;
-          } else if (entity.grade.includes('1+')) {
-            gradeMultiplier = 1.05;
-          } else if (entity.grade.startsWith('1')) {
-            gradeMultiplier = 1.00;
-          } else if (entity.grade.startsWith('2')) {
-            gradeMultiplier = 0.90;
-          } else {
-            gradeMultiplier = 0.80;
-          }
-          
-          const adjustedPrice = Math.round((basePrice * gradeMultiplier) / 1000) * 1000;
-          const listingNo = `${getTodayDateCode()}-${String(entityNo).padStart(3, '0')}-${String(listingNumber).padStart(2, '0')}`;
+          const partId = partSlugMap[part.partName] || 'misc';
+          const listingNo = part.listingPartNo || `${entity.id}-${String(part.partNo).padStart(2, '0')}`;
           
           products.push({
-            id: `${partId}-${entityNo}-${subPart}`,
+            id: `${partId}-${entityNo}-${part.partName}`,
             partId,
-            partName: subPart,
+            partName: part.partName,
             image: `/등심${((entityNo % 4) + 1)}.png`,
             type: entity.gender === '거세' ? '한우거세' : '한우암',
             grade: entity.grade,
-            weight: `${weight}kg`,
-            price: adjustedPrice,
-            auctionNo: `${getTodayDateCode()}-${String(entityNo).padStart(3, '0')}`,
+            weight: `${part.weight || 0}kg`,
+            price: part.minPrice || 0,
+            auctionNo: entity.id,
             listingNo,
-            historyNo: `002-1486-7293-${entityNo % 10 || 1}`,
+            historyNo: entity.traceNo || '',
             company: entity.company,
             months: entity.months,
             entityId: entityNo,
+            partId_db: part.id, // DB 파트 ID (입찰 시 사용)
           });
         });
-      });
+      } else {
+        // DB에 부위 정보가 없으면 기존 하드코딩 로직 사용 (폴백)
+        Object.entries(partSubParts).forEach(([partId, subParts]) => {
+          subParts.forEach((subPart) => {
+            const [minW, maxW] = partWeightRanges[subPart] || [10, 15];
+            const variation = (entityNo * 0.17) % 1;
+            const weight = (minW + (maxW - minW) * variation).toFixed(1);
+            
+            const allSubPartsOrder = [
+              '등심(좌)', '등심(우)', '안심', '채끝', '갈비(좌)', '갈비(우)', 
+              '특수부위', '앞다리', '우둔', '목심', '양지(좌)', '양지(우)', 
+              '설도(좌)', '설도(우)', '사태', '꼬리', '족', '사골', '잡뼈'
+            ];
+            const partIndex = allSubPartsOrder.indexOf(subPart);
+            const listingNumber = partIndex + 1;
+            
+            const basePrice = partMinPrices[subPart] || 50000;
+            let gradeMultiplier = 1.0;
+            
+            if (entity.grade.includes('1++')) {
+              const marblingMatch = entity.grade.match(/\((\d+)\)/);
+              const marblingNo = marblingMatch ? parseInt(marblingMatch[1]) : 8;
+              if (marblingNo === 9) gradeMultiplier = 1.20;
+              else if (marblingNo === 8) gradeMultiplier = 1.15;
+              else gradeMultiplier = 1.10;
+            } else if (entity.grade.includes('1+')) {
+              gradeMultiplier = 1.05;
+            } else if (entity.grade.startsWith('1')) {
+              gradeMultiplier = 1.00;
+            } else if (entity.grade.startsWith('2')) {
+              gradeMultiplier = 0.90;
+            } else {
+              gradeMultiplier = 0.80;
+            }
+            
+            const adjustedPrice = Math.round((basePrice * gradeMultiplier) / 1000) * 1000;
+            const listingNo = `${entity.id}-${String(listingNumber).padStart(2, '0')}`;
+            
+            products.push({
+              id: `${partId}-${entityNo}-${subPart}`,
+              partId,
+              partName: subPart,
+              image: `/등심${((entityNo % 4) + 1)}.png`,
+              type: entity.gender === '거세' ? '한우거세' : '한우암',
+              grade: entity.grade,
+              weight: `${weight}kg`,
+              price: adjustedPrice,
+              auctionNo: entity.id,
+              listingNo,
+              historyNo: entity.traceNo || '',
+              company: entity.company,
+              months: entity.months,
+              entityId: entityNo,
+            });
+          });
+        });
+      }
     });
     
     return products;
