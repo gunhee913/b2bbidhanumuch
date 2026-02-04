@@ -3,11 +3,21 @@
 -- auction_id 의존성 제거, listing_id 추가
 -- =============================================
 
--- 1. auction_id를 optional로 변경
-ALTER TABLE bids ALTER COLUMN auction_id DROP NOT NULL;
+-- 1. auction_id를 optional로 변경 (이미 변경된 경우 무시)
+DO $$
+BEGIN
+    ALTER TABLE bids ALTER COLUMN auction_id DROP NOT NULL;
+EXCEPTION WHEN others THEN
+    NULL; -- 이미 nullable이면 무시
+END $$;
 
--- 2. listing_id 컬럼 추가 (부위에서 상장 조회 가능하지만 편의상)
-ALTER TABLE bids ADD COLUMN listing_id UUID REFERENCES cattle_listings(id) ON DELETE CASCADE;
+-- 2. listing_id 컬럼 추가 (이미 있으면 무시)
+DO $$
+BEGIN
+    ALTER TABLE bids ADD COLUMN listing_id UUID REFERENCES cattle_listings(id) ON DELETE CASCADE;
+EXCEPTION WHEN duplicate_column THEN
+    NULL; -- 이미 존재하면 무시
+END $$;
 
 -- 3. 기존 데이터의 listing_id 채우기 (part_id로부터)
 UPDATE bids b
@@ -24,7 +34,7 @@ CREATE INDEX IF NOT EXISTS idx_bids_listing ON bids(listing_id);
 ALTER TABLE bids DROP CONSTRAINT IF EXISTS unique_bid_per_part;
 ALTER TABLE bids ADD CONSTRAINT unique_bid_per_part UNIQUE (part_id, dealer_id);
 
--- 6. close_auction 함수 수정 (auction_id 없는 입찰도 처리)
+-- 6. close_listing 함수 생성 (상장별 마감 처리)
 CREATE OR REPLACE FUNCTION close_listing(p_listing_id UUID)
 RETURNS void AS $$
 DECLARE

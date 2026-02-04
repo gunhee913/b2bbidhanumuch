@@ -768,7 +768,7 @@ function AuctionDetailContent({ params }: PageProps) {
     setIsPlaying(!isPlaying);
   };
 
-  // 로딩 상태
+  // 로딩 상태 (에러 시에도 폴백 데이터로 표시하므로 에러 화면 제거)
   if (listingLoading) {
     return (
       <div className="fixed inset-0 bg-white dark:bg-gray-900 flex items-center justify-center z-[9999]">
@@ -780,26 +780,7 @@ function AuctionDetailContent({ params }: PageProps) {
     );
   }
 
-  // 에러 상태 (상장을 찾을 수 없음)
-  if (listingError) {
-    return (
-      <div className="fixed inset-0 bg-white dark:bg-gray-900 flex items-center justify-center z-[9999]">
-        <div className="text-center p-6">
-          <div className="text-5xl mb-4">😢</div>
-          <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2">상장을 찾을 수 없습니다</h2>
-          <p className="text-gray-500 dark:text-gray-400 text-sm mb-4">
-            상장번호: {resolvedParams.id}
-          </p>
-          <button
-            onClick={() => router.push('/')}
-            className="px-4 py-2 bg-gray-800 text-white rounded hover:bg-gray-900 transition-colors text-sm"
-          >
-            메인으로 돌아가기
-          </button>
-        </div>
-      </div>
-    );
-  }
+  // DB 조회 실패 시 폴백 데이터 사용 (에러 화면 대신 기본 데이터로 표시)
 
   return (
     <div className="fixed inset-0 bg-white flex justify-center items-center z-[9999] overflow-hidden">
