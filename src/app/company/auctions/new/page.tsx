@@ -147,6 +147,32 @@ export default function CompanyNewAuctionPage() {
   // 공통 정보
   const [listingDate, setListingDate] = useState(tomorrowDateString);
   
+  // 마감 여부 상태
+  const [isDateClosed, setIsDateClosed] = useState(false);
+  
+  // 날짜 변경 시 마감 여부 확인
+  useEffect(() => {
+    const checkClosed = async () => {
+      if (!listingDate) {
+        setIsDateClosed(false);
+        return;
+      }
+      
+      try {
+        const response = await fetch(`/api/auctions/check-closed?date=${listingDate}`);
+        if (response.ok) {
+          const data = await response.json();
+          setIsDateClosed(data.isClosed);
+        }
+      } catch (error) {
+        console.error('마감 여부 확인 실패:', error);
+        setIsDateClosed(false);
+      }
+    };
+    
+    checkClosed();
+  }, [listingDate]);
+  
   // 다음 순번 (DB에서 조회)
   const [startSeq, setStartSeq] = useState<number>(1);
   
@@ -678,8 +704,11 @@ export default function CompanyNewAuctionPage() {
                   value={listingDate}
                   onChange={(e) => setListingDate(e.target.value)}
                   required
-                  className="px-3 py-1.5 border border-gray-200 text-xs outline-none bg-white"
+                  className={`px-3 py-1.5 border text-xs outline-none bg-white ${isDateClosed ? 'border-red-500 text-red-500' : 'border-gray-200'}`}
                 />
+                {isDateClosed && (
+                  <span className="text-xs text-red-500 font-medium">마감된 날짜입니다</span>
+                )}
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-sm font-medium text-gray-600">상장업체</span>
@@ -716,13 +745,19 @@ export default function CompanyNewAuctionPage() {
               />
               <button 
                 type="submit" 
-                disabled={isSubmitting} 
-                className="flex items-center gap-1.5 px-4 py-1.5 bg-gray-700 text-white text-xs hover:bg-gray-800 disabled:opacity-50"
+                disabled={isSubmitting || isDateClosed} 
+                className={`flex items-center gap-1.5 px-4 py-1.5 text-white text-xs disabled:opacity-50 ${isDateClosed ? 'bg-gray-400 cursor-not-allowed' : 'bg-gray-700 hover:bg-gray-800'}`}
+                title={isDateClosed ? '마감된 날짜에는 등록할 수 없습니다' : ''}
               >
                 {isSubmitting ? (
                   <>
                     <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
                     등록 중...
+                  </>
+                ) : isDateClosed ? (
+                  <>
+                    <X className="w-3.5 h-3.5" />
+                    마감됨 (등록 불가)
                   </>
                 ) : (
                   <>

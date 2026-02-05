@@ -62,11 +62,12 @@ const createDefaultParts = (): PartData[] => [
 ];
 
 // 상태 타입 및 옵션
-type AuctionStatus = '대기' | '승인';
+type AuctionStatus = '대기' | '승인' | '마감';
 
 const STATUS_OPTIONS: { value: AuctionStatus; label: string }[] = [
   { value: '대기', label: '대기' },
   { value: '승인', label: '승인' },
+  { value: '마감', label: '마감' },
 ];
 
 // 증명서 데이터 타입
@@ -175,7 +176,7 @@ const convertToAuction = (listing: CattleListing): Auction => {
     company: listing.companyName || '',
     processDate: formatDate(listing.processDate),
     processWeight: listing.processWeight || 0,
-    status: listing.status === 'approved' ? '승인' : '대기',
+    status: listing.status === 'approved' ? '승인' : listing.status === 'closed' ? '마감' : '대기',
     parts,
     images: listing.images || [],
     slaughterCert: listing.slaughterCert,
@@ -715,18 +716,24 @@ export default function AuctionsListPage() {
                       </button>
                     </td>
                     <td className="px-2 py-3 text-center whitespace-nowrap border border-gray-200">
-                      <select
-                        value={auction.status}
-                        onClick={(e) => e.stopPropagation()}
-                        onChange={(e) => handleStatusChange(auction.id, e.target.value as AuctionStatus)}
-                        className="px-1 py-0.5 text-xs font-medium border border-gray-200 cursor-pointer outline-none bg-white text-gray-700"
-                      >
-                        {STATUS_OPTIONS.map(option => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
+                      {auction.status === '마감' ? (
+                        <span className="px-2 py-0.5 text-xs font-medium text-gray-500 bg-gray-100 rounded">
+                          마감
+                        </span>
+                      ) : (
+                        <select
+                          value={auction.status}
+                          onClick={(e) => e.stopPropagation()}
+                          onChange={(e) => handleStatusChange(auction.id, e.target.value as AuctionStatus)}
+                          className="px-1 py-0.5 text-xs font-medium border border-gray-200 cursor-pointer outline-none bg-white text-gray-700"
+                        >
+                          {STATUS_OPTIONS.filter(o => o.value !== '마감').map(option => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      )}
                     </td>
                   </tr>
                   {/* 확장된 부위 테이블 */}

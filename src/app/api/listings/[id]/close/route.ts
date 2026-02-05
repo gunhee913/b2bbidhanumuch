@@ -17,7 +17,7 @@ export async function POST(
     // 1. 상장 정보 조회
     const { data: listing, error: listingError } = await supabase
       .from('cattle_listings')
-      .select('id, status, listing_no')
+      .select('id, status, listing_no, listing_date')
       .eq('id', listingId)
       .single();
 
@@ -121,6 +121,16 @@ export async function POST(
     if (updateError) {
       console.error('상장 상태 변경 오류:', updateError);
       return NextResponse.json({ error: updateError.message }, { status: 500 });
+    }
+
+    // 6. 해당 날짜를 마감 날짜 테이블에 추가 (중복 무시)
+    if (listing.listing_date) {
+      await supabase
+        .from('auction_close_dates')
+        .upsert(
+          { close_date: listing.listing_date },
+          { onConflict: 'close_date', ignoreDuplicates: true }
+        );
     }
 
     return NextResponse.json({

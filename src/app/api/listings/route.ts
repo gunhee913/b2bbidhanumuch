@@ -141,6 +141,20 @@ export async function POST(request: NextRequest) {
     const body: CreateListingInput = await request.json();
     const { parts, ...listingData } = body;
 
+    // 해당 날짜가 마감되었는지 확인
+    const { data: closedDate } = await supabase
+      .from('auction_close_dates')
+      .select('id')
+      .eq('close_date', listingData.listingDate)
+      .single();
+
+    if (closedDate) {
+      return NextResponse.json(
+        { error: `${listingData.listingDate}은(는) 이미 마감된 날짜입니다. 새 상장을 등록할 수 없습니다.` },
+        { status: 400 }
+      );
+    }
+
     // 접수번호 생성 (YYMMDD-XXX)
     const dateCode = listingData.listingDate.replace(/-/g, '').slice(2);
     

@@ -130,7 +130,6 @@ export default function AuctionBidsPage() {
   const handleExcelDownload = () => {
     const excelData = filteredRecords.map((record) => ({
       '상태': record.isFailed ? '유찰' : '낙찰',
-      '마감일자': formatDate(record.closedAt),
       '상장일자': formatDate(record.listingDate),
       '상장번호': record.listingPartNo,
       '부위': record.partName,
@@ -138,14 +137,15 @@ export default function AuctionBidsPage() {
       '중량(kg)': record.weight,
       '낙찰단가': record.bidPrice || '-',
       '낙찰금액': record.bidAmount || '-',
-      '수수료': record.commission || '-',
+      '상장수수료': record.commission || '-',
       '축종': record.breed,
       '성별': record.gender,
       '중도매인번호': record.dealerNo || '-',
       '중도매인명': record.dealerName || '-',
-      '상장업체번호': record.companyNo,
       '상장업체명': record.companyName,
       '이력번호': record.traceNo || '-',
+      '거래처번호': '-',
+      '거래처명': '-',
     }));
 
     const worksheet = XLSX.utils.json_to_sheet(excelData);
@@ -286,7 +286,7 @@ export default function AuctionBidsPage() {
           <div className="text-xl font-bold text-gray-400">{failedCount}건</div>
         </div>
         <div className="bg-white border border-gray-200 p-4">
-          <div className="text-xs text-gray-500">총 중량</div>
+          <div className="text-xs text-gray-500">총 낙찰중량</div>
           <div className="text-xl font-bold text-gray-900">{totalWeight.toFixed(1)}kg</div>
         </div>
         <div className="bg-white border border-gray-200 p-4">
@@ -294,7 +294,7 @@ export default function AuctionBidsPage() {
           <div className="text-xl font-bold text-gray-900">{totalAmount.toLocaleString()}원</div>
         </div>
         <div className="bg-white border border-gray-200 p-4">
-          <div className="text-xs text-gray-500">총 수수료</div>
+          <div className="text-xs text-gray-500">총 상장수수료</div>
           <div className="text-xl font-bold text-gray-900">{totalCommission.toLocaleString()}원</div>
         </div>
       </div>
@@ -305,7 +305,7 @@ export default function AuctionBidsPage() {
           <table className="w-full border-collapse">
             <thead>
               <tr>
-                <th className={thClass}>마감일자</th>
+                <th className={thClass}>상태</th>
                 <th className={thClass}>상장일자</th>
                 <th className={thClass}>상장번호</th>
                 <th className={thClass}>부위</th>
@@ -313,26 +313,27 @@ export default function AuctionBidsPage() {
                 <th className={thClass}>중량</th>
                 <th className={thClass}>낙찰단가</th>
                 <th className={thClass}>낙찰금액</th>
-                <th className={thClass}>수수료</th>
+                <th className={thClass}>상장수수료</th>
                 <th className={thClass}>축종</th>
                 <th className={thClass}>성별</th>
                 <th className={thClass}>중도매인번호</th>
                 <th className={thClass}>중도매인명</th>
-                <th className={thClass}>상장업체번호</th>
                 <th className={thClass}>상장업체명</th>
                 <th className={thClass}>이력번호</th>
+                <th className={thClass}>거래처번호</th>
+                <th className={thClass}>거래처명</th>
               </tr>
             </thead>
             <tbody>
               {isLoading ? (
                 <tr>
-                  <td colSpan={16} className="px-4 py-8 text-center text-gray-500 border border-gray-200">
+                  <td colSpan={17} className="px-4 py-8 text-center text-gray-500 border border-gray-200">
                     데이터를 불러오는 중...
                   </td>
                 </tr>
               ) : filteredRecords.length === 0 ? (
                 <tr>
-                  <td colSpan={16} className="px-4 py-8 text-center text-gray-500 border border-gray-200">
+                  <td colSpan={17} className="px-4 py-8 text-center text-gray-500 border border-gray-200">
                     마감된 경락 내역이 없습니다.
                   </td>
                 </tr>
@@ -341,9 +342,9 @@ export default function AuctionBidsPage() {
                   <tr key={record.id} className="hover:bg-gray-50">
                     <td className={tdClass}>
                       {record.isFailed ? (
-                        <span className="text-red-500 font-medium">유찰</span>
+                        <span className="text-gray-400 font-medium">유찰</span>
                       ) : (
-                        formatDate(record.closedAt)
+                        <span className="text-green-600 font-medium">낙찰</span>
                       )}
                     </td>
                     <td className={tdClass}>{formatDate(record.listingDate)}</td>
@@ -360,9 +361,10 @@ export default function AuctionBidsPage() {
                     <td className={tdClass}>{record.gender}</td>
                     <td className={tdClass}>{record.dealerNo || '-'}</td>
                     <td className={tdClass}>{record.dealerName || '-'}</td>
-                    <td className={tdClass}>{record.companyNo || '-'}</td>
                     <td className={tdClass}>{record.companyName}</td>
                     <td className={tdClass}>{record.traceNo || '-'}</td>
+                    <td className={tdClass}>-</td>
+                    <td className={tdClass}>-</td>
                   </tr>
                 ))
               )}
