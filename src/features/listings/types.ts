@@ -61,7 +61,7 @@ export interface CertificateData {
 }
 
 // 상장 상태
-export type ListingStatus = 'pending' | 'approved' | 'auction' | 'completed' | 'cancelled';
+export type ListingStatus = 'pending' | 'approved' | 'auction' | 'completed' | 'cancelled' | 'closed';
 
 // 프론트엔드용 타입 - 개체 상장
 export interface CattleListing {
@@ -285,4 +285,5 @@ export const STATUS_LABELS: Record<ListingStatus, string> = {
   auction: '경매중',
   completed: '완료',
   cancelled: '취소',
+  closed: '마감',
 };
