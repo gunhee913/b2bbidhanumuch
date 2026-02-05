@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { 
   Search, 
@@ -8,24 +8,27 @@ import {
   Edit, 
   Download,
   Trash2,
+  Loader2,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { format } from 'date-fns';
 
 // 거래처 마스터 타입
 interface Partner {
   id: string;
   partnerNo: string;
   name: string;
-  businessNo: string;
-  representative: string;
-  phone: string;
-  address: string;
-  businessType: string;
+  businessNo: string | null;
+  representative: string | null;
+  phone: string | null;
+  address: string | null;
+  businessType: string | null;
   status: 'active' | 'inactive';
   createdAt: string;
-  dealer1: string; // 중도매인1 ID
-  dealer2: string; // 중도매인2 ID
-  dealer3: string; // 중도매인3 ID
+  dealer1: Dealer | null;
+  dealer2: Dealer | null;
+  dealer3: Dealer | null;
 }
 
 // 중도매인 타입
@@ -35,34 +38,19 @@ interface Dealer {
   name: string;
 }
 
-// 중도매인 데이터
-const initialDealers: Dealer[] = [
-  { id: 'd1', dealerNo: '7000001', name: '김철수' },
-  { id: 'd2', dealerNo: '7000002', name: '이영희' },
-  { id: 'd3', dealerNo: '7000003', name: '박민수' },
-  { id: 'd4', dealerNo: '7000004', name: '최지현' },
-  { id: 'd5', dealerNo: '7000005', name: '정수민' },
-];
+interface PartnersResponse {
+  partners: Partner[];
+}
 
-// 거래처 마스터 데이터
-const initialPartners: Partner[] = [
-  { id: 'p1', partnerNo: '10001', name: '맛있는정육점', businessNo: '123-45-67890', representative: '홍길동', phone: '02-1234-5678', address: '서울시 강남구 역삼동 123-45', businessType: '일반정육점', status: 'active', createdAt: '2024-03-15', dealer1: 'd1', dealer2: '', dealer3: '' },
-  { id: 'p2', partnerNo: '10002', name: '소고기천국', businessNo: '234-56-78901', representative: '이순신', phone: '02-2345-6789', address: '서울시 서초구 방배동 456-78', businessType: '음식점', status: 'active', createdAt: '2024-05-20', dealer1: 'd1', dealer2: 'd2', dealer3: '' },
-  { id: 'p3', partnerNo: '10003', name: '신선마트', businessNo: '345-67-89012', representative: '강감찬', phone: '02-3456-7890', address: '서울시 송파구 잠실동 789-12', businessType: '마트', status: 'inactive', createdAt: '2024-06-10', dealer1: 'd1', dealer2: '', dealer3: '' },
-  { id: 'p4', partnerNo: '10004', name: '한우명가', businessNo: '456-78-90123', representative: '김유신', phone: '031-1234-5678', address: '경기도 성남시 분당구 정자동 234-56', businessType: '음식점', status: 'active', createdAt: '2024-04-01', dealer1: 'd2', dealer2: 'd5', dealer3: '' },
-  { id: 'p5', partnerNo: '10005', name: '프리미엄정육', businessNo: '567-89-01234', representative: '을지문덕', phone: '031-2345-6789', address: '경기도 용인시 수지구 동천동 567-89', businessType: '일반정육점', status: 'active', createdAt: '2024-07-15', dealer1: 'd2', dealer2: '', dealer3: '' },
-  { id: 'p6', partnerNo: '10006', name: '고기굽는마을', businessNo: '678-90-12345', representative: '권율', phone: '043-1234-5678', address: '충북 음성군 음성읍 읍내리 123', businessType: '음식점', status: 'active', createdAt: '2024-08-20', dealer1: 'd3', dealer2: '', dealer3: '' },
-  { id: 'p7', partnerNo: '10007', name: '육미정', businessNo: '789-01-23456', representative: '장보고', phone: '02-4567-8901', address: '서울시 마포구 상암동 890-12', businessType: '음식점', status: 'active', createdAt: '2024-09-01', dealer1: 'd5', dealer2: '', dealer3: '' },
-  { id: 'p8', partnerNo: '10008', name: '한우촌', businessNo: '890-12-34567', representative: '최영', phone: '02-5678-9012', address: '서울시 영등포구 여의도동 345-67', businessType: '음식점', status: 'active', createdAt: '2024-09-15', dealer1: 'd5', dealer2: '', dealer3: '' },
-  { id: 'p9', partnerNo: '10009', name: '신선정육', businessNo: '901-23-45678', representative: '이성계', phone: '02-6789-0123', address: '서울시 종로구 종로동 678-90', businessType: '일반정육점', status: 'inactive', createdAt: '2024-10-01', dealer1: 'd5', dealer2: '', dealer3: '' },
-];
+interface DealersResponse {
+  dealers: Dealer[];
+}
 
 // 거래처구분 목록
 const BUSINESS_TYPES = ['전체', '음식점', '일반정육점', '마트', '육가공장', '기타'];
 
 export default function PartnersPage() {
-  const [partners, setPartners] = useState<Partner[]>(initialPartners);
-  const [dealers] = useState<Dealer[]>(initialDealers);
+  const queryClient = useQueryClient();
   
   const [searchTerm, setSearchTerm] = useState('');
   const [businessTypeFilter, setBusinessTypeFilter] = useState('전체');
@@ -81,10 +69,122 @@ export default function PartnersPage() {
     address: '',
     businessType: '음식점',
     status: 'active' as 'active' | 'inactive',
-    dealer1: '',
-    dealer2: '',
-    dealer3: '',
+    dealer1Id: '',
+    dealer2Id: '',
+    dealer3Id: '',
   });
+
+  // 거래처 목록 조회
+  const { data: partnersData, isLoading: isLoadingPartners } = useQuery<PartnersResponse>({
+    queryKey: ['partners', searchTerm, businessTypeFilter, statusFilter],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (searchTerm) params.set('search', searchTerm);
+      if (businessTypeFilter !== '전체') params.set('businessType', businessTypeFilter);
+      if (statusFilter !== 'all') params.set('status', statusFilter);
+      
+      const response = await fetch(`/api/partners?${params.toString()}`);
+      if (!response.ok) throw new Error('거래처 조회 실패');
+      return response.json();
+    },
+  });
+
+  // 중도매인 목록 조회
+  const { data: dealersData } = useQuery<DealersResponse>({
+    queryKey: ['dealers'],
+    queryFn: async () => {
+      const response = await fetch('/api/dealers');
+      if (!response.ok) throw new Error('중도매인 조회 실패');
+      return response.json();
+    },
+  });
+
+  const partners = partnersData?.partners || [];
+  const dealers = dealersData?.dealers || [];
+
+  // 거래처 등록 mutation
+  const createMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const response = await fetch('/api/partners', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || '등록 실패');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['partners'] });
+      setIsAdding(false);
+      resetFormData();
+    },
+    onError: (error: Error) => {
+      alert(error.message);
+    },
+  });
+
+  // 거래처 수정 mutation
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+      const response = await fetch(`/api/partners/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || '수정 실패');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['partners'] });
+      setEditingId(null);
+      resetFormData();
+    },
+    onError: (error: Error) => {
+      alert(error.message);
+    },
+  });
+
+  // 거래처 삭제 mutation
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await fetch(`/api/partners/${id}`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || '삭제 실패');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['partners'] });
+    },
+    onError: (error: Error) => {
+      alert(error.message);
+    },
+  });
+
+  // 폼 초기화
+  const resetFormData = () => {
+    setFormData({
+      name: '',
+      businessNo: '',
+      representative: '',
+      phone: '',
+      address: '',
+      businessType: '음식점',
+      status: 'active',
+      dealer1Id: '',
+      dealer2Id: '',
+      dealer3Id: '',
+    });
+  };
 
   // 연락처 포맷팅
   const formatPhoneNumber = (value: string) => {
@@ -120,85 +220,47 @@ export default function PartnersPage() {
     return `${numbers.slice(0, 3)}-${numbers.slice(3, 5)}-${numbers.slice(5, 10)}`;
   };
 
-  // 중도매인 이름 가져오기
-  const getDealerName = (dealerId: string) => {
-    if (!dealerId) return '-';
-    const dealer = dealers.find(d => d.id === dealerId);
-    return dealer ? dealer.name : '-';
+  // 날짜 포맷팅
+  const formatDate = (dateStr: string | null) => {
+    if (!dateStr) return '-';
+    try {
+      return format(new Date(dateStr), 'yyyy-MM-dd');
+    } catch {
+      return '-';
+    }
   };
-
-  // 필터링된 데이터
-  const filteredPartners = partners.filter(partner => {
-    const matchSearch = searchTerm === '' || 
-      partner.name.includes(searchTerm) || 
-      partner.representative.includes(searchTerm) ||
-      partner.partnerNo.includes(searchTerm);
-    const matchType = businessTypeFilter === '전체' || partner.businessType === businessTypeFilter;
-    const matchStatus = statusFilter === 'all' || partner.status === statusFilter;
-    return matchSearch && matchType && matchStatus;
-  });
 
   // 등록 시작
   const handleAddStart = () => {
     setIsAdding(true);
     setEditingId(null);
-    setFormData({
-      name: '',
-      businessNo: '',
-      representative: '',
-      phone: '',
-      address: '',
-      businessType: '음식점',
-      status: 'active',
-      dealer1: '',
-      dealer2: '',
-      dealer3: '',
-    });
+    resetFormData();
   };
 
   // 등록 취소
   const handleAddCancel = () => {
     setIsAdding(false);
-    setFormData({
-      name: '',
-      businessNo: '',
-      representative: '',
-      phone: '',
-      address: '',
-      businessType: '음식점',
-      status: 'active',
-      dealer1: '',
-      dealer2: '',
-      dealer3: '',
-    });
+    resetFormData();
   };
 
   // 등록 저장
   const handleAddSave = () => {
-    if (!formData.name || !formData.businessNo || !formData.representative || !formData.phone) {
-      alert('필수 항목을 입력해주세요.');
+    if (!formData.name) {
+      alert('거래처명은 필수입니다.');
       return;
     }
 
-    const newPartner: Partner = {
-      id: `p${Date.now()}`,
-      partnerNo: String(10001 + partners.length),
-      ...formData,
-      createdAt: new Date().toISOString().split('T')[0],
-    };
-    setPartners(prev => [...prev, newPartner]);
-    setIsAdding(false);
-    setFormData({
-      name: '',
-      businessNo: '',
-      representative: '',
-      phone: '',
-      address: '',
-      businessType: '음식점',
-      status: 'active',
-      dealer1: '',
-      dealer2: '',
-      dealer3: '',
+    createMutation.mutate({
+      name: formData.name,
+      businessNo: formData.businessNo || null,
+      representative: formData.representative || null,
+      phone: formData.phone || null,
+      address: formData.address || null,
+      businessType: formData.businessType || null,
+      status: formData.status,
+      dealer1Id: formData.dealer1Id || null,
+      dealer2Id: formData.dealer2Id || null,
+      dealer3Id: formData.dealer3Id || null,
     });
   };
 
@@ -208,57 +270,76 @@ export default function PartnersPage() {
     setIsAdding(false);
     setFormData({
       name: partner.name,
-      businessNo: partner.businessNo,
-      representative: partner.representative,
-      phone: partner.phone,
-      address: partner.address,
-      businessType: partner.businessType,
+      businessNo: partner.businessNo || '',
+      representative: partner.representative || '',
+      phone: partner.phone || '',
+      address: partner.address || '',
+      businessType: partner.businessType || '음식점',
       status: partner.status,
-      dealer1: partner.dealer1,
-      dealer2: partner.dealer2,
-      dealer3: partner.dealer3,
+      dealer1Id: partner.dealer1?.id || '',
+      dealer2Id: partner.dealer2?.id || '',
+      dealer3Id: partner.dealer3?.id || '',
     });
   };
 
   // 수정 취소
   const handleEditCancel = () => {
     setEditingId(null);
+    resetFormData();
   };
 
   // 수정 저장
   const handleEditSave = () => {
-    if (!formData.name || !formData.businessNo || !formData.representative || !formData.phone) {
-      alert('필수 항목을 입력해주세요.');
+    if (!formData.name) {
+      alert('거래처명은 필수입니다.');
       return;
     }
 
-    setPartners(prev => prev.map(p =>
-      p.id === editingId ? { ...p, ...formData } : p
-    ));
-    setEditingId(null);
+    if (!editingId) return;
+
+    updateMutation.mutate({
+      id: editingId,
+      data: {
+        name: formData.name,
+        businessNo: formData.businessNo || null,
+        representative: formData.representative || null,
+        phone: formData.phone || null,
+        address: formData.address || null,
+        businessType: formData.businessType || null,
+        status: formData.status,
+        dealer1Id: formData.dealer1Id || null,
+        dealer2Id: formData.dealer2Id || null,
+        dealer3Id: formData.dealer3Id || null,
+      },
+    });
   };
 
   // 거래처 삭제
   const handleDelete = (partnerId: string) => {
     if (confirm('정말 삭제하시겠습니까?')) {
-      setPartners(prev => prev.filter(p => p.id !== partnerId));
+      deleteMutation.mutate(partnerId);
     }
   };
 
   // 엑셀 다운로드
   const handleExcelDownload = () => {
-    const excelData = filteredPartners.map(partner => ({
+    if (partners.length === 0) {
+      alert('다운로드할 데이터가 없습니다.');
+      return;
+    }
+
+    const excelData = partners.map(partner => ({
       '거래처번호': partner.partnerNo,
       '거래처명': partner.name,
-      '사업자번호': partner.businessNo,
-      '대표자': partner.representative,
-      '연락처': partner.phone,
-      '주소': partner.address,
-      '거래처구분': partner.businessType,
-      '등록일': partner.createdAt,
-      '중도매인1': getDealerName(partner.dealer1),
-      '중도매인2': getDealerName(partner.dealer2),
-      '중도매인3': getDealerName(partner.dealer3),
+      '사업자번호': partner.businessNo || '-',
+      '대표자': partner.representative || '-',
+      '연락처': partner.phone || '-',
+      '주소': partner.address || '-',
+      '거래처구분': partner.businessType || '-',
+      '등록일': formatDate(partner.createdAt),
+      '중도매인1': partner.dealer1?.name || '-',
+      '중도매인2': partner.dealer2?.name || '-',
+      '중도매인3': partner.dealer3?.name || '-',
       '상태': partner.status === 'active' ? '활성' : '비활성',
     }));
 
@@ -372,15 +453,15 @@ export default function PartnersPage() {
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-2">
             <span className="text-sm text-gray-500">총 거래처</span>
-            <span className="text-sm font-semibold text-gray-900">{filteredPartners.length}개</span>
+            <span className="text-sm font-semibold text-gray-900">{partners.length}개</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-sm text-gray-500">활성</span>
-            <span className="text-sm font-semibold text-gray-900">{filteredPartners.filter(p => p.status === 'active').length}개</span>
+            <span className="text-sm font-semibold text-gray-900">{partners.filter(p => p.status === 'active').length}개</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-sm text-gray-500">비활성</span>
-            <span className="text-sm font-semibold text-gray-500">{filteredPartners.filter(p => p.status === 'inactive').length}개</span>
+            <span className="text-sm font-semibold text-gray-500">{partners.filter(p => p.status === 'inactive').length}개</span>
           </div>
         </div>
       </div>
@@ -472,8 +553,8 @@ export default function PartnersPage() {
                   <td className={`${tdClass} text-gray-400`}>자동</td>
                   <td className={tdClass}>
                     <select
-                      value={formData.dealer1}
-                      onChange={(e) => setFormData({ ...formData, dealer1: e.target.value })}
+                      value={formData.dealer1Id}
+                      onChange={(e) => setFormData({ ...formData, dealer1Id: e.target.value })}
                       className={inputClass}
                     >
                       <option value="">선택</option>
@@ -484,8 +565,8 @@ export default function PartnersPage() {
                   </td>
                   <td className={tdClass}>
                     <select
-                      value={formData.dealer2}
-                      onChange={(e) => setFormData({ ...formData, dealer2: e.target.value })}
+                      value={formData.dealer2Id}
+                      onChange={(e) => setFormData({ ...formData, dealer2Id: e.target.value })}
                       className={inputClass}
                     >
                       <option value="">선택</option>
@@ -496,8 +577,8 @@ export default function PartnersPage() {
                   </td>
                   <td className={tdClass}>
                     <select
-                      value={formData.dealer3}
-                      onChange={(e) => setFormData({ ...formData, dealer3: e.target.value })}
+                      value={formData.dealer3Id}
+                      onChange={(e) => setFormData({ ...formData, dealer3Id: e.target.value })}
                       className={inputClass}
                     >
                       <option value="">선택</option>
@@ -520,13 +601,14 @@ export default function PartnersPage() {
                     <div className="flex items-center justify-center gap-1">
                       <button
                         onClick={handleAddSave}
-                        disabled={!formData.name || !formData.businessNo || !formData.representative || !formData.phone}
+                        disabled={!formData.name || createMutation.isPending}
                         className="px-2 py-1 text-xs bg-gray-700 text-white hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        저장
+                        {createMutation.isPending ? '저장중...' : '저장'}
                       </button>
                       <button
                         onClick={handleAddCancel}
+                        disabled={createMutation.isPending}
                         className="px-2 py-1 text-xs border border-gray-300 text-gray-600 hover:bg-gray-50"
                       >
                         취소
@@ -535,7 +617,16 @@ export default function PartnersPage() {
                   </td>
                 </tr>
               )}
-              {filteredPartners.map((partner) => (
+              {isLoadingPartners ? (
+                <tr>
+                  <td colSpan={13} className="px-4 py-8 text-center text-gray-500">
+                    <div className="flex items-center justify-center gap-2">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      데이터 조회 중...
+                    </div>
+                  </td>
+                </tr>
+              ) : partners.map((partner) => (
                 editingId === partner.id ? (
                   // 수정 행
                   <tr key={partner.id}>
@@ -598,11 +689,11 @@ export default function PartnersPage() {
                         <option value="기타">기타</option>
                       </select>
                     </td>
-                    <td className={tdClass}>{partner.createdAt}</td>
+                    <td className={tdClass}>{formatDate(partner.createdAt)}</td>
                     <td className={tdClass}>
                       <select
-                        value={formData.dealer1}
-                        onChange={(e) => setFormData({ ...formData, dealer1: e.target.value })}
+                        value={formData.dealer1Id}
+                        onChange={(e) => setFormData({ ...formData, dealer1Id: e.target.value })}
                         className={inputClass}
                       >
                         <option value="">선택</option>
@@ -613,8 +704,8 @@ export default function PartnersPage() {
                     </td>
                     <td className={tdClass}>
                       <select
-                        value={formData.dealer2}
-                        onChange={(e) => setFormData({ ...formData, dealer2: e.target.value })}
+                        value={formData.dealer2Id}
+                        onChange={(e) => setFormData({ ...formData, dealer2Id: e.target.value })}
                         className={inputClass}
                       >
                         <option value="">선택</option>
@@ -625,8 +716,8 @@ export default function PartnersPage() {
                     </td>
                     <td className={tdClass}>
                       <select
-                        value={formData.dealer3}
-                        onChange={(e) => setFormData({ ...formData, dealer3: e.target.value })}
+                        value={formData.dealer3Id}
+                        onChange={(e) => setFormData({ ...formData, dealer3Id: e.target.value })}
                         className={inputClass}
                       >
                         <option value="">선택</option>
@@ -649,13 +740,14 @@ export default function PartnersPage() {
                       <div className="flex items-center justify-center gap-1">
                         <button
                           onClick={handleEditSave}
-                          disabled={!formData.name || !formData.businessNo || !formData.representative || !formData.phone}
+                          disabled={!formData.name || updateMutation.isPending}
                           className="px-2 py-1 text-xs bg-gray-700 text-white hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          저장
+                          {updateMutation.isPending ? '저장중...' : '저장'}
                         </button>
                         <button
                           onClick={handleEditCancel}
+                          disabled={updateMutation.isPending}
                           className="px-2 py-1 text-xs border border-gray-300 text-gray-600 hover:bg-gray-50"
                         >
                           취소
@@ -668,23 +760,23 @@ export default function PartnersPage() {
                   <tr key={partner.id} className="hover:bg-gray-50">
                     <td className={tdClass}>{partner.partnerNo}</td>
                     <td className={`${tdClass} font-medium text-gray-900`}>{partner.name}</td>
-                    <td className={tdClass}>{partner.businessNo}</td>
-                    <td className={tdClass}>{partner.representative}</td>
-                    <td className={tdClass}>{partner.phone}</td>
-                    <td className={`${tdClass} text-left truncate`} title={partner.address}>
-                      {partner.address}
+                    <td className={tdClass}>{partner.businessNo || '-'}</td>
+                    <td className={tdClass}>{partner.representative || '-'}</td>
+                    <td className={tdClass}>{partner.phone || '-'}</td>
+                    <td className={`${tdClass} text-left truncate`} title={partner.address || ''}>
+                      {partner.address || '-'}
                     </td>
-                    <td className={tdClass}>{partner.businessType}</td>
-                    <td className={tdClass}>{partner.createdAt}</td>
-                    <td className={tdClass}>{getDealerName(partner.dealer1)}</td>
-                    <td className={tdClass}>{getDealerName(partner.dealer2)}</td>
-                    <td className={tdClass}>{getDealerName(partner.dealer3)}</td>
+                    <td className={tdClass}>{partner.businessType || '-'}</td>
+                    <td className={tdClass}>{formatDate(partner.createdAt)}</td>
+                    <td className={tdClass}>{partner.dealer1?.name || '-'}</td>
+                    <td className={tdClass}>{partner.dealer2?.name || '-'}</td>
+                    <td className={tdClass}>{partner.dealer3?.name || '-'}</td>
                     <td className={tdClass}>{partner.status === 'active' ? '활성' : '비활성'}</td>
                     <td className={tdClass}>
                       <div className="flex items-center justify-center gap-1">
                         <button
                           onClick={() => handleEditStart(partner)}
-                          disabled={isAdding || editingId !== null}
+                          disabled={isAdding || editingId !== null || deleteMutation.isPending}
                           className="p-1 text-gray-500 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
                           title="수정"
                         >
@@ -692,7 +784,7 @@ export default function PartnersPage() {
                         </button>
                         <button
                           onClick={() => handleDelete(partner.id)}
-                          disabled={isAdding || editingId !== null}
+                          disabled={isAdding || editingId !== null || deleteMutation.isPending}
                           className="p-1 text-gray-500 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
                           title="삭제"
                         >
@@ -703,10 +795,10 @@ export default function PartnersPage() {
                   </tr>
                 )
               ))}
-              {filteredPartners.length === 0 && !isAdding && (
+              {!isLoadingPartners && partners.length === 0 && !isAdding && (
                 <tr>
                   <td colSpan={13} className="px-4 py-8 text-center text-gray-500">
-                    검색 결과가 없습니다.
+                    등록된 거래처가 없습니다. 신규 등록 버튼을 눌러 거래처를 추가해주세요.
                   </td>
                 </tr>
               )}

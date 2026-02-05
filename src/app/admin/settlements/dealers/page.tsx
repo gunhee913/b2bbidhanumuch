@@ -10,16 +10,48 @@ import {
   Save,
   Trash2,
   Eye,
+  Loader2,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import { 
-  generateDealerSettlements, 
-  BidPartDetail,
-  DealerSettlementData 
-} from '@/constants/dealerSettlement';
+import { useQuery } from '@tanstack/react-query';
+import { format } from 'date-fns';
 
-// 중도매인별 정산 데이터 타입 (호환성을 위해 유지)
-interface DealerSettlement extends DealerSettlementData {}
+// 낙찰 부위 상세 타입
+interface BidPartDetail {
+  id: string;
+  listingNo: string;
+  partName: string;
+  companyName: string;
+  companyNo: string;
+  grade: string;
+  weight: number;
+  unitPrice: number;
+  amount: number;
+  closedAt: string;
+}
+
+// 중도매인별 정산 데이터 타입
+interface DealerSettlement {
+  id: string;
+  dealerNo: string;
+  dealerName: string;
+  phone: string;
+  bidParts: BidPartDetail[];
+  totalWeight: number;
+  totalAmount: number;
+  netPayment: number;
+}
+
+interface DealerSettlementsResponse {
+  settlements: DealerSettlement[];
+  summary: {
+    totalDealers: number;
+    totalParts: number;
+    totalWeight: number;
+    totalAmount: number;
+    totalNetPayment: number;
+  };
+}
 
 // 전송 이력 타입
 interface SmsHistory {
@@ -85,13 +117,34 @@ const DEFAULT_TEMPLATES: MessageTemplate[] = [
 
 
 export default function DealerSettlementsPage() {
-  const today = new Date();
-  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  const todayStr = format(new Date(), 'yyyy-MM-dd');
   
-  const [settlements] = useState<DealerSettlement[]>(generateDealerSettlements());
   const [dealerSearch, setDealerSearch] = useState('');
   const [startDate, setStartDate] = useState(todayStr);
   const [endDate, setEndDate] = useState(todayStr);
+  
+  // API 데이터 조회
+  const { data, isLoading, refetch } = useQuery<DealerSettlementsResponse>({
+    queryKey: ['dealer-settlements', startDate, endDate, dealerSearch],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (startDate) params.append('startDate', startDate);
+      if (endDate) params.append('endDate', endDate);
+      if (dealerSearch) params.append('search', dealerSearch);
+      const res = await fetch(`/api/settlements/dealers?${params}`);
+      if (!res.ok) throw new Error('Failed to fetch');
+      return res.json();
+    },
+  });
+  
+  const settlements = data?.settlements || [];
+  const summary = data?.summary || {
+    totalDealers: 0,
+    totalParts: 0,
+    totalWeight: 0,
+    totalAmount: 0,
+    totalNetPayment: 0,
+  };
 
   // 문자 전송 모달 상태
   const [showSmsModal, setShowSmsModal] = useState(false);
@@ -114,16 +167,12 @@ export default function DealerSettlementsPage() {
   // 개별 미리보기 관련 상태
   const [previewDealerId, setPreviewDealerId] = useState<string | null>(null);
 
-  const filteredSettlements = settlements.filter(s => {
-    if (!dealerSearch) return true;
-    const searchLower = dealerSearch.toLowerCase();
-    return s.dealerName.toLowerCase().includes(searchLower) || 
-           s.dealerNo.includes(dealerSearch);
-  });
+  // filteredSettlements는 API에서 이미 필터가 적용된 settlements를 사용
+  const filteredSettlements = settlements;
 
   // 템플릿 변수를 실제 값으로 치환
   const applyTemplateVariables = (template: string, dealer: DealerSettlement) => {
-    const dateStr = `${today.getFullYear()}.${String(today.getMonth() + 1).padStart(2, '0')}.${String(today.getDate()).padStart(2, '0')}`;
+    const dateStr = format(new Date(), 'yyyy.MM.dd');
     return template
       .replace(/\{\{dealerName\}\}/g, dealer.dealerName)
       .replace(/\{\{dealerNo\}\}/g, dealer.dealerNo)
@@ -139,6 +188,11 @@ export default function DealerSettlementsPage() {
 
   // 문자 전송 모달 열기
   const openSmsModal = () => {
+    if (filteredSettlements.length === 0) {
+      alert('전송할 대상이 없습니다.');
+      return;
+    }
+    
     const dealerIds = filteredSettlements.map(s => s.id);
     setSelectedDealers(dealerIds);
     
@@ -307,6 +361,11 @@ export default function DealerSettlementsPage() {
   };
 
   const handleExcelDownload = () => {
+    if (filteredSettlements.length === 0) {
+      alert('다운로드할 데이터가 없습니다.');
+      return;
+    }
+    
     const excelData: Record<string, string | number>[] = [];
     
     filteredSettlements.forEach(settlement => {
@@ -330,17 +389,22 @@ export default function DealerSettlementsPage() {
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, '낙찰서(중도매인별)');
     
-    const fileName = `낙찰서_중도매인별_${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}${String(today.getDate()).padStart(2, '0')}.xlsx`;
+    const fileName = `낙찰서_중도매인별_${format(new Date(), 'yyyyMMdd')}.xlsx`;
     XLSX.writeFile(workbook, fileName);
   };
 
   // 인쇄 기능
   const handlePrint = () => {
+    if (filteredSettlements.length === 0) {
+      alert('인쇄할 데이터가 없습니다.');
+      return;
+    }
+    
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
 
-    const totalAmount = filteredSettlements.reduce((sum, s) => sum + s.totalAmount, 0);
-    const totalParts = filteredSettlements.reduce((sum, s) => sum + s.bidParts.length, 0);
+    const totalAmount = summary.totalAmount;
+    const totalParts = summary.totalParts;
 
     const printContent = `
       <!DOCTYPE html>
@@ -525,67 +589,84 @@ export default function DealerSettlementsPage() {
               <th className={`${thClass} w-[60px]`}>중량</th>
               <th className={`${thClass} w-[80px]`}>낙찰단가</th>
               <th className={`${thClass} w-[90px]`}>낙찰금액</th>
-              <th className={`${thClass} w-[80px]`}>수수료</th>
+              <th className={`${thClass} w-[80px]`}>배송 수수료</th>
               <th className={`${thClass} w-[100px]`}>지급액</th>
             </tr>
           </thead>
           <tbody>
-            {filteredSettlements.map((settlement, sIdx) => (
-              <React.Fragment key={settlement.id}>
-                {/* 부위별 행 */}
-                {settlement.bidParts.map((part, partIdx) => (
-                  <tr key={`${settlement.id}-${partIdx}`} className="hover:bg-gray-50">
-                    <td className={tdClass}>{partIdx === 0 ? settlement.dealerNo : ''}</td>
-                    <td className={tdClass}>{partIdx === 0 ? settlement.dealerName : ''}</td>
-                    <td className={`${tdClass} text-[10px] text-gray-600`}>{part.listingNo}</td>
-                    <td className={tdClass}>{part.partName}</td>
-                    <td className={tdClass}>{part.companyName}</td>
-                    <td className={tdClass}>{part.grade}</td>
-                    <td className={`${tdClass} text-right`}>{part.weight.toFixed(1)}</td>
-                    <td className={`${tdClass} text-right`}>{part.unitPrice.toLocaleString()}</td>
-                    <td className={`${tdClass} text-right`}>{part.amount.toLocaleString()}</td>
-                    <td className={`${tdClass} text-gray-400`}>{partIdx === 0 ? '-' : ''}</td>
-                    <td className={`${tdClass} text-right font-semibold`}>
-                      {partIdx === 0 ? settlement.netPayment.toLocaleString() : ''}
-                    </td>
-                  </tr>
+            {isLoading ? (
+              <tr>
+                <td colSpan={11} className="py-12 text-center text-gray-500">
+                  <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2" />
+                  데이터를 불러오는 중...
+                </td>
+              </tr>
+            ) : filteredSettlements.length === 0 ? (
+              <tr>
+                <td colSpan={11} className="py-12 text-center text-gray-500">
+                  낙찰 내역이 없습니다.
+                </td>
+              </tr>
+            ) : (
+              <>
+                {filteredSettlements.map((settlement, sIdx) => (
+                  <React.Fragment key={settlement.id}>
+                    {/* 부위별 행 */}
+                    {settlement.bidParts.map((part, partIdx) => (
+                      <tr key={`${settlement.id}-${partIdx}`} className="hover:bg-gray-50">
+                        <td className={tdClass}>{partIdx === 0 ? settlement.dealerNo : ''}</td>
+                        <td className={tdClass}>{partIdx === 0 ? settlement.dealerName : ''}</td>
+                        <td className={`${tdClass} text-[10px] text-gray-600`}>{part.listingNo}</td>
+                        <td className={tdClass}>{part.partName}</td>
+                        <td className={tdClass}>{part.companyName}</td>
+                        <td className={tdClass}>{part.grade}</td>
+                        <td className={`${tdClass} text-right`}>{part.weight.toFixed(1)}</td>
+                        <td className={`${tdClass} text-right`}>{part.unitPrice.toLocaleString()}</td>
+                        <td className={`${tdClass} text-right`}>{part.amount.toLocaleString()}</td>
+                        <td className={`${tdClass} text-gray-400`}>{partIdx === 0 ? '-' : ''}</td>
+                        <td className={`${tdClass} text-right font-semibold`}>
+                          {partIdx === 0 ? settlement.netPayment.toLocaleString() : ''}
+                        </td>
+                      </tr>
+                    ))}
+                    {/* 중도매인별 소계 */}
+                    <tr className="font-semibold border-t-2 border-gray-300">
+                      <td className={`${tdClass} text-left`} colSpan={3}>{settlement.dealerName} 소계 ({settlement.bidParts.length}건)</td>
+                      <td className={tdClass} colSpan={3}></td>
+                      <td className={`${tdClass} text-right`}>{settlement.totalWeight.toFixed(1)}</td>
+                      <td className={tdClass}></td>
+                      <td className={`${tdClass} text-right`}>{settlement.totalAmount.toLocaleString()}</td>
+                      <td className={`${tdClass} text-gray-400`}>-</td>
+                      <td className={`${tdClass} text-right`}>{settlement.netPayment.toLocaleString()}</td>
+                    </tr>
+                    {/* 중도매인 구분선 */}
+                    {sIdx < filteredSettlements.length - 1 && (
+                      <tr>
+                        <td colSpan={11} className="h-2 bg-gray-100"></td>
+                      </tr>
+                    )}
+                  </React.Fragment>
                 ))}
-                {/* 중도매인별 소계 */}
-                <tr className="font-semibold border-t-2 border-gray-300">
-                  <td className={`${tdClass} text-left`} colSpan={3}>{settlement.dealerName} 소계 ({settlement.bidParts.length}건)</td>
+                {/* 전체 합계 */}
+                <tr className="font-bold border-t-2 border-gray-400">
+                  <td className={`${tdClass} text-left`} colSpan={3}>
+                    전체 합계 ({summary.totalParts}건)
+                  </td>
                   <td className={tdClass} colSpan={3}></td>
-                  <td className={`${tdClass} text-right`}>{settlement.totalWeight.toFixed(1)}</td>
+                  <td className={`${tdClass} text-right`}>
+                    {summary.totalWeight.toFixed(1)}
+                  </td>
                   <td className={tdClass}></td>
-                  <td className={`${tdClass} text-right`}>{settlement.totalAmount.toLocaleString()}</td>
+                  <td className={`${tdClass} text-right`}>
+                    {summary.totalAmount.toLocaleString()}
+                  </td>
                   <td className={`${tdClass} text-gray-400`}>-</td>
-                  <td className={`${tdClass} text-right`}>{settlement.netPayment.toLocaleString()}</td>
+                  <td className={`${tdClass} text-right`}>
+                    {summary.totalNetPayment.toLocaleString()}
+                  </td>
                 </tr>
-                {/* 중도매인 구분선 */}
-                {sIdx < filteredSettlements.length - 1 && (
-                  <tr>
-                    <td colSpan={11} className="h-2 bg-gray-100"></td>
-                  </tr>
-                )}
-              </React.Fragment>
-            ))}
-            {/* 전체 합계 */}
-            <tr className="font-bold border-t-2 border-gray-400">
-              <td className={`${tdClass} text-left`} colSpan={3}>
-                전체 합계 ({filteredSettlements.reduce((sum, s) => sum + s.bidParts.length, 0)}건)
-              </td>
-              <td className={tdClass} colSpan={3}></td>
-              <td className={`${tdClass} text-right`}>
-                {filteredSettlements.reduce((sum, s) => sum + s.totalWeight, 0).toFixed(1)}
-              </td>
-              <td className={tdClass}></td>
-              <td className={`${tdClass} text-right`}>
-                {filteredSettlements.reduce((sum, s) => sum + s.totalAmount, 0).toLocaleString()}
-              </td>
-              <td className={`${tdClass} text-gray-400`}>-</td>
-              <td className={`${tdClass} text-right`}>
-                {filteredSettlements.reduce((sum, s) => sum + s.netPayment, 0).toLocaleString()}
-              </td>
-            </tr>
+              </>
+            )}
           </tbody>
         </table>
       </div>

@@ -5,8 +5,11 @@ import AdminLayout from '@/components/admin/AdminLayout';
 import { 
   Download,
   Printer,
+  Loader2,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import { useQuery } from '@tanstack/react-query';
+import { format } from 'date-fns';
 
 // 부위 데이터 타입
 interface PartDetail {
@@ -16,6 +19,8 @@ interface PartDetail {
   weight: number;       // 중량
   unitPrice: number;    // 단가
   amount: number;       // 금액
+  dealerNo: string;     // 낙찰자 번호
+  dealerName: string;   // 낙찰자명
   note: string;         // 비고
 }
 
@@ -27,10 +32,12 @@ interface CattleDetail {
   gender: string;       // 성별
   grade: string;        // 등급
   weight: number;       // 중량(도체중)
+  traceNo: string;      // 이력번호
+  closedAt: string;     // 마감일시
   saleAmount: number;   // 판매금액
   listingFee: number;   // 상장수수료
   logisticsFee: number; // 물류비
-  loadingFee: number; // 상차비
+  loadingFee: number;   // 상차비
   deductionTotal: number; // 공제금액계
   netPayment: number;   // 차인지급액
   parts: PartDetail[];  // 부위별 내역
@@ -43,151 +50,67 @@ interface SettlementData {
   companyName: string;
   representative: string;
   address: string;
-  settlementDate: string;
-  dealerName: string;   // 낙찰자(중도매인)
   cattleList: CattleDetail[];
   totalSaleAmount: number;
   totalDeduction: number;
   totalNetPayment: number;
 }
 
-// 19개 부위 및 현실적인 단가 (원/kg)
-const PARTS_CONFIG = [
-  { name: '등심(좌)', basePrice: 85000, baseWeight: 15.5 },
-  { name: '등심(우)', basePrice: 85000, baseWeight: 15.5 },
-  { name: '안심', basePrice: 95000, baseWeight: 4.5 },
-  { name: '채끝', basePrice: 82000, baseWeight: 8.0 },
-  { name: '갈비(좌)', basePrice: 78000, baseWeight: 12.5 },
-  { name: '갈비(우)', basePrice: 78000, baseWeight: 12.5 },
-  { name: '특수부위', basePrice: 72000, baseWeight: 3.5 },
-  { name: '앞다리', basePrice: 55000, baseWeight: 25.0 },
-  { name: '우둔', basePrice: 58000, baseWeight: 21.0 },
-  { name: '목심', basePrice: 62000, baseWeight: 14.5 },
-  { name: '양지(좌)', basePrice: 52000, baseWeight: 12.5 },
-  { name: '양지(우)', basePrice: 52000, baseWeight: 12.5 },
-  { name: '설도(좌)', basePrice: 56000, baseWeight: 16.5 },
-  { name: '설도(우)', basePrice: 56000, baseWeight: 16.5 },
-  { name: '사태', basePrice: 48000, baseWeight: 15.0 },
-  { name: '꼬리', basePrice: 35000, baseWeight: 16.0 },
-  { name: '족', basePrice: 25000, baseWeight: 10.5 },
-  { name: '사골', basePrice: 20000, baseWeight: 3.5 },
-  { name: '잡뼈', basePrice: 15000, baseWeight: 22.0 },
-];
-
-// 더미 데이터 생성
-const generateDummyData = (): SettlementData[] => {
-  const companies = [
-    { no: '100', name: '건화', rep: '김건화', addr: '충북 음성군 음성읍 한벌로 123' },
-    { no: '200', name: '대진엠에스', rep: '이대진', addr: '충북 음성군 음성읍 산업단지로 456' },
-    { no: '300', name: '안심엘피씨', rep: '박안심', addr: '충북 음성군 음성읍 중앙로 789' },
-    { no: '400', name: '정직한고기', rep: '최정직', addr: '충북 음성군 음성읍 평곡로 321' },
-  ];
-
-  const dealers = ['이경순', '김철수', '박영희', '최민수'];
-
-  const today = new Date();
-  const dateStr = `${today.getFullYear()}.${String(today.getMonth() + 1).padStart(2, '0')}.${String(today.getDate()).padStart(2, '0')}`;
-  const dateCode = `${String(today.getFullYear()).slice(2)}${String(today.getMonth() + 1).padStart(2, '0')}${String(today.getDate()).padStart(2, '0')}`;
-
-  return companies.map((company, companyIdx) => {
-    const cattleCount = 2 + (companyIdx % 2); // 2~3두
-    const cattleList: CattleDetail[] = [];
-    let seqNo = companyIdx * 100 + 1;
-
-    for (let i = 0; i < cattleCount; i++) {
-      const grade = ['1++B', '1++A', '1+B', '1+A'][i % 4];
-      const gender = i % 2 === 0 ? '거세' : '암';
-      const gradeMultiplier = grade.startsWith('1++') ? 1.0 : grade.startsWith('1+') ? 0.85 : 0.7;
-      
-      // 개체번호: 업체번호 + 개체순번 (예: 100 + 1 = 101, 100 + 2 = 102)
-      const cattleNo = parseInt(company.no) + i + 1;
-      
-      // 부위별 내역 생성 (고정값 사용으로 hydration 오류 방지)
-      // 두당 1개씩 유찰분 생성 (각 개체마다 다른 부위가 유찰됨)
-      const failedPartIdx = (companyIdx + i) % 19; // 유찰될 부위 인덱스
-      
-      const parts: PartDetail[] = PARTS_CONFIG.map((config, partIdx) => {
-        // 인덱스 기반으로 약간의 변화를 줌 (Math.random 대신)
-        const weightVariation = ((companyIdx * 7 + i * 3 + partIdx) % 20 - 10) / 10; // -1.0 ~ 0.9
-        const weight = config.baseWeight > 0 
-          ? Number((config.baseWeight + weightVariation).toFixed(1))
-          : 0;
-        
-        // 유찰분은 단가와 금액을 0으로 설정
-        const isFailedBid = partIdx === failedPartIdx;
-        const unitPrice = isFailedBid ? 0 : Math.round(config.basePrice * gradeMultiplier);
-        const amount = isFailedBid ? 0 : Math.round(weight * unitPrice);
-        const partNo = partIdx + 1; // 부위 순번 01~19
-        
-        return {
-          no: partNo,
-          listingNo: `${dateCode}-${cattleNo}-${String(partNo).padStart(2, '0')}`,
-          partName: config.name,
-          weight,
-          unitPrice,
-          amount,
-          note: '',
-        };
-      });
-
-      const saleAmount = parts.reduce((sum, p) => sum + p.amount, 0);
-      const listingFee = Math.round(saleAmount * 0.02); // 2% 수수료
-      const logisticsFee = 21000;
-      const loadingFee = 20000;
-      const deductionTotal = listingFee + logisticsFee + loadingFee;
-      const netPayment = saleAmount - deductionTotal;
-
-      // 도체중 계산 (전체 부위 중량의 합)
-      const totalWeight = Number(parts.reduce((sum, p) => sum + p.weight, 0).toFixed(1));
-
-      cattleList.push({
-        id: `${company.no}-${i + 1}`,
-        auctionNo: `${dateCode}-${cattleNo}`,
-        species: '한우',
-        gender,
-        grade,
-        weight: totalWeight,
-        saleAmount,
-        listingFee,
-        logisticsFee,
-        loadingFee,
-        deductionTotal,
-        netPayment,
-        parts,
-      });
-
-      seqNo++;
-    }
-
-    const totalSaleAmount = cattleList.reduce((sum, c) => sum + c.saleAmount, 0);
-    const totalDeduction = cattleList.reduce((sum, c) => sum + c.deductionTotal, 0);
-    const totalNetPayment = cattleList.reduce((sum, c) => sum + c.netPayment, 0);
-
-    return {
-      id: company.no,
-      companyNo: company.no,
-      companyName: company.name,
-      representative: company.rep,
-      address: company.addr,
-      settlementDate: dateStr,
-      dealerName: dealers[companyIdx % dealers.length],
-      cattleList,
-      totalSaleAmount,
-      totalDeduction,
-      totalNetPayment,
-    };
-  });
-};
+interface SettlementsResponse {
+  settlements: SettlementData[];
+  summary: {
+    totalCompanies: number;
+    totalCattle: number;
+    totalSaleAmount: number;
+    totalDeduction: number;
+    totalNetPayment: number;
+  };
+}
 
 export default function SettlementsPage() {
   const today = new Date();
-  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  const todayStr = format(today, 'yyyy-MM-dd');
   
-  const [settlements] = useState<SettlementData[]>(generateDummyData());
   const [expandedCattle, setExpandedCattle] = useState<string[]>([]);
   const [companyFilter, setCompanyFilter] = useState('all');
   const [startDate, setStartDate] = useState(todayStr);
   const [endDate, setEndDate] = useState(todayStr);
+
+  // 업체 목록 조회 (필터용)
+  const { data: companiesData } = useQuery<{ companies: { id: string; name: string; companyNo: string }[] }>({
+    queryKey: ['companies-for-filter'],
+    queryFn: async () => {
+      const response = await fetch('/api/companies');
+      if (!response.ok) throw new Error('업체 조회 실패');
+      return response.json();
+    },
+  });
+
+  const companies = companiesData?.companies || [];
+
+  // 정산 데이터 조회
+  const { data, isLoading } = useQuery<SettlementsResponse>({
+    queryKey: ['settlements', startDate, endDate, companyFilter],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (startDate) params.append('startDate', startDate);
+      if (endDate) params.append('endDate', endDate);
+      if (companyFilter !== 'all') params.append('companyId', companyFilter);
+      
+      const response = await fetch(`/api/settlements?${params.toString()}`);
+      if (!response.ok) throw new Error('정산 데이터 조회 실패');
+      return response.json();
+    },
+  });
+
+  const settlements = data?.settlements || [];
+  const summary = data?.summary || {
+    totalCompanies: 0,
+    totalCattle: 0,
+    totalSaleAmount: 0,
+    totalDeduction: 0,
+    totalNetPayment: 0,
+  };
 
   const toggleCattle = (cattleId: string) => {
     setExpandedCattle(prev =>
@@ -197,11 +120,15 @@ export default function SettlementsPage() {
     );
   };
 
-  const filteredSettlements = settlements.filter(s => 
-    companyFilter === 'all' || s.id === companyFilter
-  );
+  // 필터링은 API에서 처리되므로 그대로 사용
+  const filteredSettlements = settlements;
 
   const handleExcelDownload = () => {
+    if (filteredSettlements.length === 0) {
+      alert('다운로드할 데이터가 없습니다.');
+      return;
+    }
+
     const excelData: Record<string, string | number>[] = [];
     
     filteredSettlements.forEach(settlement => {
@@ -210,6 +137,7 @@ export default function SettlementsPage() {
         excelData.push({
           '업체명': settlement.companyName,
           '접수번호': cattle.auctionNo,
+          '이력번호': cattle.traceNo || '-',
           '축종': cattle.species,
           '성별': cattle.gender,
           '등급': cattle.grade,
@@ -235,6 +163,7 @@ export default function SettlementsPage() {
       excelData.push({
         '업체명': `${settlement.companyName} 소계`,
         '접수번호': '',
+        '이력번호': '',
         '축종': '',
         '성별': '',
         '등급': '',
@@ -251,6 +180,7 @@ export default function SettlementsPage() {
       excelData.push({
         '업체명': '',
         '접수번호': '',
+        '이력번호': '',
         '축종': '',
         '성별': '',
         '등급': '',
@@ -268,20 +198,25 @@ export default function SettlementsPage() {
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, '정산서');
     
-    const today = new Date();
-    const fileName = `정산서_${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}${String(today.getDate()).padStart(2, '0')}.xlsx`;
+    const dateRange = startDate && endDate ? `_${startDate.replace(/-/g, '')}~${endDate.replace(/-/g, '')}` : '';
+    const fileName = `정산서${dateRange}.xlsx`;
     XLSX.writeFile(workbook, fileName);
   };
 
   // 인쇄 기능 (필터된 전체 결과)
   const handlePrint = () => {
+    if (filteredSettlements.length === 0) {
+      alert('인쇄할 데이터가 없습니다.');
+      return;
+    }
+
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
 
-    const totalSaleAmount = filteredSettlements.reduce((sum, s) => sum + s.totalSaleAmount, 0);
-    const totalDeduction = filteredSettlements.reduce((sum, s) => sum + s.totalDeduction, 0);
-    const totalNetPayment = filteredSettlements.reduce((sum, s) => sum + s.totalNetPayment, 0);
-    const totalCattleCount = filteredSettlements.reduce((sum, s) => sum + s.cattleList.length, 0);
+    const totalSaleAmount = summary.totalSaleAmount;
+    const totalDeduction = summary.totalDeduction;
+    const totalNetPayment = summary.totalNetPayment;
+    const totalCattleCount = summary.totalCattle;
 
     const printContent = `
       <!DOCTYPE html>
@@ -465,8 +400,8 @@ export default function SettlementsPage() {
               className="px-3 py-1.5 border border-gray-200 text-xs outline-none bg-white min-w-[120px]"
             >
               <option value="all">전체</option>
-              {settlements.map(s => (
-                <option key={s.id} value={s.id}>{s.companyName}</option>
+              {companies.map(c => (
+                <option key={c.id} value={c.id}>{c.name}</option>
               ))}
             </select>
           </div>
@@ -541,47 +476,64 @@ export default function SettlementsPage() {
             </tr>
           </thead>
           <tbody>
-            {filteredSettlements.map((settlement, sIdx) => (
-              <React.Fragment key={settlement.id}>
-                {/* 개체별 행 */}
-                {settlement.cattleList.map((cattle, cattleIdx) => (
-                  <React.Fragment key={cattle.id}>
-                    <tr className="hover:bg-gray-50">
-                      <td className={tdClass}>{cattleIdx === 0 ? settlement.companyName : ''}</td>
-                      <td className={`${tdClass} text-[10px] text-gray-600`}>{cattle.auctionNo}</td>
-                      <td className={tdClass}>{cattle.species}</td>
-                      <td className={tdClass}>{cattle.gender}</td>
-                      <td className={tdClass}>{cattle.grade}</td>
-                      <td className={`${tdClass} text-right`}>{cattle.weight}</td>
-                      <td className={`${tdClass} text-right`}>{cattle.saleAmount.toLocaleString()}</td>
-                      <td className={`${tdClass} text-right`}>{cattle.listingFee.toLocaleString()}</td>
-                      <td className={`${tdClass} text-right`}>{cattle.logisticsFee.toLocaleString()}</td>
-                      <td className={`${tdClass} text-right`}>{cattle.loadingFee.toLocaleString()}</td>
-                      <td className={`${tdClass} text-right`}>{cattle.deductionTotal.toLocaleString()}</td>
-                      <td className={`${tdClass} text-right font-semibold`}>{cattle.netPayment.toLocaleString()}</td>
-                      <td className={tdClass}>
-                        <button
-                          onClick={() => toggleCattle(cattle.id)}
-                          className="text-gray-600 hover:text-gray-800 text-xs"
-                        >
-                          {expandedCattle.includes(cattle.id) ? '접기 ▲' : '펼치기 ▼'}
-                        </button>
-                      </td>
-                    </tr>
+            {isLoading ? (
+              <tr>
+                <td colSpan={13} className="px-4 py-8 text-center text-gray-500">
+                  <div className="flex items-center justify-center gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    데이터 조회 중...
+                  </div>
+                </td>
+              </tr>
+            ) : filteredSettlements.length === 0 ? (
+              <tr>
+                <td colSpan={13} className="px-4 py-8 text-center text-gray-500">
+                  해당 기간에 마감된 정산 데이터가 없습니다.
+                </td>
+              </tr>
+            ) : (
+              <>
+                {filteredSettlements.map((settlement, sIdx) => (
+                  <React.Fragment key={settlement.id}>
+                    {/* 개체별 행 */}
+                    {settlement.cattleList.map((cattle, cattleIdx) => (
+                      <React.Fragment key={cattle.id}>
+                        <tr className="hover:bg-gray-50">
+                          <td className={tdClass}>{cattleIdx === 0 ? settlement.companyName : ''}</td>
+                          <td className={`${tdClass} text-[10px] text-gray-600`}>{cattle.auctionNo}</td>
+                          <td className={tdClass}>{cattle.species}</td>
+                          <td className={tdClass}>{cattle.gender}</td>
+                          <td className={tdClass}>{cattle.grade}</td>
+                          <td className={`${tdClass} text-right`}>{cattle.weight}</td>
+                          <td className={`${tdClass} text-right`}>{cattle.saleAmount.toLocaleString()}</td>
+                          <td className={`${tdClass} text-right`}>{cattle.listingFee.toLocaleString()}</td>
+                          <td className={`${tdClass} text-right`}>{cattle.logisticsFee.toLocaleString()}</td>
+                          <td className={`${tdClass} text-right`}>{cattle.loadingFee.toLocaleString()}</td>
+                          <td className={`${tdClass} text-right`}>{cattle.deductionTotal.toLocaleString()}</td>
+                          <td className={`${tdClass} text-right font-semibold`}>{cattle.netPayment.toLocaleString()}</td>
+                          <td className={tdClass}>
+                            <button
+                              onClick={() => toggleCattle(cattle.id)}
+                              className="text-gray-600 hover:text-gray-800 text-xs"
+                            >
+                              {expandedCattle.includes(cattle.id) ? '접기 ▲' : '펼치기 ▼'}
+                            </button>
+                          </td>
+                        </tr>
                     {/* 부위별 상세 */}
                     {expandedCattle.includes(cattle.id) && (
                       <tr>
                         <td colSpan={13} className="p-2">
                           <div className="grid grid-cols-2 gap-2">
-                            <table className="w-full border-collapse">
+                            <table className="w-full border-collapse table-fixed">
                               <thead>
                                 <tr>
-                                  <th className={thClass}>상장번호</th>
-                                  <th className={thClass}>품명</th>
-                                  <th className={thClass}>중량</th>
-                                  <th className={thClass}>단가</th>
-                                  <th className={thClass}>금액</th>
-                                  <th className={thClass}>비고</th>
+                                  <th className={thClass} style={{ width: '120px' }}>상장번호</th>
+                                  <th className={thClass} style={{ width: '70px' }}>품명</th>
+                                  <th className={thClass} style={{ width: '55px' }}>중량</th>
+                                  <th className={thClass} style={{ width: '70px' }}>단가</th>
+                                  <th className={thClass} style={{ width: '85px' }}>금액</th>
+                                  <th className={thClass} style={{ width: '45px' }}>비고</th>
                                 </tr>
                               </thead>
                               <tbody>
@@ -592,20 +544,20 @@ export default function SettlementsPage() {
                                     <td className={`${tdClass} text-right`}>{part.weight > 0 ? part.weight.toFixed(1) : '-'}</td>
                                     <td className={`${tdClass} text-right`}>{part.unitPrice > 0 ? part.unitPrice.toLocaleString() : '-'}</td>
                                     <td className={`${tdClass} text-right`}>{part.amount > 0 ? part.amount.toLocaleString() : '-'}</td>
-                                    <td className={`${tdClass} text-gray-500`}>{part.amount === 0 ? '반출' : ''}</td>
+                                    <td className={`${tdClass} text-gray-500`}>{part.amount === 0 ? '유찰' : ''}</td>
                                   </tr>
                                 ))}
                               </tbody>
                             </table>
-                            <table className="w-full border-collapse">
+                            <table className="w-full border-collapse table-fixed">
                               <thead>
                                 <tr>
-                                  <th className={thClass}>상장번호</th>
-                                  <th className={thClass}>품명</th>
-                                  <th className={thClass}>중량</th>
-                                  <th className={thClass}>단가</th>
-                                  <th className={thClass}>금액</th>
-                                  <th className={thClass}>비고</th>
+                                  <th className={thClass} style={{ width: '120px' }}>상장번호</th>
+                                  <th className={thClass} style={{ width: '70px' }}>품명</th>
+                                  <th className={thClass} style={{ width: '55px' }}>중량</th>
+                                  <th className={thClass} style={{ width: '70px' }}>단가</th>
+                                  <th className={thClass} style={{ width: '85px' }}>금액</th>
+                                  <th className={thClass} style={{ width: '45px' }}>비고</th>
                                 </tr>
                               </thead>
                               <tbody>
@@ -616,7 +568,7 @@ export default function SettlementsPage() {
                                     <td className={`${tdClass} text-right`}>{part.weight > 0 ? part.weight.toFixed(1) : '-'}</td>
                                     <td className={`${tdClass} text-right`}>{part.unitPrice > 0 ? part.unitPrice.toLocaleString() : '-'}</td>
                                     <td className={`${tdClass} text-right`}>{part.amount > 0 ? part.amount.toLocaleString() : '-'}</td>
-                                    <td className={`${tdClass} text-gray-500`}>{part.amount === 0 ? '반출' : ''}</td>
+                                    <td className={`${tdClass} text-gray-500`}>{part.amount === 0 ? '유찰' : ''}</td>
                                   </tr>
                                 ))}
                                 {Array(11 - cattle.parts.slice(11).length).fill(0).map((_, idx) => (
@@ -649,28 +601,30 @@ export default function SettlementsPage() {
                   <td className={`${tdClass} text-right`}>{settlement.totalNetPayment.toLocaleString()}</td>
                   <td className={tdClass}></td>
                 </tr>
-                {/* 업체 구분선 */}
-                {sIdx < filteredSettlements.length - 1 && (
-                  <tr>
-                    <td colSpan={13} className="h-2 bg-gray-200"></td>
-                  </tr>
-                )}
-              </React.Fragment>
-            ))}
-            {/* 전체 합계 */}
-            <tr className="font-bold border-t-2 border-gray-400">
-              <td className={`${tdClass} text-left`} colSpan={2}>
-                전체 합계 ({filteredSettlements.reduce((sum, s) => sum + s.cattleList.length, 0)}두)
-              </td>
-              <td className={tdClass} colSpan={4}></td>
-              <td className={`${tdClass} text-right`}>{filteredSettlements.reduce((sum, s) => sum + s.totalSaleAmount, 0).toLocaleString()}</td>
-              <td className={`${tdClass} text-right`}>{filteredSettlements.reduce((sum, s) => sum + s.cattleList.reduce((cs, c) => cs + c.listingFee, 0), 0).toLocaleString()}</td>
-              <td className={`${tdClass} text-right`}>{filteredSettlements.reduce((sum, s) => sum + s.cattleList.reduce((cs, c) => cs + c.logisticsFee, 0), 0).toLocaleString()}</td>
-              <td className={`${tdClass} text-right`}>{filteredSettlements.reduce((sum, s) => sum + s.cattleList.reduce((cs, c) => cs + c.loadingFee, 0), 0).toLocaleString()}</td>
-              <td className={`${tdClass} text-right`}>{filteredSettlements.reduce((sum, s) => sum + s.totalDeduction, 0).toLocaleString()}</td>
-              <td className={`${tdClass} text-right`}>{filteredSettlements.reduce((sum, s) => sum + s.totalNetPayment, 0).toLocaleString()}</td>
-              <td className={tdClass}></td>
-            </tr>
+                    {/* 업체 구분선 */}
+                    {sIdx < filteredSettlements.length - 1 && (
+                      <tr>
+                        <td colSpan={13} className="h-2 bg-gray-200"></td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                ))}
+                {/* 전체 합계 */}
+                <tr className="font-bold border-t-2 border-gray-400">
+                  <td className={`${tdClass} text-left`} colSpan={2}>
+                    전체 합계 ({summary.totalCattle}두)
+                  </td>
+                  <td className={tdClass} colSpan={4}></td>
+                  <td className={`${tdClass} text-right`}>{summary.totalSaleAmount.toLocaleString()}</td>
+                  <td className={`${tdClass} text-right`}>{filteredSettlements.reduce((sum, s) => sum + s.cattleList.reduce((cs, c) => cs + c.listingFee, 0), 0).toLocaleString()}</td>
+                  <td className={`${tdClass} text-right`}>{filteredSettlements.reduce((sum, s) => sum + s.cattleList.reduce((cs, c) => cs + c.logisticsFee, 0), 0).toLocaleString()}</td>
+                  <td className={`${tdClass} text-right`}>{filteredSettlements.reduce((sum, s) => sum + s.cattleList.reduce((cs, c) => cs + c.loadingFee, 0), 0).toLocaleString()}</td>
+                  <td className={`${tdClass} text-right`}>{summary.totalDeduction.toLocaleString()}</td>
+                  <td className={`${tdClass} text-right`}>{summary.totalNetPayment.toLocaleString()}</td>
+                  <td className={tdClass}></td>
+                </tr>
+              </>
+            )}
           </tbody>
         </table>
       </div>
