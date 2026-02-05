@@ -35,6 +35,7 @@ interface AuctionItem {
   currentHighestBid: number;
   bidCount: number;
   bids: BidRecord[];
+  status: string;
 }
 
 // 등급 포맷팅: 1++ 등급만 marblingScore 표시
@@ -97,6 +98,7 @@ export default function AuctionLivePage() {
           minPrice: part.minPrice || 0,
           currentHighestBid: part.highestBid?.bidPrice || 0,
           bidCount: part.bidCount || 0,
+          status: listing.status || '',
           bids: (part.allBids || []).map((bid: any, idx: number) => ({
             id: `${part.id}-${idx}`,
             bidId: bid.id, // DB의 실제 bid id
@@ -183,17 +185,20 @@ export default function AuctionLivePage() {
     }
   };
 
-  // 전체 마감
+  // 전체 마감 (유찰 포함 모든 상장)
   const handleCloseAll = async () => {
-    // 입찰이 있는 상장들만 마감
-    const listingIds = [...new Set(filteredItems.filter(i => i.bidCount > 0).map(i => i.listingId))];
+    // 모든 상장 마감 (입찰 유무 상관없이)
+    const listingIds = [...new Set(filteredItems.map(i => i.listingId))];
     
     if (listingIds.length === 0) {
       alert('마감할 상장이 없습니다.');
       return;
     }
 
-    if (!confirm(`${listingIds.length}개 상장을 마감하시겠습니까?`)) return;
+    const withBids = filteredItems.filter(i => i.bidCount > 0).length;
+    const withoutBids = filteredItems.length - withBids;
+
+    if (!confirm(`${listingIds.length}개 상장을 마감하시겠습니까?\n(낙찰: ${withBids}건, 유찰: ${withoutBids}건)`)) return;
 
     try {
       // 각 상장별로 마감 처리
@@ -204,6 +209,29 @@ export default function AuctionLivePage() {
       alert('마감이 완료되었습니다.');
     } catch (error: any) {
       alert(error.message || '마감 처리 중 오류 발생');
+    }
+  };
+
+  // 마감 취소
+  const handleReopenAll = async () => {
+    // closed 상태인 상장만 취소 대상
+    const closedListingIds = [...new Set(filteredItems.filter(i => i.status === 'closed').map(i => i.listingId))];
+    
+    if (closedListingIds.length === 0) {
+      alert('마감 취소할 상장이 없습니다.');
+      return;
+    }
+
+    if (!confirm(`${closedListingIds.length}개 상장의 마감을 취소하시겠습니까?`)) return;
+
+    try {
+      for (const listingId of closedListingIds) {
+        await fetch(`/api/listings/${listingId}/reopen`, { method: 'POST' });
+      }
+      refetch();
+      alert('마감 취소가 완료되었습니다.');
+    } catch (error: any) {
+      alert(error.message || '마감 취소 중 오류 발생');
     }
   };
 
@@ -314,12 +342,6 @@ export default function AuctionLivePage() {
               max={todayStr}
               className="px-3 py-1.5 border border-gray-200 text-xs outline-none bg-white"
             />
-            {isToday && (
-              <span className="text-xs text-green-600 flex items-center gap-1">
-                <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-                실시간
-              </span>
-            )}
           </div>
 
           <div className="flex items-center gap-2">
@@ -385,13 +407,23 @@ export default function AuctionLivePage() {
             </button>
 
             {/* 전체 마감 버튼 */}
-            {stats.partsWithBids > 0 && (
+            {filteredItems.length > 0 && !filteredItems.some(i => i.status === 'closed') && (
               <button
                 onClick={handleCloseAll}
                 className="px-4 py-1.5 bg-gray-700 text-white text-xs hover:bg-gray-800 flex items-center gap-1"
               >
                 <Square className="w-3 h-3" />
                 전체 마감
+              </button>
+            )}
+
+            {/* 마감 취소 버튼 */}
+            {filteredItems.some(i => i.status === 'closed') && (
+              <button
+                onClick={handleReopenAll}
+                className="px-4 py-1.5 bg-red-600 text-white text-xs hover:bg-red-700 flex items-center gap-1"
+              >
+                마감 취소
               </button>
             )}
           </div>
@@ -570,28 +602,32 @@ export default function AuctionLivePage() {
                                           {bid.updatedAt || '-'}
                                         </td>
                                         <td className="px-2 py-1 text-xs border border-gray-200 text-center">
-                                          <div className="flex items-center justify-center gap-1">
-                                            {editingBidId !== bid.bidId && (
+                                          {item.status === 'closed' ? (
+                                            <span className="text-[10px] text-gray-400">마감됨</span>
+                                          ) : (
+                                            <div className="flex items-center justify-center gap-1">
+                                              {editingBidId !== bid.bidId && (
+                                                <button
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    startEdit(bid.bidId, bid.bidPrice);
+                                                  }}
+                                                  className="px-2 py-0.5 text-[10px] text-gray-600 border border-gray-300 hover:bg-gray-50 min-w-[32px]"
+                                                >
+                                                  수정
+                                                </button>
+                                              )}
                                               <button
                                                 onClick={(e) => {
                                                   e.stopPropagation();
-                                                  startEdit(bid.bidId, bid.bidPrice);
+                                                  handleDeleteBid(bid.bidId, bid.dealerName, bid.rank === 1);
                                                 }}
-                                                className="px-2 py-0.5 text-[10px] text-gray-600 border border-gray-300 hover:bg-gray-50 min-w-[32px]"
+                                                className="px-2 py-0.5 text-[10px] text-white bg-gray-700 hover:bg-gray-800 min-w-[32px]"
                                               >
-                                                수정
+                                                삭제
                                               </button>
-                                            )}
-                                            <button
-                                              onClick={(e) => {
-                                                e.stopPropagation();
-                                                handleDeleteBid(bid.bidId, bid.dealerName, bid.rank === 1);
-                                              }}
-                                              className="px-2 py-0.5 text-[10px] text-white bg-gray-700 hover:bg-gray-800 min-w-[32px]"
-                                            >
-                                              삭제
-                                            </button>
-                                          </div>
+                                            </div>
+                                          )}
                                         </td>
                                       </tr>
                                     ))}
