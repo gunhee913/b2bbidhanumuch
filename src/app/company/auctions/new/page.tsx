@@ -494,10 +494,8 @@ export default function CompanyNewAuctionPage() {
           companyId: companyId,
           breed: cattle.breed || '한우',
           gender: cattle.gender,
-          // 등급 조합: 1++A(9) 형식으로 저장
-          grade: cattle.marbling 
-            ? `${cattle.grade}A(${cattle.marbling})` 
-            : cattle.grade,
+          // 등급은 그대로 저장, 근내지방 점수는 marblingScore에 별도 저장
+          grade: cattle.grade,
           marblingScore: cattle.marbling ? parseInt(cattle.marbling) : undefined,
           monthAge: cattle.monthAge ? parseInt(cattle.monthAge) : undefined,
           traceNo: cattle.traceNo ? `002-${cattle.traceNo}` : undefined,

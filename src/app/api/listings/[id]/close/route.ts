@@ -123,14 +123,44 @@ export async function POST(
       return NextResponse.json({ error: updateError.message }, { status: 500 });
     }
 
-    // 6. 해당 날짜를 마감 날짜 테이블에 추가 (중복 무시)
+    // 6. 해당 날짜 및 이전 미마감 날짜들을 마감 날짜 테이블에 추가
     if (listing.listing_date) {
-      await supabase
+      // 가장 최근 마감된 날짜 조회
+      const { data: latestClosedDate } = await supabase
         .from('auction_close_dates')
-        .upsert(
-          { close_date: listing.listing_date },
-          { onConflict: 'close_date', ignoreDuplicates: true }
-        );
+        .select('close_date')
+        .order('close_date', { ascending: false })
+        .limit(1)
+        .single();
+
+      const targetDate = new Date(listing.listing_date);
+      let startDate: Date;
+
+      if (latestClosedDate) {
+        // 마감된 날짜가 있으면 그 다음날부터
+        startDate = new Date(latestClosedDate.close_date);
+        startDate.setDate(startDate.getDate() + 1);
+      } else {
+        // 마감된 날짜가 없으면 해당 날짜만
+        startDate = targetDate;
+      }
+
+      // startDate부터 targetDate까지 모든 날짜 마감 처리
+      const datesToClose: { close_date: string }[] = [];
+      const currentDate = new Date(startDate);
+      
+      while (currentDate <= targetDate) {
+        datesToClose.push({
+          close_date: currentDate.toISOString().split('T')[0]
+        });
+        currentDate.setDate(currentDate.getDate() + 1);
+      }
+
+      if (datesToClose.length > 0) {
+        await supabase
+          .from('auction_close_dates')
+          .upsert(datesToClose, { onConflict: 'close_date', ignoreDuplicates: true });
+      }
     }
 
     return NextResponse.json({

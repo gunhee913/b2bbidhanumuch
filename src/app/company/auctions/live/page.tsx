@@ -18,6 +18,8 @@ interface AuctionItem {
   currentHighestBid: number;
   bidCount: number;
   status: string;
+  highestBidDealerNo: string;
+  highestBidDealerName: string;
 }
 
 // API에서 실시간 데이터 조회
@@ -97,6 +99,8 @@ export default function CompanyAuctionLivePage() {
           currentHighestBid: part.highestBid?.bidPrice || 0,
           bidCount: part.bidCount || 0,
           status: listing.status || '',
+          highestBidDealerNo: part.highestBid?.dealerNo || '',
+          highestBidDealerName: part.highestBid?.dealerName || '',
         });
       });
     });
@@ -258,6 +262,8 @@ export default function CompanyAuctionLivePage() {
                 <th className={`${thClass} w-[100px]`}>최저가격</th>
                 <th className={`${thClass} w-[100px]`}>최고입찰가격</th>
                 <th className={`${thClass} w-[120px]`}>총입찰가격</th>
+                <th className={`${thClass} w-[80px]`}>중도매인번호</th>
+                <th className={`${thClass} w-[80px]`}>중도매인명</th>
                 <th className={`${thClass} w-[70px]`}>입찰수</th>
               </tr>
             </thead>
@@ -284,6 +290,12 @@ export default function CompanyAuctionLivePage() {
                         <td className={`${tdClass} text-right font-semibold ${item.currentHighestBid > 0 ? 'text-gray-900' : 'text-gray-400'}`}>
                           {item.currentHighestBid > 0 ? Math.round(item.currentHighestBid * item.weight).toLocaleString() : '-'}
                         </td>
+                        <td className={`${tdClass} ${item.highestBidDealerNo ? 'text-gray-900' : 'text-gray-400'}`}>
+                          {item.highestBidDealerNo || '-'}
+                        </td>
+                        <td className={`${tdClass} ${item.highestBidDealerName ? 'text-gray-900' : 'text-gray-400'}`}>
+                          {item.highestBidDealerName || '-'}
+                        </td>
                         <td className={`${tdClass} ${item.bidCount > 0 ? 'text-gray-900 font-semibold' : 'text-gray-400'}`}>
                           {item.bidCount}
                         </td>
@@ -302,13 +314,15 @@ export default function CompanyAuctionLivePage() {
                         <td className={`${tdClass} text-right text-gray-900`}>
                           {subtotalBidAmount > 0 ? Math.round(subtotalBidAmount).toLocaleString() : '-'}
                         </td>
+                        <td className={tdClass}></td>
+                        <td className={tdClass}></td>
                         <td className={`${tdClass} text-gray-900`}>{subtotalBidCount}</td>
                       </tr>
                     )}
                     {/* 개체 간 구분선 */}
                     {cattleIdx < sortedCattleNos.length - 1 && showSubtotal && (
                       <tr>
-                        <td colSpan={8} className="h-1 bg-gray-300"></td>
+                        <td colSpan={10} className="h-1 bg-gray-300"></td>
                       </tr>
                     )}
                   </React.Fragment>
@@ -318,7 +332,7 @@ export default function CompanyAuctionLivePage() {
               {showSubtotal && filteredItems.length > 0 && (
                 <>
                   <tr>
-                    <td colSpan={8} className="h-1 bg-gray-400"></td>
+                    <td colSpan={10} className="h-1 bg-gray-400"></td>
                   </tr>
                   <tr className="bg-gray-200 font-bold">
                     <td className={`${tdClass} text-left`} colSpan={2}>
@@ -333,6 +347,8 @@ export default function CompanyAuctionLivePage() {
                     <td className={`${tdClass} text-right text-gray-900`}>
                       {filteredItems.reduce((sum, item) => sum + (item.currentHighestBid * item.weight), 0).toLocaleString()}
                     </td>
+                    <td className={tdClass}></td>
+                    <td className={tdClass}></td>
                     <td className={`${tdClass} text-gray-900`}>
                       {filteredItems.reduce((sum, item) => sum + item.bidCount, 0)}
                     </td>

@@ -62,7 +62,7 @@ const createDefaultParts = (): PartData[] => [
 ];
 
 // 상태 타입 및 옵션
-type AuctionStatus = '대기' | '승인';
+type AuctionStatus = '대기' | '승인' | '마감';
 
 // 증명서 데이터 타입
 interface CertificateData {
@@ -112,6 +112,22 @@ const getTomorrowDateString = () => {
 
 const tomorrowDateString = getTomorrowDateString();
 
+// 등급 포맷팅 함수 (1++등급에 근내지방 점수 추가)
+const formatGrade = (grade: string, marblingScore: number | null): string => {
+  if (!grade) return '';
+  
+  // 이미 점수가 포함된 경우 그대로 반환
+  if (grade.includes('(')) return grade;
+  
+  // 1++등급이고 근내지방 점수가 있으면 추가
+  if (grade.startsWith('1++') && marblingScore) {
+    // grade가 "1++A" 형태면 "1++A(9)" 형태로 변환
+    return `${grade}(${marblingScore})`;
+  }
+  
+  return grade;
+};
+
 // CattleListing을 기존 Auction 타입으로 변환
 const convertToAuction = (listing: CattleListing): Auction => {
   const formatDate = (dateStr: string | null) => {
@@ -137,12 +153,19 @@ const convertToAuction = (listing: CattleListing): Auction => {
     parts.push(...createDefaultParts());
   }
 
+  // 상태 변환
+  const getStatus = (): AuctionStatus => {
+    if (listing.status === 'approved') return '승인';
+    if (listing.status === 'closed') return '마감';
+    return '대기';
+  };
+
   return {
     id: listing.id,
     auctionNo: listing.listingNo,
     breed: listing.breed,
     gender: listing.gender,
-    grade: listing.grade,
+    grade: formatGrade(listing.grade, listing.marblingScore),
     monthAge: listing.monthAge || 0,
     backFat: listing.backFat || 0,
     eyeMuscle: listing.eyeMuscle || 0,
@@ -159,7 +182,7 @@ const convertToAuction = (listing: CattleListing): Auction => {
     company: listing.companyName || '',
     processDate: formatDate(listing.processDate),
     processWeight: listing.processWeight || 0,
-    status: listing.status === 'approved' ? '승인' : '대기',
+    status: getStatus(),
     parts,
     images: listing.images || [],
     slaughterCert: listing.slaughterCert,
@@ -418,7 +441,11 @@ export default function CompanyAuctionsListPage() {
                       </button>
                     </td>
                     <td className="px-2 py-3 text-center whitespace-nowrap border border-gray-200">
-                      <span className={`px-2 py-0.5 text-xs font-medium ${auction.status === '승인' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                      <span className={`px-2 py-0.5 text-xs font-medium ${
+                        auction.status === '승인' ? 'bg-green-100 text-green-700' : 
+                        auction.status === '마감' ? 'bg-gray-200 text-gray-600' : 
+                        'bg-yellow-100 text-yellow-700'
+                      }`}>
                         {auction.status}
                       </span>
                     </td>

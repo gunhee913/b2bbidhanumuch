@@ -17,7 +17,7 @@ export async function POST(
     // 1. 상장 정보 조회
     const { data: listing, error: listingError } = await supabase
       .from('cattle_listings')
-      .select('id, status, listing_no')
+      .select('id, status, listing_no, listing_date')
       .eq('id', listingId)
       .single();
 
@@ -34,6 +34,22 @@ export async function POST(
         { error: '마감된 상장만 취소할 수 있습니다.' },
         { status: 400 }
       );
+    }
+
+    // 해당 날짜보다 이후에 마감된 날짜가 있는지 확인
+    if (listing.listing_date) {
+      const { data: laterClosedDates } = await supabase
+        .from('auction_close_dates')
+        .select('close_date')
+        .gt('close_date', listing.listing_date)
+        .limit(1);
+
+      if (laterClosedDates && laterClosedDates.length > 0) {
+        return NextResponse.json(
+          { error: `${laterClosedDates[0].close_date} 이후 날짜가 마감되어 있어 취소할 수 없습니다. 최근 날짜부터 취소해주세요.` },
+          { status: 400 }
+        );
+      }
     }
 
     // 2. 해당 상장의 모든 부위 조회
@@ -80,6 +96,26 @@ export async function POST(
     if (updateError) {
       console.error('상장 상태 변경 오류:', updateError);
       return NextResponse.json({ error: updateError.message }, { status: 500 });
+    }
+
+    // 5. 해당 날짜에 다른 마감된 상장이 없으면 auction_close_dates에서 삭제
+    if (listing.listing_date) {
+      // 같은 날짜에 아직 마감된 다른 상장이 있는지 확인
+      const { data: otherClosedListings } = await supabase
+        .from('cattle_listings')
+        .select('id')
+        .eq('listing_date', listing.listing_date)
+        .eq('status', 'closed')
+        .neq('id', listingId)
+        .limit(1);
+
+      // 다른 마감된 상장이 없으면 해당 날짜 삭제
+      if (!otherClosedListings || otherClosedListings.length === 0) {
+        await supabase
+          .from('auction_close_dates')
+          .delete()
+          .eq('close_date', listing.listing_date);
+      }
     }
 
     return NextResponse.json({

@@ -225,11 +225,27 @@ export default function AuctionLivePage() {
     if (!confirm(`${closedListingIds.length}개 상장의 마감을 취소하시겠습니까?`)) return;
 
     try {
+      let successCount = 0;
+      let errorMessage = '';
+      
       for (const listingId of closedListingIds) {
-        await fetch(`/api/listings/${listingId}/reopen`, { method: 'POST' });
+        const response = await fetch(`/api/listings/${listingId}/reopen`, { method: 'POST' });
+        const data = await response.json();
+        
+        if (!response.ok) {
+          errorMessage = data.error || '마감 취소 중 오류 발생';
+          break; // 에러 발생 시 중단
+        }
+        successCount++;
       }
+      
       refetch();
-      alert('마감 취소가 완료되었습니다.');
+      
+      if (errorMessage) {
+        alert(`${successCount}개 취소 완료.\n\n오류: ${errorMessage}`);
+      } else {
+        alert('마감 취소가 완료되었습니다.');
+      }
     } catch (error: any) {
       alert(error.message || '마감 취소 중 오류 발생');
     }
