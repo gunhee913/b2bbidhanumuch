@@ -164,18 +164,18 @@ export async function GET(request: NextRequest) {
       dealerSettlements[dealerId].totalAmount += bidPart.amount;
     });
 
-    // 상장번호 정렬 함수 (예: 260205-101-01 → 가운데 101, 뒷자리 01 순)
+    // 상장번호 정렬 함수 (예: 260205-101-01 → 가운데 101, 102, 103, 201, 202 순, 뒷자리 01, 02, 03 순)
     const sortByListingNo = (a: string, b: string) => {
       const partsA = a.split('-');
       const partsB = b.split('-');
-      // 가운데 3자리 비교 (101, 102, 201...)
-      const midA = partsA[1] || '000';
-      const midB = partsB[1] || '000';
-      if (midA !== midB) return midA.localeCompare(midB);
-      // 뒷자리 비교 (01, 02...)
-      const lastA = partsA[2] || '00';
-      const lastB = partsB[2] || '00';
-      return lastA.localeCompare(lastB);
+      // 가운데 3자리 숫자 비교 (101, 102, 103, 201, 202...)
+      const midA = parseInt(partsA[1] || '0', 10);
+      const midB = parseInt(partsB[1] || '0', 10);
+      if (midA !== midB) return midA - midB;
+      // 뒷자리 숫자 비교 (01, 02, 03, 04...)
+      const lastA = parseInt(partsA[2] || '0', 10);
+      const lastB = parseInt(partsB[2] || '0', 10);
+      return lastA - lastB;
     };
 
     // 4. 지급액 계산 및 배열로 변환

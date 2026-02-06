@@ -137,11 +137,25 @@ function MainPageContent() {
   // 부위별 관심 입찰 로딩 상태
   const [isFavoritePartBidding, setIsFavoritePartBidding] = useState(false);
 
+  // 상장번호 정렬 함수 (예: 260206-101 → 가운데 101, 102, 201, 202 순)
+  const sortByListingNo = (a: string, b: string) => {
+    const partsA = a.split('-');
+    const partsB = b.split('-');
+    // 가운데/뒷자리 숫자 비교 (101, 102, 201...)
+    const midA = parseInt(partsA[1] || '0', 10);
+    const midB = parseInt(partsB[1] || '0', 10);
+    if (midA !== midB) return midA - midB;
+    // 3번째 자리가 있으면 비교 (01, 02...)
+    const lastA = parseInt(partsA[2] || '0', 10);
+    const lastB = parseInt(partsB[2] || '0', 10);
+    return lastA - lastB;
+  };
+
   // API 데이터를 기존 cattleData 형식으로 변환
   const cattleData = useMemo(() => {
     if (!listingsData || listingsData.length === 0) return [];
     
-    return listingsData.map(listing => ({
+    const data = listingsData.map(listing => ({
       id: listing.listingNo,
       type: listing.breed,
       gender: listing.gender,
@@ -157,6 +171,11 @@ function MainPageContent() {
       marblingScore: listing.marblingScore,
       parts: listing.parts || [],
     }));
+    
+    // 상장번호 기준 정렬
+    data.sort((a, b) => sortByListingNo(a.id, b.id));
+    
+    return data;
   }, [listingsData]);
 
   // 부위별 관심 목록용 데이터 생성
@@ -314,16 +333,24 @@ function MainPageContent() {
       }
     });
     
+    // 상장번호 기준 정렬
+    products.sort((a, b) => sortByListingNo(a.listingNo, b.listingNo));
+    
     return products;
   }, [cattleData]);
 
   // 관심 부위 목록에서 상품 정보 가져오기
   const favoritePartProducts = React.useMemo(() => {
     const partFavorites = favorites.filter(id => id.split('-').length === 3);
-    return partFavorites.map(listingNo => {
+    const products = partFavorites.map(listingNo => {
       const product = allPartProducts.find(p => p.listingNo === listingNo);
       return product;
     }).filter(Boolean);
+    
+    // 상장번호 기준 정렬
+    products.sort((a: any, b: any) => sortByListingNo(a.listingNo || '', b.listingNo || ''));
+    
+    return products;
   }, [favorites, allPartProducts]);
 
   // 부위별 이미지 스와이프 핸들러
