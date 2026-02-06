@@ -25,6 +25,7 @@ import { AUCTION_PRODUCTS, getTodayDateCode, getYesterdayDateFormatted } from '@
 import { useListings } from '@/features/listings/hooks';
 import { format } from 'date-fns';
 import { useSession } from 'next-auth/react';
+import { useRealtimeBids } from '@/hooks/useRealtimeBids';
 
 function AuctionPageContent() {
   const router = useRouter();
@@ -347,6 +348,14 @@ function AuctionPageContent() {
     listingDateFrom: todayStr,
     listingDateTo: todayStr,
     includeParts: true,
+  });
+  
+  // 실시간 입찰 변경 구독 (다른 사용자가 입찰하면 자동 새로고침)
+  useRealtimeBids({
+    onBidChange: () => {
+      refetchListings();
+    },
+    enabled: true,
   });
   
   // 부위별 입찰 로딩 상태
