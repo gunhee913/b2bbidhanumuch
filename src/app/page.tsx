@@ -31,6 +31,7 @@ import { GRADES, getCompanyAuctionSummary, calcTotal, getTodayDateCode } from '@
 import { useListings } from '@/features/listings/hooks';
 import { format } from 'date-fns';
 import { useSession } from 'next-auth/react';
+import { useRealtimeBids } from '@/hooks/useRealtimeBids';
 
 // 한국어 로케일 등록
 registerLocale('ko', ko);
@@ -120,6 +121,17 @@ function MainPageContent() {
     listingDateFrom: selectedDateStr,
     listingDateTo: selectedDateStr,
     includeParts: true,
+  });
+  
+  // 실시간 입찰 변경 구독 (다른 사용자가 입찰하면 자동 새로고침)
+  const handleBidChange = useCallback(() => {
+    console.log('[Main] 입찰 변경 감지 - 데이터 새로고침');
+    refetchListings();
+  }, [refetchListings]);
+  
+  useRealtimeBids({
+    onBidChange: handleBidChange,
+    enabled: true,
   });
   
   // 부위별 관심 입찰 로딩 상태

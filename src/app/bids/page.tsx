@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Settings, Bell, X } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -10,6 +10,7 @@ import { useSession } from 'next-auth/react';
 import { useMyBidsWithStatus } from '@/features/bids/hooks';
 import { MyBidItem } from '@/features/bids/types';
 import { format } from 'date-fns';
+import { useRealtimeBids } from '@/hooks/useRealtimeBids';
 
 // 숫자 포맷팅 함수
 const formatNumber = (value: string) => {
@@ -45,6 +46,17 @@ export default function BidsPage() {
   
   // DB에서 나의 입찰 목록 조회
   const { data: myBids, isLoading: bidsLoading, refetch: refetchBids } = useMyBidsWithStatus(dealerId);
+  
+  // 실시간 입찰 변경 구독 (다른 사용자가 입찰하면 자동 새로고침)
+  const handleBidChange = useCallback(() => {
+    console.log('[Bids] 입찰 변경 감지 - 데이터 새로고침');
+    refetchBids();
+  }, [refetchBids]);
+  
+  useRealtimeBids({
+    onBidChange: handleBidChange,
+    enabled: !!dealerId,
+  });
   
   // Hydration 오류 방지를 위해 클라이언트에서만 마운트
   useEffect(() => {
