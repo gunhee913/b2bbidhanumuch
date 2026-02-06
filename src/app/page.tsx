@@ -1015,7 +1015,7 @@ function MainPageContent() {
                                     {product.price.toLocaleString()}
                                   </div>
                                   <div className="text-center text-[13px] font-medium text-gray-900 dark:text-gray-100">
-                                    {bid?.highestBid ? bid.highestBid.toLocaleString() : '-'}
+                                    {product.dbHighestBid ? product.dbHighestBid.toLocaleString() : '-'}
                                   </div>
                                   <div 
                                     className="text-center flex items-center justify-center"
@@ -1027,7 +1027,7 @@ function MainPageContent() {
                                           onClick={() => {
                                             if (bid.status !== 'highest') {
                                               setSelectedFavoritePart(product);
-                                              setFavoritePartBidPrice(bid.highestBid + quickReBidAmount);
+                                              setFavoritePartBidPrice((product.dbHighestBid || bid.highestBid || product.price) + quickReBidAmount);
                                               setShowFavoritePartBidSheet(true);
                                             }
                                           }}
@@ -1039,7 +1039,7 @@ function MainPageContent() {
                                           <button
                                             onClick={() => {
                                               setSelectedFavoritePart(product);
-                                              setFavoritePartBidPrice(bid.highestBid + quickReBidAmount);
+                                              setFavoritePartBidPrice((product.dbHighestBid || bid.highestBid || product.price) + quickReBidAmount);
                                               setShowFavoritePartBidSheet(true);
                                             }}
                                             className="mt-1 px-2 py-0.5 text-[11px] font-medium text-white bg-gray-800 dark:bg-gray-200 dark:text-gray-900 rounded hover:bg-gray-900 dark:hover:bg-gray-300 transition-colors"
@@ -1062,13 +1062,17 @@ function MainPageContent() {
                                     )}
                                   </div>
                                   <div className="text-center flex items-center justify-center">
-                                    {bid?.status === 'highest' ? (
-                                      <span className="text-[11px] font-medium text-blue-600 dark:text-blue-400">최고순위</span>
-                                    ) : bid?.status === 'secondHighest' ? (
-                                      <span className="text-[11px] font-medium text-red-500 dark:text-red-400">차순위</span>
-                                    ) : (
-                                      <span className="text-[13px] text-gray-400 dark:text-gray-500">-</span>
-                                    )}
+                                    {(() => {
+                                      // DB 최고입찰가와 내 입찰가 비교해서 상태 결정
+                                      const dbHighest = product.dbHighestBid || 0;
+                                      const myBid = bid?.myBid || 0;
+                                      if (!myBid) return <span className="text-[13px] text-gray-400 dark:text-gray-500">-</span>;
+                                      if (myBid >= dbHighest) {
+                                        return <span className="text-[11px] font-medium text-blue-600 dark:text-blue-400">최고순위</span>;
+                                      } else {
+                                        return <span className="text-[11px] font-medium text-red-500 dark:text-red-400">차순위</span>;
+                                      }
+                                    })()}
                                   </div>
                                   <div 
                                     className="text-center flex items-center justify-center"
