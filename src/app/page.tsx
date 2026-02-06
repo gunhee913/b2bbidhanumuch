@@ -991,13 +991,18 @@ function MainPageContent() {
                           {favoritePartProducts.map((product: any) => {
                             const bid = bids[product.listingNo];
                             const isExpanded = expandedFavoritePartId === product.id;
+                            // DB 기반 상태 계산
+                            const dbHighest = product.dbHighestBid || 0;
+                            const myBidPrice = bid?.myBid || 0;
+                            const isHighest = myBidPrice > 0 && myBidPrice >= dbHighest;
+                            const isSecond = myBidPrice > 0 && myBidPrice < dbHighest;
                             return (
                               <div key={product.id}>
                                 <div 
                                   className={`grid px-2 py-3 border-b border-gray-100 dark:border-gray-800 cursor-pointer transition-colors items-center ${
-                                    bid?.status === 'highest' 
+                                    isHighest 
                                       ? 'bg-blue-50/50 dark:bg-blue-900/30' 
-                                      : bid?.status === 'secondHighest'
+                                      : isSecond
                                         ? 'bg-red-50/50 dark:bg-red-900/30'
                                         : 'bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800'
                                   }`}
@@ -1025,34 +1030,37 @@ function MainPageContent() {
                                       <div className="flex flex-col items-center">
                                         <span 
                                           onClick={() => {
-                                            if (bid.status !== 'highest') {
+                                            if (isSecond) {
                                               setSelectedFavoritePart(product);
-                                              setFavoritePartBidPrice((product.dbHighestBid || bid.highestBid || product.price) + quickReBidAmount);
+                                              // 최고입찰가 그대로 (quickReBidAmount 제거)
+                                              setFavoritePartBidPrice(product.dbHighestBid || product.price);
                                               setShowFavoritePartBidSheet(true);
                                             }
                                           }}
-                                          className={`text-[13px] font-medium text-gray-900 dark:text-gray-100 leading-none ${bid.status !== 'highest' ? 'cursor-pointer' : ''}`}
+                                          className={`text-[13px] font-medium text-gray-900 dark:text-gray-100 leading-none ${isSecond ? 'cursor-pointer' : ''}`}
                                         >
                                           {bid.myBid.toLocaleString()}
                                         </span>
-                                        {bid.status !== 'highest' && (
+                                        {isSecond && (
                                           <button
                                             onClick={() => {
                                               setSelectedFavoritePart(product);
-                                              setFavoritePartBidPrice((product.dbHighestBid || bid.highestBid || product.price) + quickReBidAmount);
+                                              // 최고입찰가 그대로 (quickReBidAmount 제거)
+                                              setFavoritePartBidPrice(product.dbHighestBid || product.price);
                                               setShowFavoritePartBidSheet(true);
                                             }}
                                             className="mt-1 px-2 py-0.5 text-[11px] font-medium text-white bg-gray-800 dark:bg-gray-200 dark:text-gray-900 rounded hover:bg-gray-900 dark:hover:bg-gray-300 transition-colors"
                                           >
                                             재입찰
                                           </button>
-                    )}
-                  </div>
+                                        )}
+                                      </div>
                                     ) : (
                                       <button
                                         onClick={() => {
                                           setSelectedFavoritePart(product);
-                                          setFavoritePartBidPrice(0);
+                                          // 최고입찰가가 있으면 최고입찰가, 없으면 최저단가
+                                          setFavoritePartBidPrice(product.dbHighestBid || product.price);
                                           setShowFavoritePartBidSheet(true);
                                         }}
                                         className="px-2 py-1 text-[11px] font-medium text-white bg-gray-800 dark:bg-gray-200 dark:text-gray-900 rounded hover:bg-gray-900 dark:hover:bg-gray-300 transition-colors"
@@ -1062,17 +1070,13 @@ function MainPageContent() {
                                     )}
                                   </div>
                                   <div className="text-center flex items-center justify-center">
-                                    {(() => {
-                                      // DB 최고입찰가와 내 입찰가 비교해서 상태 결정
-                                      const dbHighest = product.dbHighestBid || 0;
-                                      const myBid = bid?.myBid || 0;
-                                      if (!myBid) return <span className="text-[13px] text-gray-400 dark:text-gray-500">-</span>;
-                                      if (myBid >= dbHighest) {
-                                        return <span className="text-[11px] font-medium text-blue-600 dark:text-blue-400">최고순위</span>;
-                                      } else {
-                                        return <span className="text-[11px] font-medium text-red-500 dark:text-red-400">차순위</span>;
-                                      }
-                                    })()}
+                                    {isHighest ? (
+                                      <span className="text-[11px] font-medium text-blue-600 dark:text-blue-400">최고순위</span>
+                                    ) : isSecond ? (
+                                      <span className="text-[11px] font-medium text-red-500 dark:text-red-400">차순위</span>
+                                    ) : (
+                                      <span className="text-[13px] text-gray-400 dark:text-gray-500">-</span>
+                                    )}
                                   </div>
                                   <div 
                                     className="text-center flex items-center justify-center"
