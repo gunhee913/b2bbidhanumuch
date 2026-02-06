@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, use, useMemo, Suspense } from 'react';
+import { useState, useEffect, useRef, use, useMemo, Suspense, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -26,6 +26,7 @@ import { AuctionPasswordModal } from '@/components/auth/AuctionPasswordModal';
 import { useListingByNo } from '@/features/listings/hooks';
 import { useCreateBid } from '@/features/auctions/hooks';
 import { useSession } from 'next-auth/react';
+import { useRealtimeBids } from '@/hooks/useRealtimeBids';
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -39,6 +40,17 @@ function AuctionDetailContent({ params }: PageProps) {
 
   // DB에서 상장 정보 조회
   const { data: listingData, isLoading: listingLoading, error: listingError, refetch: refetchListing } = useListingByNo(resolvedParams.id);
+
+  // 실시간 입찰 변경 구독 (다른 사용자가 입찰하면 자동 새로고침)
+  const handleBidChange = useCallback(() => {
+    console.log('[Auction Detail] 입찰 변경 감지 - 데이터 새로고침');
+    refetchListing();
+  }, [refetchListing]);
+  
+  useRealtimeBids({
+    onBidChange: handleBidChange,
+    enabled: true,
+  });
 
   // DB 데이터 기반 개체 정보
   const currentCattle = useMemo(() => {
