@@ -47,8 +47,9 @@ export default function BidsPage() {
   // DB에서 나의 입찰 목록 조회
   const { data: myBids, isLoading: bidsLoading, refetch: refetchBids } = useMyBidsWithStatus(dealerId);
   
-  // 실시간 입찰 변경 구독 (다른 사용자가 입찰하면 자동 새로고침)
-  const handleBidChange = useCallback(() => {
+  // 실시간 입찰 변경 구독 (Optimistic Update)
+  // bids 페이지는 내 입찰 현황이므로 모든 변경에 refetch 필요 (다른 사람 입찰로 순위 변동)
+  const handleBidChange = useCallback((payload?: { partId: string; bidPrice: number; dealerId: string }) => {
     console.log('[Bids] 입찰 변경 감지 - 데이터 새로고침');
     refetchBids();
   }, [refetchBids]);
