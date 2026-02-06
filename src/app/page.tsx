@@ -1032,8 +1032,7 @@ function MainPageContent() {
                                           onClick={() => {
                                             if (isSecond) {
                                               setSelectedFavoritePart(product);
-                                              // 최고입찰가 그대로 (quickReBidAmount 제거)
-                                              setFavoritePartBidPrice(product.dbHighestBid || product.price);
+                                              setFavoritePartBidPrice(0);
                                               setShowFavoritePartBidSheet(true);
                                             }
                                           }}
@@ -1045,11 +1044,10 @@ function MainPageContent() {
                                           <button
                                             onClick={() => {
                                               setSelectedFavoritePart(product);
-                                              // 최고입찰가 그대로 (quickReBidAmount 제거)
-                                              setFavoritePartBidPrice(product.dbHighestBid || product.price);
+                                              setFavoritePartBidPrice(0);
                                               setShowFavoritePartBidSheet(true);
                                             }}
-                                            className="mt-1 px-2 py-0.5 text-[11px] font-medium text-white bg-gray-800 dark:bg-gray-200 dark:text-gray-900 rounded hover:bg-gray-900 dark:hover:bg-gray-300 transition-colors"
+                                            className="mt-1 px-2 py-0.5 text-[11px] font-medium text-white bg-gray-800 dark:bg-gray-700 rounded hover:bg-gray-900 dark:hover:bg-gray-600 transition-colors"
                                           >
                                             재입찰
                                           </button>
@@ -1059,11 +1057,10 @@ function MainPageContent() {
                                       <button
                                         onClick={() => {
                                           setSelectedFavoritePart(product);
-                                          // 최고입찰가가 있으면 최고입찰가, 없으면 최저단가
-                                          setFavoritePartBidPrice(product.dbHighestBid || product.price);
+                                          setFavoritePartBidPrice(0);
                                           setShowFavoritePartBidSheet(true);
                                         }}
-                                        className="px-2 py-1 text-[11px] font-medium text-white bg-gray-800 dark:bg-gray-200 dark:text-gray-900 rounded hover:bg-gray-900 dark:hover:bg-gray-300 transition-colors"
+                                        className="px-2 py-1 text-[11px] font-medium text-white bg-gray-800 dark:bg-gray-700 rounded hover:bg-gray-900 dark:hover:bg-gray-600 transition-colors"
                                       >
                                         입찰하기
                                       </button>
@@ -1353,7 +1350,7 @@ function MainPageContent() {
                                           onClick={(e) => {
                                             e.stopPropagation();
                                             setSelectedFavoritePart(product);
-                                            setFavoritePartBidPrice(product.price);
+                                            setFavoritePartBidPrice(0);
                                             setShowFavoritePartBidSheet(true);
                                           }}
                                           className="px-3 py-1.5 text-xs font-bold rounded bg-gray-800 dark:bg-gray-200 text-white dark:text-gray-900 hover:bg-gray-900 dark:hover:bg-gray-300 transition-colors"
@@ -1863,12 +1860,12 @@ function MainPageContent() {
                       </button>
                     </div>
                     
-                    <div className="p-4">
-                      {/* 상품 정보 테이블 */}
-                      <div className="mb-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded overflow-hidden overflow-x-auto">
+                    <div className="p-4 space-y-4">
+                      {/* 개체 정보 테이블 */}
+                      <div className="border border-gray-200 dark:border-gray-700 rounded overflow-hidden overflow-x-auto">
                         <table className="w-full text-[11px]">
                           <thead>
-                            <tr className="bg-gray-100 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600">
+                            <tr className="bg-gray-100 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
                               <th className="py-2 px-1.5 text-center font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">상장번호</th>
                               <th className="py-2 px-1.5 text-center font-medium text-gray-500 dark:text-gray-400">축종</th>
                               <th className="py-2 px-1.5 text-center font-medium text-gray-500 dark:text-gray-400">성별</th>
@@ -1893,24 +1890,31 @@ function MainPageContent() {
                       </div>
                       
                       {/* 입찰가 입력 */}
-                      <div className="space-y-2 mb-4">
-                        <label className="text-sm font-bold text-gray-700 dark:text-gray-300">입찰가격 (kg당)</label>
-                        <div className="relative">
+                      <div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400 mb-2">입찰가격 (원/kg)</div>
+                        <div className="relative mb-2">
                           <input
                             type="text"
+                            inputMode="numeric"
                             value={favoritePartBidPrice > 0 ? favoritePartBidPrice.toLocaleString() : ''}
                             onChange={(e) => {
                               const value = e.target.value.replace(/[^\d]/g, '');
                               setFavoritePartBidPrice(value ? parseInt(value) : 0);
                             }}
-                            placeholder={`최저단가 ${selectedFavoritePart.price.toLocaleString()}`}
-                            className="w-full px-3 py-3 pr-10 text-right text-xl font-bold border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-gray-500 dark:focus:ring-gray-400 focus:border-gray-500 bg-white dark:bg-gray-700 text-black dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500"
+                            placeholder={selectedFavoritePart ? (() => {
+                              const highestBid = selectedFavoritePart.dbHighestBid;
+                              if (highestBid) {
+                                return `최고입찰가 ${highestBid.toLocaleString()}`;
+                              }
+                              return `최저단가 ${(selectedFavoritePart.price || 0).toLocaleString()}`;
+                            })() : '0'}
+                            className="w-full px-4 py-3.5 pr-12 text-right text-xl font-bold border border-gray-200 dark:border-gray-700 rounded focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500 focus:border-gray-400 dark:focus:border-gray-500 bg-white dark:bg-gray-800 text-black dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500"
                           />
-                          <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-sm text-gray-400 dark:text-gray-500">
+                          <div className="absolute right-4 top-1/2 transform -translate-y-1/2 text-sm text-gray-400 dark:text-gray-500">
                             원
                           </div>
                         </div>
-                        {/* 가격 조정 버튼 */}
+                        {/* 금액 조정 버튼 */}
                         <div className="grid grid-cols-5 gap-1.5">
                           {[100, 1000, 10000, 50000].map((amount) => (
                             <button
@@ -1925,14 +1929,14 @@ function MainPageContent() {
                                   return prev + amount;
                                 });
                               }}
-                              className="py-2.5 text-xs border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 font-medium text-gray-700 dark:text-gray-300"
+                              className="py-2 text-xs border border-gray-200 dark:border-gray-700 rounded hover:bg-gray-50 dark:hover:bg-gray-800 font-medium text-gray-700 dark:text-gray-300 transition-colors"
                             >
                               +{amount.toLocaleString()}
                             </button>
                           ))}
                           <button
                             onClick={() => setFavoritePartBidPrice(0)}
-                            className="py-2.5 text-xs bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-400 font-medium"
+                            className="py-2 text-xs bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 font-medium transition-colors"
                           >
                             초기화
                           </button>
@@ -1940,11 +1944,11 @@ function MainPageContent() {
                       </div>
                       
                       {/* 총 입찰금액 */}
-                      <div className="bg-gray-50 dark:bg-gray-700 p-3 rounded-lg border border-gray-200 dark:border-gray-600 mb-4">
+                      <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-700">
                         <div className="flex justify-between items-center">
                           <span className="text-sm font-bold text-gray-700 dark:text-gray-300">총 입찰금액</span>
                           <span className="text-xl font-bold text-gray-900 dark:text-gray-100">
-                            {favoritePartBidPrice > 0 
+                            {favoritePartBidPrice > 0 && selectedFavoritePart.weight
                               ? `${Math.round(favoritePartBidPrice * parseFloat(selectedFavoritePart.weight)).toLocaleString()}원`
                               : '-'
                             }
@@ -1963,7 +1967,7 @@ function MainPageContent() {
                           }
                         }}
                         disabled={favoritePartBidPrice === 0}
-                        className="w-full py-2.5 bg-gray-800 dark:bg-gray-100 hover:bg-gray-900 dark:hover:bg-gray-200 disabled:bg-gray-300 dark:disabled:bg-gray-600 disabled:cursor-not-allowed text-white dark:text-gray-900 disabled:text-gray-500 dark:disabled:text-gray-400 font-bold text-base rounded transition-colors"
+                        className="w-full py-3.5 bg-gray-800 dark:bg-gray-700 hover:bg-gray-900 dark:hover:bg-gray-600 disabled:bg-gray-300 dark:disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-bold text-base rounded transition-colors"
                       >
                         입찰하기
                       </button>

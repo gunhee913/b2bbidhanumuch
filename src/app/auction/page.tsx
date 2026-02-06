@@ -1068,7 +1068,7 @@ function AuctionPageContent() {
                                       onClick={() => {
                                         if (bidStatus !== 'highest') {
                                           setSelectedProduct(product);
-                                          setPartBidPrice(dbHighestBid + quickReBidAmount);
+                                          setPartBidPrice(0);
                                           setShowPartBidSheet(true);
                                         }
                                       }}
@@ -1080,7 +1080,7 @@ function AuctionPageContent() {
                                       <button
                                         onClick={() => {
                                           setSelectedProduct(product);
-                                          setPartBidPrice(dbHighestBid + quickReBidAmount);
+                                          setPartBidPrice(0);
                                           setShowPartBidSheet(true);
                                         }}
                                         className="mt-1 px-2 py-0.5 text-[11px] font-medium text-white bg-gray-800 dark:bg-gray-700 rounded hover:bg-gray-900 dark:hover:bg-gray-600 transition-colors"
@@ -1568,7 +1568,13 @@ function AuctionPageContent() {
                               setPartBidPrice(value ? parseInt(value) : 0);
                             }}
                             className="w-full px-4 py-3.5 pr-12 text-right text-xl font-bold border border-gray-200 dark:border-gray-700 rounded focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500 focus:border-gray-400 dark:focus:border-gray-500 bg-white dark:bg-gray-800 text-black dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500"
-                            placeholder={selectedProduct?.price ? `최저단가 ${selectedProduct.price.toLocaleString()}` : '0'}
+                            placeholder={selectedProduct ? (() => {
+                              const highestBid = selectedProduct.dbHighestBid;
+                              if (highestBid) {
+                                return `최고입찰가 ${highestBid.toLocaleString()}`;
+                              }
+                              return `최저단가 ${(selectedProduct.price || 0).toLocaleString()}`;
+                            })() : '0'}
                           />
                           <div className="absolute right-4 top-1/2 transform -translate-y-1/2 text-sm text-gray-400 dark:text-gray-500">
                             원
