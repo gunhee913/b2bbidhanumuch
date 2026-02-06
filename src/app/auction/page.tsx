@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useRef, Suspense } from 'react';
+import { useState, useEffect, useMemo, useRef, Suspense, useCallback } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -351,10 +351,13 @@ function AuctionPageContent() {
   });
   
   // 실시간 입찰 변경 구독 (다른 사용자가 입찰하면 자동 새로고침)
+  const handleBidChange = useCallback(() => {
+    console.log('[Auction] 입찰 변경 감지 - 데이터 새로고침');
+    refetchListings();
+  }, [refetchListings]);
+  
   useRealtimeBids({
-    onBidChange: () => {
-      refetchListings();
-    },
+    onBidChange: handleBidChange,
     enabled: true,
   });
   

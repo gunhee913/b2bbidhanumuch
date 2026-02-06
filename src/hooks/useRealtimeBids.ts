@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
 
 interface UseRealtimeBidsOptions {
@@ -13,9 +13,14 @@ interface UseRealtimeBidsOptions {
  * bids 테이블 또는 cattle_parts 테이블에 변경이 생기면 콜백 실행
  */
 export function useRealtimeBids({ onBidChange, enabled = true }: UseRealtimeBidsOptions) {
-  useEffect(() => {
-    if (!enabled || !onBidChange) return;
+  // 콜백을 ref로 저장해서 의존성 문제 해결
+  const onBidChangeRef = useRef(onBidChange);
+  onBidChangeRef.current = onBidChange;
 
+  useEffect(() => {
+    if (!enabled) return;
+
+    console.log('[Realtime] 구독 시작...');
     const supabase = createClient();
 
     // bids 테이블 변경 구독
@@ -30,7 +35,7 @@ export function useRealtimeBids({ onBidChange, enabled = true }: UseRealtimeBids
         },
         (payload) => {
           console.log('[Realtime] 입찰 변경 감지:', payload.eventType);
-          onBidChange();
+          onBidChangeRef.current?.();
         }
       )
       .on(
@@ -43,7 +48,7 @@ export function useRealtimeBids({ onBidChange, enabled = true }: UseRealtimeBids
         (payload) => {
           // bid_price, winning_dealer_id 등이 변경되면 감지
           console.log('[Realtime] 부위 정보 변경 감지:', payload.eventType);
-          onBidChange();
+          onBidChangeRef.current?.();
         }
       )
       .subscribe((status) => {
@@ -55,5 +60,5 @@ export function useRealtimeBids({ onBidChange, enabled = true }: UseRealtimeBids
       console.log('[Realtime] 구독 해제');
       supabase.removeChannel(channel);
     };
-  }, [enabled, onBidChange]);
+  }, [enabled]);
 }
