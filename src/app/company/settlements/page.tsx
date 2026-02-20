@@ -37,15 +37,16 @@ interface CattleDetail {
   parts: PartDetail[];
 }
 
-// 19개 부위 및 현실적인 단가 (원/kg)
+// 20개 부위 및 현실적인 단가 (원/kg)
 const PARTS_CONFIG = [
   { name: '등심(좌)', basePrice: 85000, baseWeight: 15.5 },
   { name: '등심(우)', basePrice: 85000, baseWeight: 15.5 },
   { name: '안심', basePrice: 95000, baseWeight: 4.5 },
   { name: '채끝', basePrice: 82000, baseWeight: 8.0 },
-  { name: '갈비(좌)', basePrice: 78000, baseWeight: 12.5 },
-  { name: '갈비(우)', basePrice: 78000, baseWeight: 12.5 },
-  { name: '특수부위', basePrice: 72000, baseWeight: 3.5 },
+  { name: '치마', basePrice: 65000, baseWeight: 4.0 },
+  { name: '부채', basePrice: 60000, baseWeight: 3.0 },
+  { name: '업진', basePrice: 55000, baseWeight: 4.5 },
+  { name: '토시·제비', basePrice: 70000, baseWeight: 2.0 },
   { name: '앞다리', basePrice: 55000, baseWeight: 25.0 },
   { name: '우둔', basePrice: 58000, baseWeight: 21.0 },
   { name: '목심', basePrice: 62000, baseWeight: 14.5 },
@@ -82,7 +83,7 @@ const generateDummyData = (companyName: string): CattleDetail[] => {
     const gender = i % 2 === 0 ? '거세' : '암';
     const gradeMultiplier = grade.startsWith('1++') ? 1.0 : grade.startsWith('1+') ? 0.85 : 0.7;
     
-    const failedPartIdx = i % 19;
+    const failedPartIdx = i % 20;
     
     const parts: PartDetail[] = PARTS_CONFIG.map((config, partIdx) => {
       const weightVariation = ((i * 3 + partIdx) % 20 - 10) / 10;

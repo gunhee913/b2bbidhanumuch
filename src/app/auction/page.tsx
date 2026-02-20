@@ -115,8 +115,13 @@ function AuctionPageContent() {
     return `${year}.${month}.${day}.(${dayName})`;
   };
   
-  // 마감시간 카운터
-  const [remainingTime, setRemainingTime] = useState(60 * 60); // 60분 = 3600초
+  // 회차별 경매 타이머
+  const [remainingTime, setRemainingTime] = useState(0);
+  const [roundInfo, setRoundInfo] = useState<{
+    currentRound: any;
+    allRounds: any[];
+    totalRounds: number;
+  } | null>(null);
   
   // 빠른 재입찰 수정 모달
   const [showQuickReBidEdit, setShowQuickReBidEdit] = useState(false);
@@ -201,18 +206,42 @@ function AuctionPageContent() {
     };
   }, []);
   
-  // 마감시간 카운터
+  // 회차별 경매 정보 폴링 (5초 간격)
   useEffect(() => {
-    const timer = setInterval(() => {
-      setRemainingTime(prev => {
-        if (prev <= 0) return 0;
-        return prev - 1;
-      });
-    }, 1000);
-    
-    return () => clearInterval(timer);
+    const fetchRoundInfo = async () => {
+      try {
+        const res = await fetch('/api/auctions/rounds/current');
+        if (res.ok) {
+          const data = await res.json();
+          setRoundInfo(data);
+        }
+      } catch {}
+    };
+    fetchRoundInfo();
+    const interval = setInterval(fetchRoundInfo, 5000);
+    return () => clearInterval(interval);
   }, []);
-  
+
+  // 타이머 계산 (회차 기반)
+  useEffect(() => {
+    const cr = roundInfo?.currentRound;
+    if (!cr?.started_at || !cr?.round_duration_min) {
+      setRemainingTime(0);
+      return;
+    }
+
+    const calculateRemaining = () => {
+      const startedAt = new Date(cr.started_at).getTime();
+      const durationMs = cr.round_duration_min * 60 * 1000;
+      const remaining = Math.max(0, Math.floor((startedAt + durationMs - Date.now()) / 1000));
+      setRemainingTime(remaining);
+    };
+
+    calculateRemaining();
+    const timer = setInterval(calculateRemaining, 1000);
+    return () => clearInterval(timer);
+  }, [roundInfo?.currentRound?.id, roundInfo?.currentRound?.started_at]);
+
   // 시간 포맷 함수
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -322,8 +351,10 @@ function AuctionPageContent() {
     { id: 'sirloin', name: '등심', image: '/등심1.png' },
     { id: 'tenderloin', name: '안심', image: '/등심2.png' },
     { id: 'striploin', name: '채끝', image: '/등심3.png' },
-    { id: 'ribs', name: '갈비', image: '/등심4.png' },
-    { id: 'special', name: '특수부위', image: '/등심1.png' },
+    { id: 'chima', name: '치마', image: '/등심4.png' },
+    { id: 'buchae', name: '부채', image: '/등심1.png' },
+    { id: 'upjin', name: '업진', image: '/등심2.png' },
+    { id: 'tosi', name: '토시·제비', image: '/등심3.png' },
     { id: 'foreleg', name: '앞다리', image: '/등심2.png' },
     { id: 'rump', name: '우둔', image: '/등심3.png' },
     { id: 'chuck', name: '목심', image: '/등심4.png' },
@@ -406,8 +437,10 @@ function AuctionPageContent() {
     sirloin: ['등심(좌)', '등심(우)'],
     tenderloin: ['안심'],
     striploin: ['채끝'],
-    ribs: ['갈비(좌)', '갈비(우)'],
-    special: ['특수부위'],
+    chima: ['치마'],
+    buchae: ['부채'],
+    upjin: ['업진'],
+    tosi: ['토시·제비'],
     foreleg: ['앞다리'],
     rump: ['우둔'],
     chuck: ['목심'],
@@ -424,8 +457,8 @@ function AuctionPageContent() {
   const partMinPrices: Record<string, number> = {
     '등심(좌)': 85000, '등심(우)': 85000,
     '안심': 95000, '채끝': 82000,
-    '갈비(좌)': 78000, '갈비(우)': 78000,
-    '특수부위': 72000, '앞다리': 55000,
+    '치마': 65000, '부채': 60000,
+    '업진': 55000, '토시·제비': 70000, '앞다리': 55000,
     '우둔': 58000, '목심': 62000,
     '양지(좌)': 52000, '양지(우)': 52000,
     '설도(좌)': 56000, '설도(우)': 56000,
@@ -437,8 +470,8 @@ function AuctionPageContent() {
   const partWeightRanges: Record<string, [number, number]> = {
     '등심(좌)': [15, 16], '등심(우)': [15, 16],
     '안심': [4, 5], '채끝': [7.5, 8.5],
-    '갈비(좌)': [12, 13], '갈비(우)': [12, 13],
-    '특수부위': [3, 4], '앞다리': [24, 26],
+    '치마': [3.5, 4.5], '부채': [2.5, 3.5],
+    '업진': [4, 5], '토시·제비': [1.5, 2.5], '앞다리': [24, 26],
     '우둔': [20, 22], '목심': [14, 15],
     '양지(좌)': [12, 13], '양지(우)': [12, 13],
     '설도(좌)': [16, 17.5], '설도(우)': [16, 17.5],
@@ -460,8 +493,8 @@ function AuctionPageContent() {
     
     // 전체 부위 순서 (상장번호 계산용)
     const allSubPartsOrder = [
-      '등심(좌)', '등심(우)', '안심', '채끝', '갈비(좌)', '갈비(우)', 
-      '특수부위', '앞다리', '우둔', '목심', '양지(좌)', '양지(우)', 
+      '등심(좌)', '등심(우)', '안심', '채끝', '치마', '부채',
+      '업진', '토시·제비', '앞다리', '우둔', '목심', '양지(좌)', '양지(우)',
       '설도(좌)', '설도(우)', '사태', '꼬리', '족', '사골', '잡뼈'
     ];
     
@@ -514,10 +547,8 @@ function AuctionPageContent() {
               slaughterNo: originalListing?.slaughterNo || '',
               gradeCert: originalListing?.gradeCert || null,
               slaughterCert: originalListing?.slaughterCert || null,
-              // DB 입찰 현황
-              dbHighestBid: dbPart.highestBid?.bidPrice || null,
-              dbBidCount: dbPart.bidCount || 0,
-              dbAllBids: dbPart.allBids || [],
+              // 비공개 입찰: 내 입찰만
+              myBid: dbPart.myBid || null,
             });
           }
         });
@@ -650,14 +681,42 @@ function AuctionPageContent() {
             <div className="flex-1 min-h-0 overflow-y-auto bg-white dark:bg-gray-900 transition-colors">
               {/* 섹션 제목 - 부위별 상세에서는 숨김 */}
               {!(activeTab === 'part' && selectedPartId) && (
-                <div className="px-4 pt-4 pb-2 bg-white dark:bg-gray-900 flex items-center justify-between transition-colors">
-                  <h2 className="text-base font-bold text-gray-900 dark:text-gray-100">{getTodayFormatted()} 경매</h2>
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-xs text-gray-500 dark:text-gray-400">마감까지</span>
-                    <span className={`text-sm font-bold ${remainingTime <= 300 ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-gray-100'}`}>
-                      {formatTime(remainingTime)}
-                    </span>
+                <div className="px-4 pt-4 pb-2 bg-white dark:bg-gray-900 flex flex-col gap-1 transition-colors">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-base font-bold text-gray-900 dark:text-gray-100">{getTodayFormatted()} 경매</h2>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs text-gray-500 dark:text-gray-400">마감까지</span>
+                      <span className={`text-sm font-bold ${remainingTime <= 60 ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-gray-100'}`}>
+                        {formatTime(remainingTime)}
+                      </span>
+                    </div>
                   </div>
+                  {roundInfo?.currentRound && (
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+                          {roundInfo.currentRound.round_no}회차
+                        </span>
+                        <span className="text-[10px] text-gray-400">/ {roundInfo.totalRounds}회</span>
+                      </div>
+                      <div className="flex items-center gap-0.5">
+                        {roundInfo.allRounds.map((r: any) => (
+                          <div
+                            key={r.id}
+                            className={`w-4 h-4 rounded text-[8px] font-bold flex items-center justify-center ${
+                              r.status === 'open'
+                                ? 'bg-green-500 text-white'
+                                : r.status === 'closed'
+                                ? 'bg-gray-300 text-white'
+                                : 'bg-gray-100 text-gray-400'
+                            }`}
+                          >
+                            {r.round_no}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
               
@@ -1003,11 +1062,10 @@ function AuctionPageContent() {
                   <div className="flex-1 pb-24" data-scroll-container>
                     {/* 테이블 헤더 - sticky */}
                     <div className="bg-gray-100 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 h-9 flex items-center sticky top-11 z-10 transition-colors">
-                      <div className="grid px-2 text-[13px] font-medium text-gray-500 dark:text-gray-400 w-full" style={{gridTemplateColumns: '0.85fr 0.6fr 0.85fr 0.95fr 0.95fr 0.5fr 0.5fr'}}>
+                      <div className="grid px-2 text-[13px] font-medium text-gray-500 dark:text-gray-400 w-full" style={{gridTemplateColumns: '1fr 0.6fr 0.9fr 1.1fr 0.6fr 0.5fr'}}>
                         <div className="text-center">부위</div>
                         <div className="text-center">중량</div>
                         <div className="text-center">최저단가</div>
-                        <div className="text-center">최고입찰가</div>
                         <div className="text-center">나의입찰가</div>
                         <div className="text-center">상태</div>
                         <div className="text-center">관심</div>
@@ -1021,14 +1079,8 @@ function AuctionPageContent() {
                       </div>
                     ) : (
                       filteredPartProducts.map((product) => {
-                        // DB 입찰 데이터 사용
-                        const dbHighestBid = product.dbHighestBid || 0;
-                        const myBidFromDB = dealerId 
-                          ? product.dbAllBids?.find((b: any) => b.dealerId === dealerId)?.bidPrice 
-                          : undefined;
-                        const hasBid = !!myBidFromDB;
-                        const isMyBidHighest = hasBid && myBidFromDB >= dbHighestBid;
-                        const bidStatus = hasBid ? (isMyBidHighest ? 'highest' : 'secondHighest') : null;
+                        const myBidPrice = product.myBid?.bidPrice;
+                        const hasBid = !!myBidPrice;
                         
                         const isExpanded = expandedProductId === product.id;
                         const isHighlighted = highlightedProductId === product.id;
@@ -1036,13 +1088,11 @@ function AuctionPageContent() {
                           <div key={product.id} id={`product-row-${product.id}`} className={`${isHighlighted ? 'border-2 border-red-500 dark:border-red-400' : ''}`}>
                             <div 
                               className={`grid px-2 py-3 border-b border-gray-100 dark:border-gray-800 cursor-pointer transition-colors items-center ${
-                                bidStatus === 'highest' 
+                                hasBid 
                                   ? 'bg-blue-50/50 dark:bg-blue-900/30' 
-                                  : bidStatus === 'secondHighest'
-                                    ? 'bg-red-50/50 dark:bg-red-900/30'
-                                    : 'bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800'
+                                  : 'bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800'
                               }`}
-                              style={{gridTemplateColumns: '0.85fr 0.6fr 0.85fr 0.95fr 0.95fr 0.5fr 0.5fr'}}
+                              style={{gridTemplateColumns: '1fr 0.6fr 0.9fr 1.1fr 0.6fr 0.5fr'}}
                               onClick={() => {
                                 if (!isExpanded) {
                                   setHighlightedProductId(product.id);
@@ -1060,9 +1110,6 @@ function AuctionPageContent() {
                               <div className="text-center text-[13px] text-gray-700 dark:text-gray-300">
                                 {product.price.toLocaleString()}
                               </div>
-                              <div className="text-center text-[13px] font-medium text-gray-900 dark:text-gray-100">
-                                {dbHighestBid > 0 ? dbHighestBid.toLocaleString() : '-'}
-                              </div>
                               <div 
                                 className="text-center flex items-center justify-center"
                                 onClick={(e) => e.stopPropagation()}
@@ -1071,28 +1118,24 @@ function AuctionPageContent() {
                                   <div className="flex flex-col items-center">
                                     <span 
                                       onClick={() => {
-                                        if (bidStatus !== 'highest') {
-                                          setSelectedProduct(product);
-                                          setPartBidPrice(0);
-                                          setShowPartBidSheet(true);
-                                        }
+                                        setSelectedProduct(product);
+                                        setPartBidPrice(0);
+                                        setShowPartBidSheet(true);
                                       }}
-                                      className={`text-[13px] font-medium text-gray-900 dark:text-gray-100 leading-none ${bidStatus !== 'highest' ? 'cursor-pointer' : ''}`}
+                                      className="text-[13px] font-medium text-gray-900 dark:text-gray-100 leading-none cursor-pointer"
                                     >
-                                      {myBidFromDB.toLocaleString()}
+                                      {myBidPrice.toLocaleString()}
                                     </span>
-                                    {bidStatus !== 'highest' && (
-                                      <button
-                                        onClick={() => {
-                                          setSelectedProduct(product);
-                                          setPartBidPrice(0);
-                                          setShowPartBidSheet(true);
-                                        }}
-                                        className="mt-1 px-2 py-0.5 text-[11px] font-medium text-white bg-gray-800 dark:bg-gray-700 rounded hover:bg-gray-900 dark:hover:bg-gray-600 transition-colors"
-                                      >
-                                        재입찰
-                                      </button>
-                                    )}
+                                    <button
+                                      onClick={() => {
+                                        setSelectedProduct(product);
+                                        setPartBidPrice(0);
+                                        setShowPartBidSheet(true);
+                                      }}
+                                      className="mt-1 px-2 py-0.5 text-[11px] font-medium text-white bg-gray-800 dark:bg-gray-700 rounded hover:bg-gray-900 dark:hover:bg-gray-600 transition-colors"
+                                    >
+                                      재입찰
+                                    </button>
                                   </div>
                                 ) : (
                                   <button
@@ -1108,10 +1151,8 @@ function AuctionPageContent() {
                                 )}
                               </div>
                               <div className="text-center flex items-center justify-center">
-                                {bidStatus === 'highest' ? (
-                                  <span className="text-[11px] font-medium text-blue-600 dark:text-blue-400">최고순위</span>
-                                ) : bidStatus === 'secondHighest' ? (
-                                  <span className="text-[11px] font-medium text-red-500 dark:text-red-400">차순위</span>
+                                {hasBid ? (
+                                  <span className="text-[11px] font-medium text-blue-600 dark:text-blue-400">입찰완료</span>
                                 ) : (
                                   <span className="text-[13px] text-gray-400 dark:text-gray-500">-</span>
                                 )}
@@ -1573,13 +1614,7 @@ function AuctionPageContent() {
                               setPartBidPrice(value ? parseInt(value) : 0);
                             }}
                             className="w-full px-4 py-3.5 pr-12 text-right text-xl font-bold border border-gray-200 dark:border-gray-700 rounded focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500 focus:border-gray-400 dark:focus:border-gray-500 bg-white dark:bg-gray-800 text-black dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500"
-                            placeholder={selectedProduct ? (() => {
-                              const highestBid = selectedProduct.dbHighestBid;
-                              if (highestBid) {
-                                return `최고입찰가 ${highestBid.toLocaleString()}`;
-                              }
-                              return `최저단가 ${(selectedProduct.price || 0).toLocaleString()}`;
-                            })() : '0'}
+                            placeholder={selectedProduct ? `최저단가 ${(selectedProduct.price || 0).toLocaleString()}` : '0'}
                           />
                           <div className="absolute right-4 top-1/2 transform -translate-y-1/2 text-sm text-gray-400 dark:text-gray-500">
                             원
@@ -1592,9 +1627,8 @@ function AuctionPageContent() {
                               key={amount}
                               onClick={() => {
                                 setPartBidPrice(prev => {
-                                  // 0이면 DB 최고입찰가 또는 최저단가에서 시작
                                   if (prev === 0 && selectedProduct) {
-                                    const basePrice = selectedProduct.dbHighestBid || selectedProduct.price || 0;
+                                    const basePrice = selectedProduct.price || 0;
                                     return basePrice + amount;
                                   }
                                   return prev + amount;

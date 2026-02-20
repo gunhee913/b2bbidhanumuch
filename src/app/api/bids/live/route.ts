@@ -1,14 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { getToken } from 'next-auth/jwt';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-// GET: 실시간 입찰 현황
+// GET: 실시간 입찰 현황 (관리자 전용)
 export async function GET(request: NextRequest) {
   try {
+    const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
+    const userType = token?.userType as string | undefined;
+
+    if (userType !== 'admin_user') {
+      return NextResponse.json(
+        { error: '관리자만 접근 가능합니다.' },
+        { status: 403 }
+      );
+    }
+
     const { searchParams } = new URL(request.url);
     const auctionId = searchParams.get('auctionId');
 

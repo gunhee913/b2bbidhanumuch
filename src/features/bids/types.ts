@@ -49,9 +49,8 @@ export interface MyBidItem {
   weight: number;
   minPrice: number;
   myBid: number;
-  highestBid: number;
   totalAmount: number;
-  status: 'highest' | 'secondHighest' | 'outbid';
+  status: 'bidded';
   time: string;
   partId: string;
   dealerId: string;

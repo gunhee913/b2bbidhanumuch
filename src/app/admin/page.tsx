@@ -10,8 +10,8 @@ import { generateDealerSettlements } from '@/constants/dealerSettlement';
 const PART_MAPPING: Record<string, string> = {
   '등심(좌)': '등심', '등심(우)': '등심',
   '안심': '안심', '채끝': '채끝',
-  '갈비(좌)': '갈비', '갈비(우)': '갈비',
-  '특수부위': '특수부위', '앞다리': '앞다리',
+  '치마': '치마', '부채': '부채',
+  '업진': '업진', '토시·제비': '토시·제비', '앞다리': '앞다리',
   '우둔': '우둔', '목심': '목심',
   '양지(좌)': '양지', '양지(우)': '양지',
   '설도(좌)': '설도', '설도(우)': '설도',
@@ -102,7 +102,7 @@ export default function AdminDashboardPage() {
 
   // 전체 경매 두수 (68두 고정)
   const totalCattleCount = 68;
-  const totalAuctionCount = totalCattleCount * 19; // 1,292건
+  const totalAuctionCount = totalCattleCount * 20; // 1,360건
 
   // 등급별 순위 (금액 기준)
   const gradeRanking = useMemo(() => {

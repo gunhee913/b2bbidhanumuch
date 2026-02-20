@@ -3,8 +3,6 @@
 import React, { useState, useRef, useMemo } from 'react';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { 
-  ChevronLeft,
-  ChevronRight,
   ChevronDown,
   ChevronUp,
   X,
@@ -44,21 +42,22 @@ const createDefaultParts = (): PartData[] => [
   { id: 2, name: '등심(우)', weight: 15.3, minPrice: 85000, bidPrice: null, isIncluded: true },
   { id: 3, name: '안심', weight: 4.5, minPrice: 95000, bidPrice: null, isIncluded: true },
   { id: 4, name: '채끝', weight: 8.2, minPrice: 82000, bidPrice: null, isIncluded: true },
-  { id: 5, name: '갈비(좌)', weight: 12.8, minPrice: 78000, bidPrice: null, isIncluded: true },
-  { id: 6, name: '갈비(우)', weight: 12.0, minPrice: 78000, bidPrice: null, isIncluded: true },
-  { id: 7, name: '특수부위', weight: 3.2, minPrice: 72000, bidPrice: null, isIncluded: true },
-  { id: 8, name: '설도(좌)', weight: 16.5, minPrice: 56000, bidPrice: null, isIncluded: true },
-  { id: 9, name: '설도(우)', weight: 16.8, minPrice: 56000, bidPrice: null, isIncluded: true },
-  { id: 10, name: '앞다리', weight: 25.4, minPrice: 55000, bidPrice: null, isIncluded: true },
-  { id: 11, name: '우둔', weight: 21.7, minPrice: 58000, bidPrice: null, isIncluded: true },
-  { id: 12, name: '목심', weight: 14.0, minPrice: 62000, bidPrice: null, isIncluded: true },
-  { id: 13, name: '양지(좌)', weight: 12.2, minPrice: 52000, bidPrice: null, isIncluded: true },
-  { id: 14, name: '양지(우)', weight: 12.4, minPrice: 52000, bidPrice: null, isIncluded: true },
-  { id: 15, name: '사태', weight: 15.1, minPrice: 48000, bidPrice: null, isIncluded: true },
-  { id: 16, name: '꼬리', weight: 16.2, minPrice: 35000, bidPrice: null, isIncluded: true },
-  { id: 17, name: '족', weight: 10.9, minPrice: 25000, bidPrice: null, isIncluded: true },
-  { id: 18, name: '사골', weight: 3.1, minPrice: 20000, bidPrice: null, isIncluded: true },
-  { id: 19, name: '잡뼈', weight: 21.5, minPrice: 15000, bidPrice: null, isIncluded: true },
+  { id: 5, name: '치마', weight: 4.0, minPrice: 65000, bidPrice: null, isIncluded: true },
+  { id: 6, name: '부채', weight: 3.0, minPrice: 60000, bidPrice: null, isIncluded: true },
+  { id: 7, name: '업진', weight: 4.5, minPrice: 55000, bidPrice: null, isIncluded: true },
+  { id: 8, name: '토시·제비', weight: 2.0, minPrice: 70000, bidPrice: null, isIncluded: true },
+  { id: 9, name: '설도(좌)', weight: 16.5, minPrice: 56000, bidPrice: null, isIncluded: true },
+  { id: 10, name: '설도(우)', weight: 16.8, minPrice: 56000, bidPrice: null, isIncluded: true },
+  { id: 11, name: '앞다리', weight: 25.4, minPrice: 55000, bidPrice: null, isIncluded: true },
+  { id: 12, name: '우둔', weight: 21.7, minPrice: 58000, bidPrice: null, isIncluded: true },
+  { id: 13, name: '목심', weight: 14.0, minPrice: 62000, bidPrice: null, isIncluded: true },
+  { id: 14, name: '양지(좌)', weight: 12.2, minPrice: 52000, bidPrice: null, isIncluded: true },
+  { id: 15, name: '양지(우)', weight: 12.4, minPrice: 52000, bidPrice: null, isIncluded: true },
+  { id: 16, name: '사태', weight: 15.1, minPrice: 48000, bidPrice: null, isIncluded: true },
+  { id: 17, name: '꼬리', weight: 16.2, minPrice: 35000, bidPrice: null, isIncluded: true },
+  { id: 18, name: '족', weight: 10.9, minPrice: 25000, bidPrice: null, isIncluded: true },
+  { id: 19, name: '사골', weight: 3.1, minPrice: 20000, bidPrice: null, isIncluded: true },
+  { id: 20, name: '잡뼈', weight: 21.5, minPrice: 15000, bidPrice: null, isIncluded: true },
 ];
 
 // 상태 타입 및 옵션
@@ -206,12 +205,10 @@ interface EditFormData {
 }
 
 export default function AuctionsListPage() {
-  const [currentPage, setCurrentPage] = useState(1);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [startDate, setStartDate] = useState<string>(tomorrowDateString);
   const [endDate, setEndDate] = useState<string>(tomorrowDateString);
   const [companyFilter, setCompanyFilter] = useState<string>('all');
-  const itemsPerPage = 10;
 
   // 실제 데이터 조회
   const { data: listingsData, isLoading } = useListings({
@@ -402,13 +399,6 @@ export default function AuctionsListPage() {
   // 필터링된 데이터 (API에서 이미 필터링됨)
   const filteredAuctions = auctions;
 
-  // 페이지네이션
-  const totalPages = Math.ceil(filteredAuctions.length / itemsPerPage);
-  const paginatedAuctions = filteredAuctions.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
-
   // 행 확장/축소
   const toggleExpand = (id: string) => {
     setExpandedId(expandedId === id ? null : id);
@@ -483,7 +473,6 @@ export default function AuctionsListPage() {
               value={startDate}
               onChange={(e) => {
                 setStartDate(e.target.value);
-                setCurrentPage(1);
               }}
               className="w-36 px-3 py-1.5 border border-gray-200 text-xs outline-none bg-white"
             />
@@ -495,7 +484,6 @@ export default function AuctionsListPage() {
               min={startDate}
               onChange={(e) => {
                 setEndDate(e.target.value);
-                setCurrentPage(1);
               }}
               className="w-36 px-3 py-1.5 border border-gray-200 text-xs outline-none bg-white"
             />
@@ -508,7 +496,6 @@ export default function AuctionsListPage() {
               value={companyFilter}
               onChange={(e) => {
                 setCompanyFilter(e.target.value);
-                setCurrentPage(1);
               }}
               className="px-3 py-1.5 border border-gray-200 text-xs outline-none bg-white"
             >
@@ -527,7 +514,6 @@ export default function AuctionsListPage() {
                 setStartDate(tomorrowDateString);
                 setEndDate(tomorrowDateString);
                 setCompanyFilter('all');
-                setCurrentPage(1);
                 if (startDateRef.current) startDateRef.current.value = tomorrowDateString;
                 if (endDateRef.current) endDateRef.current.value = tomorrowDateString;
               }}
@@ -585,13 +571,13 @@ export default function AuctionsListPage() {
                     데이터를 불러오는 중...
                   </td>
                 </tr>
-              ) : paginatedAuctions.length === 0 ? (
+              ) : filteredAuctions.length === 0 ? (
                 <tr>
                   <td colSpan={23} className="px-4 py-8 text-center text-gray-500 border border-gray-200">
                     등록된 상장이 없습니다.
                   </td>
                 </tr>
-              ) : paginatedAuctions.map((auction) => (
+              ) : filteredAuctions.map((auction) => (
                 <React.Fragment key={auction.id}>
                   <tr 
                     className="hover:bg-gray-50 transition-colors cursor-pointer"
@@ -926,39 +912,10 @@ export default function AuctionsListPage() {
           </table>
         </div>
 
-        {/* 페이지네이션 */}
-        <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
+        {/* 총 건수 */}
+        <div className="px-6 py-3 border-t border-gray-100">
           <div className="text-sm text-gray-500">
             총 {filteredAuctions.length}개
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-              disabled={currentPage === 1}
-              className="p-2 border border-gray-100 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed bg-white"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-              <button
-                key={page}
-                onClick={() => setCurrentPage(page)}
-                className={`px-3 py-1.5 text-sm font-medium transition-colors ${
-                  currentPage === page
-                    ? 'bg-gray-700 text-white'
-                    : 'text-gray-600 hover:bg-gray-100'
-                }`}
-              >
-                {page}
-              </button>
-            ))}
-            <button
-              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-              disabled={currentPage === totalPages}
-              className="p-2 border border-gray-100 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed bg-white"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
           </div>
         </div>
       </div>

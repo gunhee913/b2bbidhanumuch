@@ -146,6 +146,35 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // 회차별 경매 검증: 해당 상장이 배정된 회차가 open 상태인지 확인
+    const { data: auctionLink } = await supabase
+      .from('auction_listings')
+      .select('auction_id, auctions(id, status, round_no, started_at, round_duration_min)')
+      .eq('listing_id', part.listing_id)
+      .limit(1)
+      .maybeSingle();
+
+    if (auctionLink) {
+      const linkedAuction = (auctionLink as any).auctions;
+      if (linkedAuction && linkedAuction.status !== 'open') {
+        return NextResponse.json(
+          { error: '현재 진행 중인 회차가 아닙니다. 해당 회차가 시작될 때까지 기다려주세요.' },
+          { status: 400 }
+        );
+      }
+      // 타이머 만료 체크: started_at + round_duration_min 이후면 입찰 불가
+      if (linkedAuction?.started_at && linkedAuction?.round_duration_min) {
+        const startedAt = new Date(linkedAuction.started_at).getTime();
+        const durationMs = linkedAuction.round_duration_min * 60 * 1000;
+        if (Date.now() > startedAt + durationMs) {
+          return NextResponse.json(
+            { error: '해당 회차의 경매 시간이 종료되었습니다.' },
+            { status: 400 }
+          );
+        }
+      }
+    }
+
     // auctionId가 있으면 경매 상태도 확인
     if (auctionId) {
       const { data: auction, error: auctionError } = await supabase
@@ -155,7 +184,6 @@ export async function POST(request: NextRequest) {
         .single();
 
       if (auctionError || !auction) {
-        // 경매가 없어도 상장이 approved면 입찰 가능
         console.log('경매를 찾을 수 없지만 상장이 approved 상태이므로 입찰 진행');
       } else if (auction.status !== 'open') {
         return NextResponse.json(

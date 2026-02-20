@@ -6,7 +6,7 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-// POST: 경매 마감 (낙찰자 결정)
+// POST: 경매(회차) 마감 + 다음 회차 자동 시작
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -14,10 +14,9 @@ export async function POST(
   try {
     const { id } = await params;
 
-    // 경매 상태 확인
     const { data: auction, error: fetchError } = await supabase
       .from('auctions')
-      .select('status')
+      .select('*')
       .eq('id', id)
       .single();
 
@@ -28,6 +27,14 @@ export async function POST(
       );
     }
 
+    if (auction.status === 'closed') {
+      return NextResponse.json({
+        auction,
+        alreadyClosed: true,
+        message: '이미 마감된 경매입니다.',
+      });
+    }
+
     if (auction.status !== 'open') {
       return NextResponse.json(
         { error: '진행 중인 경매만 마감할 수 있습니다.' },
@@ -35,7 +42,64 @@ export async function POST(
       );
     }
 
-    // DB 함수 호출로 낙찰자 결정
+    // 회차별 경매인 경우 close_round, 아닌 경우 close_auction
+    const isRoundAuction = auction.round_no != null;
+
+    if (isRoundAuction) {
+      const { error: closeError } = await supabase.rpc('close_round', {
+        p_auction_id: id,
+      });
+
+      if (closeError) {
+        console.error('회차 마감 오류:', closeError);
+        return NextResponse.json({ error: closeError.message }, { status: 500 });
+      }
+
+      // 다음 회차 자동 시작 처리
+      let nextRound = null;
+      if (auction.auto_next_round && auction.session_id) {
+        const { data: next } = await supabase
+          .from('auctions')
+          .select('*')
+          .eq('session_id', auction.session_id)
+          .eq('round_no', auction.round_no + 1)
+          .eq('status', 'scheduled')
+          .single();
+
+        if (next) {
+          const termMs = (auction.term_duration_min || 2) * 60 * 1000;
+          const startAt = new Date(Date.now() + termMs).toISOString();
+
+          const { data: updated } = await supabase
+            .from('auctions')
+            .update({
+              status: 'open',
+              started_at: startAt,
+            })
+            .eq('id', next.id)
+            .select()
+            .single();
+
+          nextRound = updated;
+        }
+      }
+
+      const { data: updatedAuction } = await supabase
+        .from('auctions')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      return NextResponse.json({
+        auction: updatedAuction,
+        nextRound,
+        message: nextRound
+          ? `${auction.round_no}회차가 마감되었습니다. ${nextRound.round_no}회차가 ${auction.term_duration_min}분 후 시작됩니다.`
+          : `${auction.round_no}회차가 마감되었습니다. 마지막 회차입니다.`,
+      });
+    }
+
+    // 기존 단일 경매 마감 로직 (close_auction)
     const { error: closeError } = await supabase.rpc('close_auction', {
       p_auction_id: id,
     });
@@ -45,14 +109,12 @@ export async function POST(
       return NextResponse.json({ error: closeError.message }, { status: 500 });
     }
 
-    // 업데이트된 경매 정보 조회
     const { data: updatedAuction } = await supabase
       .from('auctions')
       .select('*')
       .eq('id', id)
       .single();
 
-    // 낙찰 결과 조회
     const { data: winningBids } = await supabase
       .from('bids')
       .select(`

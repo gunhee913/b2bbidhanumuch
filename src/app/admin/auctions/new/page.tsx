@@ -68,27 +68,28 @@ interface CattleData {
   isExpanded: boolean;
 }
 
-// 기본 19개 부위 생성
+// 기본 20개 부위 생성
 const createDefaultParts = (): PartData[] => [
   { id: 1, name: '등심(좌)', weight: '', minPrice: '', isIncluded: true },
   { id: 2, name: '등심(우)', weight: '', minPrice: '', isIncluded: true },
   { id: 3, name: '안심', weight: '', minPrice: '', isIncluded: true },
   { id: 4, name: '채끝', weight: '', minPrice: '', isIncluded: true },
-  { id: 5, name: '갈비(좌)', weight: '', minPrice: '', isIncluded: true },
-  { id: 6, name: '갈비(우)', weight: '', minPrice: '', isIncluded: true },
-  { id: 7, name: '특수부위', weight: '', minPrice: '', isIncluded: true },
-  { id: 8, name: '설도(좌)', weight: '', minPrice: '', isIncluded: true },
-  { id: 9, name: '설도(우)', weight: '', minPrice: '', isIncluded: true },
-  { id: 10, name: '앞다리', weight: '', minPrice: '', isIncluded: true },
-  { id: 11, name: '우둔', weight: '', minPrice: '', isIncluded: true },
-  { id: 12, name: '목심', weight: '', minPrice: '', isIncluded: true },
-  { id: 13, name: '양지(좌)', weight: '', minPrice: '', isIncluded: true },
-  { id: 14, name: '양지(우)', weight: '', minPrice: '', isIncluded: true },
-  { id: 15, name: '사태', weight: '', minPrice: '', isIncluded: true },
-  { id: 16, name: '꼬리', weight: '', minPrice: '', isIncluded: true },
-  { id: 17, name: '족', weight: '', minPrice: '', isIncluded: true },
-  { id: 18, name: '사골', weight: '', minPrice: '', isIncluded: true },
-  { id: 19, name: '잡뼈', weight: '', minPrice: '', isIncluded: true },
+  { id: 5, name: '치마', weight: '', minPrice: '', isIncluded: true },
+  { id: 6, name: '부채', weight: '', minPrice: '', isIncluded: true },
+  { id: 7, name: '업진', weight: '', minPrice: '', isIncluded: true },
+  { id: 8, name: '토시·제비', weight: '', minPrice: '', isIncluded: true },
+  { id: 9, name: '설도(좌)', weight: '', minPrice: '', isIncluded: true },
+  { id: 10, name: '설도(우)', weight: '', minPrice: '', isIncluded: true },
+  { id: 11, name: '앞다리', weight: '', minPrice: '', isIncluded: true },
+  { id: 12, name: '우둔', weight: '', minPrice: '', isIncluded: true },
+  { id: 13, name: '목심', weight: '', minPrice: '', isIncluded: true },
+  { id: 14, name: '양지(좌)', weight: '', minPrice: '', isIncluded: true },
+  { id: 15, name: '양지(우)', weight: '', minPrice: '', isIncluded: true },
+  { id: 16, name: '사태', weight: '', minPrice: '', isIncluded: true },
+  { id: 17, name: '꼬리', weight: '', minPrice: '', isIncluded: true },
+  { id: 18, name: '족', weight: '', minPrice: '', isIncluded: true },
+  { id: 19, name: '사골', weight: '', minPrice: '', isIncluded: true },
+  { id: 20, name: '잡뼈', weight: '', minPrice: '', isIncluded: true },
 ];
 
 // 새 개체 생성
@@ -579,6 +580,9 @@ export default function NewAuctionPage() {
     const sampleCattleData = [
       ['1', '한우', '거세', '1++A', '9', '32', '520', '0023-4567-8', '15', '98', '9', '5', '3', '1', '2', '음성', '2026-01-15', '201', '2026-01-16', '312'],
       ['2', '한우', '암', '1+A', '', '30', '480', '0023-4567-9', '12', '92', '6', '4', '3', '1', '2', '음성', '2026-01-15', '202', '2026-01-16', '290'],
+      ['3', '한우', '거세', '1++B', '8', '34', '510', '0023-4568-0', '14', '95', '8', '5', '3', '1', '2', '음성', '2026-01-15', '203', '2026-01-16', '305'],
+      ['4', '한우', '암', '1+B', '', '28', '460', '0023-4568-1', '11', '88', '5', '4', '3', '1', '2', '음성', '2026-01-15', '204', '2026-01-16', '275'],
+      ['5', '한우', '거세', '1++A', '9', '33', '540', '0023-4568-2', '16', '100', '9', '5', '3', '1', '2', '음성', '2026-01-15', '205', '2026-01-16', '325'],
     ];
     
     const cattleSheet = XLSX.utils.aoa_to_sheet([cattleHeaders, ...sampleCattleData]);
@@ -589,10 +593,11 @@ export default function NewAuctionPage() {
     const partNames = createDefaultParts().map(p => p.name);
     
     const samplePartData = [
-      // 1번 개체 (최저가격에 천단위 콤마 적용)
       ...partNames.map((name, idx) => ['1', name, (10 + idx * 0.5).toFixed(1), formatNumber(100000 + idx * 5000)]),
-      // 2번 개체
       ...partNames.map((name, idx) => ['2', name, (9 + idx * 0.4).toFixed(1), formatNumber(95000 + idx * 4500)]),
+      ...partNames.map((name, idx) => ['3', name, (10.2 + idx * 0.5).toFixed(1), formatNumber(98000 + idx * 4800)]),
+      ...partNames.map((name, idx) => ['4', name, (8.5 + idx * 0.4).toFixed(1), formatNumber(92000 + idx * 4200)]),
+      ...partNames.map((name, idx) => ['5', name, (10.5 + idx * 0.5).toFixed(1), formatNumber(102000 + idx * 5200)]),
     ];
     
     const partsSheet = XLSX.utils.aoa_to_sheet([partHeaders, ...samplePartData]);

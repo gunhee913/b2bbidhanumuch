@@ -1,12 +1,13 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import AdminLayout from '@/components/admin/AdminLayout';
-import { ChevronDown, ChevronUp, RefreshCw, Square } from 'lucide-react';
+import { ChevronDown, ChevronUp, RefreshCw, Square, Timer, Play, Pause, SkipForward } from 'lucide-react';
 import { useLiveListings } from '@/features/listings/hooks';
 import { useCompanies } from '@/features/companies/hooks';
 import { useSession } from 'next-auth/react';
 import { format } from 'date-fns';
+import { useQuery } from '@tanstack/react-query';
 
 // 입찰 내역 타입
 interface BidRecord {
@@ -71,6 +72,69 @@ export default function AuctionLivePage() {
 
   // 오늘 날짜인지 확인
   const isToday = selectedDate === todayStr;
+
+  // --- 회차별 경매 관련 ---
+  const [isClosingRound, setIsClosingRound] = useState(false);
+  const [remainingSeconds, setRemainingSeconds] = useState<number | null>(null);
+
+  // 현재 회차 조회 (5초 간격)
+  const { data: roundData, refetch: refetchRound } = useQuery({
+    queryKey: ['rounds', 'current'],
+    queryFn: async () => {
+      const res = await fetch('/api/auctions/rounds/current');
+      if (!res.ok) return null;
+      return res.json();
+    },
+    refetchInterval: 5000,
+  });
+
+  const currentRound = roundData?.currentRound;
+  const allRounds = roundData?.allRounds || [];
+  const totalRounds = roundData?.totalRounds || 0;
+
+  // 타이머 계산
+  useEffect(() => {
+    if (!currentRound?.started_at || !currentRound?.round_duration_min) {
+      setRemainingSeconds(null);
+      return;
+    }
+
+    const calculateRemaining = () => {
+      const startedAt = new Date(currentRound.started_at).getTime();
+      const durationMs = currentRound.round_duration_min * 60 * 1000;
+      const endTime = startedAt + durationMs;
+      const remaining = Math.max(0, Math.floor((endTime - Date.now()) / 1000));
+      setRemainingSeconds(remaining);
+
+      if (remaining <= 0) {
+        handleCloseCurrentRound();
+      }
+    };
+
+    calculateRemaining();
+    const interval = setInterval(calculateRemaining, 1000);
+    return () => clearInterval(interval);
+  }, [currentRound?.started_at, currentRound?.round_duration_min, currentRound?.id]);
+
+  const formatTimer = (seconds: number) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  };
+
+  // 현재 회차 수동 마감
+  const handleCloseCurrentRound = useCallback(async () => {
+    if (!currentRound?.id || isClosingRound) return;
+    setIsClosingRound(true);
+    try {
+      await fetch(`/api/auctions/${currentRound.id}/close`, { method: 'POST' });
+      refetchRound();
+    } catch (err) {
+      console.error('회차 마감 오류:', err);
+    } finally {
+      setIsClosingRound(false);
+    }
+  }, [currentRound?.id, isClosingRound, refetchRound]);
 
   // API Hooks - 경매 없이 승인된 상장 직접 조회
   const { data: liveData, isLoading, refetch } = useLiveListings(
@@ -445,6 +509,66 @@ export default function AuctionLivePage() {
           </div>
         </div>
       </div>
+
+      {/* 회차별 경매 컨트롤 패널 */}
+      {currentRound && (
+        <div className="bg-white border border-gray-200 p-4 mb-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-6">
+              {/* 회차 표시 */}
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-500">현재 회차</span>
+                <span className="text-lg font-bold text-gray-900">
+                  {currentRound.round_no}회 / {totalRounds}회
+                </span>
+              </div>
+              {/* 타이머 */}
+              {remainingSeconds != null && (
+                <div className="flex items-center gap-2">
+                  <Timer className={`w-4 h-4 ${remainingSeconds <= 60 ? 'text-red-500' : 'text-gray-500'}`} />
+                  <span
+                    className={`text-2xl font-mono font-bold tabular-nums ${
+                      remainingSeconds <= 60 ? 'text-red-600' : remainingSeconds <= 120 ? 'text-orange-500' : 'text-gray-900'
+                    }`}
+                  >
+                    {formatTimer(remainingSeconds)}
+                  </span>
+                </div>
+              )}
+              {/* 회차 진행 상태 바 */}
+              <div className="flex items-center gap-1">
+                {allRounds.map((r: any) => (
+                  <div
+                    key={r.id}
+                    className={`w-6 h-6 rounded text-[10px] font-bold flex items-center justify-center ${
+                      r.status === 'open'
+                        ? 'bg-green-500 text-white'
+                        : r.status === 'closed'
+                        ? 'bg-gray-400 text-white'
+                        : 'bg-gray-100 text-gray-500 border border-gray-300'
+                    }`}
+                    title={`${r.round_no}회차 - ${r.status === 'open' ? '진행중' : r.status === 'closed' ? '마감' : '대기'}`}
+                  >
+                    {r.round_no}
+                  </div>
+                ))}
+              </div>
+            </div>
+            {/* 수동 제어 버튼 */}
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleCloseCurrentRound}
+                disabled={isClosingRound}
+                className="px-4 py-1.5 text-xs font-medium bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 flex items-center gap-1"
+              >
+                <Square className="w-3 h-3" />
+                {currentRound.round_no}회차 마감
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 통계 요약 */}
       <div className="grid grid-cols-4 gap-4 mb-4">

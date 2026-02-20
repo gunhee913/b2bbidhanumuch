@@ -255,27 +255,28 @@ export function toFrontendPart(row: CattlePartRow): CattlePart {
   };
 }
 
-// 19개 기본 부위 목록
+// 20개 기본 부위 목록
 export const DEFAULT_PARTS: { partNo: number; partName: string }[] = [
   { partNo: 1, partName: '등심(좌)' },
   { partNo: 2, partName: '등심(우)' },
   { partNo: 3, partName: '안심' },
   { partNo: 4, partName: '채끝' },
-  { partNo: 5, partName: '갈비(좌)' },
-  { partNo: 6, partName: '갈비(우)' },
-  { partNo: 7, partName: '특수부위' },
-  { partNo: 8, partName: '설도(좌)' },
-  { partNo: 9, partName: '설도(우)' },
-  { partNo: 10, partName: '앞다리' },
-  { partNo: 11, partName: '우둔' },
-  { partNo: 12, partName: '목심' },
-  { partNo: 13, partName: '양지(좌)' },
-  { partNo: 14, partName: '양지(우)' },
-  { partNo: 15, partName: '사태' },
-  { partNo: 16, partName: '꼬리' },
-  { partNo: 17, partName: '족' },
-  { partNo: 18, partName: '사골' },
-  { partNo: 19, partName: '잡뼈' },
+  { partNo: 5, partName: '치마' },
+  { partNo: 6, partName: '부채' },
+  { partNo: 7, partName: '업진' },
+  { partNo: 8, partName: '토시·제비' },
+  { partNo: 9, partName: '설도(좌)' },
+  { partNo: 10, partName: '설도(우)' },
+  { partNo: 11, partName: '앞다리' },
+  { partNo: 12, partName: '우둔' },
+  { partNo: 13, partName: '목심' },
+  { partNo: 14, partName: '양지(좌)' },
+  { partNo: 15, partName: '양지(우)' },
+  { partNo: 16, partName: '사태' },
+  { partNo: 17, partName: '꼬리' },
+  { partNo: 18, partName: '족' },
+  { partNo: 19, partName: '사골' },
+  { partNo: 20, partName: '잡뼈' },
 ];
 
 // 상태 라벨

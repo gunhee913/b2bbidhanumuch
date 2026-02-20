@@ -35,7 +35,7 @@ export default function BidsPage() {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState<'진행중' | '경매결과'>('진행중');
-  const [statusFilter, setStatusFilter] = useState<'전체' | '최고순위' | '차순위'>('전체');
+
   const [resultFilter, setResultFilter] = useState<'전체' | '낙찰' | '미낙찰'>('전체');
   
   // 세션에서 dealerId 가져오기
@@ -47,10 +47,7 @@ export default function BidsPage() {
   // DB에서 나의 입찰 목록 조회
   const { data: myBids, isLoading: bidsLoading, refetch: refetchBids } = useMyBidsWithStatus(dealerId);
   
-  // 실시간 입찰 변경 구독 (Optimistic Update)
-  // bids 페이지는 내 입찰 현황이므로 모든 변경에 refetch 필요 (다른 사람 입찰로 순위 변동)
-  const handleBidChange = useCallback((payload?: { partId: string; bidPrice: number; dealerId: string }) => {
-    console.log('[Bids] 입찰 변경 감지 - 데이터 새로고침');
+  const handleBidChange = useCallback(() => {
     refetchBids();
   }, [refetchBids]);
   
@@ -138,12 +135,6 @@ export default function BidsPage() {
   const handleBidSubmit = () => {
     if (!bidPrice || !selectedBidInfo) return;
     
-    const price = parseFloat(removeCommas(bidPrice));
-    if (price <= selectedBidInfo.bid.highestBid) {
-      alert('현재 최고가보다 높은 금액을 입력해주세요.');
-      return;
-    }
-    
     setShowBidSheet(false);
     setShowBidDialog(true);
   };
@@ -188,57 +179,30 @@ export default function BidsPage() {
   // DB에서 가져온 모든 입찰 (오늘 날짜 필터는 DB에서 처리 가능하지만 현재는 전체)
   const allMyBids = myBids || [];
 
-  // 예상 낙찰금액 계산
-  const expectedAmounts = React.useMemo(() => {
-    let highestCount = 0;
-    let highestTotal = 0;
-    let secondHighestCount = 0;
-    let secondHighestTotal = 0;
+  // 입찰 요약 계산
+  const bidSummary = React.useMemo(() => {
+    let totalCount = 0;
+    let totalAmount = 0;
 
     allMyBids.forEach((bid) => {
-      const totalPrice = bid.totalAmount;
-
-      if (bid.status === 'highest') {
-        highestCount++;
-        highestTotal += totalPrice;
-      } else if (bid.status === 'secondHighest') {
-        secondHighestCount++;
-        secondHighestTotal += totalPrice;
-      }
+      totalCount++;
+      totalAmount += bid.totalAmount;
     });
 
-    return {
-      highestCount,
-      highestTotal,
-      secondHighestCount,
-      secondHighestTotal,
-      total: highestTotal + secondHighestTotal
-    };
+    return { totalCount, totalAmount };
   }, [allMyBids]);
 
-  // 필터 적용된 입찰 목록
-  const filteredBids = allMyBids
-    .filter((bid) => {
-      if (statusFilter === '전체') return true;
-      if (statusFilter === '최고순위') return bid.status === 'highest';
-      if (statusFilter === '차순위') return bid.status === 'secondHighest';
-      return true;
-    })
-    .sort((a, b) => {
-      // 최고순위가 먼저 오도록 정렬
-      if (a.status !== b.status) {
-        return a.status === 'highest' ? -1 : 1;
+  // 입찰 목록 (최신순 정렬)
+  const filteredBids = [...allMyBids].sort((a, b) => {
+    const parseTime = (time: string) => {
+      const match = time.match(/(\d{2})\.(\d{2})\.(\d{2}).*?(\d{2}):(\d{2})/);
+      if (match) {
+        return new Date(2000 + parseInt(match[1]), parseInt(match[2]) - 1, parseInt(match[3]), parseInt(match[4]), parseInt(match[5])).getTime();
       }
-      // 같은 상태 내에서는 시간순 (최신순)
-      const parseTime = (time: string) => {
-        const match = time.match(/(\d{2})\.(\d{2})\.(\d{2}).*?(\d{2}):(\d{2})/);
-        if (match) {
-          return new Date(2000 + parseInt(match[1]), parseInt(match[2]) - 1, parseInt(match[3]), parseInt(match[4]), parseInt(match[5])).getTime();
-        }
-        return 0;
-      };
-      return parseTime(b.time) - parseTime(a.time);
-    });
+      return 0;
+    };
+    return parseTime(b.time) - parseTime(a.time);
+  });
 
   // 경매결과는 현재 DB에 별도 테이블이 없으므로 빈 배열 사용
   // TODO: 경매 마감 후 낙찰 결과 테이블 생성 필요
@@ -412,33 +376,14 @@ export default function BidsPage() {
                 </div>
               ) : (
                 <div className="pb-24">
-                  {/* 예상 낙찰금액 요약 카드 - 가로 스크롤 X */}
+                  {/* 입찰 요약 카드 */}
                   <div className="bg-white px-4 pt-4 pb-2">
                     <div className="px-4 py-3 bg-gray-100 rounded flex items-center justify-between">
                       <div className="flex items-center">
-                        <span className="text-xs text-gray-500">예상 낙찰금액</span>
-                        <span className="text-xs text-gray-400 ml-2">총 {expectedAmounts.highestCount + expectedAmounts.secondHighestCount}건, 최고순위 {expectedAmounts.highestCount}건, 차순위 {expectedAmounts.secondHighestCount}건</span>
+                        <span className="text-xs text-gray-500">나의 입찰현황</span>
+                        <span className="text-xs text-gray-400 ml-2">총 {bidSummary.totalCount}건</span>
                       </div>
-                      <span className="text-sm font-semibold text-gray-900">{Math.round(expectedAmounts.highestTotal).toLocaleString()}원</span>
-                    </div>
-                  </div>
-
-                  {/* 상태 필터 - 가로 스크롤 X */}
-                  <div className="bg-white px-4 py-2.5">
-                    <div className="flex gap-2">
-                      {(['전체', '최고순위', '차순위'] as const).map((filter) => (
-                        <button
-                          key={filter}
-                          onClick={() => setStatusFilter(filter)}
-                          className={`px-3.5 py-2 text-[13px] font-medium rounded-md transition-colors ${
-                            statusFilter === filter
-                              ? 'bg-gray-900 text-white'
-                              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                          }`}
-                        >
-                          {filter}
-                        </button>
-                      ))}
+                      <span className="text-sm font-semibold text-gray-900">{Math.round(bidSummary.totalAmount).toLocaleString()}원</span>
                     </div>
                   </div>
 
@@ -447,14 +392,13 @@ export default function BidsPage() {
                     ref={headerRef}
                     className="sticky top-0 z-10 bg-gray-100 border-b border-gray-200 overflow-x-hidden"
                   >
-                    <div className="min-w-[730px] h-9 flex items-center">
-                      <div className="grid px-2 text-[13px] font-medium text-gray-500 w-full" style={{gridTemplateColumns: '60px 110px 65px 60px 55px 70px 70px 80px 55px 100px'}}>
+                    <div className="min-w-[620px] h-9 flex items-center">
+                      <div className="grid px-2 text-[13px] font-medium text-gray-500 w-full" style={{gridTemplateColumns: '60px 110px 65px 60px 55px 70px 80px 55px 100px'}}>
                         <div className="text-center">입찰</div>
                         <div className="text-center">상장번호</div>
                         <div className="text-center">부위</div>
                         <div className="text-center">등급</div>
                         <div className="text-center">중량</div>
-                        <div className="text-center">최고입찰가</div>
                         <div className="text-center">나의입찰가</div>
                         <div className="text-center">총입찰가격</div>
                         <div className="text-center">상태</div>
@@ -473,28 +417,30 @@ export default function BidsPage() {
                     onMouseLeave={handleMouseLeave}
                     onScroll={handleTableScroll}
                   >
-                    <div className="min-w-[730px]">
+                    <div className="min-w-[620px]">
 
                     {/* 필터 결과 없음 */}
                     {filteredBids.length === 0 ? (
                       <div className="py-12 text-center">
-                        <p className="text-gray-500 text-sm">해당 조건의 입찰 내역이 없습니다</p>
+                        <p className="text-gray-500 text-sm">입찰 내역이 없습니다</p>
                       </div>
                     ) : (
-                    /* 테이블 데이터 */
                     filteredBids.map((bid) => {
                       const getPartUrlId = (partName: string) => {
                         if (partName.includes('등심')) return 'sirloin';
                         if (partName.includes('채끝')) return 'striploin';
                         if (partName.includes('목심')) return 'chuck';
                         if (partName.includes('앞다리')) return 'foreleg';
-                        if (partName.includes('갈비')) return 'ribs';
+                        if (partName.includes('치마')) return 'chima';
+                        if (partName.includes('부채')) return 'buchae';
+                        if (partName.includes('업진')) return 'upjin';
+                        if (partName.includes('토시')) return 'tosi';
                         if (partName.includes('설도')) return 'round';
                         if (partName.includes('양지')) return 'brisket';
                         if (partName.includes('우둔')) return 'rump';
                         if (partName.includes('사태')) return 'shank';
                         if (partName.includes('안심')) return 'tenderloin';
-                        if (partName.includes('특수')) return 'special';
+                        
                         if (partName.includes('꼬리')) return 'tail';
                         if (partName.includes('족')) return 'feet';
                         if (partName.includes('사골')) return 'bone';
@@ -505,32 +451,22 @@ export default function BidsPage() {
                       return (
                         <div 
                           key={bid.id}
-                          className={`grid px-2 py-3 border-b border-gray-100 transition-colors items-center ${
-                            bid.status === 'highest' 
-                              ? 'bg-blue-50/50' 
-                              : bid.status === 'secondHighest'
-                                ? 'bg-red-50/50'
-                                : 'bg-white hover:bg-gray-50'
-                          }`}
-                          style={{gridTemplateColumns: '60px 110px 65px 60px 55px 70px 70px 80px 55px 100px'}}
+                          className="grid px-2 py-3 border-b border-gray-100 transition-colors items-center bg-blue-50/50"
+                          style={{gridTemplateColumns: '60px 110px 65px 60px 55px 70px 80px 55px 100px'}}
                         >
                           {/* 입찰 */}
                           <div className="text-center flex items-center justify-center">
-                            {bid.status === 'highest' ? (
-                              <span className="text-gray-400 text-[11px]">-</span>
-                            ) : (
-                              <button
-                                onClick={() => handleReBidClick(bid.listingNo, bid, {
-                                  partName: bid.partName,
-                                  grade: bid.grade,
-                                  weight: `${bid.weight}kg`,
-                                  gender: bid.gender,
-                                })}
-                                className="px-2 py-1 text-[11px] font-medium text-white bg-gray-800 rounded hover:bg-gray-900 transition-colors"
-                              >
-                                재입찰
-                              </button>
-                            )}
+                            <button
+                              onClick={() => handleReBidClick(bid.listingNo, bid, {
+                                partName: bid.partName,
+                                grade: bid.grade,
+                                weight: `${bid.weight}kg`,
+                                gender: bid.gender,
+                              })}
+                              className="px-2 py-1 text-[11px] font-medium text-white bg-gray-800 rounded hover:bg-gray-900 transition-colors"
+                            >
+                              재입찰
+                            </button>
                           </div>
                           {/* 상장번호 */}
                           <div className="text-center">
@@ -562,10 +498,6 @@ export default function BidsPage() {
                           <div className="text-center text-[13px] text-gray-700">
                             {bid.weight.toFixed(1)}kg
                           </div>
-                          {/* 최고입찰가 */}
-                          <div className="text-center text-[13px] font-medium text-gray-900">
-                            {bid.highestBid.toLocaleString()}
-                          </div>
                           {/* 나의입찰가 */}
                           <div className="text-center text-[13px] font-medium text-gray-900">
                             {bid.myBid.toLocaleString()}
@@ -576,11 +508,7 @@ export default function BidsPage() {
                           </div>
                           {/* 상태 */}
                           <div className="text-center flex items-center justify-center">
-                            {bid.status === 'highest' ? (
-                              <span className="text-[11px] font-medium text-blue-600">최고순위</span>
-                            ) : (
-                              <span className="text-[11px] font-medium text-red-500">차순위</span>
-                            )}
+                            <span className="text-[11px] font-medium text-blue-600">입찰완료</span>
                           </div>
                           {/* 시간 */}
                           <div className="text-center text-[11px] text-gray-500 whitespace-nowrap">
@@ -863,7 +791,7 @@ export default function BidsPage() {
                             const formattedValue = formatNumber(e.target.value);
                             setBidPrice(formattedValue);
                           }}
-                          placeholder={`최고입찰가 ${selectedBidInfo.bid.highestBid.toLocaleString()}`}
+                          placeholder={`최저단가 ${(selectedBidInfo.bid.minPrice || 0).toLocaleString()}`}
                           className="w-full px-4 py-3.5 pr-12 text-right text-xl font-bold border border-gray-200 rounded focus:ring-2 focus:ring-gray-400 focus:border-gray-400 bg-white text-black placeholder:text-gray-400"
                         />
                         <div className="absolute right-4 top-1/2 transform -translate-y-1/2 text-sm text-gray-400">
@@ -876,9 +804,8 @@ export default function BidsPage() {
                           <button
                             key={amount}
                             onClick={() => {
-                              // 비어있으면 최고입찰가에서 시작
                               const basePrice = bidPrice === '' 
-                                ? selectedBidInfo.bid.highestBid 
+                                ? (selectedBidInfo.bid.minPrice || 0)
                                 : parseFloat(removeCommas(bidPrice));
                               const newPrice = basePrice + amount;
                               setBidPrice(formatNumber(newPrice.toString()));

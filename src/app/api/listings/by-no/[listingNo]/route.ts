@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { getToken } from 'next-auth/jwt';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -66,11 +67,16 @@ export async function GET(
       listing.cattle_parts.sort((a: any, b: any) => a.part_no - b.part_no);
     }
 
+    // 세션에서 userType 확인
+    const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
+    const userType = token?.userType as string | undefined;
+    const isAdmin = userType === 'admin_user';
+    const tokenDealerId = (token?.dealer as any)?.id || null;
+
     // 각 부위의 입찰 현황 조회
     const partIds = (listing.cattle_parts || []).map((p: any) => p.id);
     const bidsByPart: Record<string, any[]> = {};
     
-    // partIds가 있을 때만 입찰 조회
     if (partIds.length > 0) {
       const { data: bidsData, error: bidsError } = await supabase
         .from('bids')
@@ -93,7 +99,6 @@ export async function GET(
         console.error('입찰 조회 오류:', bidsError);
       }
 
-      // 부위별 입찰 그룹화
       (bidsData || []).forEach((bid: any) => {
         if (!bidsByPart[bid.part_id]) {
           bidsByPart[bid.part_id] = [];
@@ -109,7 +114,6 @@ export async function GET(
       });
     }
 
-    // snake_case -> camelCase 변환
     const formattedListing = {
       id: listing.id,
       listingNo: listing.listing_no,
@@ -142,17 +146,15 @@ export async function GET(
       createdAt: listing.created_at,
       updatedAt: listing.updated_at,
       createdBy: listing.created_by,
-      // 업체 정보
       company: listing.companies ? {
         id: listing.companies.id,
         name: listing.companies.name,
         companyNo: listing.companies.company_no,
       } : null,
-      // 부위 정보 (입찰 현황 포함)
       parts: (listing.cattle_parts || []).map((part: any) => {
         const partBids = bidsByPart[part.id] || [];
-        const highestBid = partBids.length > 0 ? partBids[0] : null;
-        return {
+
+        const basePartData = {
           id: part.id,
           partNo: part.part_no,
           partName: part.part_name,
@@ -164,10 +166,27 @@ export async function GET(
           bidAmount: part.bid_amount,
           winningDealerId: part.winning_dealer_id,
           bidAt: part.bid_at,
-          // 입찰 현황
-          bidCount: partBids.length,
-          highestBid: highestBid,
-          allBids: partBids,
+        };
+
+        if (isAdmin) {
+          const highestBid = partBids.length > 0 ? partBids[0] : null;
+          return {
+            ...basePartData,
+            bidCount: partBids.length,
+            highestBid,
+            allBids: partBids,
+          };
+        }
+
+        const myBid = tokenDealerId
+          ? partBids.find((b: any) => b.dealerId === tokenDealerId)
+          : null;
+        return {
+          ...basePartData,
+          bidCount: 0,
+          highestBid: null,
+          allBids: [],
+          myBid: myBid ? { bidPrice: myBid.bidPrice, bidAmount: myBid.bidAmount } : null,
         };
       }),
     };

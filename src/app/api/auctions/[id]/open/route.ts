@@ -48,10 +48,10 @@ export async function POST(
       );
     }
 
-    // 경매 상태를 open으로 변경
+    // 경매 상태를 open으로 변경 + started_at 기록
     const { data: updatedAuction, error } = await supabase
       .from('auctions')
-      .update({ status: 'open' })
+      .update({ status: 'open', started_at: new Date().toISOString() })
       .eq('id', id)
       .select()
       .single();

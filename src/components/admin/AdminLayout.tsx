@@ -48,6 +48,7 @@ const menuItems = [
     subItems: [
       { title: '부분육 상장 조회', href: '/admin/auctions' },
       { title: '부분육 상장 등록', href: '/admin/auctions/new' },
+      { title: '경매 설정 (회차)', href: '/admin/auctions/settings' },
       { title: '부분육 경매 현황(실시간)', href: '/admin/auctions/live' },
       { title: '부분육 경락 내역', href: '/admin/auctions/bids' },
       { title: '부분육 낙찰률 조회', href: '/admin/auctions/results' },

@@ -62,8 +62,8 @@ interface AuctionResult {
 const partMinPrices: Record<string, number> = {
   '등심(좌)': 85000, '등심(우)': 85000,
   '안심': 95000, '채끝': 82000,
-  '갈비(좌)': 78000, '갈비(우)': 78000,
-  '특수부위': 72000, '앞다리': 55000,
+  '치마': 65000, '부채': 60000,
+  '업진': 55000, '토시·제비': 70000, '앞다리': 55000,
   '우둔': 58000, '목심': 62000,
   '양지(좌)': 52000, '양지(우)': 52000,
   '설도(좌)': 56000, '설도(우)': 56000,
@@ -73,8 +73,8 @@ const partMinPrices: Record<string, number> = {
 
 // 전체 부위 순서 (auction/page.tsx와 동일) - 상장번호 partNo 계산용
 const allSubPartsOrder = [
-  '등심(좌)', '등심(우)', '안심', '채끝', '갈비(좌)', '갈비(우)', 
-  '특수부위', '앞다리', '우둔', '목심', '양지(좌)', '양지(우)', 
+  '등심(좌)', '등심(우)', '안심', '채끝', '치마', '부채',
+  '업진', '토시·제비', '앞다리', '우둔', '목심', '양지(좌)', '양지(우)',
   '설도(좌)', '설도(우)', '사태', '꼬리', '족', '사골', '잡뼈'
 ];
 
@@ -120,8 +120,8 @@ const auctionEntities: Array<{
 const partWeightRanges: Record<string, [number, number]> = {
   '등심(좌)': [15, 16], '등심(우)': [15, 16],
   '안심': [4, 5], '채끝': [7.5, 8.5],
-  '갈비(좌)': [12, 13], '갈비(우)': [12, 13],
-  '특수부위': [3, 4], '앞다리': [24, 26],
+  '치마': [3.5, 4.5], '부채': [2.5, 3.5],
+  '업진': [4, 5], '토시·제비': [1.5, 2.5], '앞다리': [24, 26],
   '우둔': [20, 22], '목심': [14, 15],
   '양지(좌)': [12, 13], '양지(우)': [12, 13],
   '설도(좌)': [16, 17.5], '설도(우)': [16, 17.5],
@@ -185,8 +185,8 @@ const generateDailyBids = (): Record<string, BidInfo> => {
     { entityId: 103, partName: '등심(좌)' },  // 260127-103-01
     { entityId: 201, partName: '안심' },      // 260127-201-03
     { entityId: 202, partName: '채끝' },      // 260127-202-04
-    { entityId: 301, partName: '갈비(좌)' },  // 260127-301-05
-    { entityId: 302, partName: '갈비(우)' },  // 260127-302-06
+    { entityId: 301, partName: '치마' },       // 260127-301-05
+    { entityId: 302, partName: '부채' },      // 260127-302-06
     { entityId: 401, partName: '목심' },      // 260127-401-10
     { entityId: 402, partName: '앞다리' },    // 260127-402-08
     { entityId: 403, partName: '우둔' },      // 260127-403-09
@@ -301,13 +301,13 @@ const generateDailyAuctionResults = (): AuctionResult[] => {
     { name: '등심(좌)', basePrice: 105000, weight: 15.2 },
     { name: '등심(우)', basePrice: 102000, weight: 15.5 },
     { name: '안심', basePrice: 135000, weight: 4.6 },
-    { name: '갈비(좌)', basePrice: 82000, weight: 12.8 },
+    { name: '치마', basePrice: 68000, weight: 4.2 },
     { name: '앞다리', basePrice: 58000, weight: 24.5 },
     { name: '등심(좌)', basePrice: 98000, weight: 14.2 },
     { name: '등심(우)', basePrice: 95000, weight: 14.5 },
     { name: '안심', basePrice: 125000, weight: 5.2 },
-    { name: '갈비(좌)', basePrice: 78000, weight: 11.8 },
-    { name: '갈비(우)', basePrice: 76000, weight: 12.1 },
+    { name: '부채', basePrice: 63000, weight: 3.1 },
+    { name: '업진', basePrice: 57000, weight: 4.6 },
     { name: '채끝', basePrice: 72000, weight: 7.8 },
     { name: '앞다리', basePrice: 55000, weight: 22.5 },
     { name: '우둔', basePrice: 52000, weight: 18.2 },
@@ -319,7 +319,7 @@ const generateDailyAuctionResults = (): AuctionResult[] => {
   const lostParts = [
     { name: '등심(좌)', basePrice: 98000, weight: 14.8 },
     { name: '채끝', basePrice: 75000, weight: 8.2 },
-    { name: '갈비(우)', basePrice: 70000, weight: 11.5 },
+    { name: '토시·제비', basePrice: 72000, weight: 2.0 },
     { name: '우둔', basePrice: 48000, weight: 20.1 },
     { name: '목심', basePrice: 52000, weight: 14.2 },
     { name: '양지(좌)', basePrice: 45000, weight: 12.5 },

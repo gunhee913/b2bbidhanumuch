@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { getToken } from 'next-auth/jwt';
 import {
   CattleListingRow,
   CattlePartRow,
@@ -39,7 +40,11 @@ export async function GET(request: NextRequest) {
       query = query.eq('company_id', companyId);
     }
     if (status) {
-      query = query.eq('status', status);
+      if (status.includes(',')) {
+        query = query.in('status', status.split(','));
+      } else {
+        query = query.eq('status', status);
+      }
     }
     if (listingDateFrom) {
       query = query.gte('listing_date', listingDateFrom);
@@ -79,7 +84,10 @@ export async function GET(request: NextRequest) {
       if (partsError) {
         console.error('부위 조회 오류:', partsError);
       } else {
-        // 각 부위의 입찰 현황 조회
+        const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
+        const userType = token?.userType as string | undefined;
+        const tokenDealerId = (token?.dealer as any)?.id || null;
+
         const partIds = (parts || []).map((p: CattlePartRow) => p.id);
         let bidsByPart: Record<string, any[]> = {};
         
@@ -104,21 +112,37 @@ export async function GET(request: NextRequest) {
           partsMap.set(part.listing_id, [...existing, part]);
         });
 
+        const isAdmin = userType === 'admin_user';
+
         result.forEach((listing: { id: string; parts?: unknown[] }) => {
           listing.parts = (partsMap.get(listing.id) || []).map((part: CattlePartRow) => {
             const partBids = bidsByPart[part.id] || [];
-            const highestBid = partBids.length > 0 ? partBids[0] : null;
+
+            if (isAdmin) {
+              const highestBid = partBids.length > 0 ? partBids[0] : null;
+              return {
+                ...toFrontendPart(part),
+                bidCount: partBids.length,
+                highestBid: highestBid ? {
+                  bidPrice: highestBid.bid_price,
+                  dealerId: highestBid.dealer_id,
+                } : null,
+                allBids: partBids.map((b: any) => ({
+                  dealerId: b.dealer_id,
+                  bidPrice: b.bid_price,
+                })),
+              };
+            }
+
+            const myBid = tokenDealerId
+              ? partBids.find((b: any) => b.dealer_id === tokenDealerId)
+              : null;
             return {
               ...toFrontendPart(part),
-              bidCount: partBids.length,
-              highestBid: highestBid ? {
-                bidPrice: highestBid.bid_price,
-                dealerId: highestBid.dealer_id,
-              } : null,
-              allBids: partBids.map((b: any) => ({
-                dealerId: b.dealer_id,
-                bidPrice: b.bid_price,
-              })),
+              bidCount: 0,
+              highestBid: null,
+              allBids: [],
+              myBid: myBid ? { bidPrice: myBid.bid_price, bidAmount: myBid.bid_amount } : null,
             };
           });
         });

@@ -68,27 +68,28 @@ interface CattleData {
   isExpanded: boolean;
 }
 
-// 기본 19개 부위 생성
+// 기본 20개 부위 생성
 const createDefaultParts = (): PartData[] => [
   { id: 1, name: '등심(좌)', weight: '', minPrice: '', isIncluded: true },
   { id: 2, name: '등심(우)', weight: '', minPrice: '', isIncluded: true },
   { id: 3, name: '안심', weight: '', minPrice: '', isIncluded: true },
   { id: 4, name: '채끝', weight: '', minPrice: '', isIncluded: true },
-  { id: 5, name: '갈비(좌)', weight: '', minPrice: '', isIncluded: true },
-  { id: 6, name: '갈비(우)', weight: '', minPrice: '', isIncluded: true },
-  { id: 7, name: '특수부위', weight: '', minPrice: '', isIncluded: true },
-  { id: 8, name: '설도(좌)', weight: '', minPrice: '', isIncluded: true },
-  { id: 9, name: '설도(우)', weight: '', minPrice: '', isIncluded: true },
-  { id: 10, name: '앞다리', weight: '', minPrice: '', isIncluded: true },
-  { id: 11, name: '우둔', weight: '', minPrice: '', isIncluded: true },
-  { id: 12, name: '목심', weight: '', minPrice: '', isIncluded: true },
-  { id: 13, name: '양지(좌)', weight: '', minPrice: '', isIncluded: true },
-  { id: 14, name: '양지(우)', weight: '', minPrice: '', isIncluded: true },
-  { id: 15, name: '사태', weight: '', minPrice: '', isIncluded: true },
-  { id: 16, name: '꼬리', weight: '', minPrice: '', isIncluded: true },
-  { id: 17, name: '족', weight: '', minPrice: '', isIncluded: true },
-  { id: 18, name: '사골', weight: '', minPrice: '', isIncluded: true },
-  { id: 19, name: '잡뼈', weight: '', minPrice: '', isIncluded: true },
+  { id: 5, name: '치마', weight: '', minPrice: '', isIncluded: true },
+  { id: 6, name: '부채', weight: '', minPrice: '', isIncluded: true },
+  { id: 7, name: '업진', weight: '', minPrice: '', isIncluded: true },
+  { id: 8, name: '토시·제비', weight: '', minPrice: '', isIncluded: true },
+  { id: 9, name: '설도(좌)', weight: '', minPrice: '', isIncluded: true },
+  { id: 10, name: '설도(우)', weight: '', minPrice: '', isIncluded: true },
+  { id: 11, name: '앞다리', weight: '', minPrice: '', isIncluded: true },
+  { id: 12, name: '우둔', weight: '', minPrice: '', isIncluded: true },
+  { id: 13, name: '목심', weight: '', minPrice: '', isIncluded: true },
+  { id: 14, name: '양지(좌)', weight: '', minPrice: '', isIncluded: true },
+  { id: 15, name: '양지(우)', weight: '', minPrice: '', isIncluded: true },
+  { id: 16, name: '사태', weight: '', minPrice: '', isIncluded: true },
+  { id: 17, name: '꼬리', weight: '', minPrice: '', isIncluded: true },
+  { id: 18, name: '족', weight: '', minPrice: '', isIncluded: true },
+  { id: 19, name: '사골', weight: '', minPrice: '', isIncluded: true },
+  { id: 20, name: '잡뼈', weight: '', minPrice: '', isIncluded: true },
 ];
 
 // 새 개체 생성
