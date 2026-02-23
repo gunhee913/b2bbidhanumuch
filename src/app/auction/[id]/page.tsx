@@ -295,6 +295,21 @@ function AuctionDetailContent({ params }: PageProps) {
     return priceMap;
   }, [listingData?.parts]);
 
+  // TIME 문자열(HH:mm:ss) → "HH:mm" 포맷
+  const formatRoundTime = (time: string | null) => {
+    if (!time) return null;
+    return time.slice(0, 5);
+  };
+
+  // 회차의 경매시간 문자열 생성
+  const getRoundTimeStr = (round: any) => {
+    const start = formatRoundTime(round?.start_time);
+    const end = formatRoundTime(round?.end_time);
+    if (start && end) return `경매시간 ${start} ~ ${end}`;
+    if (start) return `경매시간 ${start} ~`;
+    return null;
+  };
+
   // 입찰 가능 여부 판단 (회차 기반)
   const { canBid, bidStatusMessage } = useMemo(() => {
     if (listingData?.status === 'completed') return { canBid: false, bidStatusMessage: '입찰이 마감되었습니다' };
@@ -311,17 +326,25 @@ function AuctionDetailContent({ params }: PageProps) {
 
     if (!listingRoundNo) return { canBid: false, bidStatusMessage: '회차에 배정되지 않은 개체입니다' };
 
+    const listingRound = allRounds.find((r: any) => r.round_no === listingRoundNo);
+    const timeStr = getRoundTimeStr(listingRound);
+
     if (!currentRound) {
-      const listingRound = allRounds.find((r: any) => r.round_no === listingRoundNo);
       if (listingRound?.status === 'closed') return { canBid: false, bidStatusMessage: '입찰이 마감되었습니다' };
-      return { canBid: false, bidStatusMessage: '경매가 시작되지 않았습니다' };
+      const msg = timeStr
+        ? `${listingRoundNo}회차 대기중 · ${timeStr}`
+        : `${listingRoundNo}회차 대기중`;
+      return { canBid: false, bidStatusMessage: msg };
     }
 
     if (listingRoundNo === currentRound.round_no) return { canBid: true, bidStatusMessage: '' };
 
     if (listingRoundNo < currentRound.round_no) return { canBid: false, bidStatusMessage: '입찰이 마감되었습니다' };
 
-    return { canBid: false, bidStatusMessage: `${listingRoundNo}차에 배정된 개체입니다 (현재 ${currentRound.round_no}차 진행중)` };
+    const msg = timeStr
+      ? `${listingRoundNo}회차 배정 · ${timeStr} (현재 ${currentRound.round_no}회차 진행중)`
+      : `${listingRoundNo}회차 배정 (현재 ${currentRound.round_no}회차 진행중)`;
+    return { canBid: false, bidStatusMessage: msg };
   }, [roundInfo, listingData?.id, listingData?.status]);
 
   // 입찰하기 버튼 클릭 처리
@@ -1133,7 +1156,7 @@ function AuctionDetailContent({ params }: PageProps) {
 
               {/* 입찰 비활성화 안내 */}
               {!canBid && bidStatusMessage && (
-                <div className="mx-3 mt-2 px-3 py-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded text-[12px] text-amber-700 dark:text-amber-400 text-center">
+                <div className="px-3 py-2.5 bg-amber-50 dark:bg-amber-900/20 border-y border-amber-200 dark:border-amber-800 text-[12px] text-amber-700 dark:text-amber-400 text-center font-medium">
                   {bidStatusMessage}
                 </div>
               )}

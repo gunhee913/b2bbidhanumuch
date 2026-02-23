@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
       const today = format(new Date(), 'yyyy-MM-dd');
       const { data: todayRounds } = await supabase
         .from('auctions')
-        .select('id, round_no, status, started_at, ended_at, session_id')
+        .select('id, round_no, status, started_at, ended_at, session_id, start_time, end_time, round_duration_min')
         .eq('auction_date', today)
         .not('round_no', 'is', null)
         .order('round_no', { ascending: true });
@@ -111,7 +111,7 @@ export async function GET(request: NextRequest) {
     // 같은 세션의 전체 회차 정보 조회 (진행 상황 파악용)
     const { data: allRounds } = await supabase
       .from('auctions')
-      .select('id, round_no, status, started_at, ended_at')
+      .select('id, round_no, status, started_at, ended_at, start_time, end_time, round_duration_min')
       .eq('session_id', currentRound.session_id)
       .order('round_no', { ascending: true });
 

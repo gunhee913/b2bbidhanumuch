@@ -162,6 +162,8 @@ function MainPageContent() {
   const cattleData = useMemo(() => {
     if (!listingsData || listingsData.length === 0) return [];
     
+    const rlMap: Record<string, number> = roundData?.roundListingMap || {};
+    
     const data = listingsData.map(listing => ({
       id: listing.listingNo,
       type: listing.breed,
@@ -169,7 +171,6 @@ function MainPageContent() {
       grade: listing.grade,
       months: listing.monthAge || 0,
       company: listing.companyName || '',
-      // 추가 정보 (상세 페이지 등에서 사용)
       listingId: listing.id,
       traceNo: listing.traceNo,
       carcassWeight: listing.carcassWeight,
@@ -180,11 +181,16 @@ function MainPageContent() {
       status: listing.status,
     }));
     
-    // 상장번호 기준 정렬
-    data.sort((a, b) => sortByListingNo(a.id, b.id));
+    // 회차(오름차순: 1차→2차→3차) → 상장번호(오름차순) 정렬
+    data.sort((a, b) => {
+      const roundA = rlMap[a.listingId] ?? Infinity;
+      const roundB = rlMap[b.listingId] ?? Infinity;
+      if (roundA !== roundB) return roundA - roundB;
+      return sortByListingNo(a.id, b.id);
+    });
     
     return data;
-  }, [listingsData]);
+  }, [listingsData, roundData?.roundListingMap]);
 
   // 토스트 표시 함수
   const showToastMessage = (message: string, type: 'warning' | 'success' = 'success') => {
@@ -608,13 +614,13 @@ function MainPageContent() {
                       <table className="w-full text-[13px]">
                         <thead className="sticky top-0 z-10">
                           <tr className="bg-gray-100 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-                              <th className="py-2.5 px-3 text-center font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">차수</th>
-                              <th className="py-2.5 px-3 text-center font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">접수번호</th>
-                              <th className="py-2.5 px-3 text-center font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">성별</th>
-                              <th className="py-2.5 px-3 text-center font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">등급</th>
-                              <th className="py-2.5 px-3 text-center font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">개월령</th>
-                              <th className="py-2.5 px-3 text-center font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">상장업체</th>
-                              <th className="py-2.5 px-3 text-center font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">관심</th>
+                              <th className="py-2.5 px-1.5 text-center font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">차수</th>
+                              <th className="py-2.5 px-1.5 text-center font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">접수번호</th>
+                              <th className="py-2.5 px-1.5 text-center font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">성별</th>
+                              <th className="py-2.5 px-1.5 text-center font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">등급</th>
+                              <th className="py-2.5 px-1.5 text-center font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">개월령</th>
+                              <th className="py-2.5 px-1.5 text-center font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">상장업체</th>
+                              <th className="py-2.5 px-1.5 text-center font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">관심</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -624,7 +630,7 @@ function MainPageContent() {
                               onClick={() => router.push(`/auction/${item.id}`)}
                               className={`border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer active:bg-gray-100 dark:active:bg-gray-700 transition-colors ${(item as any).status === 'completed' ? 'opacity-60' : ''} ${index % 2 === 1 ? 'bg-gray-50/50 dark:bg-gray-800/50' : ''}`}
                             >
-                                <td className="py-3 px-3 text-center whitespace-nowrap">
+                                <td className="py-3 px-1.5 text-center whitespace-nowrap">
                                     {(() => {
                                       const rNo = roundListingMap[(item as any).listingId];
                                       const isCompleted = (item as any).status === 'completed';
@@ -636,12 +642,12 @@ function MainPageContent() {
                                       );
                                     })()}
                                   </td>
-                                <td className="py-3 px-3 text-center font-medium text-gray-900 dark:text-gray-100 whitespace-nowrap">{item.id}</td>
-                                <td className="py-3 px-3 text-center text-gray-700 dark:text-gray-300 whitespace-nowrap">{item.gender}</td>
-                                <td className="py-3 px-3 text-center text-gray-700 dark:text-gray-300 whitespace-nowrap">{formatGrade(item.grade, item.marblingScore)}</td>
-                                <td className="py-3 px-3 text-center text-gray-700 dark:text-gray-300 whitespace-nowrap">{item.months}</td>
-                                <td className="py-3 px-3 text-center text-gray-700 dark:text-gray-300 whitespace-nowrap">{item.company}</td>
-                                <td className="py-3 px-3 text-center">
+                                <td className="py-3 px-1.5 text-center font-medium text-gray-900 dark:text-gray-100 whitespace-nowrap">{item.id}</td>
+                                <td className="py-3 px-1.5 text-center text-gray-700 dark:text-gray-300 whitespace-nowrap">{item.gender}</td>
+                                <td className="py-3 px-1.5 text-center text-gray-700 dark:text-gray-300 whitespace-nowrap">{formatGrade(item.grade, item.marblingScore)}</td>
+                                <td className="py-3 px-1.5 text-center text-gray-700 dark:text-gray-300 whitespace-nowrap">{item.months}</td>
+                                <td className="py-3 px-1.5 text-center text-gray-700 dark:text-gray-300 whitespace-nowrap">{item.company}</td>
+                                <td className="py-3 px-1.5 text-center">
                                 <button 
                                   onClick={(e) => {
                                     e.stopPropagation();
@@ -678,13 +684,13 @@ function MainPageContent() {
                         <table className="w-full text-[13px]">
                           <thead className="sticky top-0 z-10">
                             <tr className="bg-gray-100 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-                                  <th className="py-2.5 px-3 text-center font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">차수</th>
-                                  <th className="py-2.5 px-3 text-center font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">접수번호</th>
-                                  <th className="py-2.5 px-3 text-center font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">성별</th>
-                                  <th className="py-2.5 px-3 text-center font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">등급</th>
-                                  <th className="py-2.5 px-3 text-center font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">개월령</th>
-                                  <th className="py-2.5 px-3 text-center font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">상장업체</th>
-                                  <th className="py-2.5 px-3 text-center font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">관심</th>
+                                  <th className="py-2.5 px-1.5 text-center font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">차수</th>
+                                  <th className="py-2.5 px-1.5 text-center font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">접수번호</th>
+                                  <th className="py-2.5 px-1.5 text-center font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">성별</th>
+                                  <th className="py-2.5 px-1.5 text-center font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">등급</th>
+                                  <th className="py-2.5 px-1.5 text-center font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">개월령</th>
+                                  <th className="py-2.5 px-1.5 text-center font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">상장업체</th>
+                                  <th className="py-2.5 px-1.5 text-center font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">관심</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -694,7 +700,7 @@ function MainPageContent() {
                                 onClick={() => router.push(`/auction/${item.id}`)}
                                 className={`border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer active:bg-gray-100 dark:active:bg-gray-700 transition-colors ${(item as any).status === 'completed' ? 'opacity-60' : ''} ${index % 2 === 1 ? 'bg-gray-50/50 dark:bg-gray-800/50' : ''}`}
                               >
-                                    <td className="py-3 px-3 text-center whitespace-nowrap">
+                                    <td className="py-3 px-1.5 text-center whitespace-nowrap">
                                         {(() => {
                                           const rNo = roundListingMap[(item as any).listingId];
                                           const isCompleted = (item as any).status === 'completed';
@@ -706,12 +712,12 @@ function MainPageContent() {
                                           );
                                         })()}
                                       </td>
-                                    <td className="py-3 px-3 text-center font-medium text-gray-900 dark:text-gray-100 whitespace-nowrap">{item.id}</td>
-                                    <td className="py-3 px-3 text-center text-gray-700 dark:text-gray-300 whitespace-nowrap">{item.gender}</td>
-                                    <td className="py-3 px-3 text-center text-gray-700 dark:text-gray-300 whitespace-nowrap">{formatGrade(item.grade, item.marblingScore)}</td>
-                                    <td className="py-3 px-3 text-center text-gray-700 dark:text-gray-300 whitespace-nowrap">{item.months}</td>
-                                    <td className="py-3 px-3 text-center text-gray-700 dark:text-gray-300 whitespace-nowrap">{item.company}</td>
-                                    <td className="py-3 px-3 text-center">
+                                    <td className="py-3 px-1.5 text-center font-medium text-gray-900 dark:text-gray-100 whitespace-nowrap">{item.id}</td>
+                                    <td className="py-3 px-1.5 text-center text-gray-700 dark:text-gray-300 whitespace-nowrap">{item.gender}</td>
+                                    <td className="py-3 px-1.5 text-center text-gray-700 dark:text-gray-300 whitespace-nowrap">{formatGrade(item.grade, item.marblingScore)}</td>
+                                    <td className="py-3 px-1.5 text-center text-gray-700 dark:text-gray-300 whitespace-nowrap">{item.months}</td>
+                                    <td className="py-3 px-1.5 text-center text-gray-700 dark:text-gray-300 whitespace-nowrap">{item.company}</td>
+                                    <td className="py-3 px-1.5 text-center">
                                   <button 
                                     onClick={(e) => {
                                       e.stopPropagation();
