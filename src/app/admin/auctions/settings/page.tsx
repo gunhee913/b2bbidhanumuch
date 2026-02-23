@@ -41,6 +41,9 @@ import { CSS } from '@dnd-kit/utilities';
 interface RoundConfig {
   id: string;
   listingIds: string[];
+  status?: string;
+  startTime?: string;
+  endTime?: string;
 }
 
 const getTodayDateString = () => {
@@ -58,6 +61,21 @@ const getTomorrowDateString = () => {
   const month = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
+};
+
+const statusBadge = (status?: string) => {
+  switch (status) {
+    case 'auction':
+      return <span className="px-1.5 py-0.5 text-[9px] font-medium bg-blue-100 text-blue-700 rounded">경매중</span>;
+    case 'completed':
+      return <span className="px-1.5 py-0.5 text-[9px] font-medium bg-green-100 text-green-700 rounded">마감</span>;
+    case 'closed':
+      return <span className="px-1.5 py-0.5 text-[9px] font-medium bg-gray-100 text-gray-600 rounded">마감</span>;
+    case 'approved':
+      return <span className="px-1.5 py-0.5 text-[9px] font-medium bg-amber-100 text-amber-700 rounded">승인</span>;
+    default:
+      return null;
+  }
 };
 
 interface SortableListingItemProps {
@@ -111,11 +129,12 @@ function SortableListingItem({
             <GripVertical className="w-3 h-3 text-gray-300" />
           </button>
         )}
-        <div>
+        <div className="flex items-center gap-1.5">
           <span className="text-xs font-medium text-gray-900">
             {listing?.listingNo || listingId.slice(0, 8)}
           </span>
-          <span className="text-[10px] text-gray-500 ml-2">
+          {statusBadge(listing?.status)}
+          <span className="text-[10px] text-gray-500">
             {listing?.companyName} | {listing?.grade} | {listing?.gender}
           </span>
         </div>
@@ -199,6 +218,9 @@ export default function AuctionSettingsPage() {
           data.map((r: any) => ({
             id: r.id,
             listingIds: r.listingIds || [],
+            status: r.status,
+            startTime: r.start_time?.slice(0, 5),
+            endTime: r.end_time?.slice(0, 5),
           }))
         );
       } catch {
@@ -216,7 +238,7 @@ export default function AuctionSettingsPage() {
 
   // 승인된 + 경매중 + 마감 상장 목록 조회
   const { data: listings, isLoading, refetch: refetchListings } = useListings({
-    status: 'approved,auction,completed' as any,
+    status: 'approved,auction,completed,closed' as any,
     listingDateFrom: auctionDate,
     listingDateTo: auctionDate,
     includeParts: false,
@@ -767,8 +789,11 @@ export default function AuctionSettingsPage() {
                     className="px-3 py-2.5 flex items-center justify-between hover:bg-gray-50 group"
                   >
                     <div>
-                      <div className="text-xs font-medium text-gray-900">
-                        {listing.listingNo}
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-medium text-gray-900">
+                          {listing.listingNo}
+                        </span>
+                        {statusBadge(listing.status)}
                       </div>
                       <div className="text-[10px] text-gray-500">
                         {listing.companyName} | {listing.grade} | {listing.gender}
@@ -848,12 +873,27 @@ export default function AuctionSettingsPage() {
                       <span className="text-sm font-bold text-gray-900">
                         {roundIdx + 1}회차
                       </span>
+                      {round.status === 'open' && (
+                        <span className="px-1.5 py-0.5 text-[10px] font-medium bg-blue-100 text-blue-700 rounded animate-pulse">진행중</span>
+                      )}
+                      {round.status === 'closed' && (
+                        <span className="px-1.5 py-0.5 text-[10px] font-medium bg-gray-200 text-gray-600 rounded">마감</span>
+                      )}
+                      {round.status === 'scheduled' && (
+                        <span className="px-1.5 py-0.5 text-[10px] font-medium bg-amber-100 text-amber-700 rounded">대기</span>
+                      )}
                       <span className="text-xs text-gray-500">
                         {round.listingIds.length}두 배정
                       </span>
-                      <span className="text-xs text-gray-400">
-                        ({roundDurationMin}분)
-                      </span>
+                      {round.startTime && round.endTime ? (
+                        <span className="text-xs text-gray-400">
+                          {round.startTime} ~ {round.endTime}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-gray-400">
+                          ({roundDurationMin}분)
+                        </span>
+                      )}
                     </div>
                     {!isReadOnly && (
                       <button

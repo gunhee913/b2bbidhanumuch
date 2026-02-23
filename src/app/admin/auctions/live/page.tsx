@@ -265,12 +265,24 @@ export default function AuctionLivePage() {
     if (!confirm(`${listingIds.length}개 상장을 마감하시겠습니까?\n(낙찰: ${withBids}건, 유찰: ${withoutBids}건)`)) return;
 
     try {
-      // 각 상장별로 마감 처리
+      let successCount = 0;
+      let failCount = 0;
       for (const listingId of listingIds) {
-        await fetch(`/api/listings/${listingId}/close`, { method: 'POST' });
+        const res = await fetch(`/api/listings/${listingId}/close`, { method: 'POST' });
+        if (res.ok) {
+          successCount++;
+        } else {
+          failCount++;
+          const data = await res.json().catch(() => ({}));
+          console.error(`마감 실패 (${listingId}):`, data.error);
+        }
       }
       refetch();
-      alert('마감이 완료되었습니다.');
+      if (failCount > 0) {
+        alert(`마감 완료: 성공 ${successCount}건, 실패 ${failCount}건`);
+      } else {
+        alert('마감이 완료되었습니다.');
+      }
     } catch (error: any) {
       alert(error.message || '마감 처리 중 오류 발생');
     }
@@ -487,7 +499,7 @@ export default function AuctionLivePage() {
             </button>
 
             {/* 전체 마감 버튼 */}
-            {filteredItems.length > 0 && !filteredItems.some(i => i.status === 'closed') && (
+            {filteredItems.length > 0 && !filteredItems.every(i => i.status === 'closed' || i.status === 'completed') && (
               <button
                 onClick={handleCloseAll}
                 className="px-4 py-1.5 bg-gray-700 text-white text-xs hover:bg-gray-800 flex items-center gap-1"
@@ -498,7 +510,7 @@ export default function AuctionLivePage() {
             )}
 
             {/* 마감 취소 버튼 */}
-            {filteredItems.some(i => i.status === 'closed') && (
+            {filteredItems.some(i => i.status === 'closed' || i.status === 'completed') && (
               <button
                 onClick={handleReopenAll}
                 className="px-4 py-1.5 bg-red-600 text-white text-xs hover:bg-red-700 flex items-center gap-1"
