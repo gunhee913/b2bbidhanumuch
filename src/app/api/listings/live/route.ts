@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
           winning_dealer_id
         )
       `)
-      .in('status', ['approved', 'auction', 'closed']) // 승인됨, 경매중, 마감
+      .in('status', ['approved', 'auction', 'closed', 'completed']) // 승인됨, 경매중, 마감, 완료
       .order('listing_no', { ascending: true });
 
     if (listingDate) {

@@ -107,9 +107,9 @@ function MainPageContent() {
     return format(selectedDate, 'yyyy-MM-dd');
   }, [selectedDate]);
 
-  // 승인된 상장 목록 조회 (DB 연동)
+  // 상장 목록 조회 (DB 연동)
   const { data: listingsData, isLoading: isListingsLoading, refetch: refetchListings } = useListings({
-    status: 'approved,completed' as any,
+    status: 'approved,auction,completed' as any,
     listingDateFrom: selectedDateStr,
     listingDateTo: selectedDateStr,
     includeParts: true,
@@ -336,9 +336,15 @@ function MainPageContent() {
       return;
     }
     const calc = () => {
+      const now = Date.now();
       const startedAt = new Date(cr.started_at).getTime();
       const durationMs = cr.round_duration_min * 60 * 1000;
-      setTimetableRemaining(Math.max(0, Math.floor((startedAt + durationMs - Date.now()) / 1000)));
+
+      if (startedAt > now) {
+        setTimetableRemaining(cr.round_duration_min * 60);
+      } else {
+        setTimetableRemaining(Math.max(0, Math.floor((startedAt + durationMs - now) / 1000)));
+      }
     };
     calc();
     const timer = setInterval(calc, 1000);

@@ -8,8 +8,11 @@ export interface BidDealer {
 export interface BidListing {
   id: string;
   listing_no: string;
+  listing_date: string;
   grade: string;
   gender: string;
+  status: string;
+  closed_at: string | null;
 }
 
 export interface BidPart {
@@ -19,6 +22,8 @@ export interface BidPart {
   listing_id: string;
   weight: number;
   min_price: number;
+  bid_price: number | null;
+  winning_dealer_id: string | null;
   listing_part_no: string;
   cattle_listings: BidListing;
 }
@@ -60,13 +65,16 @@ export interface MyBidItem {
 export interface AuctionResult {
   id: string;
   listingNo: string;
+  entityListingNo: string;
   partName: string;
   grade: string;
   gender: string;
   weight: number;
   myBid: number;
-  winningBid: number;
+  winningBid: number | null;
   totalAmount: number;
   result: 'won' | 'lost';
+  listingDate: string;
+  closedAt: string | null;
   time: string;
 }

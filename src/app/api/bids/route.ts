@@ -39,12 +39,17 @@ export async function GET(request: NextRequest) {
           listing_id,
           weight,
           min_price,
+          bid_price,
+          winning_dealer_id,
           listing_part_no,
           cattle_listings (
             id,
             listing_no,
+            listing_date,
             grade,
-            gender
+            gender,
+            status,
+            closed_at
           )
         )
       `)

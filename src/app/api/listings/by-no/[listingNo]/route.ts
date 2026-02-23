@@ -181,12 +181,16 @@ export async function GET(
         const myBid = tokenDealerId
           ? partBids.find((b: any) => b.dealerId === tokenDealerId)
           : null;
+
+        const isSettled = ['completed', 'closed'].includes(listing.status);
+        const highestBid = partBids.length > 0 ? partBids[0] : null;
+
         return {
           ...basePartData,
-          bidCount: 0,
-          highestBid: null,
+          bidCount: isSettled ? partBids.length : 0,
+          highestBid: isSettled ? (highestBid ? { bidPrice: highestBid.bidPrice, bidAmount: highestBid.bidAmount } : null) : null,
           allBids: [],
-          myBid: myBid ? { bidPrice: myBid.bidPrice, bidAmount: myBid.bidAmount } : null,
+          myBid: myBid ? { bidId: myBid.id, bidPrice: myBid.bidPrice, bidAmount: myBid.bidAmount } : null,
         };
       }),
     };

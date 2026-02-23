@@ -112,7 +112,7 @@ function AuctionDetailContent({ params }: PageProps) {
 
   const todayStr = useMemo(() => format(new Date(), 'yyyy-MM-dd'), []);
   const { data: allListings } = useListings({
-    status: 'approved',
+    status: 'approved,auction,completed' as any,
     listingDateFrom: todayStr,
     listingDateTo: todayStr,
   });
@@ -176,7 +176,7 @@ function AuctionDetailContent({ params }: PageProps) {
   const [myBidHistoryTab, setMyBidHistoryTab] = useState('입찰 진행 중');
   const [showBidSheet, setShowBidSheet] = useState(false);
   const [showInfoPanel, setShowInfoPanel] = useState(false);
-  const [remainingTime, setRemainingTime] = useState(0);
+  const [remainingTime, setRemainingTime] = useState<number | null>(null);
   const [roundInfo, setRoundInfo] = useState<{
     currentRound: any;
     allRounds: any[];
@@ -245,13 +245,37 @@ function AuctionDetailContent({ params }: PageProps) {
     return value.replace(/,/g, '');
   };
 
-  // 입찰 취소 함수
+  // 입찰 취소 함수 (로컬 상태용)
   const cancelBid = (bidId: number) => {
     setMyBids(prev => 
       prev.map(bid => 
         bid.id === bidId ? { ...bid, status: 'cancelled' } : bid
       )
     );
+  };
+
+  // 입찰 취소 API 호출
+  const [cancellingBidId, setCancellingBidId] = useState<string | null>(null);
+  const handleCancelBid = async (bidId: string, partName: string) => {
+    if (!confirm(`${partName} 입찰을 취소하시겠습니까?`)) return;
+
+    setCancellingBidId(bidId);
+    try {
+      const res = await fetch(`/api/bids/${bidId}`, { method: 'DELETE' });
+      const data = await res.json();
+
+      if (!res.ok) {
+        showToastMessage(data.error || '입찰 취소에 실패했습니다.', 'warning');
+        return;
+      }
+
+      showToastMessage(`${partName} 입찰이 취소되었습니다.`, 'success');
+      refetchListing();
+    } catch {
+      showToastMessage('입찰 취소 중 오류가 발생했습니다.', 'warning');
+    } finally {
+      setCancellingBidId(null);
+    }
   };
 
   // 토스트 표시 함수
@@ -310,41 +334,52 @@ function AuctionDetailContent({ params }: PageProps) {
     return null;
   };
 
-  // 입찰 가능 여부 판단 (회차 기반)
+  // 입찰 가능 여부 판단 (회차 정보 우선, listing status는 fallback)
   const { canBid, bidStatusMessage } = useMemo(() => {
-    if (listingData?.status === 'completed') return { canBid: false, bidStatusMessage: '입찰이 마감되었습니다' };
-
     const allRounds = roundInfo?.allRounds || [];
     const currentRound = roundInfo?.currentRound;
     const listingMap = roundInfo?.roundListingMap || {};
     const listingId = listingData?.id;
 
-    if (allRounds.length === 0) return { canBid: true, bidStatusMessage: '' };
-    if (!listingId) return { canBid: false, bidStatusMessage: '' };
+    // 회차 정보가 있는 경우: 회차 상태로 판단
+    if (allRounds.length > 0 && listingId) {
+      const listingRoundNo = listingMap[listingId];
 
-    const listingRoundNo = listingMap[listingId];
+      if (!listingRoundNo) {
+        return { canBid: false, bidStatusMessage: '회차에 배정되지 않은 개체입니다' };
+      }
 
-    if (!listingRoundNo) return { canBid: false, bidStatusMessage: '회차에 배정되지 않은 개체입니다' };
+      const listingRound = allRounds.find((r: any) => r.round_no === listingRoundNo);
+      const timeStr = getRoundTimeStr(listingRound);
 
-    const listingRound = allRounds.find((r: any) => r.round_no === listingRoundNo);
-    const timeStr = getRoundTimeStr(listingRound);
+      if (listingRound?.status === 'open') {
+        return { canBid: true, bidStatusMessage: '' };
+      }
 
-    if (!currentRound) {
-      if (listingRound?.status === 'closed') return { canBid: false, bidStatusMessage: '입찰이 마감되었습니다' };
+      if (listingRound?.status === 'closed') {
+        return { canBid: false, bidStatusMessage: '입찰이 마감되었습니다' };
+      }
+
+      // scheduled 상태
+      if (currentRound) {
+        const msg = timeStr
+          ? `${listingRoundNo}회차 배정 · ${timeStr} (현재 ${currentRound.round_no}회차 진행중)`
+          : `${listingRoundNo}회차 배정 (현재 ${currentRound.round_no}회차 진행중)`;
+        return { canBid: false, bidStatusMessage: msg };
+      }
+
       const msg = timeStr
         ? `${listingRoundNo}회차 대기중 · ${timeStr}`
         : `${listingRoundNo}회차 대기중`;
       return { canBid: false, bidStatusMessage: msg };
     }
 
-    if (listingRoundNo === currentRound.round_no) return { canBid: true, bidStatusMessage: '' };
+    // 회차 정보가 없는 경우: listing status로 fallback
+    if (listingData?.status === 'completed') {
+      return { canBid: false, bidStatusMessage: '입찰이 마감되었습니다' };
+    }
 
-    if (listingRoundNo < currentRound.round_no) return { canBid: false, bidStatusMessage: '입찰이 마감되었습니다' };
-
-    const msg = timeStr
-      ? `${listingRoundNo}회차 배정 · ${timeStr} (현재 ${currentRound.round_no}회차 진행중)`
-      : `${listingRoundNo}회차 배정 (현재 ${currentRound.round_no}회차 진행중)`;
-    return { canBid: false, bidStatusMessage: msg };
+    return { canBid: true, bidStatusMessage: '' };
   }, [roundInfo, listingData?.id, listingData?.status]);
 
   // 입찰하기 버튼 클릭 처리
@@ -582,6 +617,8 @@ function AuctionDetailContent({ params }: PageProps) {
           minPrice: part.minPrice || defaultMinPrices[part.partName] || 50000,
           partId: part.id,
           myBid: part.myBid || null,
+          highestBidPrice: part.highestBid?.bidPrice || null,
+          bidCount: part.bidCount || 0,
         }));
     }
     
@@ -622,7 +659,9 @@ function AuctionDetailContent({ params }: PageProps) {
         listingNo: `${getTodayDateCode()}-${idSuffix}-${partNumber}`,
         minPrice: defaultMinPrices[item.part] || 50000,
         partId: undefined as string | undefined,
-        myBid: null as { bidPrice: number; bidAmount: number } | null,
+        myBid: null as { bidId?: string; bidPrice: number; bidAmount: number } | null,
+        highestBidPrice: null as number | null,
+        bidCount: 0,
       };
     });
   }, [listingData, resolvedParams.id]);
@@ -791,18 +830,27 @@ function AuctionDetailContent({ params }: PageProps) {
   const closingRoundRef = useRef<string | null>(null);
 
   // 타이머 계산 (회차 기반)
+  // started_at이 미래(텀 대기중)일 수 있으므로, 경매 시작 전에는 텀 카운트다운 표시
   useEffect(() => {
     const cr = roundInfo?.currentRound;
     if (!cr?.started_at || !cr?.round_duration_min) {
-      setRemainingTime(0);
+      setRemainingTime(null);
       return;
     }
 
     const calculateRemaining = () => {
+      const now = Date.now();
       const startedAt = new Date(cr.started_at).getTime();
       const durationMs = cr.round_duration_min * 60 * 1000;
-      const remaining = Math.max(0, Math.floor((startedAt + durationMs - Date.now()) / 1000));
-      setRemainingTime(remaining);
+
+      if (startedAt > now) {
+        // 텀 대기중: 경매 시작까지 남은 시간 + 경매 시간
+        setRemainingTime(cr.round_duration_min * 60);
+      } else {
+        // 경매 진행중: 실제 남은 시간
+        const remaining = Math.max(0, Math.floor((startedAt + durationMs - now) / 1000));
+        setRemainingTime(remaining);
+      }
     };
 
     calculateRemaining();
@@ -810,11 +858,13 @@ function AuctionDetailContent({ params }: PageProps) {
     return () => clearInterval(timer);
   }, [roundInfo?.currentRound?.id, roundInfo?.currentRound?.started_at]);
 
-  // 타이머 만료 시 자동 마감
+  // 타이머 만료 시 자동 마감 (null은 미계산 상태이므로 무시, 텀 대기중도 무시)
   useEffect(() => {
     const cr = roundInfo?.currentRound;
-    if (!cr?.id || remainingTime > 0) return;
-    if (!cr?.started_at) return;
+    if (remainingTime === null || remainingTime > 0) return;
+    if (!cr?.id || !cr?.started_at) return;
+    // 텀 대기중(started_at이 미래)이면 마감하지 않음
+    if (new Date(cr.started_at).getTime() > Date.now()) return;
     if (closingRoundRef.current === cr.id) return;
 
     closingRoundRef.current = cr.id;
@@ -921,9 +971,9 @@ function AuctionDetailContent({ params }: PageProps) {
                         {roundInfo.currentRound.round_no}/{roundInfo.totalRounds}차
                       </span>
                       <span className={`text-xs font-mono font-bold tabular-nums ${
-                        remainingTime <= 60 ? 'text-red-600' : 'text-gray-900 dark:text-gray-100'
+                        remainingTime !== null && remainingTime <= 60 ? 'text-red-600' : 'text-gray-900 dark:text-gray-100'
                       }`}>
-                        {formatTime(remainingTime)}
+                        {formatTime(remainingTime ?? 0)}
                       </span>
                     </div>
                   )}
@@ -1167,13 +1217,25 @@ function AuctionDetailContent({ params }: PageProps) {
                 <div className="w-full flex flex-col border-b border-gray-200 dark:border-gray-700">
                   {/* 호가창 헤더 */}
                   <div className="bg-gray-100 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex-shrink-0 h-9 flex items-center sticky top-[56px] z-10 transition-colors">
-                    <div className="grid px-2 text-[13px] font-medium text-gray-500 dark:text-gray-400 w-full" style={{gridTemplateColumns: '1fr 0.7fr 1fr 1.2fr 0.7fr'}}>
-                      <div className="text-center">부위</div>
-                      <div className="text-center">중량</div>
-                      <div className="text-center">최저단가</div>
-                      <div className="text-center">나의입찰가</div>
-                      <div className="text-center">상태</div>
-                    </div>
+                    {listingData?.status === 'completed' ? (
+                      <div className="grid px-2 text-[13px] font-medium text-gray-500 dark:text-gray-400 w-full" style={{gridTemplateColumns: '1fr 0.7fr 1fr 1fr 1fr 0.7fr'}}>
+                        <div className="text-center">부위</div>
+                        <div className="text-center">중량</div>
+                        <div className="text-center">최저단가</div>
+                        <div className="text-center">낙찰가</div>
+                        <div className="text-center">나의입찰가</div>
+                        <div className="text-center">결과</div>
+                      </div>
+                    ) : (
+                      <div className="grid px-2 text-[13px] font-medium text-gray-500 dark:text-gray-400 w-full" style={{gridTemplateColumns: '1fr 0.7fr 1fr 1fr 0.6fr 0.6fr'}}>
+                        <div className="text-center">부위</div>
+                        <div className="text-center">중량</div>
+                        <div className="text-center">최저단가</div>
+                        <div className="text-center">나의입찰가</div>
+                        <div className="text-center">변경</div>
+                        <div className="text-center">취소</div>
+                      </div>
+                    )}
                   </div>
 
                   {/* 호가 데이터 스크롤 영역 */}
@@ -1182,8 +1244,71 @@ function AuctionDetailContent({ params }: PageProps) {
                     {partsData.map((item: any, index) => {
                       const minPrice = item.minPrice || baseMinPrices[item.part] || 50000;
                       const myBidPrice = item.myBid?.bidPrice;
+                      const myBidId = item.myBid?.bidId;
                       const hasBid = !!myBidPrice;
-                      
+                      const isCompleted = listingData?.status === 'completed';
+                      const winningPrice = item.highestBidPrice;
+                      const hasAnyBid = item.bidCount > 0;
+                      const isMyWin = hasBid && winningPrice && myBidPrice >= winningPrice;
+
+                      if (isCompleted) {
+                        return (
+                          <div
+                            key={`sell-${index}`}
+                            className={`grid px-2 py-3 border-b border-gray-100 dark:border-gray-800 transition-colors ${
+                              isMyWin
+                                ? 'bg-blue-50/50 dark:bg-blue-900/30'
+                                : hasBid
+                                ? 'bg-red-50/50 dark:bg-red-900/20'
+                                : 'bg-white dark:bg-gray-900'
+                            }`}
+                            style={{gridTemplateColumns: '1fr 0.7fr 1fr 1fr 1fr 0.7fr'}}
+                          >
+                            <div className="text-center text-[13px] text-gray-700 dark:text-gray-300 flex items-center justify-center">
+                              {item.part}
+                            </div>
+                            <div className="text-center text-[13px] text-gray-700 dark:text-gray-300 flex items-center justify-center">
+                              {item.weight}kg
+                            </div>
+                            <div className="text-center text-[13px] text-gray-700 dark:text-gray-300 flex items-center justify-center">
+                              {minPrice.toLocaleString()}
+                            </div>
+                            {/* 낙찰가 (최고 입찰가) */}
+                            <div className="flex items-center justify-center">
+                              {winningPrice ? (
+                                <span className="text-[13px] font-medium text-gray-900 dark:text-gray-100">
+                                  {winningPrice.toLocaleString()}
+                                </span>
+                              ) : (
+                                <span className="text-[13px] text-gray-400 dark:text-gray-500">-</span>
+                              )}
+                            </div>
+                            {/* 나의입찰가 */}
+                            <div className="flex items-center justify-center">
+                              {hasBid ? (
+                                <span className={`text-[13px] font-medium ${isMyWin ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'}`}>
+                                  {myBidPrice.toLocaleString()}
+                                </span>
+                              ) : (
+                                <span className="text-[13px] text-gray-400 dark:text-gray-500">-</span>
+                              )}
+                            </div>
+                            {/* 결과 */}
+                            <div className="flex items-center justify-center">
+                              {!hasAnyBid ? (
+                                <span className="px-1.5 py-0.5 text-[11px] font-medium text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 rounded">유찰</span>
+                              ) : isMyWin ? (
+                                <span className="px-1.5 py-0.5 text-[11px] font-medium text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/50 rounded">낙찰</span>
+                              ) : hasBid ? (
+                                <span className="px-1.5 py-0.5 text-[11px] font-medium text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900/50 rounded">미낙찰</span>
+                              ) : (
+                                <span className="text-[13px] text-gray-400 dark:text-gray-500">-</span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      }
+
                       return (
                         <div 
                           key={`sell-${index}`}
@@ -1192,7 +1317,7 @@ function AuctionDetailContent({ params }: PageProps) {
                               ? 'bg-blue-50/50 dark:bg-blue-900/30' 
                               : 'bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800'
                           }`}
-                          style={{gridTemplateColumns: '1fr 0.7fr 1fr 1.2fr 0.7fr'}}
+                          style={{gridTemplateColumns: '1fr 0.7fr 1fr 1fr 0.6fr 0.6fr'}}
                         >
                           <div className="text-center text-[13px] text-gray-700 dark:text-gray-300 flex items-center justify-center">
                             {item.part}
@@ -1203,25 +1328,12 @@ function AuctionDetailContent({ params }: PageProps) {
                           <div className="text-center text-[13px] text-gray-700 dark:text-gray-300 flex items-center justify-center">
                             {minPrice.toLocaleString()}
                           </div>
+                          {/* 나의입찰가 */}
                           <div className="flex items-center justify-center">
                             {hasBid ? (
-                              <div className="flex flex-col items-center">
-                                <span className="text-[13px] font-medium text-gray-900 dark:text-gray-100 leading-none">
-                                  {myBidPrice.toLocaleString()}
-                                </span>
-                                <button
-                                  disabled={!canBid}
-                                  onClick={() => {
-                                    setSelectedPart(item.part);
-                                    setSelectedWeight(item.weight);
-                                    setBidPrice('');
-                                    setShowBidSheet(true);
-                                  }}
-                                  className="mt-1 px-2 py-1 text-[11px] font-medium text-white bg-gray-800 dark:bg-gray-700 rounded hover:bg-gray-900 dark:hover:bg-gray-600 disabled:bg-gray-300 dark:disabled:bg-gray-700 disabled:cursor-not-allowed transition-colors"
-                                >
-                                  재입찰
-                                </button>
-                              </div>
+                              <span className="text-[13px] font-medium text-gray-900 dark:text-gray-100">
+                                {myBidPrice.toLocaleString()}
+                              </span>
                             ) : (
                               <button
                                 disabled={!canBid}
@@ -1237,17 +1349,33 @@ function AuctionDetailContent({ params }: PageProps) {
                               </button>
                             )}
                           </div>
+                          {/* 변경 */}
                           <div className="flex items-center justify-center">
-                            {listingData?.status === 'completed' ? (
-                              hasBid ? (
-                                <span className="text-[11px] font-medium text-red-600 dark:text-red-400">낙찰</span>
-                              ) : (
-                                <span className="text-[11px] font-medium text-gray-500 dark:text-gray-400">유찰</span>
-                              )
-                            ) : hasBid ? (
-                              <span className="text-[11px] font-medium text-blue-600 dark:text-blue-400">
-                                입찰완료
-                              </span>
+                            {hasBid && canBid ? (
+                              <button
+                                onClick={() => {
+                                  setSelectedPart(item.part);
+                                  setSelectedWeight(item.weight);
+                                  setBidPrice('');
+                                  setShowBidSheet(true);
+                                }}
+                                className="px-1.5 py-1 text-[11px] font-medium text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 rounded hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors"
+                              >
+                                변경
+                              </button>
+                            ) : (
+                              <span className="text-[13px] text-gray-400 dark:text-gray-500">-</span>
+                            )}
+                          </div>
+                          {/* 취소 */}
+                          <div className="flex items-center justify-center">
+                            {hasBid && canBid && myBidId ? (
+                              <button
+                                onClick={() => handleCancelBid(myBidId, item.part)}
+                                className="px-1.5 py-1 text-[11px] font-medium text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 rounded hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors"
+                              >
+                                취소
+                              </button>
                             ) : (
                               <span className="text-[13px] text-gray-400 dark:text-gray-500">-</span>
                             )}

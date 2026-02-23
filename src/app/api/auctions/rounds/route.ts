@@ -277,7 +277,7 @@ export async function PUT(request: NextRequest) {
   }
 }
 
-// GET: 세션별 회차 목록 조회
+// GET: 세션별 회차 목록 조회 (배정 상장 포함)
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -304,11 +304,123 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json(rounds || []);
+    if (!rounds || rounds.length === 0) {
+      return NextResponse.json([]);
+    }
+
+    const roundIds = rounds.map((r: any) => r.id);
+    const { data: auctionListings, error: listingsError } = await supabase
+      .from('auction_listings')
+      .select('auction_id, listing_id, display_order')
+      .in('auction_id', roundIds)
+      .order('display_order', { ascending: true });
+
+    if (listingsError) {
+      return NextResponse.json({ error: listingsError.message }, { status: 500 });
+    }
+
+    const listingsByAuction = new Map<string, string[]>();
+    for (const al of auctionListings || []) {
+      const list = listingsByAuction.get(al.auction_id) || [];
+      list.push(al.listing_id);
+      listingsByAuction.set(al.auction_id, list);
+    }
+
+    const result = rounds.map((r: any) => ({
+      ...r,
+      listingIds: listingsByAuction.get(r.id) || [],
+    }));
+
+    return NextResponse.json(result);
   } catch (error) {
     console.error('회차 목록 조회 오류:', error);
     return NextResponse.json(
       { error: '회차 목록 조회 중 오류가 발생했습니다.' },
+      { status: 500 }
+    );
+  }
+}
+
+// DELETE: 해당 날짜의 경매 초기화 (회차 삭제 + 상장 상태 복원)
+export async function DELETE(request: NextRequest) {
+  try {
+    const token = await getToken({ req: request });
+    if (!token || token.userType !== 'admin_user') {
+      return NextResponse.json({ error: '관리자만 접근 가능합니다.' }, { status: 403 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const auctionDate = searchParams.get('auctionDate');
+
+    if (!auctionDate) {
+      return NextResponse.json({ error: '경매일이 필요합니다.' }, { status: 400 });
+    }
+
+    const { data: existingRounds } = await supabase
+      .from('auctions')
+      .select('id')
+      .eq('auction_date', auctionDate)
+      .not('round_no', 'is', null);
+
+    if (!existingRounds || existingRounds.length === 0) {
+      return NextResponse.json({ message: '초기화할 경매가 없습니다.' });
+    }
+
+    const roundIds = existingRounds.map((r) => r.id);
+
+    // 배정된 상장 ID 수집
+    const { data: auctionListings } = await supabase
+      .from('auction_listings')
+      .select('listing_id')
+      .in('auction_id', roundIds);
+
+    const listingIds = [...new Set((auctionListings || []).map((al) => al.listing_id))];
+
+    // 입찰 데이터 삭제
+    const { data: partIds } = await supabase
+      .from('cattle_parts')
+      .select('id')
+      .in('listing_id', listingIds.length > 0 ? listingIds : ['__none__']);
+
+    if (partIds && partIds.length > 0) {
+      await supabase
+        .from('bids')
+        .delete()
+        .in('part_id', partIds.map((p) => p.id));
+    }
+
+    // auction_listings 삭제
+    await supabase.from('auction_listings').delete().in('auction_id', roundIds);
+
+    // auctions 삭제
+    await supabase.from('auctions').delete().in('id', roundIds);
+
+    // 상장 상태를 approved로 복원
+    if (listingIds.length > 0) {
+      await supabase
+        .from('cattle_listings')
+        .update({ status: 'approved' })
+        .in('id', listingIds);
+
+      // cattle_parts의 낙찰 정보도 초기화
+      await supabase
+        .from('cattle_parts')
+        .update({
+          bid_price: null,
+          bid_amount: null,
+          winning_dealer_id: null,
+          bid_at: null,
+        })
+        .in('listing_id', listingIds);
+    }
+
+    return NextResponse.json({
+      message: `${auctionDate} 경매가 초기화되었습니다. (${existingRounds.length}개 회차 삭제, ${listingIds.length}개 상장 복원)`,
+    });
+  } catch (error) {
+    console.error('경매 초기화 오류:', error);
+    return NextResponse.json(
+      { error: '경매 초기화 중 오류가 발생했습니다.' },
       { status: 500 }
     );
   }

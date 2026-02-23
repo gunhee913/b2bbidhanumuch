@@ -61,11 +61,12 @@ const createDefaultParts = (): PartData[] => [
 ];
 
 // 상태 타입 및 옵션
-type AuctionStatus = '대기' | '승인' | '마감';
+type AuctionStatus = '대기' | '승인' | '경매중' | '마감';
 
 const STATUS_OPTIONS: { value: AuctionStatus; label: string }[] = [
   { value: '대기', label: '대기' },
   { value: '승인', label: '승인' },
+  { value: '경매중', label: '경매중' },
   { value: '마감', label: '마감' },
 ];
 
@@ -175,7 +176,10 @@ const convertToAuction = (listing: CattleListing): Auction => {
     company: listing.companyName || '',
     processDate: formatDate(listing.processDate),
     processWeight: listing.processWeight || 0,
-    status: listing.status === 'approved' ? '승인' : listing.status === 'closed' ? '마감' : '대기',
+    status: listing.status === 'approved' ? '승인'
+      : listing.status === 'auction' ? '경매중'
+      : listing.status === 'completed' || listing.status === 'closed' ? '마감'
+      : '대기',
     parts,
     images: listing.images || [],
     slaughterCert: listing.slaughterCert,
@@ -369,8 +373,8 @@ export default function AuctionsListPage() {
     const auction = auctions.find(a => a.id === auctionId);
     if (!auction) return;
     
-    if (auction.status === '승인') {
-      alert('승인된 상장은 삭제할 수 없습니다.');
+    if (auction.status === '승인' || auction.status === '경매중') {
+      alert('승인 또는 경매중인 상장은 삭제할 수 없습니다.');
       return;
     }
     
@@ -702,7 +706,11 @@ export default function AuctionsListPage() {
                       </button>
                     </td>
                     <td className="px-2 py-3 text-center whitespace-nowrap border border-gray-200">
-                      {auction.status === '마감' ? (
+                      {auction.status === '경매중' ? (
+                        <span className="px-2 py-0.5 text-xs font-medium text-green-700 bg-green-50 border border-green-200 rounded">
+                          경매중
+                        </span>
+                      ) : auction.status === '마감' ? (
                         <span className="px-2 py-0.5 text-xs font-medium text-gray-500 bg-gray-100 rounded">
                           마감
                         </span>
@@ -713,7 +721,7 @@ export default function AuctionsListPage() {
                           onChange={(e) => handleStatusChange(auction.id, e.target.value as AuctionStatus)}
                           className="px-1 py-0.5 text-xs font-medium border border-gray-200 cursor-pointer outline-none bg-white text-gray-700"
                         >
-                          {STATUS_OPTIONS.filter(o => o.value !== '마감').map(option => (
+                          {STATUS_OPTIONS.filter(o => o.value !== '마감' && o.value !== '경매중').map(option => (
                             <option key={option.value} value={option.value}>
                               {option.label}
                             </option>
@@ -897,7 +905,7 @@ export default function AuctionsListPage() {
                               e.stopPropagation();
                               handleDelete(auction.id);
                             }}
-                            disabled={auction.status === '승인' || deleteListing.isPending}
+                            disabled={auction.status === '승인' || auction.status === '경매중' || auction.status === '마감' || deleteListing.isPending}
                             className="px-4 py-1.5 text-xs font-medium text-white bg-gray-700 hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             삭제

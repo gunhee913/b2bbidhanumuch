@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
           is_included
         )
       `)
-      .eq('status', 'closed')
+      .in('status', ['closed', 'completed'])
       .order('closed_at', { ascending: false });
 
     // 마감일 필터
