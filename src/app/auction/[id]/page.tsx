@@ -357,7 +357,7 @@ function AuctionDetailContent({ params }: PageProps) {
       }
 
       if (listingRound?.status === 'closed') {
-        return { canBid: false, bidStatusMessage: '입찰이 마감되었습니다' };
+        return { canBid: false, bidStatusMessage: '경매가 마감되었습니다' };
       }
 
       // scheduled 상태
@@ -376,7 +376,7 @@ function AuctionDetailContent({ params }: PageProps) {
 
     // 회차 정보가 없는 경우: listing status로 fallback
     if (listingData?.status === 'completed') {
-      return { canBid: false, bidStatusMessage: '입찰이 마감되었습니다' };
+      return { canBid: false, bidStatusMessage: '경매가 마감되었습니다' };
     }
 
     return { canBid: true, bidStatusMessage: '' };
