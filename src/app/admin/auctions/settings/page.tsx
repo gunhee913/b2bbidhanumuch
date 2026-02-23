@@ -15,6 +15,8 @@ import {
   CheckCircle,
   Loader2,
   Save,
+  ChevronUp,
+  ChevronDown,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import {
@@ -457,6 +459,16 @@ export default function AuctionSettingsPage() {
   // 회차 삭제
   const handleRemoveRound = useCallback((roundIdx: number) => {
     setRounds((prev) => prev.filter((_, i) => i !== roundIdx));
+  }, []);
+
+  const handleMoveRound = useCallback((roundIdx: number, direction: 'up' | 'down') => {
+    setRounds((prev) => {
+      const targetIdx = direction === 'up' ? roundIdx - 1 : roundIdx + 1;
+      if (targetIdx < 0 || targetIdx >= prev.length) return prev;
+      const updated = [...prev];
+      [updated[roundIdx], updated[targetIdx]] = [updated[targetIdx], updated[roundIdx]];
+      return updated;
+    });
   }, []);
 
   // 상장을 특정 회차로 이동
@@ -1032,13 +1044,31 @@ export default function AuctionSettingsPage() {
                       )}
                     </div>
                     {!isReadOnly && (
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveRound(roundIdx)}
-                        className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      <div className="flex items-center gap-0.5">
+                        <button
+                          type="button"
+                          onClick={() => handleMoveRound(roundIdx, 'up')}
+                          disabled={roundIdx === 0}
+                          className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                        >
+                          <ChevronUp className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleMoveRound(roundIdx, 'down')}
+                          disabled={roundIdx === rounds.length - 1}
+                          className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                        >
+                          <ChevronDown className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveRound(roundIdx)}
+                          className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     )}
                   </div>
 
