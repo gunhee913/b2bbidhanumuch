@@ -17,9 +17,11 @@ import {
   Settings,
   ChevronRight,
   ChevronDown,
+  ChevronUp,
   Bell,
   Star,
-  ExternalLink
+  ExternalLink,
+  Clock
 } from 'lucide-react';
 import BottomNav from '@/components/BottomNav';
 import { Button } from '@/components/ui/button';
@@ -97,6 +99,8 @@ function MainPageContent() {
   const [selectedCompany, setSelectedCompany] = useState<string>('전체');
   const [showCompanyDropdown, setShowCompanyDropdown] = useState(false);
   const companyDropdownRef = useRef<HTMLDivElement>(null);
+  const [showTimetable, setShowTimetable] = useState(true);
+  const [timetableRemaining, setTimetableRemaining] = useState(0);
 
   // 선택된 날짜 포맷 (API 호출용)
   const selectedDateStr = useMemo(() => {
@@ -324,6 +328,23 @@ function MainPageContent() {
     setCustomBidPrice('');
   };
 
+  // 타임테이블 잔여시간 계산 (현재 진행중 회차)
+  useEffect(() => {
+    const cr = roundData?.currentRound;
+    if (!cr?.started_at || !cr?.round_duration_min) {
+      setTimetableRemaining(0);
+      return;
+    }
+    const calc = () => {
+      const startedAt = new Date(cr.started_at).getTime();
+      const durationMs = cr.round_duration_min * 60 * 1000;
+      setTimetableRemaining(Math.max(0, Math.floor((startedAt + durationMs - Date.now()) / 1000)));
+    };
+    calc();
+    const timer = setInterval(calc, 1000);
+    return () => clearInterval(timer);
+  }, [roundData?.currentRound?.id, roundData?.currentRound?.started_at, roundData?.currentRound?.round_duration_min]);
+
   // 동적 viewport 높이 설정
   useEffect(() => {
     const setViewportHeight = () => {
@@ -506,108 +527,112 @@ function MainPageContent() {
               <div className="pb-24 bg-white dark:bg-gray-900 transition-colors">
                 {activeTab === '경매목록' ? (
                   <div className="pt-3">
-                    {/* 필터 영역 */}
-                    <div className="px-4 pb-3">
-                      <div className="flex items-center gap-2.5 flex-wrap">
-                        {/* 등급 필터 */}
-                        <div className="relative" ref={gradeDropdownRef}>
+                    {/* 오늘의 경매 일정 타임테이블 */}
+                    {roundData?.allRounds && roundData.allRounds.length > 0 && (() => {
+                      const countPerRound: Record<number, number> = {};
+                      Object.values(roundListingMap).forEach((rNo) => {
+                        countPerRound[rNo] = (countPerRound[rNo] || 0) + 1;
+                      });
+                      const totalRoundListings = Object.values(countPerRound).reduce((s, n) => s + n, 0);
+
+                      return (
+                        <div className="mx-4 mb-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded overflow-hidden">
                           <button
-                            onClick={() => {
-                              setShowGradeDropdown(!showGradeDropdown);
-                              setShowCompanyDropdown(false);
-                            }}
-                            className="flex items-center gap-1.5 px-3.5 py-2 bg-gray-100 dark:bg-gray-800 rounded text-[13px] font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                            onClick={() => setShowTimetable(!showTimetable)}
+                            className="w-full flex items-center justify-between px-3 py-2.5 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
                           >
-                            등급: {selectedGrade}
-                            <ChevronDown className={`h-4 w-4 transition-transform ${showGradeDropdown ? 'rotate-180' : ''}`} />
-                          </button>
-                          
-                          {/* 등급 드롭다운 메뉴 */}
-                          {showGradeDropdown && (
-                            <div className="absolute top-full left-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-20 min-w-[110px]">
-                              {gradeOptions.map((grade) => (
-                                <button
-                                  key={grade}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setSelectedGrade(grade);
-                                    setShowGradeDropdown(false);
-                                  }}
-                                  className={`block w-full text-left px-4 py-2.5 text-[13px] hover:bg-gray-50 dark:hover:bg-gray-700 first:rounded-t-lg last:rounded-b-lg ${
-                                    selectedGrade === grade
-                                      ? 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 font-medium'
-                                      : 'text-gray-700 dark:text-gray-300'
-                                  }`}
-                                >
-                                  {grade}
-                                </button>
-                              ))}
+                            <div className="flex items-center gap-1.5">
+                              <Clock className="w-3.5 h-3.5 text-gray-500 dark:text-gray-400" />
+                              <span className="text-[13px] font-semibold text-gray-900 dark:text-gray-100">오늘의 경매 일정</span>
+                              <span className="text-[11px] text-gray-400 dark:text-gray-500">
+                                {roundData.allRounds.length}회차 · 총 {totalRoundListings}두
+                              </span>
                             </div>
-                          )}
-                        </div>
-                        
-                        {/* 상장업체 필터 */}
-                        <div className="relative" ref={companyDropdownRef}>
-                          <button
-                            onClick={() => {
-                              setShowCompanyDropdown(!showCompanyDropdown);
-                              setShowGradeDropdown(false);
-                            }}
-                            className="flex items-center gap-1.5 px-3.5 py-2 bg-gray-100 dark:bg-gray-800 rounded text-[13px] font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
-                          >
-                            업체: {selectedCompany}
-                            <ChevronDown className={`h-4 w-4 transition-transform ${showCompanyDropdown ? 'rotate-180' : ''}`} />
+                            {showTimetable
+                              ? <ChevronUp className="w-4 h-4 text-gray-400 dark:text-gray-500" />
+                              : <ChevronDown className="w-4 h-4 text-gray-400 dark:text-gray-500" />
+                            }
                           </button>
-                          
-                          {/* 상장업체 드롭다운 메뉴 */}
-                          {showCompanyDropdown && (
-                            <div className="absolute top-full left-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-20 min-w-[110px]">
-                              {companyOptions.map((company) => (
-                                <button
-                                  key={company}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setSelectedCompany(company);
-                                    setShowCompanyDropdown(false);
-                                  }}
-                                  className={`block w-full text-left px-4 py-2.5 text-[13px] hover:bg-gray-50 dark:hover:bg-gray-700 first:rounded-t-lg last:rounded-b-lg whitespace-nowrap ${
-                                    selectedCompany === company
-                                      ? 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 font-medium'
-                                      : 'text-gray-700 dark:text-gray-300'
-                                  }`}
-                                >
-                                  {company}
-                                </button>
-                              ))}
-                            </div>
-                          )}
+                          <AnimatePresence>
+                            {showTimetable && (
+                              <motion.div
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: 'auto', opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                transition={{ duration: 0.15, ease: 'easeInOut' }}
+                                className="overflow-hidden"
+                              >
+                                <div className="border-t border-gray-100 dark:border-gray-700">
+                                  {roundData.allRounds.map((round: any) => {
+                                    const isOpen = round.status === 'open';
+                                    const isClosed = round.status === 'closed';
+                                    const startTime = round.start_time?.slice(0, 5);
+                                    const endTime = round.end_time?.slice(0, 5);
+                                    const timeStr = startTime && endTime ? `${startTime} ~ ${endTime}` : startTime ? `${startTime} ~` : null;
+                                    const roundCount = countPerRound[round.round_no] || 0;
+
+                                    return (
+                                      <div
+                                        key={round.id}
+                                        className={`flex items-center gap-3 px-3 py-2 ${
+                                          isOpen ? 'bg-green-50/60 dark:bg-green-900/20' : ''
+                                        }`}
+                                      >
+                                        <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                                          isOpen ? 'bg-green-500 animate-pulse' : isClosed ? 'bg-gray-300 dark:bg-gray-600' : 'bg-gray-300 dark:bg-gray-600'
+                                        }`} />
+                                        <span className={`text-[13px] font-medium min-w-[32px] ${
+                                          isClosed ? 'text-gray-400 dark:text-gray-500 line-through' : 'text-gray-900 dark:text-gray-100'
+                                        }`}>
+                                          {round.round_no}차
+                                        </span>
+                                        {timeStr && (
+                                          <span className={`text-[12px] tabular-nums ${
+                                            isClosed ? 'text-gray-400 dark:text-gray-500' : 'text-gray-600 dark:text-gray-400'
+                                          }`}>
+                                            {timeStr}
+                                          </span>
+                                        )}
+                                        <span className={`text-[11px] ${
+                                          isClosed ? 'text-gray-400 dark:text-gray-500' : 'text-gray-500 dark:text-gray-400'
+                                        }`}>
+                                          {roundCount}두
+                                        </span>
+                                        <span className="ml-auto text-[11px] font-medium">
+                                          {isOpen ? (
+                                            <span className="text-green-600 dark:text-green-400">
+                                              진행중 {timetableRemaining > 0 && (
+                                                <span className="font-mono tabular-nums">
+                                                  {Math.floor(timetableRemaining / 60)}:{String(timetableRemaining % 60).padStart(2, '0')}
+                                                </span>
+                                              )}
+                                            </span>
+                                          ) : isClosed ? (
+                                            <span className="text-gray-400 dark:text-gray-500">마감</span>
+                                          ) : (
+                                            <span className="text-gray-400 dark:text-gray-500">대기</span>
+                                          )}
+                                        </span>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
                         </div>
-                        
-                        {/* 필터 결과 카운트 */}
-                        <span className="ml-auto text-[13px] text-gray-400 dark:text-gray-500">
-                          {filteredCattleData.length}두
-                        </span>
-                      </div>
-                    </div>
-                    
+                      );
+                    })()}
+
                     {/* 경매목록 테이블 */}
-                    {filteredCattleData.length === 0 ? (
+                    {cattleData.length === 0 ? (
                       <div className="text-center py-12">
                         <div className="text-gray-400 dark:text-gray-500 mb-2">
                           <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                           </svg>
                         </div>
-                        <p className="text-gray-500 dark:text-gray-400 text-sm">해당 조건의 개체가 없습니다.</p>
-                        <button
-                          onClick={() => {
-                            setSelectedGrade('전체');
-                            setSelectedCompany('전체');
-                          }}
-                          className="mt-3 text-xs text-gray-600 dark:text-gray-400 underline hover:text-gray-800 dark:hover:text-gray-200"
-                        >
-                          전체 보기
-                        </button>
+                        <p className="text-gray-500 dark:text-gray-400 text-sm">상장된 개체가 없습니다.</p>
                       </div>
                     ) : (
                     <div className="bg-white dark:bg-gray-900 border-y border-gray-200 dark:border-gray-700 transition-colors">
@@ -624,7 +649,7 @@ function MainPageContent() {
                           </tr>
                         </thead>
                         <tbody>
-                            {filteredCattleData.map((item, index) => (
+                            {cattleData.map((item, index) => (
                             <tr 
                               key={item.id}
                               onClick={() => router.push(`/auction/${item.id}`)}

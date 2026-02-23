@@ -43,6 +43,7 @@ const getTomorrowDateString = () => {
 const STORAGE_KEY_PREFIX = 'auction-settings-';
 
 interface SavedSettings {
+  auctionStartTime: string;
   roundDurationMin: number;
   termDurationMin: number;
   perRound: number;
@@ -75,6 +76,7 @@ const clearSettings = (date: string) => {
 
 export default function AuctionSettingsPage() {
   const [auctionDate, setAuctionDate] = useState(getTomorrowDateString());
+  const [auctionStartTime, setAuctionStartTime] = useState('08:30');
   const [roundDurationMin, setRoundDurationMin] = useState(5);
   const [termDurationMin, setTermDurationMin] = useState(2);
   const [perRound, setPerRound] = useState(5);
@@ -90,6 +92,7 @@ export default function AuctionSettingsPage() {
   useEffect(() => {
     const saved = loadSettings(auctionDate);
     if (saved) {
+      setAuctionStartTime(saved.auctionStartTime || '08:30');
       setRoundDurationMin(saved.roundDurationMin);
       setTermDurationMin(saved.termDurationMin);
       setPerRound(saved.perRound);
@@ -110,11 +113,11 @@ export default function AuctionSettingsPage() {
     if (isInitialLoad.current) return;
     if (rounds.length === 0 && roundDurationMin === 5 && termDurationMin === 2 && perRound === 5) return;
 
-    saveSettings(auctionDate, { roundDurationMin, termDurationMin, perRound, rounds });
+    saveSettings(auctionDate, { auctionStartTime, roundDurationMin, termDurationMin, perRound, rounds });
     setSaveStatus('saved');
     const timer = setTimeout(() => setSaveStatus('idle'), 2000);
     return () => clearTimeout(timer);
-  }, [rounds, roundDurationMin, termDurationMin, perRound, auctionDate]);
+  }, [rounds, auctionStartTime, roundDurationMin, termDurationMin, perRound, auctionDate]);
 
   // 승인된 상장 목록 조회
   const { data: listings, isLoading } = useListings({
@@ -235,6 +238,7 @@ export default function AuctionSettingsPage() {
           rounds: validRounds.map((r) => ({ listingIds: r.listingIds })),
           roundDurationMin,
           termDurationMin,
+          auctionStartTime,
         }),
       });
 
@@ -278,6 +282,7 @@ export default function AuctionSettingsPage() {
           rounds: validRounds.map((r) => ({ listingIds: r.listingIds })),
           roundDurationMin,
           termDurationMin,
+          auctionStartTime,
         }),
       });
 
@@ -318,6 +323,16 @@ export default function AuctionSettingsPage() {
       </div>
 
       {/* 기본 설정 */}
+      <style>{`
+        input[type="number"]::-webkit-outer-spin-button,
+        input[type="number"]::-webkit-inner-spin-button {
+          -webkit-appearance: none;
+          margin: 0;
+        }
+        input[type="number"] {
+          -moz-appearance: textfield;
+        }
+      `}</style>
       <div className="bg-white border border-gray-200 p-4 mb-4">
         <h2 className="text-sm font-semibold text-gray-700 mb-3">경매 기본 설정</h2>
         <div className="flex flex-wrap items-center gap-6">
@@ -335,6 +350,15 @@ export default function AuctionSettingsPage() {
           </div>
           <div className="flex items-center gap-2">
             <Clock className="w-3.5 h-3.5 text-gray-500" />
+            <span className="text-xs text-gray-600">경매 시작시간</span>
+            <input
+              type="time"
+              value={auctionStartTime}
+              onChange={(e) => setAuctionStartTime(e.target.value)}
+              className="px-2 py-1.5 border border-gray-200 text-xs outline-none bg-white"
+            />
+          </div>
+          <div className="flex items-center gap-2">
             <span className="text-xs text-gray-600">회당 경매시간</span>
             <input
               type="number"
