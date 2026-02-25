@@ -279,6 +279,21 @@ function MainPageContent() {
     return !!currentRound && currentRound.status === 'open';
   }, [currentRound]);
 
+  const { data: myBalanceData } = useQuery<{ balances: any[] }>({
+    queryKey: ['my-balance', dealerId],
+    queryFn: async () => {
+      const res = await fetch(`/api/dealer-balances`);
+      if (!res.ok) throw new Error();
+      return res.json();
+    },
+    enabled: !!dealerId,
+  });
+
+  const myBalance = useMemo(() => {
+    if (!myBalanceData?.balances || !dealerId) return null;
+    return myBalanceData.balances.find((b: any) => b.id === dealerId) || null;
+  }, [myBalanceData, dealerId]);
+
   const FAV_TOTAL_IMAGES = 6;
   const favNextImage = (productId: string) => {
     const cur = favPartImageIndex[productId] || 0;
@@ -592,7 +607,9 @@ function MainPageContent() {
                   <span className="text-xs text-gray-500 dark:text-gray-400">내 잔고</span>
                   <ChevronRight className="w-4 h-4 text-gray-400 dark:text-gray-500" />
                 </div>
-                <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">-8,280,000원</span>
+                <span className={`text-sm font-semibold ${myBalance && myBalance.availableAmount < 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-gray-100'}`}>
+                  {myBalance ? `${myBalance.availableAmount.toLocaleString()}원` : '-'}
+                </span>
               </Link>
 
               {/* 개체별/부위별/경매정보/관심 탭 */}

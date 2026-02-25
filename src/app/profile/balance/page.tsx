@@ -8,7 +8,8 @@ import {
   ChevronDown,
   Calendar as CalendarIcon,
   Settings,
-  Bell
+  Bell,
+  Loader2
 } from 'lucide-react';
 import BottomNav from '@/components/BottomNav';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -16,22 +17,20 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
+import { useSession } from 'next-auth/react';
+import { useQuery } from '@tanstack/react-query';
 
-// 잔고 내역 타입
 interface BalanceHistory {
   id: string;
-  date: string;           // '2026-01-06 09:30'
-  type: 'deposit' | 'auction';
-  deposit: number;        // 입금액
-  withdraw: number;       // 출금(차감)액
-  balance: number;        // 거래가능금액
-  description: string;    // 비고
+  date: string;
+  type: 'deposit' | 'withdraw' | 'auction';
+  deposit: number;
+  withdraw: number;
+  balance: number;
+  description: string;
 }
 
-// 구분 필터 타입
 type TypeFilter = 'all' | 'deposit' | 'auction';
-
-// 기간 필터 타입
 type PeriodFilter = 'all' | 'today' | 'week' | 'month' | 'custom';
 
 export default function BalanceHistoryPage() {
@@ -46,8 +45,11 @@ function BalanceHistoryContent() {
   const searchParams = useSearchParams();
   const from = searchParams.get('from');
   const backUrl = from === 'main' ? '/' : '/profile';
-  
-  // 필터 상태
+  const { data: session } = useSession();
+  const dealer = (session as any)?.dealer;
+  const employee = (session as any)?.employee;
+  const dealerId = dealer?.id || employee?.dealerId || null;
+
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
   const [periodFilter, setPeriodFilter] = useState<PeriodFilter>('all');
   const [showTypeDropdown, setShowTypeDropdown] = useState(false);
@@ -150,30 +152,53 @@ function BalanceHistoryContent() {
     touchDirectionRef.current = null;
   };
 
-  // 더미 데이터 - 낙찰대금차감 후 입금하는 패턴
-  const [balanceHistory] = useState<BalanceHistory[]>([
-    { id: '1', date: '2026-01-21 09:00', type: 'auction', deposit: 0, withdraw: 8520000, balance: -8280000, description: '낙찰대금차감' },
-    { id: '2', date: '2026-01-20 15:00', type: 'deposit', deposit: 12000000, withdraw: 0, balance: 240000, description: '계좌이체' },
-    { id: '3', date: '2026-01-20 09:00', type: 'auction', deposit: 0, withdraw: 11760000, balance: -11760000, description: '낙찰대금차감' },
-    { id: '4', date: '2026-01-17 14:00', type: 'deposit', deposit: 9500000, withdraw: 0, balance: 0, description: '계좌이체' },
-    { id: '5', date: '2026-01-17 09:00', type: 'auction', deposit: 0, withdraw: 9500000, balance: -9500000, description: '낙찰대금차감' },
-    { id: '6', date: '2026-01-16 15:00', type: 'deposit', deposit: 14200000, withdraw: 0, balance: 0, description: '계좌이체' },
-    { id: '7', date: '2026-01-16 09:00', type: 'auction', deposit: 0, withdraw: 14200000, balance: -14200000, description: '낙찰대금차감' },
-    { id: '8', date: '2026-01-15 14:00', type: 'deposit', deposit: 8800000, withdraw: 0, balance: 0, description: '계좌이체' },
-    { id: '9', date: '2026-01-15 09:00', type: 'auction', deposit: 0, withdraw: 8800000, balance: -8800000, description: '낙찰대금차감' },
-    { id: '10', date: '2026-01-14 15:00', type: 'deposit', deposit: 10500000, withdraw: 0, balance: 0, description: '계좌이체' },
-    { id: '11', date: '2026-01-14 09:00', type: 'auction', deposit: 0, withdraw: 10500000, balance: -10500000, description: '낙찰대금차감' },
-    { id: '12', date: '2026-01-13 14:00', type: 'deposit', deposit: 12300000, withdraw: 0, balance: 0, description: '계좌이체' },
-    { id: '13', date: '2026-01-13 09:00', type: 'auction', deposit: 0, withdraw: 12300000, balance: -12300000, description: '낙찰대금차감' },
-    { id: '14', date: '2026-01-10 15:00', type: 'deposit', deposit: 9200000, withdraw: 0, balance: 0, description: '계좌이체' },
-    { id: '15', date: '2026-01-10 09:00', type: 'auction', deposit: 0, withdraw: 9200000, balance: -9200000, description: '낙찰대금차감' },
-    { id: '16', date: '2026-01-09 14:00', type: 'deposit', deposit: 13500000, withdraw: 0, balance: 0, description: '계좌이체' },
-    { id: '17', date: '2026-01-09 09:00', type: 'auction', deposit: 0, withdraw: 13500000, balance: -13500000, description: '낙찰대금차감' },
-    { id: '18', date: '2026-01-08 15:00', type: 'deposit', deposit: 11000000, withdraw: 0, balance: 0, description: '계좌이체' },
-    { id: '19', date: '2026-01-08 09:00', type: 'auction', deposit: 0, withdraw: 11000000, balance: -11000000, description: '낙찰대금차감' },
-    { id: '20', date: '2026-01-07 14:00', type: 'deposit', deposit: 8500000, withdraw: 0, balance: 0, description: '계좌이체' },
-    { id: '21', date: '2026-01-07 09:00', type: 'auction', deposit: 0, withdraw: 8500000, balance: -8500000, description: '낙찰대금차감' },
-  ]);
+  const { data: txData, isLoading } = useQuery<{ transactions: any[] }>({
+    queryKey: ['my-balance-history', dealerId],
+    queryFn: async () => {
+      if (!dealerId) return { transactions: [] };
+      const res = await fetch(`/api/dealer-transactions?dealerId=${dealerId}`);
+      if (!res.ok) throw new Error();
+      return res.json();
+    },
+    enabled: !!dealerId,
+  });
+
+  const balanceHistory = useMemo<BalanceHistory[]>(() => {
+    const txs = txData?.transactions || [];
+    if (txs.length === 0) return [];
+
+    const sorted = [...txs].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+
+    let runningBalance = 0;
+    const withBalance = sorted.map((tx) => {
+      const isDeposit = tx.type === 'deposit';
+      const isAuction = tx.type === 'auction_deduct';
+      const depositAmt = isDeposit ? tx.amount : 0;
+      const withdrawAmt = !isDeposit ? tx.amount : 0;
+
+      if (isDeposit) {
+        runningBalance += tx.amount;
+      } else {
+        runningBalance -= tx.amount;
+      }
+
+      const dateStr = tx.createdAt
+        ? format(new Date(tx.createdAt), 'yyyy-MM-dd HH:mm')
+        : '';
+
+      return {
+        id: tx.id,
+        date: dateStr,
+        type: isAuction ? 'auction' as const : isDeposit ? 'deposit' as const : 'withdraw' as const,
+        deposit: depositAmt,
+        withdraw: withdrawAmt,
+        balance: runningBalance,
+        description: tx.description || (isDeposit ? '계좌이체' : isAuction ? '낙찰대금' : '출금'),
+      };
+    });
+
+    return withBalance.reverse();
+  }, [txData]);
 
   // 동적 viewport 높이 설정
   useEffect(() => {
@@ -546,7 +571,14 @@ function BalanceHistoryContent() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                  {displayedHistory.length === 0 ? (
+                  {isLoading ? (
+                    <tr>
+                      <td colSpan={5} className="text-center py-20">
+                        <Loader2 className="w-5 h-5 animate-spin mx-auto mb-2 text-gray-400" />
+                        <p className="text-sm text-gray-400 dark:text-gray-500">불러오는 중...</p>
+                      </td>
+                    </tr>
+                  ) : displayedHistory.length === 0 ? (
                     <tr>
                       <td colSpan={5} className="text-center py-20">
                         <p className="text-sm text-gray-500 dark:text-gray-400">조회된 내역이 없습니다.</p>

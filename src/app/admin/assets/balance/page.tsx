@@ -39,8 +39,10 @@ interface DealerBalance {
   dealerNo: string;
   dealerName: string;
   phone: string;
-  advancePayment: number;
-  unsettledAmount: number;
+  totalDeposit: number;
+  totalWithdraw: number;
+  auctionDeduct: number;
+  totalDeduct: number;
   availableAmount: number;
 }
 
@@ -82,7 +84,7 @@ export default function DealerBalancePage() {
   });
 
   const dealers = balanceData?.balances || [];
-  const summary = balanceData?.summary || { totalAdvance: 0, totalUnsettled: 0, totalAvailable: 0 };
+  const summary = balanceData?.summary || { totalDeposit: 0, totalDeduct: 0, totalAvailable: 0 };
 
   // 거래 내역 조회 (확장된 딜러용)
   const { data: txData } = useQuery<{ transactions: Transaction[] }>({
@@ -108,8 +110,8 @@ export default function DealerBalancePage() {
     return dealer.dealerName.toLowerCase().includes(search) || dealer.dealerNo.includes(searchTerm);
   });
 
-  const totalAdvance = filteredDealers.reduce((sum, d) => sum + d.advancePayment, 0);
-  const totalUnsettled = filteredDealers.reduce((sum, d) => sum + d.unsettledAmount, 0);
+  const totalDeposit = filteredDealers.reduce((sum, d) => sum + d.totalDeposit, 0);
+  const totalDeduct = filteredDealers.reduce((sum, d) => sum + d.totalDeduct, 0);
   const totalAvailable = filteredDealers.reduce((sum, d) => sum + d.availableAmount, 0);
 
   const toggleDealer = (dealerId: string) => {
@@ -163,7 +165,7 @@ export default function DealerBalancePage() {
           dealerId: editingDealer,
           type: transactionType,
           amount: numAmount,
-          description: transactionType === 'deposit' ? '선수금 입금' : '출금',
+          description: transactionType === 'deposit' ? '입금' : '출금',
           createdBy: currentAdmin,
           adminPassword: password,
         }),
@@ -293,14 +295,14 @@ export default function DealerBalancePage() {
     const excelData = filteredDealers.map(dealer => ({
       '중도매인번호': dealer.dealerNo,
       '중도매인명': dealer.dealerName,
-      '선수금액': dealer.advancePayment,
-      '낙찰대금': dealer.unsettledAmount,
+      '입금': dealer.totalDeposit,
+      '출금(차감)': dealer.totalDeduct,
       '판매가능금액': dealer.availableAmount,
     }));
 
     const worksheet = XLSX.utils.json_to_sheet(excelData);
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, '중도매인 자산 관리');
+    XLSX.utils.book_append_sheet(workbook, worksheet, '중도매인 자산 관리(입출금)');
     XLSX.writeFile(workbook, `중도매인_자산관리_${selectedDate.replace(/-/g, '')}.xlsx`);
   };
 
@@ -310,7 +312,7 @@ export default function DealerBalancePage() {
   return (
     <AdminLayout>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">중도매인 자산 관리</h1>
+        <h1 className="text-2xl font-bold text-gray-900">중도매인 자산 관리(입출금)</h1>
       </div>
 
       {/* 필터 */}
@@ -370,8 +372,8 @@ export default function DealerBalancePage() {
                 <th className={`${thClass} w-[4%]`}></th>
                 <th className={`${thClass} w-[13%]`}>중도매인번호</th>
                 <th className={`${thClass} w-[13%]`}>중도매인명</th>
-                <th className={`${thClass} w-[18%]`}>선수잔액</th>
-                <th className={`${thClass} w-[18%]`}>낙찰대금</th>
+                <th className={`${thClass} w-[18%]`}>입금</th>
+                <th className={`${thClass} w-[18%]`}>출금(차감)</th>
                 <th className={`${thClass} w-[18%]`}>판매가능금액</th>
                 <th className={`${thClass} w-[16%]`}>입출금</th>
               </tr>
@@ -398,8 +400,8 @@ export default function DealerBalancePage() {
                       </td>
                       <td className={tdClass}>{dealer.dealerNo}</td>
                       <td className={`${tdClass} font-medium`}>{dealer.dealerName}</td>
-                      <td className={`${tdClass} text-right`}>{dealer.advancePayment.toLocaleString()}</td>
-                      <td className={`${tdClass} text-right`}>{dealer.unsettledAmount.toLocaleString()}</td>
+                      <td className={`${tdClass} text-right`}>{dealer.totalDeposit.toLocaleString()}</td>
+                      <td className={`${tdClass} text-right`}>{dealer.totalDeduct.toLocaleString()}</td>
                       <td className={`${tdClass} text-right font-semibold ${dealer.availableAmount < 0 ? 'text-red-600' : ''}`}>
                         {dealer.availableAmount.toLocaleString()}
                       </td>
@@ -615,8 +617,8 @@ export default function DealerBalancePage() {
               <tr className="font-semibold border-t-2 border-gray-300">
                 <td className={tdClass}></td>
                 <td className={tdClass} colSpan={2}>합계 ({filteredDealers.length}명)</td>
-                <td className={`${tdClass} text-right`}>{totalAdvance.toLocaleString()}</td>
-                <td className={`${tdClass} text-right`}>{totalUnsettled.toLocaleString()}</td>
+                <td className={`${tdClass} text-right`}>{totalDeposit.toLocaleString()}</td>
+                <td className={`${tdClass} text-right`}>{totalDeduct.toLocaleString()}</td>
                 <td className={`${tdClass} text-right font-bold ${totalAvailable < 0 ? 'text-red-600' : ''}`}>
                   {totalAvailable.toLocaleString()}
                 </td>

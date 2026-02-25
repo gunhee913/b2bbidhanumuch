@@ -29,14 +29,14 @@ export async function GET(request: NextRequest) {
       .eq('status', 'active')
       .lte('created_at', `${date}T23:59:59.999`);
 
-    const balanceMap: Record<string, number> = {};
+    const depositMap: Record<string, number> = {};
+    const withdrawMap: Record<string, number> = {};
     (txData || []).forEach((tx: any) => {
       const did = tx.dealer_id;
-      if (!balanceMap[did]) balanceMap[did] = 0;
       if (tx.type === 'deposit') {
-        balanceMap[did] += Number(tx.amount);
+        depositMap[did] = (depositMap[did] || 0) + Number(tx.amount);
       } else {
-        balanceMap[did] -= Number(tx.amount);
+        withdrawMap[did] = (withdrawMap[did] || 0) + Number(tx.amount);
       }
     });
 
@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
     const unsettledMap: Record<string, number> = {};
     (winningParts || []).forEach((part: any) => {
       const status = part.cattle_listings?.status;
-      if (status === 'completed' || status === 'cancelled') return;
+      if (status !== 'closed') return;
 
       const did = part.winning_dealer_id;
       if (!unsettledMap[did]) unsettledMap[did] = 0;
@@ -65,25 +65,29 @@ export async function GET(request: NextRequest) {
 
     // 4. 결과 구성
     const balances = (dealers || []).map((dealer: any) => {
-      const advancePayment = balanceMap[dealer.id] || 0;
-      const unsettledAmount = unsettledMap[dealer.id] || 0;
-      const availableAmount = advancePayment - unsettledAmount;
+      const totalDeposit = depositMap[dealer.id] || 0;
+      const totalWithdraw = withdrawMap[dealer.id] || 0;
+      const auctionDeduct = unsettledMap[dealer.id] || 0;
+      const totalDeduct = totalWithdraw + auctionDeduct;
+      const availableAmount = totalDeposit - totalDeduct;
 
       return {
         id: dealer.id,
         dealerNo: dealer.dealer_no,
         dealerName: dealer.name,
         phone: dealer.phone,
-        advancePayment,
-        unsettledAmount,
+        totalDeposit,
+        totalWithdraw,
+        auctionDeduct,
+        totalDeduct,
         availableAmount,
       };
     });
 
     const summary = {
       totalDealers: balances.length,
-      totalAdvance: balances.reduce((s: number, b: any) => s + b.advancePayment, 0),
-      totalUnsettled: balances.reduce((s: number, b: any) => s + b.unsettledAmount, 0),
+      totalDeposit: balances.reduce((s: number, b: any) => s + b.totalDeposit, 0),
+      totalDeduct: balances.reduce((s: number, b: any) => s + b.totalDeduct, 0),
       totalAvailable: balances.reduce((s: number, b: any) => s + b.availableAmount, 0),
     };
 

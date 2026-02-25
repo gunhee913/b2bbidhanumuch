@@ -351,16 +351,35 @@ export default function AuctionLivePage() {
     try {
       let successCount = 0;
       let failCount = 0;
+      const maxRetries = 2;
+
       for (const listingId of listingIds) {
-        const res = await fetch(`/api/listings/${listingId}/close`, { method: 'POST' });
-        if (res.ok) {
-          successCount++;
-        } else {
-          failCount++;
-          const data = await res.json().catch(() => ({}));
-          console.error(`마감 실패 (${listingId}):`, data.error);
+        let ok = false;
+        for (let attempt = 0; attempt <= maxRetries; attempt++) {
+          try {
+            const res = await fetch(`/api/listings/${listingId}/close`, { method: 'POST' });
+            if (res.ok) {
+              ok = true;
+              break;
+            }
+            const data = await res.json().catch(() => ({}));
+            if (attempt < maxRetries && data.error?.includes('fetch failed')) {
+              await new Promise(r => setTimeout(r, 500 * (attempt + 1)));
+              continue;
+            }
+            console.error(`마감 실패 (${listingId}):`, data.error);
+          } catch {
+            if (attempt < maxRetries) {
+              await new Promise(r => setTimeout(r, 500 * (attempt + 1)));
+              continue;
+            }
+          }
+          break;
         }
+        if (ok) successCount++;
+        else failCount++;
       }
+
       refetch();
       if (failCount > 0) {
         alert(`마감 완료: 성공 ${successCount}건, 실패 ${failCount}건`);

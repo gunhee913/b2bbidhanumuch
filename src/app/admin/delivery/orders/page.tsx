@@ -1,18 +1,42 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import AdminLayout from '@/components/admin/AdminLayout';
-import { Printer, Download, ExternalLink } from 'lucide-react';
+import { Printer, Download, Loader2 } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import { generateDealerSettlements, DealerSettlementData } from '@/constants/dealerSettlement';
-import { 
-  DELIVERY_PARTNERS, 
-  loadAssignments, 
-  PartnerAssignments,
-} from '@/constants/delivery';
+import { useQuery } from '@tanstack/react-query';
+import { format } from 'date-fns';
 
-// 출고 항목 타입
+interface WinningPart {
+  partId: string;
+  partNo: number;
+  partName: string;
+  listingPartNo: string;
+  weight: number;
+  bidPrice: number;
+  bidAmount: number;
+  dealerId: string;
+  dealerNo: string;
+  dealerName: string;
+  listingId: string;
+  listingNo: string;
+  listingDate: string;
+  grade: string;
+  traceNo: string;
+  companyName: string;
+}
+
+interface AssignmentInfo {
+  partnerId: string;
+  partnerNo: string;
+  partnerName: string;
+  representative: string;
+  phone: string;
+  address: string;
+}
+
 interface DeliveryItem {
+  partId: string;
   partnerNo: string;
   partnerName: string;
   partnerRepresentative: string;
@@ -20,135 +44,110 @@ interface DeliveryItem {
   partnerAddress: string;
   dealerNo: string;
   dealerName: string;
-  listingNo: string;
-  traceNo: string; // 이력번호
+  listingPartNo: string;
+  traceNo: string;
   partName: string;
   grade: string;
   weight: number;
-  unitPrice: number;
-  amount: number;
+  bidPrice: number;
+  bidAmount: number;
 }
 
 export default function DeliveryOrdersPage() {
-  const today = new Date();
-  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-  
-  const [settlements] = useState<DealerSettlementData[]>(generateDealerSettlements());
+  const todayStr = format(new Date(), 'yyyy-MM-dd');
+
   const [selectedDate, setSelectedDate] = useState(todayStr);
   const [partnerSearch, setPartnerSearch] = useState('');
-  const [assignments, setAssignments] = useState<PartnerAssignments>({});
-  
-  // 초기 데이터 로드
-  useEffect(() => {
-    setAssignments(loadAssignments());
-    
-    const handleFocus = () => {
-      setAssignments(loadAssignments());
-    };
-    window.addEventListener('focus', handleFocus);
-    
-    return () => window.removeEventListener('focus', handleFocus);
-  }, []);
-  
-  // 거래처 찾기
-  const findPartner = (partnerNo: string) => {
-    return DELIVERY_PARTNERS.find(p => p.partnerNo === partnerNo);
-  };
-  
-  // 이력번호 생성 (상장번호 기반 더미)
-  const generateTraceNo = (listingNo: string): string => {
-    // 상장번호에서 개체번호 추출 (예: 260121-101-01 → 101)
-    const parts = listingNo.split('-');
-    if (parts.length >= 2) {
-      const cattleNo = parseInt(parts[1]);
-      // 더미 이력번호 생성 (실제로는 DB에서 가져와야 함)
-      const base = 1000 + cattleNo;
-      return `${base}-${7000 + cattleNo}-${cattleNo % 10}`;
-    }
-    return '-';
-  };
-  
-  // 출고 데이터 생성
+
+  const { data: partsData, isLoading: partsLoading } = useQuery<{ winningParts: WinningPart[] }>({
+    queryKey: ['delivery-winning-parts', selectedDate],
+    queryFn: async () => {
+      const res = await fetch(`/api/delivery/winning-parts?date=${selectedDate}`);
+      if (!res.ok) throw new Error();
+      return res.json();
+    },
+  });
+
+  const { data: assignmentsData } = useQuery<{ assignments: Record<string, AssignmentInfo> }>({
+    queryKey: ['delivery-assignments', selectedDate],
+    queryFn: async () => {
+      const res = await fetch(`/api/delivery/assignments?date=${selectedDate}`);
+      if (!res.ok) throw new Error();
+      return res.json();
+    },
+  });
+
+  const winningParts = partsData?.winningParts || [];
+  const assignments = assignmentsData?.assignments || {};
+
   const deliveryItems = useMemo(() => {
-    const items: DeliveryItem[] = [];
-    
-    settlements.forEach((settlement) => {
-      settlement.bidParts.forEach((part) => {
-        const partnerNo = assignments[part.listingNo];
-        const partner = partnerNo ? findPartner(partnerNo) : null;
-        
-        items.push({
-          partnerNo: partner?.partnerNo || '-',
-          partnerName: partner?.name || '미지정',
-          partnerRepresentative: partner?.representative || '-',
-          partnerPhone: partner?.phone || '-',
-          partnerAddress: partner?.address || '-',
-          dealerNo: settlement.dealerNo,
-          dealerName: settlement.dealerName,
-          listingNo: part.listingNo,
-          traceNo: generateTraceNo(part.listingNo),
-          partName: part.partName,
-          grade: part.grade,
-          weight: part.weight,
-          unitPrice: part.unitPrice,
-          amount: part.amount,
-        });
-      });
+    const items: DeliveryItem[] = winningParts.map(part => {
+      const assignment = assignments[part.partId];
+      return {
+        partId: part.partId,
+        partnerNo: assignment?.partnerNo || '-',
+        partnerName: assignment?.partnerName || '미지정',
+        partnerRepresentative: assignment?.representative || '-',
+        partnerPhone: assignment?.phone || '-',
+        partnerAddress: assignment?.address || '-',
+        dealerNo: part.dealerNo,
+        dealerName: part.dealerName,
+        listingPartNo: part.listingPartNo || '',
+        traceNo: part.traceNo || '-',
+        partName: part.partName,
+        grade: part.grade,
+        weight: part.weight,
+        bidPrice: part.bidPrice,
+        bidAmount: part.bidAmount,
+      };
     });
-    
-    // 거래처별로 정렬
+
     return items.sort((a, b) => {
       if (a.partnerName === '미지정') return 1;
       if (b.partnerName === '미지정') return -1;
       return a.partnerName.localeCompare(b.partnerName);
     });
-  }, [settlements, assignments]);
-  
-  // 필터링된 데이터
+  }, [winningParts, assignments]);
+
   const filteredItems = useMemo(() => {
     if (!partnerSearch) return deliveryItems;
     const search = partnerSearch.toLowerCase();
-    return deliveryItems.filter(item => 
+    return deliveryItems.filter(item =>
       item.partnerName.toLowerCase().includes(search) ||
       item.partnerNo.includes(search)
     );
   }, [deliveryItems, partnerSearch]);
-  
-  // 거래처별 소계 계산
+
   const partnerSubtotals = useMemo(() => {
     const subtotals = new Map<string, { count: number; weight: number; amount: number }>();
-    
     filteredItems.forEach(item => {
       const key = item.partnerName;
       const existing = subtotals.get(key) || { count: 0, weight: 0, amount: 0 };
       subtotals.set(key, {
         count: existing.count + 1,
         weight: existing.weight + item.weight,
-        amount: existing.amount + item.amount,
+        amount: existing.amount + item.bidAmount,
       });
     });
-    
     return subtotals;
   }, [filteredItems]);
-  
-  // 출고지시서 인쇄
+
   const handlePrint = () => {
-    // 거래처별로 그룹핑
     const grouped = new Map<string, DeliveryItem[]>();
     filteredItems.forEach(item => {
       if (item.partnerName === '미지정') return;
       const existing = grouped.get(item.partnerName) || [];
       grouped.set(item.partnerName, [...existing, item]);
     });
-    
+
     if (grouped.size === 0) {
       alert('인쇄할 거래처가 없습니다.');
       return;
     }
-    
+
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
-    
+
     const printContent = `
       <!DOCTYPE html>
       <html>
@@ -178,7 +177,7 @@ export default function DeliveryOrdersPage() {
           ${Array.from(grouped.entries()).map(([partnerName, items]) => {
             const partner = items[0];
             const totalWeight = items.reduce((sum, i) => sum + i.weight, 0);
-            const totalAmount = items.reduce((sum, i) => sum + i.amount, 0);
+            const totalAmount = items.reduce((sum, i) => sum + i.bidAmount, 0);
             return `
               <div class="page">
                 <div class="header">
@@ -219,12 +218,12 @@ export default function DeliveryOrdersPage() {
                       <tr>
                         <td>${idx + 1}</td>
                         <td class="text-left">${item.dealerName}</td>
-                        <td>${item.listingNo}</td>
+                        <td>${item.listingPartNo}</td>
                         <td>${item.partName}</td>
                         <td>${item.grade}</td>
                         <td class="text-right">${item.weight.toFixed(1)}</td>
-                        <td class="text-right">${item.unitPrice.toLocaleString()}</td>
-                        <td class="text-right">${item.amount.toLocaleString()}</td>
+                        <td class="text-right">${item.bidPrice.toLocaleString()}</td>
+                        <td class="text-right">${item.bidAmount.toLocaleString()}</td>
                       </tr>
                     `).join('')}
                     <tr class="total-row">
@@ -245,13 +244,12 @@ export default function DeliveryOrdersPage() {
         </body>
       </html>
     `;
-    
+
     printWindow.document.write(printContent);
     printWindow.document.close();
     printWindow.print();
   };
-  
-  // 엑셀 다운로드
+
   const handleExcelDownload = () => {
     const data = filteredItems.map(item => ({
       '거래처번호': item.partnerNo,
@@ -260,48 +258,44 @@ export default function DeliveryOrdersPage() {
       '주소': item.partnerAddress,
       '중도매인번호': item.dealerNo,
       '중도매인명': item.dealerName,
-      '상장번호': item.listingNo,
+      '상장번호': item.listingPartNo,
+      '이력번호': item.traceNo,
       '부위': item.partName,
       '등급': item.grade,
       '중량(kg)': item.weight,
-      '단가': item.unitPrice,
-      '금액': item.amount,
+      '단가': item.bidPrice,
+      '금액': item.bidAmount,
     }));
-    
+
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, '출고지시서');
     XLSX.writeFile(wb, `출고지시서_${selectedDate}.xlsx`);
   };
-  
-  // 테이블 스타일
+
   const thClass = 'px-2 py-1.5 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50';
   const tdClass = 'px-2 py-1.5 text-xs border border-gray-200';
-  
-  // 전체 합계
+
   const totals = useMemo(() => {
     return filteredItems.reduce((acc, item) => ({
       count: acc.count + 1,
       weight: acc.weight + item.weight,
-      amount: acc.amount + item.amount,
+      amount: acc.amount + item.bidAmount,
     }), { count: 0, weight: 0, amount: 0 });
   }, [filteredItems]);
-  
-  // 거래처별로 그룹핑하여 렌더링
+
   const renderTableRows = () => {
     const rows: React.ReactNode[] = [];
     let currentPartner = '';
     let partnerStartIdx = 0;
-    
+
     filteredItems.forEach((item, idx) => {
-      // 새로운 거래처 시작
       if (item.partnerName !== currentPartner) {
-        // 이전 거래처 소계
         if (currentPartner && partnerSubtotals.has(currentPartner)) {
           const subtotal = partnerSubtotals.get(currentPartner)!;
           rows.push(
             <tr key={`subtotal-${currentPartner}`} className="bg-gray-50 font-semibold">
-              <td className={`${tdClass} text-right`} colSpan={9}>
+              <td className={`${tdClass} text-right`} colSpan={10}>
                 {currentPartner} 소계 ({subtotal.count}건)
               </td>
               <td className={`${tdClass} text-right`}>{subtotal.weight.toFixed(1)}</td>
@@ -313,13 +307,12 @@ export default function DeliveryOrdersPage() {
         currentPartner = item.partnerName;
         partnerStartIdx = idx;
       }
-      
-      // 데이터 행
+
       const isFirstOfPartner = idx === partnerStartIdx;
       const partnerItemCount = filteredItems.filter(i => i.partnerName === item.partnerName).length;
-      
+
       rows.push(
-        <tr key={`${item.listingNo}-${idx}`} className={`hover:bg-gray-50 ${item.partnerName === '미지정' ? 'text-gray-400' : ''}`}>
+        <tr key={`${item.partId}-${idx}`} className={`hover:bg-gray-50 ${item.partnerName === '미지정' ? 'text-gray-400' : ''}`}>
           {isFirstOfPartner ? (
             <>
               <td className={`${tdClass} text-center`} rowSpan={partnerItemCount}>{item.partnerNo}</td>
@@ -330,22 +323,22 @@ export default function DeliveryOrdersPage() {
           ) : null}
           <td className={`${tdClass} text-center`}>{item.dealerNo}</td>
           <td className={`${tdClass} text-center`}>{item.dealerName}</td>
-          <td className={`${tdClass} text-center`}>{item.listingNo}</td>
+          <td className={`${tdClass} text-center`}>{item.listingPartNo}</td>
+          <td className={`${tdClass} text-center`}>{item.traceNo}</td>
           <td className={`${tdClass} text-center`}>{item.partName}</td>
           <td className={`${tdClass} text-center`}>{item.grade}</td>
           <td className={`${tdClass} text-right`}>{item.weight.toFixed(1)}</td>
-          <td className={`${tdClass} text-right`}>{item.unitPrice.toLocaleString()}</td>
-          <td className={`${tdClass} text-right`}>{item.amount.toLocaleString()}</td>
+          <td className={`${tdClass} text-right`}>{item.bidPrice.toLocaleString()}</td>
+          <td className={`${tdClass} text-right`}>{item.bidAmount.toLocaleString()}</td>
         </tr>
       );
     });
-    
-    // 마지막 거래처 소계
+
     if (currentPartner && partnerSubtotals.has(currentPartner)) {
       const subtotal = partnerSubtotals.get(currentPartner)!;
       rows.push(
         <tr key={`subtotal-${currentPartner}-last`} className="bg-gray-50 font-semibold">
-          <td className={`${tdClass} text-right`} colSpan={9}>
+          <td className={`${tdClass} text-right`} colSpan={10}>
             {currentPartner} 소계 ({subtotal.count}건)
           </td>
           <td className={`${tdClass} text-right`}>{subtotal.weight.toFixed(1)}</td>
@@ -354,16 +347,15 @@ export default function DeliveryOrdersPage() {
         </tr>
       );
     }
-    
+
     return rows;
   };
-  
+
   return (
     <AdminLayout>
       <div className="p-6">
         <h1 className="text-2xl font-bold text-gray-900 mb-6">출고지시서</h1>
-        
-        {/* 필터 */}
+
         <div className="bg-white p-4 border border-gray-200 mb-4">
           <div className="flex items-center gap-4 flex-wrap">
             <div className="flex items-center gap-2">
@@ -392,10 +384,7 @@ export default function DeliveryOrdersPage() {
             <div className="flex items-center gap-2 ml-auto">
               <button
                 type="button"
-                onClick={() => {
-                  setPartnerSearch('');
-                  setSelectedDate(todayStr);
-                }}
+                onClick={() => { setPartnerSearch(''); setSelectedDate(todayStr); }}
                 className="px-4 py-1.5 border border-gray-300 text-gray-600 text-xs hover:bg-gray-50"
               >
                 초기화
@@ -419,51 +408,56 @@ export default function DeliveryOrdersPage() {
             </div>
           </div>
         </div>
-        
-        {/* 테이블 */}
+
         <div className="bg-white border border-gray-200">
-          <table className="w-full border-collapse table-fixed">
-            <thead>
-              <tr>
-                <th className={`${thClass} w-[55px]`}>거래처번호</th>
-                <th className={`${thClass} w-[70px]`}>거래처명</th>
-                <th className={`${thClass} w-[45px]`}>대표자</th>
-                <th className={`${thClass} w-[180px]`}>배송지</th>
-                <th className={`${thClass} w-[70px]`}>중도매인번호</th>
-                <th className={`${thClass} w-[60px]`}>중도매인명</th>
-                <th className={`${thClass} w-[105px]`}>상장번호</th>
-                <th className={`${thClass} w-[55px]`}>부위</th>
-                <th className={`${thClass} w-[45px]`}>등급</th>
-                <th className={`${thClass} w-[50px]`}>중량</th>
-                <th className={`${thClass} w-[65px]`}>입찰단가</th>
-                <th className={`${thClass} w-[85px]`}>낙찰금액</th>
-              </tr>
-            </thead>
-            <tbody>
-              {renderTableRows()}
-              
-              {filteredItems.length === 0 && (
+          {partsLoading ? (
+            <div className="flex items-center justify-center py-16">
+              <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+            </div>
+          ) : (
+            <table className="w-full border-collapse table-fixed">
+              <thead>
                 <tr>
-                  <td colSpan={12} className="px-4 py-8 text-center text-gray-400 text-sm">
-                    조회된 내역이 없습니다.
-                  </td>
+                  <th className={`${thClass} w-[55px]`}>거래처번호</th>
+                  <th className={`${thClass} w-[70px]`}>거래처명</th>
+                  <th className={`${thClass} w-[45px]`}>대표자</th>
+                  <th className={`${thClass} w-[160px]`}>배송지</th>
+                  <th className={`${thClass} w-[70px]`}>중도매인번호</th>
+                  <th className={`${thClass} w-[60px]`}>중도매인명</th>
+                  <th className={`${thClass} w-[105px]`}>상장번호</th>
+                  <th className={`${thClass} w-[80px]`}>이력번호</th>
+                  <th className={`${thClass} w-[55px]`}>부위</th>
+                  <th className={`${thClass} w-[45px]`}>등급</th>
+                  <th className={`${thClass} w-[50px]`}>중량</th>
+                  <th className={`${thClass} w-[65px]`}>입찰단가</th>
+                  <th className={`${thClass} w-[85px]`}>낙찰금액</th>
                 </tr>
+              </thead>
+              <tbody>
+                {renderTableRows()}
+
+                {!partsLoading && filteredItems.length === 0 && (
+                  <tr>
+                    <td colSpan={13} className="px-4 py-8 text-center text-gray-400 text-sm">
+                      조회된 내역이 없습니다.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+              {filteredItems.length > 0 && (
+                <tfoot>
+                  <tr className="font-bold border-t-2 border-gray-400">
+                    <td className={`${tdClass} text-right`} colSpan={10}>
+                      전체 합계 ({totals.count}건)
+                    </td>
+                    <td className={`${tdClass} text-right`}>{totals.weight.toFixed(1)}</td>
+                    <td className={`${tdClass} text-right`}></td>
+                    <td className={`${tdClass} text-right`}>{totals.amount.toLocaleString()}</td>
+                  </tr>
+                </tfoot>
               )}
-            </tbody>
-            {/* 전체 합계 */}
-            {filteredItems.length > 0 && (
-              <tfoot>
-                <tr className="font-bold border-t-2 border-gray-400">
-                  <td className={`${tdClass} text-right`} colSpan={9}>
-                    전체 합계 ({totals.count}건)
-                  </td>
-                  <td className={`${tdClass} text-right`}>{totals.weight.toFixed(1)}</td>
-                  <td className={`${tdClass} text-right`}></td>
-                  <td className={`${tdClass} text-right`}>{totals.amount.toLocaleString()}</td>
-                </tr>
-              </tfoot>
-            )}
-          </table>
+            </table>
+          )}
         </div>
       </div>
     </AdminLayout>

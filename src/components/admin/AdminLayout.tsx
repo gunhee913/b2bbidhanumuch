@@ -76,7 +76,7 @@ const menuItems = [
     href: '/admin/assets',
     icon: Wallet,
     subItems: [
-      { title: '중도매인 자산 관리', href: '/admin/assets/balance' },
+      { title: '중도매인 자산 관리(입출금)', href: '/admin/assets/balance' },
       { title: '중도매인 거래 내역', href: '/admin/assets/transactions' },
     ],
   },

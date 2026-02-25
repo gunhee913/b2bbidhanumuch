@@ -97,7 +97,7 @@ export async function GET(request: NextRequest) {
       source: 'manual',
     }));
 
-    // 낙찰(경락)대금 조회 - cattle_parts에서 낙찰된 부위
+    // 낙찰(경락)대금 조회 - 마감(closed)된 상장의 낙찰 부위만
     let auctionQuery = supabase
       .from('cattle_parts')
       .select(`
@@ -105,12 +105,12 @@ export async function GET(request: NextRequest) {
         part_name,
         listing_part_no,
         bid_amount,
-        bid_at,
         winning_dealer_id,
         cattle_listings!inner (
           listing_no,
           listing_date,
-          status
+          status,
+          closed_at
         )
       `)
       .not('winning_dealer_id', 'is', null)
@@ -120,7 +120,8 @@ export async function GET(request: NextRequest) {
       auctionQuery = auctionQuery.eq('winning_dealer_id', dealerId);
     }
 
-    const { data: winningParts } = await auctionQuery;
+    const { data: winningPartsRaw } = await auctionQuery;
+    const winningParts = (winningPartsRaw || []).filter((p: any) => p.cattle_listings?.status === 'closed');
 
     // 딜러 정보 매핑
     const winnerIds = [...new Set((winningParts || []).map((p: any) => p.winning_dealer_id))];
@@ -133,16 +134,17 @@ export async function GET(request: NextRequest) {
       (dealerRows || []).forEach((d: any) => { dealerMap[d.id] = d; });
     }
 
-    // 딜러+일별로 경락대금 합산
-    const dailyMap: Record<string, { dealerId: string; date: string; total: number; count: number }> = {};
+    // 딜러+마감시간별로 경락대금 합산
+    const dailyMap: Record<string, { dealerId: string; closedAt: string; listingDate: string; total: number; count: number }> = {};
     (winningParts || []).forEach((part: any) => {
       const listing = part.cattle_listings;
       const did = part.winning_dealer_id;
-      const partDate = (part.bid_at || listing?.listing_date || '').split('T')[0];
-      const key = `${did}_${partDate}`;
+      const closedAt = listing?.closed_at || '';
+      const listingDate = listing?.listing_date || '';
+      const key = `${did}_${listingDate}`;
 
       if (!dailyMap[key]) {
-        dailyMap[key] = { dealerId: did, date: partDate, total: 0, count: 0 };
+        dailyMap[key] = { dealerId: did, closedAt: closedAt || `${listingDate}T00:00:00`, listingDate, total: 0, count: 0 };
       }
       dailyMap[key].total += Number(part.bid_amount || 0);
       dailyMap[key].count += 1;
@@ -158,10 +160,10 @@ export async function GET(request: NextRequest) {
         type: 'auction_deduct' as const,
         amount: info.total,
         balance: 0,
-        description: `경락대금 (${info.count}건)`,
+        description: `${info.listingDate.replace(/-/g, '').slice(2)} 경락대금 (${info.count}건)`,
         status: 'active',
         createdBy: '시스템',
-        createdAt: `${info.date}T00:00:00`,
+        createdAt: info.closedAt,
         cancelledAt: null,
         cancelledBy: null,
         cancelReason: null,
@@ -231,7 +233,7 @@ export async function POST(request: NextRequest) {
         type,
         amount,
         balance: newBalance,
-        description: description || (type === 'deposit' ? '선수금 입금' : '출금'),
+        description: description || (type === 'deposit' ? '입금' : '출금'),
         created_by: createdBy || '',
         status: 'active',
       })
