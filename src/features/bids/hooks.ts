@@ -16,13 +16,15 @@ export function useMyBids(dealerId: string | null) {
 }
 
 // 나의 입찰 목록 (비공개 입찰: 순위/최고가 없음)
-// 진행중인 입찰만 반환 (listing status가 approved 또는 auction)
+// 진행중인 입찰만 반환 (listing이 active + 아직 낙찰 결정 안 된 건)
 export function useMyBidsWithStatus(dealerId: string | null) {
   const { data: bids, isLoading, error, refetch } = useMyBids(dealerId);
   
   const activeBids = (bids || []).filter((bid) => {
     const status = bid.cattle_parts?.cattle_listings?.status;
-    return status === 'approved' || status === 'auction';
+    const isActive = status === 'approved' || status === 'auction';
+    const hasWinner = !!bid.cattle_parts?.winning_dealer_id;
+    return isActive && !bid.is_winning && !hasWinner;
   });
 
   const myBidItems: MyBidItem[] = activeBids.map((bid) => {
@@ -35,6 +37,7 @@ export function useMyBidsWithStatus(dealerId: string | null) {
       entityListingNo: listing?.listing_no || '',
       partName: part?.part_name || '',
       grade: listing?.grade || '',
+      marblingScore: listing?.marbling_score ?? null,
       gender: listing?.gender || '',
       weight: part?.weight || 0,
       minPrice: part?.min_price || 0,
@@ -55,13 +58,15 @@ export function useMyBidsWithStatus(dealerId: string | null) {
   };
 }
 
-// 나의 경매 결과 (completed/closed 상장의 입찰)
+// 나의 경매 결과 (낙찰 결정된 입찰 + completed/closed 상장의 입찰)
 export function useMyAuctionResults(dealerId: string | null) {
   const { data: bids, isLoading, error, refetch } = useMyBids(dealerId);
 
   const completedBids = (bids || []).filter((bid) => {
     const status = bid.cattle_parts?.cattle_listings?.status;
-    return status === 'completed' || status === 'closed';
+    const isSettled = status === 'completed' || status === 'closed';
+    const hasWinner = !!bid.cattle_parts?.winning_dealer_id;
+    return isSettled || bid.is_winning || hasWinner;
   });
 
   const results: AuctionResult[] = completedBids.map((bid) => {
@@ -75,6 +80,7 @@ export function useMyAuctionResults(dealerId: string | null) {
       entityListingNo: listing?.listing_no || '',
       partName: part?.part_name || '',
       grade: listing?.grade || '',
+      marblingScore: listing?.marbling_score ?? null,
       gender: listing?.gender || '',
       weight: part?.weight || 0,
       myBid: bid.bid_price,

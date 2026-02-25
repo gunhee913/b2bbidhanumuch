@@ -589,21 +589,19 @@ export default function DealerSettlementsPage() {
               <th className={`${thClass} w-[60px]`}>중량</th>
               <th className={`${thClass} w-[80px]`}>낙찰단가</th>
               <th className={`${thClass} w-[90px]`}>낙찰금액</th>
-              <th className={`${thClass} w-[80px]`}>배송 수수료</th>
-              <th className={`${thClass} w-[100px]`}>지급액</th>
             </tr>
           </thead>
           <tbody>
             {isLoading ? (
               <tr>
-                <td colSpan={11} className="py-12 text-center text-gray-500">
+                <td colSpan={9} className="py-12 text-center text-gray-500">
                   <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2" />
                   데이터를 불러오는 중...
                 </td>
               </tr>
             ) : filteredSettlements.length === 0 ? (
               <tr>
-                <td colSpan={11} className="py-12 text-center text-gray-500">
+                <td colSpan={9} className="py-12 text-center text-gray-500">
                   낙찰 내역이 없습니다.
                 </td>
               </tr>
@@ -623,10 +621,6 @@ export default function DealerSettlementsPage() {
                         <td className={`${tdClass} text-right`}>{part.weight.toFixed(1)}</td>
                         <td className={`${tdClass} text-right`}>{part.unitPrice.toLocaleString()}</td>
                         <td className={`${tdClass} text-right`}>{part.amount.toLocaleString()}</td>
-                        <td className={`${tdClass} text-gray-400`}>{partIdx === 0 ? '-' : ''}</td>
-                        <td className={`${tdClass} text-right font-semibold`}>
-                          {partIdx === 0 ? settlement.netPayment.toLocaleString() : ''}
-                        </td>
                       </tr>
                     ))}
                     {/* 중도매인별 소계 */}
@@ -636,13 +630,11 @@ export default function DealerSettlementsPage() {
                       <td className={`${tdClass} text-right`}>{settlement.totalWeight.toFixed(1)}</td>
                       <td className={tdClass}></td>
                       <td className={`${tdClass} text-right`}>{settlement.totalAmount.toLocaleString()}</td>
-                      <td className={`${tdClass} text-gray-400`}>-</td>
-                      <td className={`${tdClass} text-right`}>{settlement.netPayment.toLocaleString()}</td>
                     </tr>
                     {/* 중도매인 구분선 */}
                     {sIdx < filteredSettlements.length - 1 && (
                       <tr>
-                        <td colSpan={11} className="h-2 bg-gray-100"></td>
+                        <td colSpan={9} className="h-2 bg-gray-100"></td>
                       </tr>
                     )}
                   </React.Fragment>
@@ -659,10 +651,6 @@ export default function DealerSettlementsPage() {
                   <td className={tdClass}></td>
                   <td className={`${tdClass} text-right`}>
                     {summary.totalAmount.toLocaleString()}
-                  </td>
-                  <td className={`${tdClass} text-gray-400`}>-</td>
-                  <td className={`${tdClass} text-right`}>
-                    {summary.totalNetPayment.toLocaleString()}
                   </td>
                 </tr>
               </>

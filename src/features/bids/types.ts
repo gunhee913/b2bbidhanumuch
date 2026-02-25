@@ -13,6 +13,7 @@ export interface BidListing {
   gender: string;
   status: string;
   closed_at: string | null;
+  marbling_score: number | null;
 }
 
 export interface BidPart {
@@ -50,6 +51,7 @@ export interface MyBidItem {
   entityListingNo: string;  // 개체 상장번호
   partName: string;
   grade: string;
+  marblingScore: number | null;
   gender: string;
   weight: number;
   minPrice: number;
@@ -68,6 +70,7 @@ export interface AuctionResult {
   entityListingNo: string;
   partName: string;
   grade: string;
+  marblingScore: number | null;
   gender: string;
   weight: number;
   myBid: number;

@@ -10,7 +10,7 @@ import {
   Printer,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import { useListings, useApproveListing, useDeleteListing, useUpdateListing } from '@/features/listings/hooks';
+import { useListings, useApproveListing, useDeleteListing, useUpdateListing, useUpdatePart } from '@/features/listings/hooks';
 import { useCompanies } from '@/features/companies/hooks';
 import { CattleListing, CattlePart } from '@/features/listings/types';
 
@@ -29,6 +29,7 @@ const hideSpinnerStyle = `
 // 부위 데이터 타입
 interface PartData {
   id: number;
+  dbId: string;
   name: string;
   weight: number;
   minPrice: number;
@@ -38,26 +39,26 @@ interface PartData {
 
 // 기본 부위 데이터 생성
 const createDefaultParts = (): PartData[] => [
-  { id: 1, name: '등심(좌)', weight: 15.2, minPrice: 85000, bidPrice: null, isIncluded: true },
-  { id: 2, name: '등심(우)', weight: 15.3, minPrice: 85000, bidPrice: null, isIncluded: true },
-  { id: 3, name: '안심', weight: 4.5, minPrice: 95000, bidPrice: null, isIncluded: true },
-  { id: 4, name: '채끝', weight: 8.2, minPrice: 82000, bidPrice: null, isIncluded: true },
-  { id: 5, name: '치마', weight: 4.0, minPrice: 65000, bidPrice: null, isIncluded: true },
-  { id: 6, name: '부채', weight: 3.0, minPrice: 60000, bidPrice: null, isIncluded: true },
-  { id: 7, name: '업진', weight: 4.5, minPrice: 55000, bidPrice: null, isIncluded: true },
-  { id: 8, name: '토시·제비', weight: 2.0, minPrice: 70000, bidPrice: null, isIncluded: true },
-  { id: 9, name: '설도(좌)', weight: 16.5, minPrice: 56000, bidPrice: null, isIncluded: true },
-  { id: 10, name: '설도(우)', weight: 16.8, minPrice: 56000, bidPrice: null, isIncluded: true },
-  { id: 11, name: '앞다리', weight: 25.4, minPrice: 55000, bidPrice: null, isIncluded: true },
-  { id: 12, name: '우둔', weight: 21.7, minPrice: 58000, bidPrice: null, isIncluded: true },
-  { id: 13, name: '목심', weight: 14.0, minPrice: 62000, bidPrice: null, isIncluded: true },
-  { id: 14, name: '양지(좌)', weight: 12.2, minPrice: 52000, bidPrice: null, isIncluded: true },
-  { id: 15, name: '양지(우)', weight: 12.4, minPrice: 52000, bidPrice: null, isIncluded: true },
-  { id: 16, name: '사태', weight: 15.1, minPrice: 48000, bidPrice: null, isIncluded: true },
-  { id: 17, name: '꼬리', weight: 16.2, minPrice: 35000, bidPrice: null, isIncluded: true },
-  { id: 18, name: '족', weight: 10.9, minPrice: 25000, bidPrice: null, isIncluded: true },
-  { id: 19, name: '사골', weight: 3.1, minPrice: 20000, bidPrice: null, isIncluded: true },
-  { id: 20, name: '잡뼈', weight: 21.5, minPrice: 15000, bidPrice: null, isIncluded: true },
+  { id: 1, dbId: '', name: '등심(좌)', weight: 15.2, minPrice: 85000, bidPrice: null, isIncluded: true },
+  { id: 2, dbId: '', name: '등심(우)', weight: 15.3, minPrice: 85000, bidPrice: null, isIncluded: true },
+  { id: 3, dbId: '', name: '안심', weight: 4.5, minPrice: 95000, bidPrice: null, isIncluded: true },
+  { id: 4, dbId: '', name: '채끝', weight: 8.2, minPrice: 82000, bidPrice: null, isIncluded: true },
+  { id: 5, dbId: '', name: '치마', weight: 4.0, minPrice: 65000, bidPrice: null, isIncluded: true },
+  { id: 6, dbId: '', name: '부채', weight: 3.0, minPrice: 60000, bidPrice: null, isIncluded: true },
+  { id: 7, dbId: '', name: '업진', weight: 4.5, minPrice: 55000, bidPrice: null, isIncluded: true },
+  { id: 8, dbId: '', name: '토시·제비', weight: 2.0, minPrice: 70000, bidPrice: null, isIncluded: true },
+  { id: 9, dbId: '', name: '설도(좌)', weight: 16.5, minPrice: 56000, bidPrice: null, isIncluded: true },
+  { id: 10, dbId: '', name: '설도(우)', weight: 16.8, minPrice: 56000, bidPrice: null, isIncluded: true },
+  { id: 11, dbId: '', name: '앞다리', weight: 25.4, minPrice: 55000, bidPrice: null, isIncluded: true },
+  { id: 12, dbId: '', name: '우둔', weight: 21.7, minPrice: 58000, bidPrice: null, isIncluded: true },
+  { id: 13, dbId: '', name: '목심', weight: 14.0, minPrice: 62000, bidPrice: null, isIncluded: true },
+  { id: 14, dbId: '', name: '양지(좌)', weight: 12.2, minPrice: 52000, bidPrice: null, isIncluded: true },
+  { id: 15, dbId: '', name: '양지(우)', weight: 12.4, minPrice: 52000, bidPrice: null, isIncluded: true },
+  { id: 16, dbId: '', name: '사태', weight: 15.1, minPrice: 48000, bidPrice: null, isIncluded: true },
+  { id: 17, dbId: '', name: '꼬리', weight: 16.2, minPrice: 35000, bidPrice: null, isIncluded: true },
+  { id: 18, dbId: '', name: '족', weight: 10.9, minPrice: 25000, bidPrice: null, isIncluded: true },
+  { id: 19, dbId: '', name: '사골', weight: 3.1, minPrice: 20000, bidPrice: null, isIncluded: true },
+  { id: 20, dbId: '', name: '잡뼈', weight: 21.5, minPrice: 15000, bidPrice: null, isIncluded: true },
 ];
 
 // 상태 타입 및 옵션
@@ -131,6 +132,7 @@ const convertToAuction = (listing: CattleListing): Auction => {
 
   const parts: PartData[] = (listing.parts || []).map((part: CattlePart) => ({
     id: part.partNo,
+    dbId: part.id,
     name: part.partName,
     weight: part.weight || 0,
     minPrice: part.minPrice || 0,
@@ -229,11 +231,16 @@ export default function AuctionsListPage() {
   const approveListing = useApproveListing();
   const deleteListing = useDeleteListing();
   const updateListing = useUpdateListing();
+  const updatePartMutation = useUpdatePart();
 
-  // CattleListing -> Auction 변환
+  // CattleListing -> Auction 변환 + 접수번호 오름차순 정렬
   const auctions = useMemo(() => {
     if (!listingsData) return [];
-    return listingsData.map(convertToAuction);
+    return listingsData.map(convertToAuction).sort((a, b) => {
+      const suffixA = parseInt(a.auctionNo.split('-').pop() || '0', 10);
+      const suffixB = parseInt(b.auctionNo.split('-').pop() || '0', 10);
+      return suffixA - suffixB;
+    });
   }, [listingsData]);
 
   // 업체 목록 (드롭다운용)
@@ -255,6 +262,7 @@ export default function AuctionsListPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [secondaryPassword, setSecondaryPassword] = useState('');
   const [passwordError, setPasswordError] = useState(false);
+  const [editPartsData, setEditPartsData] = useState<Record<number, { weight: string; minPrice: string; isIncluded: boolean }>>({});
   const [editFormData, setEditFormData] = useState<EditFormData>({
     gender: '',
     grade: '',
@@ -296,6 +304,15 @@ export default function AuctionsListPage() {
       processDate: auction.processDate,
       processWeight: String(auction.processWeight),
     });
+    const partsMap: Record<number, { weight: string; minPrice: string; isIncluded: boolean }> = {};
+    auction.parts.forEach((part) => {
+      partsMap[part.id] = {
+        weight: String(part.weight),
+        minPrice: String(part.minPrice),
+        isIncluded: part.isIncluded,
+      };
+    });
+    setEditPartsData(partsMap);
   };
 
   // 수정 취소
@@ -303,6 +320,7 @@ export default function AuctionsListPage() {
     setEditingId(null);
     setSecondaryPassword('');
     setPasswordError(false);
+    setEditPartsData({});
   };
 
   // 수정 저장
@@ -346,9 +364,38 @@ export default function AuctionsListPage() {
           processWeight: parseFloat(editFormData.processWeight) || null,
         },
       });
+
+      const currentAuction = auctions.find((a) => a.id === editingId);
+      if (currentAuction) {
+        const partUpdates = currentAuction.parts
+          .filter((part) => {
+            const edited = editPartsData[part.id];
+            if (!edited) return false;
+            return (
+              String(part.weight) !== edited.weight ||
+              String(part.minPrice) !== edited.minPrice ||
+              part.isIncluded !== edited.isIncluded
+            );
+          })
+          .map((part) => {
+            const edited = editPartsData[part.id];
+            return updatePartMutation.mutateAsync({
+              listingId: editingId,
+              partId: part.dbId,
+              input: {
+                weight: parseFloat(edited.weight) || 0,
+                minPrice: parseInt(edited.minPrice) || 0,
+                isIncluded: edited.isIncluded,
+              },
+            });
+          });
+        await Promise.all(partUpdates);
+      }
+
       setEditingId(null);
       setSecondaryPassword('');
       setPasswordError(false);
+      setEditPartsData({});
     } catch (error) {
       console.error('수정 실패:', error);
       alert('수정에 실패했습니다.');
@@ -364,8 +411,17 @@ export default function AuctionsListPage() {
         console.error('승인 실패:', error);
         alert('승인에 실패했습니다.');
       }
+    } else if (newStatus === '대기') {
+      try {
+        await updateListing.mutateAsync({
+          id: auctionId,
+          input: { status: 'pending' },
+        });
+      } catch (error) {
+        console.error('대기 상태 변경 실패:', error);
+        alert('상태 변경에 실패했습니다.');
+      }
     }
-    // '대기' 상태로 되돌리는 것은 현재 미지원
   };
 
   // 상장 삭제 핸들러
@@ -388,16 +444,20 @@ export default function AuctionsListPage() {
     }
   };
 
-  // 부위 정보 수정 (TODO: API 연동 필요)
-  const updatePart = (auctionId: string, partId: number, field: 'weight' | 'minPrice', value: string) => {
-    // 부위 수정은 현재 지원하지 않음 - 추후 구현 예정
-    console.log('부위 수정:', auctionId, partId, field, value);
+  // 부위 정보 수정 (로컬 상태 업데이트, 저장 시 API 호출)
+  const handlePartChange = (partId: number, field: 'weight' | 'minPrice', value: string) => {
+    setEditPartsData((prev) => ({
+      ...prev,
+      [partId]: { ...prev[partId], [field]: value },
+    }));
   };
 
-  // 부위 포함/제외 토글 (TODO: API 연동 필요)
-  const togglePartIncluded = (auctionId: string, partId: number) => {
-    // 부위 토글은 현재 지원하지 않음 - 추후 구현 예정
-    console.log('부위 토글:', auctionId, partId);
+  // 부위 포함/제외 토글 (로컬 상태 업데이트, 저장 시 API 호출)
+  const togglePartIncluded = (partId: number) => {
+    setEditPartsData((prev) => ({
+      ...prev,
+      [partId]: { ...prev[partId], isIncluded: !prev[partId]?.isIncluded },
+    }));
   };
 
   // 필터링된 데이터 (API에서 이미 필터링됨)
@@ -598,7 +658,7 @@ export default function AuctionsListPage() {
                     <td className="px-2 py-3 text-xs border border-gray-200 text-gray-600 text-center whitespace-nowrap">{auction.breed}</td>
                     {editingId === auction.id ? (
                       <>
-                        <td className="px-1 py-1 text-center whitespace-nowrap">
+                        <td className="px-1 py-1 text-center whitespace-nowrap border border-gray-200">
                           <select
                             value={editFormData.gender}
                             onClick={(e) => e.stopPropagation()}
@@ -609,66 +669,69 @@ export default function AuctionsListPage() {
                             <option value="암">암</option>
                           </select>
                         </td>
-                        <td className="px-1 py-1 text-center whitespace-nowrap">
+                        <td className="px-1 py-1 text-center whitespace-nowrap border border-gray-200">
                           <select
                             value={editFormData.grade}
                             onClick={(e) => e.stopPropagation()}
                             onChange={(e) => setEditFormData({ ...editFormData, grade: e.target.value })}
                             className="w-20 px-1 py-1 text-xs border border-gray-300 outline-none bg-white text-center"
                           >
-                            <option value="1++A(9)">1++A(9)</option>
-                            <option value="1++A(8)">1++A(8)</option>
-                            <option value="1++B(9)">1++B(9)</option>
-                            <option value="1++B(8)">1++B(8)</option>
+                            <option value="1++A">1++A</option>
+                            <option value="1++B">1++B</option>
+                            <option value="1++C">1++C</option>
                             <option value="1+A">1+A</option>
                             <option value="1+B">1+B</option>
+                            <option value="1+C">1+C</option>
                             <option value="1A">1A</option>
                             <option value="1B">1B</option>
-                            <option value="2">2</option>
+                            <option value="1C">1C</option>
+                            <option value="2A">2A</option>
+                            <option value="2B">2B</option>
+                            <option value="2C">2C</option>
                           </select>
                         </td>
-                        <td className="px-1 py-1 text-center whitespace-nowrap">
+                        <td className="px-1 py-1 text-center whitespace-nowrap border border-gray-200">
                           <input type="number" value={editFormData.monthAge} onClick={(e) => e.stopPropagation()} onChange={(e) => setEditFormData({ ...editFormData, monthAge: e.target.value })} className="w-10 px-1 py-1 text-xs border border-gray-300 outline-none bg-white text-center" />
                         </td>
-                        <td className="px-1 py-1 text-center whitespace-nowrap">
+                        <td className="px-1 py-1 text-center whitespace-nowrap border border-gray-200">
                           <input type="number" value={editFormData.backFat} onClick={(e) => e.stopPropagation()} onChange={(e) => setEditFormData({ ...editFormData, backFat: e.target.value })} className="w-10 px-1 py-1 text-xs border border-gray-300 outline-none bg-white text-center" />
                         </td>
-                        <td className="px-1 py-1 text-center whitespace-nowrap">
+                        <td className="px-1 py-1 text-center whitespace-nowrap border border-gray-200">
                           <input type="number" value={editFormData.eyeMuscle} onClick={(e) => e.stopPropagation()} onChange={(e) => setEditFormData({ ...editFormData, eyeMuscle: e.target.value })} className="w-10 px-1 py-1 text-xs border border-gray-300 outline-none bg-white text-center" />
                         </td>
-                        <td className="px-1 py-1 text-center whitespace-nowrap">
+                        <td className="px-1 py-1 text-center whitespace-nowrap border border-gray-200">
                           <input type="number" value={editFormData.fatMarbling} onClick={(e) => e.stopPropagation()} onChange={(e) => setEditFormData({ ...editFormData, fatMarbling: e.target.value })} className="w-10 px-1 py-1 text-xs border border-gray-300 outline-none bg-white text-center" />
                         </td>
-                        <td className="px-1 py-1 text-center whitespace-nowrap">
+                        <td className="px-1 py-1 text-center whitespace-nowrap border border-gray-200">
                           <input type="number" value={editFormData.meatColor} onClick={(e) => e.stopPropagation()} onChange={(e) => setEditFormData({ ...editFormData, meatColor: e.target.value })} className="w-8 px-1 py-1 text-xs border border-gray-300 outline-none bg-white text-center" />
                         </td>
-                        <td className="px-1 py-1 text-center whitespace-nowrap">
+                        <td className="px-1 py-1 text-center whitespace-nowrap border border-gray-200">
                           <input type="number" value={editFormData.fatColor} onClick={(e) => e.stopPropagation()} onChange={(e) => setEditFormData({ ...editFormData, fatColor: e.target.value })} className="w-8 px-1 py-1 text-xs border border-gray-300 outline-none bg-white text-center" />
                         </td>
-                        <td className="px-1 py-1 text-center whitespace-nowrap">
+                        <td className="px-1 py-1 text-center whitespace-nowrap border border-gray-200">
                           <input type="number" value={editFormData.texture} onClick={(e) => e.stopPropagation()} onChange={(e) => setEditFormData({ ...editFormData, texture: e.target.value })} className="w-8 px-1 py-1 text-xs border border-gray-300 outline-none bg-white text-center" />
                         </td>
-                        <td className="px-1 py-1 text-center whitespace-nowrap">
+                        <td className="px-1 py-1 text-center whitespace-nowrap border border-gray-200">
                           <input type="number" value={editFormData.maturity} onClick={(e) => e.stopPropagation()} onChange={(e) => setEditFormData({ ...editFormData, maturity: e.target.value })} className="w-8 px-1 py-1 text-xs border border-gray-300 outline-none bg-white text-center" />
                         </td>
-                        <td className="px-1 py-1 text-center whitespace-nowrap">
+                        <td className="px-1 py-1 text-center whitespace-nowrap border border-gray-200">
                           <div className="flex items-center justify-center gap-0.5"><span className="text-[10px] text-gray-500">002-</span><input type="text" value={editFormData.traceNo} onClick={(e) => e.stopPropagation()} onChange={(e) => setEditFormData({ ...editFormData, traceNo: e.target.value })} className="w-20 px-1 py-1 text-[10px] border border-gray-300 outline-none bg-white text-center" /></div>
                         </td>
                         <td className="px-2 py-3 text-xs border border-gray-200 text-gray-600 text-center whitespace-nowrap cursor-default" title="음성축산물공판장">{auction.slaughterHouse}</td>
-                        <td className="px-1 py-1 text-center whitespace-nowrap">
+                        <td className="px-1 py-1 text-center whitespace-nowrap border border-gray-200">
                           <input type="text" value={editFormData.slaughterDate} onClick={(e) => e.stopPropagation()} onChange={(e) => setEditFormData({ ...editFormData, slaughterDate: e.target.value })} className="w-20 px-1 py-1 text-xs border border-gray-300 outline-none bg-white text-center" />
                         </td>
-                        <td className="px-1 py-1 text-center whitespace-nowrap">
+                        <td className="px-1 py-1 text-center whitespace-nowrap border border-gray-200">
                           <input type="text" value={editFormData.slaughterNo} onClick={(e) => e.stopPropagation()} onChange={(e) => setEditFormData({ ...editFormData, slaughterNo: e.target.value })} className="w-12 px-1 py-1 text-xs border border-gray-300 outline-none bg-white text-center" />
                         </td>
-                        <td className="px-1 py-1 text-center whitespace-nowrap">
+                        <td className="px-1 py-1 text-center whitespace-nowrap border border-gray-200">
                           <input type="number" value={editFormData.carcassWeight} onClick={(e) => e.stopPropagation()} onChange={(e) => setEditFormData({ ...editFormData, carcassWeight: e.target.value })} className="w-12 px-1 py-1 text-xs border border-gray-300 outline-none bg-white text-center" />
                         </td>
                         <td className="px-2 py-3 text-xs border border-gray-200 text-gray-600 text-center whitespace-nowrap">{auction.company}</td>
-                        <td className="px-1 py-1 text-center whitespace-nowrap">
+                        <td className="px-1 py-1 text-center whitespace-nowrap border border-gray-200">
                           <input type="text" value={editFormData.processDate} onClick={(e) => e.stopPropagation()} onChange={(e) => setEditFormData({ ...editFormData, processDate: e.target.value })} className="w-20 px-1 py-1 text-xs border border-gray-300 outline-none bg-white text-center" />
                         </td>
-                        <td className="px-1 py-1 text-center whitespace-nowrap">
+                        <td className="px-1 py-1 text-center whitespace-nowrap border border-gray-200">
                           <input type="number" value={editFormData.processWeight} onClick={(e) => e.stopPropagation()} onChange={(e) => setEditFormData({ ...editFormData, processWeight: e.target.value })} className="w-12 px-1 py-1 text-xs border border-gray-300 outline-none bg-white text-center" />
                         </td>
                       </>
@@ -781,7 +844,8 @@ export default function AuctionsListPage() {
                                   }
                                   
                                   const isEditing = editingId === auction.id;
-                                  const isIncluded = part.isIncluded;
+                                  const editedPart = editPartsData[part.id];
+                                  const isIncluded = isEditing && editedPart ? editedPart.isIncluded : part.isIncluded;
                                   
                                   return (
                                     <tr key={part.id} className={`border-t border-gray-100 ${!isIncluded ? 'bg-gray-100' : ''}`}>
@@ -791,7 +855,7 @@ export default function AuctionsListPage() {
                                             type="checkbox"
                                             checked={isIncluded}
                                             onClick={(e) => e.stopPropagation()}
-                                            onChange={() => togglePartIncluded(auction.id, part.id)}
+                                            onChange={() => togglePartIncluded(part.id)}
                                             className="w-4 h-4 rounded appearance-none bg-white border border-gray-300 checked:bg-gray-700 checked:border-gray-700 relative cursor-pointer
                                               after:content-['✓'] after:absolute after:inset-0 after:flex after:items-center after:justify-center after:text-white after:text-xs after:font-bold after:opacity-0 checked:after:opacity-100"
                                           />
@@ -805,9 +869,9 @@ export default function AuctionsListPage() {
                                         {isEditing && isIncluded ? (
                                           <input
                                             type="number"
-                                            value={part.weight}
+                                            value={editedPart?.weight ?? String(part.weight)}
                                             onClick={(e) => e.stopPropagation()}
-                                            onChange={(e) => updatePart(auction.id, part.id, 'weight', e.target.value)}
+                                            onChange={(e) => handlePartChange(part.id, 'weight', e.target.value)}
                                             step="0.1"
                                             className="w-14 px-1 py-0.5 text-xs border border-gray-300 outline-none bg-white text-center"
                                           />
@@ -819,9 +883,9 @@ export default function AuctionsListPage() {
                                         {isEditing && isIncluded ? (
                                           <input
                                             type="number"
-                                            value={part.minPrice}
+                                            value={editedPart?.minPrice ?? String(part.minPrice)}
                                             onClick={(e) => e.stopPropagation()}
-                                            onChange={(e) => updatePart(auction.id, part.id, 'minPrice', e.target.value)}
+                                            onChange={(e) => handlePartChange(part.id, 'minPrice', e.target.value)}
                                             className="w-16 px-1 py-0.5 text-xs border border-gray-300 outline-none bg-white text-center"
                                           />
                                         ) : (
@@ -894,7 +958,8 @@ export default function AuctionsListPage() {
                                 e.stopPropagation();
                                 startEditing(auction);
                               }}
-                              className="px-4 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 transition-colors"
+                              disabled={auction.status !== '대기'}
+                              className="px-4 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                               수정
                             </button>

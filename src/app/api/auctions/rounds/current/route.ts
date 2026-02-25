@@ -65,15 +65,21 @@ export async function GET(request: NextRequest) {
       if (!todayRounds || todayRounds.length === 0) {
         return NextResponse.json({
           currentRound: null,
+          lastClosedRound: null,
           allRounds: [],
           totalRounds: 0,
           roundListingMap: {},
         });
       }
 
+      const lastClosed = [...todayRounds]
+        .filter((r) => r.status === 'closed')
+        .sort((a, b) => b.round_no - a.round_no)[0] || null;
+
       const roundListingMap = await buildRoundListingMap(todayRounds);
       return NextResponse.json({
         currentRound: null,
+        lastClosedRound: lastClosed,
         allRounds: todayRounds,
         totalRounds: todayRounds.length,
         roundListingMap,
@@ -122,6 +128,7 @@ export async function GET(request: NextRequest) {
         ...currentRound,
         listings: auctionListings || [],
       },
+      lastClosedRound: null,
       allRounds: allRounds || [],
       totalRounds: allRounds?.length || 0,
       roundListingMap,

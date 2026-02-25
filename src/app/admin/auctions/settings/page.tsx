@@ -6,17 +6,12 @@ import { useListings } from '@/features/listings/hooks';
 import { CattleListing } from '@/features/listings/types';
 import {
   Play,
-  Plus,
   Trash2,
-  Clock,
-  Timer,
   GripVertical,
   AlertCircle,
   CheckCircle,
   Loader2,
   Save,
-  ChevronUp,
-  ChevronDown,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import {
@@ -28,9 +23,7 @@ import {
   useSensors,
   DragEndEvent,
   DragStartEvent,
-  DragOverEvent,
   DragOverlay,
-  useDroppable,
 } from '@dnd-kit/core';
 import {
   arrayMove,
@@ -41,11 +34,13 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
-const UNASSIGNED_CONTAINER = 'unassigned-container';
 
 interface RoundConfig {
   id: string;
   listingIds: string[];
+  durationMin: number;
+  termDurationMin: number;
+  inputStartTime: string;
   status?: string;
   startTime?: string;
   endTime?: string;
@@ -83,92 +78,78 @@ const statusBadge = (status?: string) => {
   }
 };
 
-function DraggableUnassignedItem({
+function ListingItem({
   listing,
+  rounds,
   readOnly,
+  onAssign,
 }: {
   listing: CattleListing;
+  rounds: RoundConfig[];
   readOnly?: boolean;
+  onAssign: (listingId: string, roundIdx: number) => void;
 }) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: listing.id, disabled: readOnly });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.4 : 1,
-  };
+  const assignedRoundIdxs = rounds
+    .map((r, i) => (r.listingIds.includes(listing.id) ? i : -1))
+    .filter((i) => i >= 0);
 
   return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className="px-3 py-2.5 flex items-center gap-2 hover:bg-gray-50 group"
-    >
-      {!readOnly && (
-        <button
-          type="button"
-          className="cursor-grab active:cursor-grabbing touch-none flex-shrink-0"
-          {...attributes}
-          {...listeners}
-        >
-          <GripVertical className="w-3 h-3 text-gray-300" />
-        </button>
-      )}
+    <div className="px-3 py-2 flex items-center justify-between hover:bg-gray-50 group">
       <div className="min-w-0">
         <div className="flex items-center gap-1.5">
           <span className="text-xs font-medium text-gray-900">
             {listing.listingNo}
           </span>
           {statusBadge(listing.status)}
+          {assignedRoundIdxs.length > 0 && (
+            <span className="text-[9px] text-blue-600 font-medium">
+              {assignedRoundIdxs.map((i) => `${i + 1}차`).join(', ')}
+            </span>
+          )}
         </div>
         <div className="text-[10px] text-gray-500 truncate">
           {listing.companyName} | {listing.grade} | {listing.gender}
         </div>
       </div>
+      {!readOnly && rounds.length > 0 && (
+        <div className="flex items-center gap-1 flex-shrink-0">
+          {rounds.map((_, idx) => (
+            <button
+              key={idx}
+              type="button"
+              onClick={() => onAssign(listing.id, idx)}
+              className={`px-1.5 py-0.5 text-[10px] font-medium border rounded transition-colors ${
+                rounds[idx].listingIds.includes(listing.id)
+                  ? 'bg-blue-100 border-blue-300 text-blue-700'
+                  : 'border-gray-300 text-gray-500 hover:bg-gray-100'
+              }`}
+            >
+              {idx + 1}차
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
-function DroppableUnassignedContainer({ children }: { children: React.ReactNode }) {
-  const { setNodeRef, isOver } = useDroppable({ id: UNASSIGNED_CONTAINER });
-  return (
-    <div
-      ref={setNodeRef}
-      className={`max-h-[60vh] overflow-y-auto divide-y divide-gray-100 transition-colors ${
-        isOver ? 'bg-amber-50' : ''
-      }`}
-    >
-      {children}
-    </div>
-  );
-}
-
-interface SortableListingItemProps {
+interface SortableRoundItemProps {
+  compositeId: string;
   listingId: string;
   listing: CattleListing | undefined;
   roundIdx: number;
-  roundCount: number;
   readOnly?: boolean;
-  onAssignToRound: (listingId: string, targetRoundIdx: number) => void;
-  onUnassign: (listingId: string) => void;
+  onUnassign: (listingId: string, roundIdx: number) => void;
 }
 
-function SortableListingItem({
+function SortableRoundItem({
+  compositeId,
   listingId,
   listing,
   roundIdx,
-  roundCount,
   readOnly,
-  onAssignToRound,
   onUnassign,
-}: SortableListingItemProps) {
+}: SortableRoundItemProps) {
   const {
     attributes,
     listeners,
@@ -176,7 +157,7 @@ function SortableListingItem({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: listingId, disabled: readOnly });
+  } = useSortable({ id: compositeId, disabled: readOnly });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -212,32 +193,14 @@ function SortableListingItem({
         </div>
       </div>
       {!readOnly && (
-        <div className="flex items-center gap-1">
-          {roundCount > 1 && (
-            <select
-              value={roundIdx}
-              onChange={(e) => {
-                const target = parseInt(e.target.value);
-                if (target !== roundIdx) {
-                  onAssignToRound(listingId, target);
-                }
-              }}
-              className="w-16 px-1 py-0.5 text-[10px] border border-gray-300 text-gray-600 bg-white outline-none cursor-pointer"
-            >
-              {Array.from({ length: roundCount }, (_, idx) => (
-                <option key={idx} value={idx}>{idx + 1}회차</option>
-              ))}
-            </select>
-          )}
-          <button
-            type="button"
-            onClick={() => onUnassign(listingId)}
-            className="p-1 text-gray-400 hover:text-red-600"
-            title="배정 취소"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={() => onUnassign(listingId, roundIdx)}
+          className="p-1 text-gray-400 hover:text-red-600"
+          title="배정 취소"
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+        </button>
       )}
     </div>
   );
@@ -245,10 +208,9 @@ function SortableListingItem({
 
 export default function AuctionSettingsPage() {
   const [auctionDate, setAuctionDate] = useState(getTomorrowDateString());
-  const [auctionStartTime, setAuctionStartTime] = useState('08:30');
-  const [roundDurationMin, setRoundDurationMin] = useState(5);
-  const [termDurationMin, setTermDurationMin] = useState(2);
-  const [perRound, setPerRound] = useState(5);
+  const DEFAULT_DURATION_MIN = 20;
+  const DEFAULT_TERM_MIN = 10;
+  const DEFAULT_START_TIME = '08:30';
   const [rounds, setRounds] = useState<RoundConfig[]>([]);
   const [isStarting, setIsStarting] = useState(false);
   const [isSavingToDb, setIsSavingToDb] = useState(false);
@@ -279,17 +241,13 @@ export default function AuctionSettingsPage() {
         const hasStarted = data.some((r: any) => r.status === 'open' || r.status === 'closed');
         setAuctionStatus(hasStarted ? 'started' : 'scheduled');
 
-        const first = data[0];
-        if (first.round_duration_min) setRoundDurationMin(first.round_duration_min);
-        if (first.term_duration_min != null) setTermDurationMin(first.term_duration_min);
-        if (first.start_time) {
-          setAuctionStartTime(first.start_time.slice(0, 5));
-        }
-
         setRounds(
           data.map((r: any) => ({
             id: r.id,
             listingIds: r.listingIds || [],
+            durationMin: r.round_duration_min || DEFAULT_DURATION_MIN,
+            termDurationMin: r.term_duration_min ?? DEFAULT_TERM_MIN,
+            inputStartTime: r.start_time?.slice(0, 5) || DEFAULT_START_TIME,
             status: r.status,
             startTime: r.start_time?.slice(0, 5),
             endTime: r.end_time?.slice(0, 5),
@@ -316,24 +274,14 @@ export default function AuctionSettingsPage() {
     includeParts: false,
   });
 
-  // 이미 회차에 배정된 상장 ID 목록
-  const assignedListingIds = useMemo(() => {
-    const ids = new Set<string>();
-    rounds.forEach((r) => r.listingIds.forEach((id) => ids.add(id)));
-    return ids;
-  }, [rounds]);
-
-  // 미배정 상장 목록 (접수번호 오름차순 정렬)
-  const unassignedListings = useMemo(() => {
+  const allListingsSorted = useMemo(() => {
     if (!listings) return [];
-    return listings
-      .filter((l: CattleListing) => !assignedListingIds.has(l.id))
-      .sort((a: CattleListing, b: CattleListing) => {
-        const suffixA = parseInt((a.listingNo || '0').split('-').pop() || '0', 10);
-        const suffixB = parseInt((b.listingNo || '0').split('-').pop() || '0', 10);
-        return suffixA - suffixB;
-      });
-  }, [listings, assignedListingIds]);
+    return [...listings].sort((a: CattleListing, b: CattleListing) => {
+      const suffixA = parseInt((a.listingNo || '0').split('-').pop() || '0', 10);
+      const suffixB = parseInt((b.listingNo || '0').split('-').pop() || '0', 10);
+      return suffixA - suffixB;
+    });
+  }, [listings]);
 
   const sortByListingNo = useCallback(
     (ids: string[]) => {
@@ -363,53 +311,48 @@ export default function AuctionSettingsPage() {
     }
   }, [listings]);
 
-  // 자동 배정: 기존 빈/미달 회차를 먼저 채운 후 남은 상장은 새 회차 생성
+  // 전체 배정: 1차에 모든 상장 배정
   const handleAutoAssign = useCallback(() => {
-    if (!listings || listings.length === 0) return;
+    if (!allListingsSorted || allListingsSorted.length === 0) return;
 
-    const available = listings
-      .filter((l: CattleListing) => !assignedListingIds.has(l.id))
-      .sort((a: CattleListing, b: CattleListing) => {
-        const suffixA = parseInt((a.listingNo || '0').split('-').pop() || '0', 10);
-        const suffixB = parseInt((b.listingNo || '0').split('-').pop() || '0', 10);
-        return suffixA - suffixB;
-      });
+    const allIds = allListingsSorted.map((l: CattleListing) => l.id);
 
-    if (available.length === 0) {
-      alert('배정할 상장이 없습니다.');
-      return;
+    if (rounds.length === 0) {
+      setRounds([{ id: `round-${Date.now()}`, listingIds: allIds, durationMin: DEFAULT_DURATION_MIN, termDurationMin: DEFAULT_TERM_MIN, inputStartTime: DEFAULT_START_TIME }]);
+    } else {
+      setRounds((prev) => [
+        { ...prev[0], listingIds: allIds },
+        ...prev.slice(1),
+      ]);
     }
+  }, [allListingsSorted, rounds]);
 
-    let cursor = 0;
-    const updatedRounds = rounds.map((r) => {
-      if (cursor >= available.length) return r;
-      const remaining = perRound - r.listingIds.length;
-      if (remaining <= 0) return r;
-      const toAdd = available.slice(cursor, cursor + remaining);
-      cursor += toAdd.length;
-      return { ...r, listingIds: [...r.listingIds, ...toAdd.map((l: CattleListing) => l.id)] };
-    });
-
-    const extraRounds: RoundConfig[] = [];
-    while (cursor < available.length) {
-      const chunk = available.slice(cursor, cursor + perRound);
-      extraRounds.push({
-        id: `round-${Date.now()}-${cursor}`,
-        listingIds: chunk.map((l: CattleListing) => l.id),
-      });
-      cursor += chunk.length;
-    }
-
-    setRounds([...updatedRounds, ...extraRounds]);
-  }, [listings, assignedListingIds, perRound, rounds]);
-
-  // 전체 초기화 (클라이언트 상태만)
-  const handleReset = useCallback(() => {
+  // 전체 초기화 (DB에 저장된 경우 DB도 함께 삭제)
+  const handleReset = useCallback(async () => {
     if (rounds.length === 0) return;
-    if (!confirm('모든 회차 배정을 초기화하시겠습니까?')) return;
+    if (!confirm('모든 배정을 초기화하시겠습니까?')) return;
+
+    if (auctionStatus === 'scheduled') {
+      try {
+        const res = await fetch(`/api/auctions/rounds?auctionDate=${auctionDate}`, {
+          method: 'DELETE',
+        });
+        if (!res.ok) {
+          const data = await res.json();
+          alert(data.error || '초기화 실패');
+          return;
+        }
+        setAuctionStatus('none');
+        refetchListings();
+      } catch {
+        alert('네트워크 오류가 발생했습니다.');
+        return;
+      }
+    }
+
     setRounds([]);
     setStartResult(null);
-  }, [rounds]);
+  }, [rounds, auctionStatus, auctionDate, refetchListings]);
 
   // 경매 초기화 (DB에서 경매 삭제 + 상장 상태 복원)
   const handleResetAuction = useCallback(async () => {
@@ -435,10 +378,6 @@ export default function AuctionSettingsPage() {
       setRounds([]);
       setAuctionStatus('none');
       setStartResult({ success: true, message: data.message });
-      setRoundDurationMin(5);
-      setTermDurationMin(2);
-      setPerRound(5);
-      setAuctionStartTime('08:30');
       refetchListings();
       setTimeout(() => setStartResult(null), 5000);
     } catch {
@@ -448,52 +387,66 @@ export default function AuctionSettingsPage() {
     }
   }, [auctionDate, refetchListings]);
 
-  // 빈 회차 추가
+
+  // 상장을 특정 회차로 이동
   const handleAddRound = useCallback(() => {
-    setRounds((prev) => [
-      ...prev,
-      { id: `round-${Date.now()}`, listingIds: [] },
-    ]);
+    setRounds((prev) => {
+      const lastRound = prev[prev.length - 1];
+      let nextStartTime = DEFAULT_START_TIME;
+      if (lastRound?.inputStartTime) {
+        const [h, m] = lastRound.inputStartTime.split(':').map(Number);
+        const totalMin = h * 60 + m + lastRound.durationMin + lastRound.termDurationMin;
+        nextStartTime = `${String(Math.floor(totalMin / 60)).padStart(2, '0')}:${String(totalMin % 60).padStart(2, '0')}`;
+      }
+      return [
+        ...prev,
+        { id: `round-${Date.now()}`, listingIds: [], durationMin: DEFAULT_DURATION_MIN, termDurationMin: DEFAULT_TERM_MIN, inputStartTime: nextStartTime },
+      ];
+    });
   }, []);
 
-  // 회차 삭제
   const handleRemoveRound = useCallback((roundIdx: number) => {
     setRounds((prev) => prev.filter((_, i) => i !== roundIdx));
   }, []);
 
-  const handleMoveRound = useCallback((roundIdx: number, direction: 'up' | 'down') => {
-    setRounds((prev) => {
-      const targetIdx = direction === 'up' ? roundIdx - 1 : roundIdx + 1;
-      if (targetIdx < 0 || targetIdx >= prev.length) return prev;
-      const updated = [...prev];
-      [updated[roundIdx], updated[targetIdx]] = [updated[targetIdx], updated[roundIdx]];
-      return updated;
-    });
+  const handleRoundDurationChange = useCallback((roundIdx: number, value: number) => {
+    setRounds((prev) =>
+      prev.map((r, i) => (i === roundIdx ? { ...r, durationMin: value } : r))
+    );
   }, []);
 
-  // 상장을 특정 회차로 이동
-  const handleAssignToRound = useCallback(
+  const handleRoundStartTimeChange = useCallback((roundIdx: number, value: string) => {
+    setRounds((prev) =>
+      prev.map((r, i) => (i === roundIdx ? { ...r, inputStartTime: value } : r))
+    );
+  }, []);
+
+  const handleRoundTermChange = useCallback((roundIdx: number, value: number) => {
+    setRounds((prev) =>
+      prev.map((r, i) => (i === roundIdx ? { ...r, termDurationMin: value } : r))
+    );
+  }, []);
+
+  const handleToggleAssign = useCallback(
     (listingId: string, targetRoundIdx: number) => {
       setRounds((prev) =>
         prev.map((r, i) => {
-          if (i === targetRoundIdx) {
-            if (r.listingIds.includes(listingId)) return r;
-            return { ...r, listingIds: [...r.listingIds, listingId] };
+          if (i !== targetRoundIdx) return r;
+          if (r.listingIds.includes(listingId)) {
+            return { ...r, listingIds: r.listingIds.filter((id) => id !== listingId) };
           }
-          return { ...r, listingIds: r.listingIds.filter((id) => id !== listingId) };
+          return { ...r, listingIds: [...r.listingIds, listingId] };
         })
       );
     },
     []
   );
 
-  // 상장을 회차에서 제거 (미배정으로)
-  const handleUnassign = useCallback((listingId: string) => {
+  const handleUnassignFromRound = useCallback((listingId: string, roundIdx: number) => {
     setRounds((prev) =>
-      prev.map((r) => ({
-        ...r,
-        listingIds: r.listingIds.filter((id) => id !== listingId),
-      }))
+      prev.map((r, i) =>
+        i === roundIdx ? { ...r, listingIds: r.listingIds.filter((id) => id !== listingId) } : r
+      )
     );
   }, []);
 
@@ -512,10 +465,12 @@ export default function AuctionSettingsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           auctionDate,
-          rounds: validRounds.map((r) => ({ listingIds: r.listingIds })),
-          roundDurationMin,
-          termDurationMin,
-          auctionStartTime,
+          rounds: validRounds.map((r) => ({
+            listingIds: r.listingIds,
+            durationMin: r.durationMin,
+            termDurationMin: r.termDurationMin,
+            startTime: r.inputStartTime,
+          })),
         }),
       });
 
@@ -542,7 +497,8 @@ export default function AuctionSettingsPage() {
       return;
     }
 
-    if (!confirm(`${validRounds.length}개 회차로 경매를 시작하시겠습니까?\n1회차가 즉시 시작됩니다.`)) {
+    const totalCount = validRounds.reduce((sum, r) => sum + r.listingIds.length, 0);
+    if (!confirm(`${validRounds.length}개 차수, ${totalCount}두로 경매를 시작하시겠습니까?`)) {
       return;
     }
 
@@ -556,10 +512,12 @@ export default function AuctionSettingsPage() {
         body: JSON.stringify({
           auctionDate,
           title: `${format(new Date(auctionDate), 'yyyy년 MM월 dd일')} 경매`,
-          rounds: validRounds.map((r) => ({ listingIds: r.listingIds })),
-          roundDurationMin,
-          termDurationMin,
-          auctionStartTime,
+          rounds: validRounds.map((r) => ({
+            listingIds: r.listingIds,
+            durationMin: r.durationMin,
+            termDurationMin: r.termDurationMin,
+            startTime: r.inputStartTime,
+          })),
         }),
       });
 
@@ -587,13 +545,19 @@ export default function AuctionSettingsPage() {
     return listings?.find((l: CattleListing) => l.id === listingId);
   };
 
-  const totalAssigned = rounds.reduce((sum, r) => sum + r.listingIds.length, 0);
   const totalListings = listings?.length || 0;
+  const uniqueAssigned = useMemo(() => {
+    const ids = new Set<string>();
+    rounds.forEach((r) => r.listingIds.forEach((id) => ids.add(id)));
+    return ids.size;
+  }, [rounds]);
+  const totalAssigned = rounds.reduce((sum, r) => sum + r.listingIds.length, 0);
 
-  const unassignedListingIds = useMemo(
-    () => unassignedListings.map((l: CattleListing) => l.id),
-    [unassignedListings]
-  );
+  const makeCompositeId = (roundIdx: number, listingId: string) => `${roundIdx}::${listingId}`;
+  const parseCompositeId = (compositeId: string) => {
+    const [roundIdxStr, ...rest] = compositeId.split('::');
+    return { roundIdx: parseInt(roundIdxStr), listingId: rest.join('::') };
+  };
 
   const [activeId, setActiveId] = useState<string | null>(null);
 
@@ -602,84 +566,9 @@ export default function AuctionSettingsPage() {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
-  const findContainer = useCallback(
-    (itemId: string): string | null => {
-      if (itemId === UNASSIGNED_CONTAINER) return UNASSIGNED_CONTAINER;
-      for (const round of rounds) {
-        if (round.id === itemId) return round.id;
-        if (round.listingIds.includes(itemId)) return round.id;
-      }
-      if (unassignedListingIds.includes(itemId)) return UNASSIGNED_CONTAINER;
-      return null;
-    },
-    [rounds, unassignedListingIds]
-  );
-
   const handleDragStart = useCallback((event: DragStartEvent) => {
     setActiveId(event.active.id as string);
   }, []);
-
-  const handleDragOver = useCallback(
-    (event: DragOverEvent) => {
-      const { active, over } = event;
-      if (!over) return;
-
-      const activeId = active.id as string;
-      const overId = over.id as string;
-
-      const activeContainer = findContainer(activeId);
-      let overContainer = findContainer(overId);
-
-      if (!activeContainer || !overContainer || activeContainer === overContainer) return;
-
-      if (activeContainer === UNASSIGNED_CONTAINER && overContainer !== UNASSIGNED_CONTAINER) {
-        const targetRoundIdx = rounds.findIndex(
-          (r) => r.id === overContainer || r.listingIds.includes(overId)
-        );
-        if (targetRoundIdx === -1) return;
-
-        setRounds((prev) => {
-          const updated = prev.map((r) => ({ ...r, listingIds: [...r.listingIds] }));
-          if (updated[targetRoundIdx].listingIds.includes(activeId)) return prev;
-          const overIndex = updated[targetRoundIdx].listingIds.indexOf(overId);
-          if (overIndex >= 0) {
-            updated[targetRoundIdx].listingIds.splice(overIndex, 0, activeId);
-          } else {
-            updated[targetRoundIdx].listingIds.push(activeId);
-          }
-          return updated;
-        });
-      } else if (activeContainer !== UNASSIGNED_CONTAINER && overContainer === UNASSIGNED_CONTAINER) {
-        setRounds((prev) =>
-          prev.map((r) => ({
-            ...r,
-            listingIds: r.listingIds.filter((id) => id !== activeId),
-          }))
-        );
-      } else {
-        const activeRoundIdx = rounds.findIndex((r) => r.id === activeContainer);
-        const overRoundIdx = rounds.findIndex(
-          (r) => r.id === overContainer || r.listingIds.includes(overId)
-        );
-        if (activeRoundIdx === -1 || overRoundIdx === -1 || activeRoundIdx === overRoundIdx) return;
-
-        setRounds((prev) => {
-          const updated = prev.map((r) => ({ ...r, listingIds: [...r.listingIds] }));
-          updated[activeRoundIdx].listingIds = updated[activeRoundIdx].listingIds.filter(
-            (id) => id !== activeId
-          );
-          const overIndex = updated[overRoundIdx].listingIds.indexOf(overId);
-          if (overIndex >= 0) {
-            updated[overRoundIdx].listingIds.splice(overIndex, 0, activeId);
-          } else {
-            updated[overRoundIdx].listingIds.push(activeId);
-          }
-          return updated;
-        });
-      }
-    },
-    [findContainer, rounds]
-  );
 
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
@@ -688,44 +577,37 @@ export default function AuctionSettingsPage() {
 
       if (!over || active.id === over.id) return;
 
-      const activeItemId = active.id as string;
-      const overId = over.id as string;
+      const activeComposite = active.id as string;
+      const overComposite = over.id as string;
 
-      const activeContainer = findContainer(activeItemId);
-      const overContainer = findContainer(overId);
+      const activeParsed = parseCompositeId(activeComposite);
+      const overParsed = parseCompositeId(overComposite);
 
-      if (!activeContainer || !overContainer) return;
-      if (activeContainer === UNASSIGNED_CONTAINER || overContainer === UNASSIGNED_CONTAINER) return;
-      if (activeContainer !== overContainer) return;
+      if (activeParsed.roundIdx !== overParsed.roundIdx) return;
 
-      const roundIdx = rounds.findIndex((r) => r.id === activeContainer);
-      if (roundIdx === -1) return;
-
-      const round = rounds[roundIdx];
-      const oldIndex = round.listingIds.indexOf(activeItemId);
-      const newIndex = round.listingIds.indexOf(overId);
-
-      if (oldIndex === -1 || newIndex === -1) return;
-
-      setRounds((prev) =>
-        prev.map((r, i) =>
-          i === roundIdx
-            ? { ...r, listingIds: arrayMove(r.listingIds, oldIndex, newIndex) }
-            : r
-        )
-      );
+      const roundIdx = activeParsed.roundIdx;
+      setRounds((prev) => {
+        const round = prev[roundIdx];
+        if (!round) return prev;
+        const oldIndex = round.listingIds.indexOf(activeParsed.listingId);
+        const newIndex = round.listingIds.indexOf(overParsed.listingId);
+        if (oldIndex === -1 || newIndex === -1) return prev;
+        return prev.map((r, i) =>
+          i === roundIdx ? { ...r, listingIds: arrayMove(r.listingIds, oldIndex, newIndex) } : r
+        );
+      });
     },
-    [findContainer, rounds]
+    []
   );
 
-  const activeListing = activeId ? getListingInfo(activeId) : null;
+  const activeListing = activeId ? getListingInfo(parseCompositeId(activeId).listingId) : null;
 
   return (
     <AdminLayout>
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">경매 설정</h1>
         <p className="text-sm text-gray-500 mt-1">
-          승인된 상장을 회차별로 배정하고 경매를 시작합니다.
+          승인된 상장을 경매에 배정하고 시작합니다.
         </p>
       </div>
 
@@ -752,54 +634,6 @@ export default function AuctionSettingsPage() {
               className="px-3 py-1.5 border border-gray-200 text-xs outline-none bg-white"
             />
           </div>
-          <div className="flex items-center gap-2">
-            <Clock className="w-3.5 h-3.5 text-gray-500" />
-            <span className="text-xs text-gray-600">경매 시작시간</span>
-            <input
-              type="time"
-              value={auctionStartTime}
-              onChange={(e) => setAuctionStartTime(e.target.value)}
-              disabled={isReadOnly}
-              className="px-2 py-1.5 border border-gray-200 text-xs outline-none bg-white disabled:bg-gray-100 disabled:text-gray-500"
-            />
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-gray-600">회당 경매시간</span>
-            <input
-              type="number"
-              value={roundDurationMin}
-              onChange={(e) => setRoundDurationMin(Math.max(1, parseInt(e.target.value) || 1))}
-              min={1}
-              disabled={isReadOnly}
-              className="w-14 px-2 py-1.5 border border-gray-200 text-xs outline-none bg-white text-center disabled:bg-gray-100 disabled:text-gray-500"
-            />
-            <span className="text-xs text-gray-500">분</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Timer className="w-3.5 h-3.5 text-gray-500" />
-            <span className="text-xs text-gray-600">회차 간 텀</span>
-            <input
-              type="number"
-              value={termDurationMin}
-              onChange={(e) => setTermDurationMin(Math.max(0, parseInt(e.target.value) || 0))}
-              min={0}
-              disabled={isReadOnly}
-              className="w-14 px-2 py-1.5 border border-gray-200 text-xs outline-none bg-white text-center disabled:bg-gray-100 disabled:text-gray-500"
-            />
-            <span className="text-xs text-gray-500">분</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-gray-600">회당 두수</span>
-            <input
-              type="number"
-              value={perRound}
-              onChange={(e) => setPerRound(Math.max(1, parseInt(e.target.value) || 1))}
-              min={1}
-              disabled={isReadOnly}
-              className="w-14 px-2 py-1.5 border border-gray-200 text-xs outline-none bg-white text-center disabled:bg-gray-100 disabled:text-gray-500"
-            />
-            <span className="text-xs text-gray-500">두</span>
-          </div>
         </div>
       </div>
 
@@ -810,31 +644,31 @@ export default function AuctionSettingsPage() {
             승인 상장: <strong className="text-gray-900">{totalListings}두</strong>
           </span>
           <span>
-            배정 완료: <strong className="text-gray-900">{totalAssigned}두</strong>
+            배정 개체: <strong className="text-gray-900">{uniqueAssigned}두</strong>
           </span>
           <span>
-            미배정: <strong className="text-orange-600">{totalListings - totalAssigned}두</strong>
-          </span>
-          <span>
-            회차 수: <strong className="text-gray-900">{rounds.length}회</strong>
+            총 배정 건수: <strong className="text-gray-900">{totalAssigned}건</strong>
+            {totalAssigned > uniqueAssigned && (
+              <span className="text-[10px] text-blue-600 ml-1">(중복 {totalAssigned - uniqueAssigned}건 포함)</span>
+            )}
           </span>
         </div>
         {!isReadOnly && (
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={handleAutoAssign}
-              disabled={unassignedListings.length === 0}
-              className="px-3 py-1.5 text-xs font-medium border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              onClick={handleAddRound}
+              className="px-3 py-1.5 text-xs font-medium border border-gray-300 text-gray-700 hover:bg-gray-50"
             >
-              자동 배정
+              차수 추가
             </button>
             <button
               type="button"
-              onClick={handleAddRound}
-              className="px-3 py-1.5 text-xs font-medium border border-gray-300 text-gray-700 hover:bg-gray-50 flex items-center gap-1"
+              onClick={handleAutoAssign}
+              disabled={!allListingsSorted.length}
+              className="px-3 py-1.5 text-xs font-medium border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <Plus className="w-3 h-3" /> 회차 추가
+              전체 배정
             </button>
             <button
               type="button"
@@ -907,7 +741,7 @@ export default function AuctionSettingsPage() {
       {auctionStatus === 'scheduled' && rounds.length > 0 && !startResult && (
         <div className="p-3 mb-4 flex items-center gap-2 text-sm bg-gray-50 border border-gray-200 text-gray-700">
           <CheckCircle className="w-4 h-4 text-gray-500" />
-          저장된 배정 데이터를 불러왔습니다. ({rounds.length}회차)
+          저장된 배정 데이터를 불러왔습니다.
         </div>
       )}
 
@@ -941,44 +775,40 @@ export default function AuctionSettingsPage() {
         sensors={sensors}
         collisionDetection={closestCenter}
         onDragStart={handleDragStart}
-        onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
       >
       <div className="flex gap-4">
-        {/* 미배정 상장 목록 (좌측) */}
+        {/* 전체 상장 목록 (좌측) */}
         <div className="w-80 flex-shrink-0">
           <div className="bg-white border border-gray-200 overflow-hidden sticky top-4">
             <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
               <h3 className="text-sm font-semibold text-gray-700">
-                미배정 상장 ({unassignedListings.length})
+                전체 상장 ({allListingsSorted.length})
               </h3>
             </div>
-            <SortableContext
-              items={unassignedListingIds}
-              strategy={verticalListSortingStrategy}
-            >
-              <DroppableUnassignedContainer>
-                {isLoading ? (
-                  <div className="p-8 text-center text-sm text-gray-400">로딩 중...</div>
-                ) : unassignedListings.length === 0 ? (
-                  <div className="p-8 text-center text-sm text-gray-400">
-                    {totalListings === 0 ? '승인된 상장이 없습니다.' : '모든 상장이 배정되었습니다.'}
-                  </div>
-                ) : (
-                  unassignedListings.map((listing: CattleListing) => (
-                    <DraggableUnassignedItem
-                      key={listing.id}
-                      listing={listing}
-                      readOnly={isReadOnly}
-                    />
-                  ))
-                )}
-              </DroppableUnassignedContainer>
-            </SortableContext>
+            <div className="max-h-[60vh] overflow-y-auto divide-y divide-gray-100">
+              {isLoading ? (
+                <div className="p-8 text-center text-sm text-gray-400">로딩 중...</div>
+              ) : allListingsSorted.length === 0 ? (
+                <div className="p-8 text-center text-sm text-gray-400">
+                  승인된 상장이 없습니다.
+                </div>
+              ) : (
+                allListingsSorted.map((listing: CattleListing) => (
+                  <ListingItem
+                    key={listing.id}
+                    listing={listing}
+                    rounds={rounds}
+                    readOnly={isReadOnly}
+                    onAssign={handleToggleAssign}
+                  />
+                ))
+              )}
+            </div>
           </div>
         </div>
 
-        {/* 회차별 배정 (우측) */}
+        {/* 경매 배정 (우측) */}
           <div className="flex-1 space-y-4">
             {isLoadingRounds ? (
               <div className="bg-white border border-gray-200 p-12 text-center">
@@ -989,8 +819,8 @@ export default function AuctionSettingsPage() {
               <div className="bg-white border border-gray-200 p-12 text-center">
                 <div className="text-sm text-gray-500 mb-4">
                   {isReadOnly
-                    ? '이 날짜에 배정된 회차가 없습니다.'
-                    : '회차가 없습니다. "자동 배정" 또는 "회차 추가" 버튼을 클릭하세요.'}
+                    ? '이 날짜에 배정된 경매가 없습니다.'
+                    : '경매 배정이 없습니다. "전체 배정" 버튼을 클릭하세요.'}
                 </div>
                 {!isReadOnly && (
                   <div className="flex justify-center gap-2">
@@ -1000,14 +830,7 @@ export default function AuctionSettingsPage() {
                       disabled={totalListings === 0}
                       className="px-4 py-2 text-xs font-medium bg-gray-800 text-white hover:bg-gray-900 disabled:opacity-50"
                     >
-                      자동 배정
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleAddRound}
-                      className="px-4 py-2 text-xs font-medium border border-gray-300 text-gray-700 hover:bg-gray-50"
-                    >
-                      빈 회차 추가
+                      전체 배정
                     </button>
                   </div>
                 )}
@@ -1015,11 +838,10 @@ export default function AuctionSettingsPage() {
             ) : (
               rounds.map((round, roundIdx) => (
                 <div key={round.id} className="bg-white border border-gray-200 overflow-hidden">
-                  {/* 회차 헤더 */}
                   <div className="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <span className="text-sm font-bold text-gray-900">
-                        {roundIdx + 1}회차
+                        {roundIdx + 1}차
                       </span>
                       {round.status === 'open' && (
                         <span className="px-1.5 py-0.5 text-[10px] font-medium bg-blue-100 text-blue-700 rounded animate-pulse">진행중</span>
@@ -1031,68 +853,76 @@ export default function AuctionSettingsPage() {
                         <span className="px-1.5 py-0.5 text-[10px] font-medium bg-amber-100 text-amber-700 rounded">대기</span>
                       )}
                       <span className="text-xs text-gray-500">
-                        {round.listingIds.length}두 배정
+                        {round.listingIds.length}두
                       </span>
-                      {round.startTime && round.endTime ? (
-                        <span className="text-xs text-gray-400">
-                          {round.startTime} ~ {round.endTime}
-                        </span>
+                      {!isReadOnly ? (
+                        <div className="flex items-center gap-2 ml-2">
+                          <span className="text-[10px] text-gray-500">시작</span>
+                          <input
+                            type="time"
+                            value={round.inputStartTime}
+                            onChange={(e) => handleRoundStartTimeChange(roundIdx, e.target.value)}
+                            className="px-1.5 py-0.5 border border-gray-200 text-[11px] outline-none bg-white"
+                          />
+                          <span className="text-gray-300">|</span>
+                          <span className="text-[10px] text-gray-500">경매</span>
+                          <input
+                            type="number"
+                            value={round.durationMin}
+                            onChange={(e) => handleRoundDurationChange(roundIdx, Math.max(1, parseInt(e.target.value) || 1))}
+                            min={1}
+                            className="w-12 px-1.5 py-0.5 border border-gray-200 text-[11px] outline-none bg-white text-center"
+                          />
+                          <span className="text-[10px] text-gray-500">분</span>
+                          <span className="text-gray-300">|</span>
+                          <span className="text-[10px] text-gray-500">휴식</span>
+                          <input
+                            type="number"
+                            value={round.termDurationMin}
+                            onChange={(e) => handleRoundTermChange(roundIdx, Math.max(0, parseInt(e.target.value) || 0))}
+                            min={0}
+                            className="w-12 px-1.5 py-0.5 border border-gray-200 text-[11px] outline-none bg-white text-center"
+                          />
+                          <span className="text-[10px] text-gray-500">분</span>
+                        </div>
                       ) : (
                         <span className="text-xs text-gray-400">
-                          ({roundDurationMin}분)
+                          {round.startTime && round.endTime
+                            ? `${round.startTime} ~ ${round.endTime}`
+                            : `${round.inputStartTime} (${round.durationMin}분)`}
                         </span>
                       )}
                     </div>
-                    {!isReadOnly && (
-                      <div className="flex items-center gap-0.5">
-                        <button
-                          type="button"
-                          onClick={() => handleMoveRound(roundIdx, 'up')}
-                          disabled={roundIdx === 0}
-                          className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                        >
-                          <ChevronUp className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleMoveRound(roundIdx, 'down')}
-                          disabled={roundIdx === rounds.length - 1}
-                          className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                        >
-                          <ChevronDown className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveRound(roundIdx)}
-                          className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
+                    {!isReadOnly && rounds.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveRound(roundIdx)}
+                        className="text-xs text-red-500 hover:text-red-700 px-2 py-1"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
                     )}
                   </div>
 
-                  {/* 배정된 상장 목록 */}
                   <SortableContext
-                    items={round.listingIds}
+                    items={round.listingIds.map((lid) => makeCompositeId(roundIdx, lid))}
                     strategy={verticalListSortingStrategy}
                   >
                     <div className="divide-y divide-gray-100 min-h-[48px]">
                       {round.listingIds.length === 0 ? (
                         <div className="px-4 py-6 text-center text-xs text-gray-400">
-                          상장이 배정되지 않았습니다. 좌측에서 회차 버튼을 클릭하여 배정하세요.
+                          좌측에서 차수 버튼을 클릭하여 배정하세요.
                         </div>
                       ) : (
                         round.listingIds.map((listingId) => (
-                          <SortableListingItem
-                            key={listingId}
+                          <SortableRoundItem
+                            key={makeCompositeId(roundIdx, listingId)}
+                            compositeId={makeCompositeId(roundIdx, listingId)}
                             listingId={listingId}
                             listing={getListingInfo(listingId)}
                             roundIdx={roundIdx}
-                            roundCount={rounds.length}
                             readOnly={isReadOnly}
-                            onAssignToRound={handleAssignToRound}
-                            onUnassign={handleUnassign}
+                            onUnassign={handleUnassignFromRound}
                           />
                         ))
                       )}

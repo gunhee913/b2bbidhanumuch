@@ -17,11 +17,9 @@ import {
   Settings,
   ChevronRight,
   ChevronDown,
-  ChevronUp,
   Bell,
   Star,
-  ExternalLink,
-  Clock
+  ExternalLink
 } from 'lucide-react';
 import BottomNav from '@/components/BottomNav';
 import { Button } from '@/components/ui/button';
@@ -81,8 +79,8 @@ function MainPageContent() {
   const [isBalanceVisible, setIsBalanceVisible] = useState(false);
   const [activeTab, setActiveTab] = useState(() => {
     const tab = searchParams.get('tab');
-    if (tab === '경매정보' || tab === '관심') return tab;
-    return '경매목록';
+    if (tab === '부위별' || tab === '경매정보' || tab === '관심') return tab;
+    return '개체별';
   });
   const [showReBidDialog, setShowReBidDialog] = useState(false);
   const [selectedBid, setSelectedBid] = useState<any>(null);
@@ -93,14 +91,19 @@ function MainPageContent() {
   const [toastMessage, setToastMessage] = useState('');
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [toastType, setToastType] = useState<'warning' | 'success'>('success');
-  const [selectedGrade, setSelectedGrade] = useState<string>('전체');
-  const [showGradeDropdown, setShowGradeDropdown] = useState(false);
-  const gradeDropdownRef = useRef<HTMLDivElement>(null);
-  const [selectedCompany, setSelectedCompany] = useState<string>('전체');
-  const [showCompanyDropdown, setShowCompanyDropdown] = useState(false);
-  const companyDropdownRef = useRef<HTMLDivElement>(null);
-  const [showTimetable, setShowTimetable] = useState(true);
-  const [timetableRemaining, setTimetableRemaining] = useState(0);
+  const [selectedGrades, setSelectedGrades] = useState<string[]>([]);
+  const [selectedCompanies, setSelectedCompanies] = useState<string[]>([]);
+  const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+  const [favSubTab, setFavSubTab] = useState<'개체별' | '부위별'>('개체별');
+  const [showFavPartBidSheet, setShowFavPartBidSheet] = useState(false);
+  const [selectedFavPart, setSelectedFavPart] = useState<any>(null);
+  const [favPartBidPrice, setFavPartBidPrice] = useState(0);
+  const [expandedFavPartId, setExpandedFavPartId] = useState<string | null>(null);
+  const [favPartImageIndex, setFavPartImageIndex] = useState<Record<string, number>>({});
+  const favSwipeStartX = useRef(0);
+  const favSwipeEndX = useRef(0);
+  const favSwipeIsDragging = useRef(false);
+  const favSwipeProductId = useRef<string | null>(null);
 
   // 선택된 날짜 포맷 (API 호출용)
   const selectedDateStr = useMemo(() => {
@@ -145,8 +148,27 @@ function MainPageContent() {
 
   // listing -> round_no 매핑
   const roundListingMap: Record<string, number> = roundData?.roundListingMap || {};
-  
 
+  // 경매 카운트다운
+  const currentRound = roundData?.currentRound;
+  const lastClosedRound = roundData?.lastClosedRound;
+  const [auctionRemaining, setAuctionRemaining] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!currentRound?.started_at || !currentRound?.round_duration_min) {
+      setAuctionRemaining(null);
+      return;
+    }
+    const calc = () => {
+      const startedAt = new Date(currentRound.started_at).getTime();
+      const durationMs = currentRound.round_duration_min * 60 * 1000;
+      const remaining = Math.max(0, Math.floor((startedAt + durationMs - Date.now()) / 1000));
+      setAuctionRemaining(remaining);
+    };
+    calc();
+    const interval = setInterval(calc, 1000);
+    return () => clearInterval(interval);
+  }, [currentRound?.started_at, currentRound?.round_duration_min]);
 
   // 상장번호 정렬 함수 (예: 260206-101 → 가운데 101, 102, 201, 202 순)
   const sortByListingNo = (a: string, b: string) => {
@@ -181,20 +203,145 @@ function MainPageContent() {
       backFat: listing.backFat,
       eyeMuscle: listing.eyeMuscle,
       marblingScore: listing.marblingScore,
+      meatColor: listing.meatColor,
+      fatColor: listing.fatColor,
+      texture: listing.texture,
+      maturity: listing.maturity,
+      monthAge: listing.monthAge,
+      breed: listing.breed,
+      slaughterHouse: listing.slaughterHouse,
+      slaughterNo: listing.slaughterNo,
+      processDate: listing.processDate,
+      processWeight: listing.processWeight,
+      images: listing.images || [],
+      gradeCert: listing.gradeCert,
+      slaughterCert: listing.slaughterCert,
       parts: listing.parts || [],
       status: listing.status,
     }));
     
-    // 회차(오름차순: 1차→2차→3차) → 상장번호(오름차순) 정렬
-    data.sort((a, b) => {
-      const roundA = rlMap[a.listingId] ?? Infinity;
-      const roundB = rlMap[b.listingId] ?? Infinity;
-      if (roundA !== roundB) return roundA - roundB;
-      return sortByListingNo(a.id, b.id);
-    });
+    data.sort((a, b) => sortByListingNo(a.id, b.id));
     
     return data;
   }, [listingsData, roundData?.roundListingMap]);
+
+  const favPartData = useMemo(() => {
+    if (!isHydrated || favorites.length === 0) return [];
+    const partFavIds = favorites.filter(id => id.split('-').length >= 3);
+    if (partFavIds.length === 0) return [];
+
+    const result: any[] = [];
+    cattleData.forEach((item: any) => {
+      (item.parts || []).forEach((p: any) => {
+        const partId = p.listingPartNo || `${item.id}-${String(p.partNo).padStart(2, '0')}`;
+        if (partFavIds.includes(partId) && p.isIncluded) {
+          result.push({
+            id: partId,
+            dbPartId: p.id || p.dbId || '',
+            partName: p.partName,
+            auctionNo: item.id,
+            gender: item.gender,
+            grade: item.grade,
+            marblingScore: item.marblingScore,
+            weight: `${(p.weight || 0).toFixed(1)}kg`,
+            minPrice: p.minPrice || 0,
+            company: item.company,
+            myBid: p.myBid || null,
+            hasWinner: !!p.hasWinner,
+            highestBid: p.highestBid || null,
+            listingNo: partId,
+            breed: item.breed || item.type || '한우',
+            monthAge: item.monthAge || item.months || 0,
+            traceNo: item.traceNo || '',
+            carcassWeight: item.carcassWeight || 0,
+            backFat: item.backFat || 0,
+            eyeMuscle: item.eyeMuscle || 0,
+            meatColor: item.meatColor || 0,
+            fatColor: item.fatColor || 0,
+            texture: item.texture || 0,
+            maturity: item.maturity || 0,
+            slaughterHouse: item.slaughterHouse || '',
+            slaughterNo: item.slaughterNo || '',
+            processDate: item.processDate || '',
+            processWeight: item.processWeight || 0,
+            images: item.images || [],
+            gradeCert: item.gradeCert || null,
+            slaughterCert: item.slaughterCert || null,
+          });
+        }
+      });
+    });
+    result.sort((a, b) => sortByListingNo(a.id, b.id));
+    return result;
+  }, [cattleData, favorites, isHydrated]);
+
+  const canBidFavPart = useMemo(() => {
+    return !!currentRound && currentRound.status === 'open';
+  }, [currentRound]);
+
+  const FAV_TOTAL_IMAGES = 6;
+  const favNextImage = (productId: string) => {
+    const cur = favPartImageIndex[productId] || 0;
+    setFavPartImageIndex(prev => ({ ...prev, [productId]: (cur + 1) % FAV_TOTAL_IMAGES }));
+  };
+  const favPrevImage = (productId: string) => {
+    const cur = favPartImageIndex[productId] || 0;
+    setFavPartImageIndex(prev => ({ ...prev, [productId]: (cur - 1 + FAV_TOTAL_IMAGES) % FAV_TOTAL_IMAGES }));
+  };
+  const handleFavTouchStart = (e: React.TouchEvent, productId: string) => {
+    favSwipeStartX.current = e.touches[0].clientX;
+    favSwipeEndX.current = e.touches[0].clientX;
+    favSwipeProductId.current = productId;
+  };
+  const handleFavTouchMove = (e: React.TouchEvent) => {
+    favSwipeEndX.current = e.touches[0].clientX;
+  };
+  const handleFavTouchEnd = () => {
+    if (!favSwipeProductId.current) return;
+    const diff = favSwipeStartX.current - favSwipeEndX.current;
+    if (Math.abs(diff) > 80) { diff > 0 ? favNextImage(favSwipeProductId.current) : favPrevImage(favSwipeProductId.current); }
+    favSwipeStartX.current = 0; favSwipeEndX.current = 0; favSwipeProductId.current = null;
+  };
+  const handleFavMouseDown = (e: React.MouseEvent, productId: string) => {
+    favSwipeIsDragging.current = true;
+    favSwipeStartX.current = e.clientX; favSwipeEndX.current = e.clientX; favSwipeProductId.current = productId;
+  };
+  const handleFavMouseMove = (e: React.MouseEvent) => {
+    if (!favSwipeIsDragging.current) return; favSwipeEndX.current = e.clientX;
+  };
+  const handleFavMouseUp = () => {
+    if (!favSwipeIsDragging.current || !favSwipeProductId.current) return;
+    const diff = favSwipeStartX.current - favSwipeEndX.current;
+    if (Math.abs(diff) > 80) { diff > 0 ? favNextImage(favSwipeProductId.current) : favPrevImage(favSwipeProductId.current); }
+    favSwipeIsDragging.current = false; favSwipeStartX.current = 0; favSwipeEndX.current = 0; favSwipeProductId.current = null;
+  };
+  const handleFavMouseLeave = () => { if (favSwipeIsDragging.current) handleFavMouseUp(); };
+
+  const handleFavPartBid = async (part: any, price: number) => {
+    if (!session?.user?.id) { showToastMessage('로그인이 필요합니다.', 'warning'); return; }
+    try {
+      const res = await fetch('/api/bids', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ partId: part.dbPartId, listingId: part.dbPartId, bidPrice: price, dealerId: session.user.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) { showToastMessage(data.error || '입찰에 실패했습니다.', 'warning'); return; }
+      showToastMessage(`${part.partName} 입찰이 완료되었습니다.`, 'success');
+      refetchListings();
+    } catch { showToastMessage('입찰 중 오류가 발생했습니다.', 'warning'); }
+  };
+
+  const handleFavPartCancelBid = async (bidId: string, partName: string) => {
+    if (!confirm(`${partName} 입찰을 취소하시겠습니까?`)) return;
+    try {
+      const res = await fetch(`/api/bids/${bidId}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) { showToastMessage(data.error || '입찰 취소에 실패했습니다.', 'warning'); return; }
+      showToastMessage(`${partName} 입찰이 취소되었습니다.`, 'success');
+      refetchListings();
+    } catch { showToastMessage('입찰 취소 중 오류가 발생했습니다.', 'warning'); }
+  };
 
   // 토스트 표시 함수
   const showToastMessage = (message: string, type: 'warning' | 'success' = 'success') => {
@@ -256,12 +403,10 @@ function MainPageContent() {
   useEffect(() => {
     const tab = searchParams.get('tab');
     
-    if (tab === '경매정보') {
-      setActiveTab('경매정보');
-    } else if (tab === '관심') {
-      setActiveTab('관심');
+    if (tab === '부위별' || tab === '경매정보' || tab === '관심') {
+      setActiveTab(tab);
     } else {
-      setActiveTab('경매목록');
+      setActiveTab('개체별');
     }
   }, [searchParams]);
 
@@ -328,28 +473,6 @@ function MainPageContent() {
     setCustomBidPrice('');
   };
 
-  // 타임테이블 잔여시간 계산 (현재 진행중 회차)
-  useEffect(() => {
-    const cr = roundData?.currentRound;
-    if (!cr?.started_at || !cr?.round_duration_min) {
-      setTimetableRemaining(0);
-      return;
-    }
-    const calc = () => {
-      const now = Date.now();
-      const startedAt = new Date(cr.started_at).getTime();
-      const durationMs = cr.round_duration_min * 60 * 1000;
-
-      if (startedAt > now) {
-        setTimetableRemaining(cr.round_duration_min * 60);
-      } else {
-        setTimetableRemaining(Math.max(0, Math.floor((startedAt + durationMs - now) / 1000)));
-      }
-    };
-    calc();
-    const timer = setInterval(calc, 1000);
-    return () => clearInterval(timer);
-  }, [roundData?.currentRound?.id, roundData?.currentRound?.started_at, roundData?.currentRound?.round_duration_min]);
 
   // 동적 viewport 높이 설정
   useEffect(() => {
@@ -371,11 +494,9 @@ function MainPageContent() {
   // 드롭다운 외부 클릭 시 닫기
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (gradeDropdownRef.current && !gradeDropdownRef.current.contains(event.target as Node)) {
-        setShowGradeDropdown(false);
-      }
-      if (companyDropdownRef.current && !companyDropdownRef.current.contains(event.target as Node)) {
-        setShowCompanyDropdown(false);
+      const target = event.target as HTMLElement;
+      if (!target.closest('.filter-dropdown')) {
+        setOpenDropdown(null);
       }
     };
 
@@ -384,23 +505,30 @@ function MainPageContent() {
   }, []);
 
   // 등급 옵션 목록
-  const gradeOptions = ['전체', '1++(9)', '1++(8)', '1++(7)', '1+', '1', '2'];
+  const gradeOptions = ['1++(9)', '1++(8)', '1++(7)', '1+', '1', '2'];
+  const companyOptions = Array.from(new Set(cattleData.map(item => item.company)));
 
-  // 상장업체 옵션 목록 (cattleData에서 추출)
-  const companyOptions = ['전체', ...Array.from(new Set(cattleData.map(item => item.company)))];
+  const filterLabel = (selected: string[], label: string) => {
+    if (selected.length === 0) return `${label}: 전체`;
+    if (selected.length <= 2) return `${label}: ${selected.join(', ')}`;
+    return `${label}: ${selected.length}개 선택`;
+  };
 
-  // 필터링된 개체 데이터
-  // 육량 지수(A,B,C)를 제외하고 등급 비교
+  const toggleFilter = (selected: string[], value: string, setter: (v: string[]) => void) => {
+    setter(selected.includes(value) ? selected.filter(v => v !== value) : [...selected, value]);
+  };
+
+  const matchGrade = (grade: string, marblingScore: number, selected: string) => {
+    const baseGrade = grade.replace(/[ABC]/, '');
+    if (selected === '1++(9)') return baseGrade === '1++' && marblingScore === 9;
+    if (selected === '1++(8)') return baseGrade === '1++' && marblingScore === 8;
+    if (selected === '1++(7)') return baseGrade === '1++' && marblingScore === 7;
+    return baseGrade === selected;
+  };
+
   const filteredCattleData = cattleData.filter(item => {
-    const baseGrade = item.grade.replace(/[ABC]/, '');
-    let gradeMatch = selectedGrade === '전체';
-    if (!gradeMatch) {
-      if (selectedGrade === '1++(9)') gradeMatch = baseGrade === '1++' && item.marblingScore === 9;
-      else if (selectedGrade === '1++(8)') gradeMatch = baseGrade === '1++' && item.marblingScore === 8;
-      else if (selectedGrade === '1++(7)') gradeMatch = baseGrade === '1++' && item.marblingScore === 7;
-      else gradeMatch = baseGrade === selectedGrade;
-    }
-    const companyMatch = selectedCompany === '전체' || item.company === selectedCompany;
+    const gradeMatch = selectedGrades.length === 0 || selectedGrades.some(g => matchGrade(item.grade, item.marblingScore, g));
+    const companyMatch = selectedCompanies.length === 0 || selectedCompanies.includes(item.company);
     return gradeMatch && companyMatch;
   });
 
@@ -467,48 +595,45 @@ function MainPageContent() {
                 <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">-8,280,000원</span>
               </Link>
 
-              {/* 경매목록/경매정보/관심 탭 */}
+              {/* 개체별/부위별/경매정보/관심 탭 */}
               <div className="mt-4 px-4">
-                <div className="flex items-center gap-5">
-                  <button
-                    onClick={() => {
-                      setActiveTab('경매목록');
-                      router.push('/?tab=경매목록', { scroll: false });
-                    }}
-                    className={`text-[15px] font-semibold pb-1.5 transition-colors ${
-                      activeTab === '경매목록'
-                        ? 'text-gray-900 dark:text-gray-100 border-b-2 border-gray-900 dark:border-gray-100'
-                        : 'text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300'
-                    }`}
-                  >
-                    경매목록
-                  </button>
-                  <button
-                    onClick={() => {
-                      setActiveTab('경매정보');
-                      router.push('/?tab=경매정보', { scroll: false });
-                    }}
-                    className={`text-[15px] font-semibold pb-1.5 transition-colors ${
-                      activeTab === '경매정보'
-                        ? 'text-gray-900 dark:text-gray-100 border-b-2 border-gray-900 dark:border-gray-100'
-                        : 'text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300'
-                    }`}
-                  >
-                    경매정보
-                  </button>
-                  <button
-                    onClick={() => {
-                      setActiveTab('관심');
-                      router.push('/?tab=관심', { scroll: false });
-                    }}
-                    className={`text-[15px] font-semibold pb-1.5 transition-colors ${
-                      activeTab === '관심'
-                        ? 'text-gray-900 dark:text-gray-100 border-b-2 border-gray-900 dark:border-gray-100'
-                        : 'text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300'
-                    }`}
-                  >
-                    관심
-                  </button>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-5">
+                    {(['개체별', '부위별', '경매정보', '관심'] as const).map((tab) => (
+                      <button
+                        key={tab}
+                        onClick={() => {
+                          setActiveTab(tab);
+                          router.push(`/?tab=${tab}`, { scroll: false });
+                        }}
+                        className={`text-[15px] font-semibold pb-1.5 transition-colors ${
+                          activeTab === tab
+                            ? 'text-gray-900 dark:text-gray-100 border-b-2 border-gray-900 dark:border-gray-100'
+                            : 'text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300'
+                        }`}
+                      >
+                        {tab}
+                      </button>
+                    ))}
+                  </div>
+                  {!roundData ? (
+                    <div className="inline-flex items-center bg-gray-100 dark:bg-gray-800 rounded-full px-2.5 py-0.5">
+                      <div className="w-16 h-3.5 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+                    </div>
+                  ) : currentRound && auctionRemaining !== null && auctionRemaining > 0 ? (
+                    <div className="inline-flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-full px-2.5 py-0.5">
+                      <span className="text-[11px] font-semibold text-green-600 dark:text-green-400">경매 진행중</span>
+                      <span className={`text-xs font-bold tabular-nums ${auctionRemaining <= 60 ? 'text-red-600' : 'text-gray-900 dark:text-gray-100'}`}>
+                        {Math.floor(auctionRemaining / 60)}분 {String(auctionRemaining % 60).padStart(2, '0')}초
+                      </span>
+                    </div>
+                  ) : lastClosedRound ? (
+                    <div className="inline-flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-full px-2.5 py-0.5">
+                      <span className="text-[11px] font-semibold text-gray-500 dark:text-gray-400">
+                        {lastClosedRound.round_no}차 경매 마감
+                      </span>
+                    </div>
+                  ) : null}
                 </div>
               </div>
 
@@ -531,148 +656,131 @@ function MainPageContent() {
 
               {/* 탭 컨텐츠 */}
               <div className="pb-24 bg-white dark:bg-gray-900 transition-colors">
-                {activeTab === '경매목록' ? (
-                  <div className="pt-3">
-                    {/* 오늘의 경매 일정 타임테이블 */}
-                    {roundData?.allRounds && roundData.allRounds.length > 0 && (() => {
-                      const countPerRound: Record<number, number> = {};
-                      Object.values(roundListingMap).forEach((rNo) => {
-                        countPerRound[rNo] = (countPerRound[rNo] || 0) + 1;
-                      });
-                      const totalRoundListings = Object.values(countPerRound).reduce((s, n) => s + n, 0);
-
-                      return (
-                        <div className="mx-4 mb-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded overflow-hidden">
+                {activeTab === '개체별' ? (
+                  <div>
+                    {/* 등급/업체 필터 */}
+                    <div className="px-4 py-3 bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 filter-dropdown transition-colors">
+                      <div className="flex items-center gap-2.5 flex-wrap">
+                        <div className="relative">
                           <button
-                            onClick={() => setShowTimetable(!showTimetable)}
-                            className="w-full flex items-center justify-between px-3 py-2.5 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                            onClick={() => setOpenDropdown(openDropdown === 'grade' ? null : 'grade')}
+                            className={`flex items-center gap-1.5 px-3.5 py-2 rounded text-[13px] font-medium transition-colors ${
+                              selectedGrades.length > 0
+                                ? 'bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900'
+                                : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                            }`}
                           >
-                            <div className="flex items-center gap-1.5">
-                              <Clock className="w-3.5 h-3.5 text-gray-500 dark:text-gray-400" />
-                              <span className="text-[13px] font-semibold text-gray-900 dark:text-gray-100">오늘의 경매 일정</span>
-                              <span className="text-[11px] text-gray-400 dark:text-gray-500">
-                                {roundData.allRounds.length}회차 · 총 {totalRoundListings}두
-                              </span>
-                            </div>
-                            {showTimetable
-                              ? <ChevronUp className="w-4 h-4 text-gray-400 dark:text-gray-500" />
-                              : <ChevronDown className="w-4 h-4 text-gray-400 dark:text-gray-500" />
-                            }
+                            {filterLabel(selectedGrades, '등급')}
+                            <ChevronDown className={`h-4 w-4 transition-transform ${openDropdown === 'grade' ? 'rotate-180' : ''}`} />
                           </button>
-                          <AnimatePresence>
-                            {showTimetable && (
-                              <motion.div
-                                initial={{ height: 0, opacity: 0 }}
-                                animate={{ height: 'auto', opacity: 1 }}
-                                exit={{ height: 0, opacity: 0 }}
-                                transition={{ duration: 0.15, ease: 'easeInOut' }}
-                                className="overflow-hidden"
+                          {openDropdown === 'grade' && (
+                            <div className="absolute top-full left-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-20 min-w-[130px]">
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setSelectedGrades([]); setOpenDropdown(null); }}
+                                className={`flex items-center justify-between w-full text-left px-4 py-2.5 text-[13px] hover:bg-gray-50 dark:hover:bg-gray-700 rounded-t-lg ${
+                                  selectedGrades.length === 0 ? 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 font-medium' : 'text-gray-700 dark:text-gray-300'
+                                }`}
                               >
-                                <div className="border-t border-gray-100 dark:border-gray-700">
-                                  {roundData.allRounds.map((round: any) => {
-                                    const isOpen = round.status === 'open';
-                                    const isClosed = round.status === 'closed';
-                                    const startTime = round.start_time?.slice(0, 5);
-                                    const endTime = round.end_time?.slice(0, 5);
-                                    const timeStr = startTime && endTime ? `${startTime} ~ ${endTime}` : startTime ? `${startTime} ~` : null;
-                                    const roundCount = countPerRound[round.round_no] || 0;
-
-                                    return (
-                                      <div
-                                        key={round.id}
-                                        className={`flex items-center gap-3 px-3 py-2 ${
-                                          isOpen ? 'bg-green-50/60 dark:bg-green-900/20' : ''
-                                        }`}
-                                      >
-                                        <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                                          isOpen ? 'bg-green-500 animate-pulse' : isClosed ? 'bg-gray-300 dark:bg-gray-600' : 'bg-gray-300 dark:bg-gray-600'
-                                        }`} />
-                                        <span className={`text-[13px] font-medium min-w-[32px] ${
-                                          isClosed ? 'text-gray-400 dark:text-gray-500 line-through' : 'text-gray-900 dark:text-gray-100'
-                                        }`}>
-                                          {round.round_no}차
-                                        </span>
-                                        {timeStr && (
-                                          <span className={`text-[12px] tabular-nums ${
-                                            isClosed ? 'text-gray-400 dark:text-gray-500' : 'text-gray-600 dark:text-gray-400'
-                                          }`}>
-                                            {timeStr}
-                                          </span>
-                                        )}
-                                        <span className={`text-[11px] ${
-                                          isClosed ? 'text-gray-400 dark:text-gray-500' : 'text-gray-500 dark:text-gray-400'
-                                        }`}>
-                                          {roundCount}두
-                                        </span>
-                                        <span className="ml-auto text-[11px] font-medium">
-                                          {isOpen ? (
-                                            <span className="text-green-600 dark:text-green-400">
-                                              진행중 {timetableRemaining > 0 && (
-                                                <span className="font-mono tabular-nums">
-                                                  {Math.floor(timetableRemaining / 60)}:{String(timetableRemaining % 60).padStart(2, '0')}
-                                                </span>
-                                              )}
-                                            </span>
-                                          ) : isClosed ? (
-                                            <span className="text-gray-400 dark:text-gray-500">마감</span>
-                                          ) : (
-                                            <span className="text-gray-400 dark:text-gray-500">대기</span>
-                                          )}
-                                        </span>
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              </motion.div>
-                            )}
-                          </AnimatePresence>
+                                전체
+                                {selectedGrades.length === 0 && <Check className="h-4 w-4" />}
+                              </button>
+                              {gradeOptions.map((option, idx) => (
+                                <button
+                                  key={option}
+                                  onClick={(e) => { e.stopPropagation(); toggleFilter(selectedGrades, option, setSelectedGrades); }}
+                                  className={`flex items-center justify-between w-full text-left px-4 py-2.5 text-[13px] hover:bg-gray-50 dark:hover:bg-gray-700 ${
+                                    idx === gradeOptions.length - 1 ? 'rounded-b-lg' : ''
+                                  } ${
+                                    selectedGrades.includes(option) ? 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 font-medium' : 'text-gray-700 dark:text-gray-300'
+                                  }`}
+                                >
+                                  {option}
+                                  {selectedGrades.includes(option) && <Check className="h-4 w-4" />}
+                                </button>
+                              ))}
+                            </div>
+                          )}
                         </div>
-                      );
-                    })()}
 
-                    {/* 경매목록 테이블 */}
-                    {cattleData.length === 0 ? (
+                        <div className="relative">
+                          <button
+                            onClick={() => setOpenDropdown(openDropdown === 'company' ? null : 'company')}
+                            className={`flex items-center gap-1.5 px-3.5 py-2 rounded text-[13px] font-medium transition-colors ${
+                              selectedCompanies.length > 0
+                                ? 'bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900'
+                                : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                            }`}
+                          >
+                            {filterLabel(selectedCompanies, '업체')}
+                            <ChevronDown className={`h-4 w-4 transition-transform ${openDropdown === 'company' ? 'rotate-180' : ''}`} />
+                          </button>
+                          {openDropdown === 'company' && (
+                            <div className="absolute top-full left-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-20 min-w-[130px]">
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setSelectedCompanies([]); setOpenDropdown(null); }}
+                                className={`flex items-center justify-between w-full text-left px-4 py-2.5 text-[13px] hover:bg-gray-50 dark:hover:bg-gray-700 rounded-t-lg ${
+                                  selectedCompanies.length === 0 ? 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 font-medium' : 'text-gray-700 dark:text-gray-300'
+                                }`}
+                              >
+                                전체
+                                {selectedCompanies.length === 0 && <Check className="h-4 w-4" />}
+                              </button>
+                              {companyOptions.map((option, idx) => (
+                                <button
+                                  key={option}
+                                  onClick={(e) => { e.stopPropagation(); toggleFilter(selectedCompanies, option, setSelectedCompanies); }}
+                                  className={`flex items-center justify-between w-full text-left px-4 py-2.5 text-[13px] hover:bg-gray-50 dark:hover:bg-gray-700 whitespace-nowrap ${
+                                    idx === companyOptions.length - 1 ? 'rounded-b-lg' : ''
+                                  } ${
+                                    selectedCompanies.includes(option) ? 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 font-medium' : 'text-gray-700 dark:text-gray-300'
+                                  }`}
+                                >
+                                  {option}
+                                  {selectedCompanies.includes(option) && <Check className="h-4 w-4" />}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        <span className="ml-auto text-[13px] text-gray-400 dark:text-gray-500">
+                          {filteredCattleData.length}개
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* 개체별 테이블 */}
+                    {filteredCattleData.length === 0 ? (
                       <div className="text-center py-12">
                         <div className="text-gray-400 dark:text-gray-500 mb-2">
                           <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                           </svg>
                         </div>
-                        <p className="text-gray-500 dark:text-gray-400 text-sm">상장된 개체가 없습니다.</p>
+                        <p className="text-gray-500 dark:text-gray-400 text-sm">
+                          {cattleData.length === 0 ? '상장된 개체가 없습니다.' : '필터 조건에 맞는 개체가 없습니다.'}
+                        </p>
                       </div>
                     ) : (
                     <div className="bg-white dark:bg-gray-900 border-y border-gray-200 dark:border-gray-700 transition-colors">
-                      <table className="w-full text-[13px]">
+                      <table className="w-full text-[13px] table-fixed">
                         <thead className="sticky top-0 z-10">
                           <tr className="bg-gray-100 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-                              <th className="py-2.5 px-1.5 text-center font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">차수</th>
-                              <th className="py-2.5 px-1.5 text-center font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">접수번호</th>
+                              <th className="py-2.5 px-1.5 text-center font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap w-[30%]">접수번호</th>
                               <th className="py-2.5 px-1.5 text-center font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">성별</th>
                               <th className="py-2.5 px-1.5 text-center font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">등급</th>
                               <th className="py-2.5 px-1.5 text-center font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">개월령</th>
                               <th className="py-2.5 px-1.5 text-center font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">상장업체</th>
-                              <th className="py-2.5 px-1.5 text-center font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">관심</th>
+                              <th className="py-2.5 px-1.5 pr-3 text-center font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap w-[52px]">관심</th>
                           </tr>
                         </thead>
                         <tbody>
-                            {cattleData.map((item, index) => (
+                            {filteredCattleData.map((item, index) => (
                             <tr 
                               key={item.id}
                               onClick={() => router.push(`/auction/${item.id}`)}
                               className={`border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer active:bg-gray-100 dark:active:bg-gray-700 transition-colors ${(item as any).status === 'completed' ? 'opacity-60' : ''} ${index % 2 === 1 ? 'bg-gray-50/50 dark:bg-gray-800/50' : ''}`}
                             >
-                                <td className="py-3 px-1.5 text-center whitespace-nowrap">
-                                    {(() => {
-                                      const rNo = roundListingMap[(item as any).listingId];
-                                      const isCompleted = (item as any).status === 'completed';
-                                      if (!rNo) return <span className="text-[11px] text-gray-300 dark:text-gray-600">-</span>;
-                                      return (
-                                        <span className={`inline-flex items-center justify-center min-w-[28px] px-1 py-0.5 rounded text-[11px] font-bold ${isCompleted ? 'bg-gray-200 dark:bg-gray-600 text-gray-500 dark:text-gray-400 line-through' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'}`}>
-                                          {rNo}차
-                                        </span>
-                                      );
-                                    })()}
-                                  </td>
                                 <td className="py-3 px-1.5 text-center font-medium text-gray-900 dark:text-gray-100 whitespace-nowrap">{item.id}</td>
                                 <td className="py-3 px-1.5 text-center text-gray-700 dark:text-gray-300 whitespace-nowrap">{item.gender}</td>
                                 <td className="py-3 px-1.5 text-center text-gray-700 dark:text-gray-300 whitespace-nowrap">{formatGrade(item.grade, item.marblingScore)}</td>
@@ -700,73 +808,480 @@ function MainPageContent() {
                     </div>
                     )}
                   </div>
-                ) : activeTab === '관심' ? (
-                  <div className="pt-4">
+                ) : activeTab === '부위별' ? (
+                  <div className="pt-3 px-4">
                     {(() => {
-                        const entityFavorites = favorites.filter(id => !id.includes('-', id.indexOf('-') + 1) || id.split('-').length === 2);
-                        return entityFavorites.length === 0 ? (
-                      <div className="text-center py-12">
-                        <Star className="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-3" />
-                        <p className="text-gray-500 dark:text-gray-400 text-sm">관심 등록된 개체가 없습니다.</p>
-                        <p className="text-gray-400 dark:text-gray-500 text-xs mt-1">경매목록 탭에서 별 아이콘을 눌러 추가해보세요.</p>
+                      const partsCategories = [
+                        { id: 'sirloin', name: '등심', image: '/등심1.png' },
+                        { id: 'tenderloin', name: '안심', image: '/등심2.png' },
+                        { id: 'striploin', name: '채끝', image: '/등심3.png' },
+                        { id: 'chima', name: '치마', image: '/등심4.png' },
+                        { id: 'buchae', name: '부채', image: '/등심1.png' },
+                        { id: 'upjin', name: '업진', image: '/등심2.png' },
+                        { id: 'tosi', name: '토시·제비', image: '/등심3.png' },
+                        { id: 'foreleg', name: '앞다리', image: '/등심2.png' },
+                        { id: 'rump', name: '우둔', image: '/등심3.png' },
+                        { id: 'chuck', name: '목심', image: '/등심4.png' },
+                        { id: 'brisket', name: '양지', image: '/등심1.png' },
+                        { id: 'round', name: '설도', image: '/등심2.png' },
+                        { id: 'shank', name: '사태', image: '/등심3.png' },
+                        { id: 'tail', name: '꼬리', image: '/등심4.png' },
+                        { id: 'feet', name: '족', image: '/등심1.png' },
+                        { id: 'bone', name: '사골', image: '/등심2.png' },
+                        { id: 'misc', name: '잡뼈', image: '/등심3.png' },
+                      ];
+
+                      const partSubParts: Record<string, string[]> = {
+                        sirloin: ['등심(좌)', '등심(우)'],
+                        tenderloin: ['안심'],
+                        striploin: ['채끝'],
+                        chima: ['치마'],
+                        buchae: ['부채'],
+                        upjin: ['업진'],
+                        tosi: ['토시·제비'],
+                        foreleg: ['앞다리'],
+                        rump: ['우둔'],
+                        chuck: ['목심'],
+                        brisket: ['양지(좌)', '양지(우)'],
+                        round: ['설도(좌)', '설도(우)'],
+                        shank: ['사태'],
+                        tail: ['꼬리'],
+                        feet: ['족'],
+                        bone: ['사골'],
+                        misc: ['잡뼈'],
+                      };
+
+                      const getPartCount = (partId: string) => {
+                        const subParts = partSubParts[partId] || [];
+                        let count = 0;
+                        cattleData.forEach((item: any) => {
+                          item.parts?.forEach((p: any) => {
+                            if (subParts.includes(p.partName) && p.isIncluded) count++;
+                          });
+                        });
+                        return count;
+                      };
+
+                      return (
+                        <div className="grid grid-cols-2 gap-3">
+                          {partsCategories.map((part) => {
+                            const count = getPartCount(part.id);
+                            return (
+                              <button
+                                key={part.id}
+                                onClick={() => router.push(`/auction?tab=part&part=${part.id}`)}
+                                className="relative rounded overflow-hidden hover:shadow-md transition-shadow"
+                              >
+                                <div className="aspect-[16/9] bg-gray-100 dark:bg-gray-700 overflow-hidden">
+                                  <img src={part.image} alt={part.name} className="w-full h-full object-cover" />
+                                </div>
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                                <div className="absolute bottom-0 left-0 right-0 px-3 pb-2.5 flex items-end justify-between">
+                                  <p className="text-[14px] font-bold text-white drop-shadow-sm">{part.name}</p>
+                                  <p className="text-[13px] font-medium text-white/90 drop-shadow-sm">{count}건</p>
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      );
+                    })()}
+                  </div>
+                ) : activeTab === '관심' ? (
+                  <div>
+                    {/* 개체별/부위별 서브탭 */}
+                    <div className="px-4 pt-3 pb-2 bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800">
+                      <div className="flex gap-2">
+                        {(['개체별', '부위별'] as const).map((tab) => (
+                          <button
+                            key={tab}
+                            onClick={() => setFavSubTab(tab)}
+                            className={`px-4 py-1.5 text-[13px] font-medium rounded-full transition-colors ${
+                              favSubTab === tab
+                                ? 'bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900'
+                                : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
+                            }`}
+                          >
+                            {tab}
+                          </button>
+                        ))}
                       </div>
-                    ) : (
-                      <div className="bg-white dark:bg-gray-900 border-y border-gray-200 dark:border-gray-700 transition-colors">
-                        <table className="w-full text-[13px]">
-                          <thead className="sticky top-0 z-10">
-                            <tr className="bg-gray-100 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-                                  <th className="py-2.5 px-1.5 text-center font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">차수</th>
-                                  <th className="py-2.5 px-1.5 text-center font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">접수번호</th>
+                    </div>
+
+                    {favSubTab === '개체별' ? (
+                      (() => {
+                        const entityFavList = cattleData.filter(item => isHydrated && isFavorite(item.id));
+                        return entityFavList.length === 0 ? (
+                          <div className="text-center py-12">
+                            <Star className="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-3" />
+                            <p className="text-gray-500 dark:text-gray-400 text-sm">관심 등록된 개체가 없습니다.</p>
+                            <p className="text-gray-400 dark:text-gray-500 text-xs mt-1">개체별 탭에서 별 아이콘을 눌러 추가해보세요.</p>
+                          </div>
+                        ) : (
+                          <div className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 transition-colors">
+                            <table className="w-full text-[13px] table-fixed">
+                              <thead className="sticky top-0 z-10">
+                                <tr className="bg-gray-100 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+                                  <th className="py-2.5 px-1.5 text-center font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap w-[30%]">접수번호</th>
                                   <th className="py-2.5 px-1.5 text-center font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">성별</th>
                                   <th className="py-2.5 px-1.5 text-center font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">등급</th>
                                   <th className="py-2.5 px-1.5 text-center font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">개월령</th>
                                   <th className="py-2.5 px-1.5 text-center font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">상장업체</th>
-                                  <th className="py-2.5 px-1.5 text-center font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">관심</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {cattleData.filter(item => isHydrated && isFavorite(item.id)).map((item, index) => (
-                              <tr 
-                                key={item.id} 
-                                onClick={() => router.push(`/auction/${item.id}`)}
-                                className={`border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer active:bg-gray-100 dark:active:bg-gray-700 transition-colors ${(item as any).status === 'completed' ? 'opacity-60' : ''} ${index % 2 === 1 ? 'bg-gray-50/50 dark:bg-gray-800/50' : ''}`}
-                              >
-                                    <td className="py-3 px-1.5 text-center whitespace-nowrap">
-                                        {(() => {
-                                          const rNo = roundListingMap[(item as any).listingId];
-                                          const isCompleted = (item as any).status === 'completed';
-                                          if (!rNo) return <span className="text-[11px] text-gray-300 dark:text-gray-600">-</span>;
-                                          return (
-                                            <span className={`inline-flex items-center justify-center min-w-[28px] px-1 py-0.5 rounded text-[11px] font-bold ${isCompleted ? 'bg-gray-200 dark:bg-gray-600 text-gray-500 dark:text-gray-400 line-through' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'}`}>
-                                              {rNo}차
-                                            </span>
-                                          );
-                                        })()}
-                                      </td>
+                                  <th className="py-2.5 px-1.5 pr-3 text-center font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap w-[52px]">관심</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {entityFavList.map((item, index) => (
+                                  <tr
+                                    key={item.id}
+                                    onClick={() => router.push(`/auction/${item.id}`)}
+                                    className={`border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer active:bg-gray-100 dark:active:bg-gray-700 transition-colors ${(item as any).status === 'completed' ? 'opacity-60' : ''} ${index % 2 === 1 ? 'bg-gray-50/50 dark:bg-gray-800/50' : ''}`}
+                                  >
                                     <td className="py-3 px-1.5 text-center font-medium text-gray-900 dark:text-gray-100 whitespace-nowrap">{item.id}</td>
                                     <td className="py-3 px-1.5 text-center text-gray-700 dark:text-gray-300 whitespace-nowrap">{item.gender}</td>
                                     <td className="py-3 px-1.5 text-center text-gray-700 dark:text-gray-300 whitespace-nowrap">{formatGrade(item.grade, item.marblingScore)}</td>
                                     <td className="py-3 px-1.5 text-center text-gray-700 dark:text-gray-300 whitespace-nowrap">{item.months}</td>
                                     <td className="py-3 px-1.5 text-center text-gray-700 dark:text-gray-300 whitespace-nowrap">{item.company}</td>
-                                    <td className="py-3 px-1.5 text-center">
-                                  <button 
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      toggleFavorite(item.id);
-                                    }}
-                                    className="p-1.5 text-gray-900 dark:text-gray-100 transition-colors"
-                                  >
-                                    <Star className="w-5 h-5 fill-current" />
-                                  </button>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
+                                    <td className="py-3 px-1.5 pr-3 text-center">
+                                      <button
+                                        onClick={(e) => { e.stopPropagation(); toggleFavorite(item.id); }}
+                                        className="p-1.5 text-gray-900 dark:text-gray-100 transition-colors"
+                                      >
+                                        <Star className="w-5 h-5 fill-current" />
+                                      </button>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
                         );
                       })()
-                    }
+                    ) : (
+                      (() => {
+                        const activeFavParts = favPartData.filter((p: any) => !p.hasWinner);
+                        const settledFavParts = favPartData.filter((p: any) => p.hasWinner);
+
+                        return favPartData.length === 0 ? (
+                          <div className="text-center py-12">
+                            <Star className="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-3" />
+                            <p className="text-gray-500 dark:text-gray-400 text-sm">관심 등록된 부위가 없습니다.</p>
+                            <p className="text-gray-400 dark:text-gray-500 text-xs mt-1">부위별 탭에서 별 아이콘을 눌러 추가해보세요.</p>
+                          </div>
+                        ) : (
+                          <div className="bg-white dark:bg-gray-900 transition-colors">
+                            {/* 진행중 헤더 */}
+                            <div className="bg-gray-100 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 h-9 flex items-center sticky top-0 z-10 transition-colors">
+                              <div className="grid px-2 text-[13px] font-medium text-gray-500 dark:text-gray-400 w-full" style={{gridTemplateColumns: '1.1fr 0.6fr 0.85fr 1.1fr 0.5fr 0.5fr 0.35fr'}}>
+                                <div className="text-center">부위</div>
+                                <div className="text-center">중량</div>
+                                <div className="text-center">최저단가</div>
+                                <div className="text-center">나의입찰가</div>
+                                <div className="text-center">변경</div>
+                                <div className="text-center">취소</div>
+                                <div className="text-center">관심</div>
+                              </div>
+                            </div>
+                            {/* 진행중 행 */}
+                            {activeFavParts.length === 0 && settledFavParts.length > 0 ? (
+                              <div className="text-center py-8">
+                                <p className="text-sm text-gray-500 dark:text-gray-400">모든 부위의 낙찰이 결정되었습니다.</p>
+                              </div>
+                            ) : activeFavParts.map((part: any) => {
+                              const hasBid = !!part.myBid?.bidPrice;
+                              const isExpanded = expandedFavPartId === part.id;
+                              return (
+                                <div key={part.id} id={`fav-part-row-${part.id}`} className={isExpanded ? 'border-2 border-red-500 dark:border-red-400' : ''}>
+                                  <div
+                                    onClick={() => setExpandedFavPartId(isExpanded ? null : part.id)}
+                                    className={`grid px-2 py-3 border-b border-gray-100 dark:border-gray-800 cursor-pointer transition-colors items-center ${
+                                      hasBid ? 'bg-blue-50/50 dark:bg-blue-900/30' : 'bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800'
+                                    }`}
+                                    style={{gridTemplateColumns: '1.1fr 0.6fr 0.85fr 1.1fr 0.5fr 0.5fr 0.35fr'}}
+                                  >
+                                    <div className="text-center">
+                                      <div className="text-[13px] font-medium text-gray-900 dark:text-gray-100">{part.partName}</div>
+                                      <div className="text-[11px] text-gray-500 dark:text-gray-400 whitespace-nowrap">{part.gender} / {formatGrade(part.grade, part.marblingScore)}</div>
+                                    </div>
+                                    <div className="text-center text-[13px] text-gray-700 dark:text-gray-300 flex items-center justify-center">{part.weight}</div>
+                                    <div className="text-center text-[13px] text-gray-700 dark:text-gray-300 flex items-center justify-center">{part.minPrice.toLocaleString()}</div>
+                                    <div className="flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
+                                      {hasBid ? (
+                                        <span className="text-[13px] font-medium text-gray-900 dark:text-gray-100">{part.myBid!.bidPrice.toLocaleString()}</span>
+                                      ) : (
+                                        <button
+                                          disabled={!canBidFavPart}
+                                          onClick={() => { if (!canBidFavPart) { showToastMessage('경매 진행중이 아닙니다.', 'warning'); return; } setSelectedFavPart(part); setFavPartBidPrice(0); setShowFavPartBidSheet(true); }}
+                                          className={`px-2 py-1 text-[11px] font-medium rounded transition-colors ${canBidFavPart ? 'text-white bg-gray-800 dark:bg-gray-700 hover:bg-gray-900 dark:hover:bg-gray-600' : 'text-gray-400 bg-gray-200 dark:bg-gray-700 cursor-not-allowed'}`}
+                                        >
+                                          입찰하기
+                                        </button>
+                                      )}
+                                    </div>
+                                    <div className="flex items-center justify-center">
+                                      {hasBid ? (
+                                        <button
+                                          onClick={(e) => { e.stopPropagation(); if (!canBidFavPart) { showToastMessage('경매 진행중이 아닙니다.', 'warning'); return; } setSelectedFavPart(part); setFavPartBidPrice(0); setShowFavPartBidSheet(true); }}
+                                          className={`px-1.5 py-1 text-[11px] font-medium rounded transition-colors ${canBidFavPart ? 'text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 hover:bg-blue-50 dark:hover:bg-blue-900/30' : 'text-gray-400 dark:text-gray-500 border border-gray-200 dark:border-gray-700'}`}
+                                        >변경</button>
+                                      ) : (<span className="text-[13px] text-gray-400 dark:text-gray-500">-</span>)}
+                                    </div>
+                                    <div className="flex items-center justify-center">
+                                      {hasBid && part.myBid?.bidId ? (
+                                        <button
+                                          onClick={(e) => { e.stopPropagation(); if (!canBidFavPart) { showToastMessage('경매 진행중이 아닙니다.', 'warning'); return; } handleFavPartCancelBid(part.myBid!.bidId, part.partName); }}
+                                          className={`px-1.5 py-1 text-[11px] font-medium rounded transition-colors ${canBidFavPart ? 'text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 hover:bg-red-50 dark:hover:bg-red-900/30' : 'text-gray-400 dark:text-gray-500 border border-gray-200 dark:border-gray-700'}`}
+                                        >취소</button>
+                                      ) : (<span className="text-[13px] text-gray-400 dark:text-gray-500">-</span>)}
+                                    </div>
+                                    <div className="text-center flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
+                                      <button onClick={() => toggleFavorite(part.id)} className="p-1.5 text-gray-900 dark:text-gray-100 transition-colors">
+                                        <Star className="w-5 h-5 fill-current" />
+                                      </button>
+                                    </div>
+                                  </div>
+
+                                  {/* 펼쳐지는 개체 정보 */}
+                                  <AnimatePresence>
+                                    {isExpanded && (
+                                      <motion.div
+                                        initial={{ height: 0, opacity: 0 }}
+                                        animate={{ height: 'auto', opacity: 1 }}
+                                        exit={{ height: 0, opacity: 0 }}
+                                        transition={{ duration: 0.2 }}
+                                        className="overflow-hidden border-b border-gray-200 dark:border-gray-700"
+                                      >
+                                        {/* 메인 이미지 */}
+                                        <div
+                                          className="relative overflow-hidden cursor-grab active:cursor-grabbing select-none"
+                                          onTouchStart={(e) => handleFavTouchStart(e, part.id)}
+                                          onTouchMove={handleFavTouchMove}
+                                          onTouchEnd={handleFavTouchEnd}
+                                          onMouseDown={(e) => handleFavMouseDown(e, part.id)}
+                                          onMouseMove={handleFavMouseMove}
+                                          onMouseUp={handleFavMouseUp}
+                                          onMouseLeave={handleFavMouseLeave}
+                                        >
+                                          <div className="w-full aspect-square bg-gray-200 dark:bg-gray-800">
+                                            {(() => {
+                                              const imgIndex = favPartImageIndex[part.id] || 0;
+                                              const dbImages = part.images || [];
+                                              const imageCount = Math.max(dbImages.length, 4);
+                                              const hasGradeCert = !!part.gradeCert?.fileData;
+                                              const hasSlaughterCert = !!part.slaughterCert?.fileData;
+                                              if (hasGradeCert && imgIndex === imageCount) {
+                                                return (<div className="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-gray-700 p-4"><img src={part.gradeCert.fileData} alt="등급판정확인서" className="max-w-full max-h-full object-contain shadow-lg" /></div>);
+                                              }
+                                              const slaughterIdx = imageCount + (hasGradeCert ? 1 : 0);
+                                              if (hasSlaughterCert && imgIndex === slaughterIdx) {
+                                                return (<div className="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-gray-700 p-4"><img src={part.slaughterCert.fileData} alt="도축검사증명서" className="max-w-full max-h-full object-contain shadow-lg" /></div>);
+                                              }
+                                              const imageSrc = dbImages[imgIndex] || `/등심${(imgIndex % 4) + 1}.png`;
+                                              return (<img src={imageSrc} alt="개체 이미지" className="w-full h-full object-cover select-none pointer-events-none" draggable="false" />);
+                                            })()}
+                                          </div>
+                                          {(() => {
+                                            const dbImages = part.images || [];
+                                            const imageCount = Math.max(dbImages.length, 4);
+                                            const hasGradeCert = !!part.gradeCert?.fileData;
+                                            const hasSlaughterCert = !!part.slaughterCert?.fileData;
+                                            const totalCount = imageCount + (hasGradeCert ? 1 : 0) + (hasSlaughterCert ? 1 : 0);
+                                            return (
+                                              <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2">
+                                                {Array.from({ length: totalCount }).map((_, index) => (
+                                                  <button key={index} onClick={(e) => { e.stopPropagation(); setFavPartImageIndex(prev => ({ ...prev, [part.id]: index })); }}
+                                                    className={`w-2 h-2 rounded-full transition-colors ${(favPartImageIndex[part.id] || 0) === index ? 'bg-white' : 'bg-white/50'}`} />
+                                                ))}
+                                              </div>
+                                            );
+                                          })()}
+                                        </div>
+
+                                        {/* 썸네일 */}
+                                        <div className="px-3 py-2">
+                                          <div className="flex gap-1.5 justify-start overflow-x-auto">
+                                            {(() => {
+                                              const dbImages = part.images || [];
+                                              const imageCount = Math.max(dbImages.length, 4);
+                                              return Array.from({ length: imageCount }).map((_, index) => (
+                                                <button key={index} onClick={(e) => { e.stopPropagation(); setFavPartImageIndex(prev => ({ ...prev, [part.id]: index })); }}
+                                                  className={`w-14 h-14 flex-shrink-0 rounded overflow-hidden transition-all ${(favPartImageIndex[part.id] || 0) === index ? 'border-2 border-gray-400 dark:border-gray-500' : 'border-2 border-transparent hover:border-gray-300 dark:hover:border-gray-600'}`}>
+                                                  <img src={dbImages[index] || `/등심${(index % 4) + 1}.png`} alt={`이미지 ${index + 1}`} className="w-full h-full object-cover" />
+                                                </button>
+                                              ));
+                                            })()}
+                                            {part.gradeCert?.fileData && (() => {
+                                              const certIdx = Math.max((part.images || []).length, 4);
+                                              return (<button onClick={(e) => { e.stopPropagation(); setFavPartImageIndex(prev => ({ ...prev, [part.id]: certIdx })); }}
+                                                className={`w-14 h-14 flex-shrink-0 rounded overflow-hidden transition-all ${(favPartImageIndex[part.id] || 0) === certIdx ? 'border-2 border-gray-400' : 'border-2 border-transparent hover:border-gray-300'}`}>
+                                                <img src={part.gradeCert.fileData} alt="등급판정확인서" className="w-full h-full object-cover" /></button>);
+                                            })()}
+                                            {part.slaughterCert?.fileData && (() => {
+                                              const hasGC = !!part.gradeCert?.fileData;
+                                              const certIdx = Math.max((part.images || []).length, 4) + (hasGC ? 1 : 0);
+                                              return (<button onClick={(e) => { e.stopPropagation(); setFavPartImageIndex(prev => ({ ...prev, [part.id]: certIdx })); }}
+                                                className={`w-14 h-14 flex-shrink-0 rounded overflow-hidden transition-all ${(favPartImageIndex[part.id] || 0) === certIdx ? 'border-2 border-gray-400' : 'border-2 border-transparent hover:border-gray-300'}`}>
+                                                <img src={part.slaughterCert.fileData} alt="도축검사증명서" className="w-full h-full object-cover" /></button>);
+                                            })()}
+                                          </div>
+                                        </div>
+
+                                        {/* 개체정보 */}
+                                        <div className="px-3 py-3 border-t border-gray-200 dark:border-gray-700">
+                                          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded overflow-hidden mb-2">
+                                            <table className="w-full text-[13px]">
+                                              <thead><tr className="bg-gray-100/80 dark:bg-gray-700/80 border-b border-gray-200 dark:border-gray-600">
+                                                <th className="py-2.5 px-2 text-center font-medium text-gray-500 dark:text-gray-400">축종</th>
+                                                <th className="py-2.5 px-2 text-center font-medium text-gray-500 dark:text-gray-400">성별</th>
+                                                <th className="py-2.5 px-2 text-center font-medium text-gray-500 dark:text-gray-400">등급</th>
+                                                <th className="py-2.5 px-2 text-center font-medium text-gray-500 dark:text-gray-400">개월령</th>
+                                                <th className="py-2.5 px-2 text-center font-medium text-gray-500 dark:text-gray-400">이력번호</th>
+                                              </tr></thead>
+                                              <tbody><tr>
+                                                <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">{part.breed || '한우'}</td>
+                                                <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">{part.gender}</td>
+                                                <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">{formatGrade(part.grade, part.marblingScore)}</td>
+                                                <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">{part.monthAge || '-'}</td>
+                                                <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium text-[11px]">{part.traceNo || '-'}</td>
+                                              </tr></tbody>
+                                            </table>
+                                          </div>
+                                          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded overflow-hidden mb-2">
+                                            <table className="w-full text-[13px]">
+                                              <thead><tr className="bg-gray-100/80 dark:bg-gray-700/80 border-b border-gray-200 dark:border-gray-600">
+                                                <th className="py-2.5 px-2 text-center font-medium text-gray-500 dark:text-gray-400">등지방</th>
+                                                <th className="py-2.5 px-2 text-center font-medium text-gray-500 dark:text-gray-400">등심면적</th>
+                                                <th className="py-2.5 px-2 text-center font-medium text-gray-500 dark:text-gray-400">근내지방</th>
+                                                <th className="py-2.5 px-2 text-center font-medium text-gray-500 dark:text-gray-400">육색</th>
+                                                <th className="py-2.5 px-2 text-center font-medium text-gray-500 dark:text-gray-400">지방색</th>
+                                                <th className="py-2.5 px-2 text-center font-medium text-gray-500 dark:text-gray-400">조직감</th>
+                                                <th className="py-2.5 px-2 text-center font-medium text-gray-500 dark:text-gray-400">성숙도</th>
+                                              </tr></thead>
+                                              <tbody><tr>
+                                                <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">{part.backFat || '-'}</td>
+                                                <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">{part.eyeMuscle || '-'}</td>
+                                                <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">{part.marblingScore || '-'}</td>
+                                                <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">{part.meatColor || '-'}</td>
+                                                <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">{part.fatColor || '-'}</td>
+                                                <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">{part.texture || '-'}</td>
+                                                <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">{part.maturity || '-'}</td>
+                                              </tr></tbody>
+                                            </table>
+                                          </div>
+                                          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded overflow-hidden">
+                                            <table className="w-full text-[13px]">
+                                              <thead><tr className="bg-gray-100/80 dark:bg-gray-700/80 border-b border-gray-200 dark:border-gray-600">
+                                                <th className="py-2.5 px-2 text-center font-medium text-gray-500 dark:text-gray-400">도축장</th>
+                                                <th className="py-2.5 px-2 text-center font-medium text-gray-500 dark:text-gray-400">도축번호</th>
+                                                <th className="py-2.5 px-2 text-center font-medium text-gray-500 dark:text-gray-400">도체중</th>
+                                                <th className="py-2.5 px-2 text-center font-medium text-gray-500 dark:text-gray-400">상장업체</th>
+                                                <th className="py-2.5 px-2 text-center font-medium text-gray-500 dark:text-gray-400">가공일</th>
+                                                <th className="py-2.5 px-2 text-center font-medium text-gray-500 dark:text-gray-400">가공중량</th>
+                                              </tr></thead>
+                                              <tbody><tr>
+                                                <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">{part.slaughterHouse || '-'}</td>
+                                                <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">{part.slaughterNo || '-'}</td>
+                                                <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">{part.carcassWeight || '-'}</td>
+                                                <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">{part.company || '-'}</td>
+                                                <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">{part.processDate ? part.processDate.replace(/-/g, '.').slice(2) : '-'}</td>
+                                                <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">{part.processWeight || '-'}</td>
+                                              </tr></tbody>
+                                            </table>
+                                          </div>
+                                        </div>
+
+                                        {/* 하단 버튼 */}
+                                        <div className="px-3 py-3 border-t border-gray-200 bg-white flex items-center gap-2">
+                                          <a href="https://aunit.mtrace.go.kr/mtracesearch/cattleNoSearch.do?btsProgNo=0109008401&btsActionMethod=SELECT" target="_blank" rel="noopener noreferrer"
+                                            className="px-3 py-1.5 text-xs font-bold rounded border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                                            축산물 이력정보 <ExternalLink className="w-3 h-3" />
+                                          </a>
+                                          <div className="flex-1" />
+                                          <button disabled={!canBidFavPart}
+                                            onClick={(e) => { e.stopPropagation(); setSelectedFavPart(part); setFavPartBidPrice(part.minPrice); setShowFavPartBidSheet(true); }}
+                                            className={`px-3 py-1.5 text-xs font-bold rounded transition-colors ${canBidFavPart ? 'bg-gray-800 text-white hover:bg-gray-900' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}>
+                                            입찰하기
+                                          </button>
+                                          <button onClick={(e) => { e.stopPropagation(); setExpandedFavPartId(null); const el = document.getElementById(`fav-part-row-${part.id}`); if (el) setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'center' }), 300); }}
+                                            className="px-3 py-1.5 text-xs font-bold rounded border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 transition-colors">
+                                            개체정보 닫기
+                                          </button>
+                                        </div>
+                                      </motion.div>
+                                    )}
+                                  </AnimatePresence>
+                                </div>
+                              );
+                            })}
+
+                            {/* 경매 결과 섹션 */}
+                            {settledFavParts.length > 0 && (
+                              <div className="mt-4">
+                                <div className="px-3 py-2.5 bg-gray-50 dark:bg-gray-800 border-y border-gray-200 dark:border-gray-700">
+                                  <h3 className="text-[13px] font-bold text-gray-900 dark:text-gray-100">
+                                    경매 결과 ({settledFavParts.length}건)
+                                  </h3>
+                                </div>
+                                <div
+                                  className="grid px-2 py-2 border-b border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 text-[11px] font-medium text-gray-500 dark:text-gray-400"
+                                  style={{gridTemplateColumns: '1fr 0.6fr 0.9fr 0.9fr 0.9fr 0.6fr 0.35fr'}}
+                                >
+                                  <div className="text-center">부위</div>
+                                  <div className="text-center">중량</div>
+                                  <div className="text-center">최저단가</div>
+                                  <div className="text-center">낙찰가</div>
+                                  <div className="text-center">나의입찰가</div>
+                                  <div className="text-center">결과</div>
+                                  <div className="text-center">관심</div>
+                                </div>
+                                {settledFavParts.map((part: any) => {
+                                  const isMyWin = !!part.myBid?.isWinning;
+                                  return (
+                                    <div
+                                      key={`settled-${part.id}`}
+                                      className={`grid px-2 py-3 border-b border-gray-100 dark:border-gray-800 items-center ${
+                                        isMyWin ? 'bg-blue-50/50 dark:bg-blue-900/20' : 'bg-white dark:bg-gray-900'
+                                      }`}
+                                      style={{gridTemplateColumns: '1fr 0.6fr 0.9fr 0.9fr 0.9fr 0.6fr 0.35fr'}}
+                                    >
+                                      <div className="text-center">
+                                        <div className="text-[13px] font-medium text-gray-900 dark:text-gray-100">{part.partName}</div>
+                                        <div className="text-[11px] text-gray-500 dark:text-gray-400 whitespace-nowrap">{part.gender} / {formatGrade(part.grade, part.marblingScore)}</div>
+                                      </div>
+                                      <div className="text-center text-[13px] text-gray-700 dark:text-gray-300">{part.weight}</div>
+                                      <div className="text-center text-[13px] text-gray-700 dark:text-gray-300">{part.minPrice.toLocaleString()}</div>
+                                      <div className="text-center text-[13px] font-medium text-gray-900 dark:text-gray-100">
+                                        {part.highestBid?.bidPrice ? part.highestBid.bidPrice.toLocaleString() : '-'}
+                                      </div>
+                                      <div className="text-center text-[13px] text-gray-700 dark:text-gray-300">
+                                        {part.myBid?.bidPrice ? part.myBid.bidPrice.toLocaleString() : '-'}
+                                      </div>
+                                      <div className="text-center flex items-center justify-center">
+                                        {isMyWin ? (
+                                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300">낙찰</span>
+                                        ) : part.myBid?.bidPrice ? (
+                                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400">미낙찰</span>
+                                        ) : (
+                                          <span className="text-[13px] text-gray-400 dark:text-gray-500">-</span>
+                                        )}
+                                      </div>
+                                      <div className="text-center flex items-center justify-center">
+                                        <button
+                                          onClick={() => toggleFavorite(part.id)}
+                                          className={`p-1.5 transition-colors ${isFavorite(part.id) ? 'text-gray-900 dark:text-gray-100' : 'text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
+                                        >
+                                          <Star className={`w-5 h-5 ${isFavorite(part.id) ? 'fill-current' : ''}`} />
+                                        </button>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()
+                    )}
                   </div>
                 ) : activeTab === '경매정보' ? (
                   <div className="px-4 pt-4">
@@ -1214,6 +1729,101 @@ function MainPageContent() {
                   </motion.div>
                 </>
             )}
+            </AnimatePresence>
+
+            {/* 관심 부위별 입찰 바텀시트 */}
+            <AnimatePresence>
+              {showFavPartBidSheet && selectedFavPart && (
+                <>
+                  <motion.div
+                    initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                    className="fixed inset-0 bg-black/40 z-[60]"
+                    onClick={() => setShowFavPartBidSheet(false)}
+                  />
+                  <motion.div
+                    initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
+                    transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+                    className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-900 rounded-t-2xl z-[61] max-h-[60vh] overflow-y-auto shadow-2xl"
+                  >
+                    <div className="p-5">
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">
+                          {selectedFavPart.myBid?.bidPrice ? '입찰 변경' : '입찰하기'}
+                        </h3>
+                        <button onClick={() => setShowFavPartBidSheet(false)} className="p-1 text-gray-400 hover:text-gray-600">
+                          <X className="h-5 w-5" />
+                        </button>
+                      </div>
+                      <div className="flex items-center gap-1 mb-4 flex-wrap">
+                        <span className="text-xs px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded font-medium">
+                          {selectedFavPart.auctionNo}
+                        </span>
+                        <span className="text-xs px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded font-medium">
+                          {selectedFavPart.gender}
+                        </span>
+                        <span className="text-xs px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded font-medium">
+                          {formatGrade(selectedFavPart.grade, selectedFavPart.marblingScore)}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3 mb-4">
+                        <div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">부위</div>
+                          <div className="w-full px-3 py-2.5 text-sm font-bold border border-gray-200 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-center">
+                            {selectedFavPart.partName}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">중량</div>
+                          <div className="w-full px-3 py-2.5 text-sm font-bold border border-gray-200 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-center">
+                            {selectedFavPart.weight}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="mb-4">
+                        <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">입찰단가 (원/kg)</div>
+                        <div className="relative">
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            value={favPartBidPrice ? favPartBidPrice.toLocaleString() : ''}
+                            onChange={(e) => {
+                              const value = e.target.value.replace(/[^0-9]/g, '');
+                              setFavPartBidPrice(value ? parseInt(value) : 0);
+                            }}
+                            placeholder={`최저단가 ${selectedFavPart.minPrice.toLocaleString()}`}
+                            className="w-full px-3 py-3 pr-10 text-right text-xl font-bold border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-gray-500 dark:focus:ring-gray-400 focus:border-gray-500 bg-white dark:bg-gray-700 text-black dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500"
+                          />
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">원</span>
+                        </div>
+                      </div>
+                      <div className="mb-4 px-1 flex justify-between text-xs text-gray-500 dark:text-gray-400">
+                        <span>예상 총액</span>
+                        <span className="font-bold text-gray-900 dark:text-gray-100">
+                          {favPartBidPrice ? `${Math.round(favPartBidPrice * parseFloat(selectedFavPart.weight)).toLocaleString()}원` : '-'}
+                        </span>
+                      </div>
+                      <div className="flex gap-3">
+                        <button
+                          onClick={() => setShowFavPartBidSheet(false)}
+                          className="flex-1 bg-white text-gray-700 border-2 border-gray-300 py-2.5 rounded-lg font-bold hover:bg-gray-50"
+                        >
+                          취소
+                        </button>
+                        <button
+                          disabled={!favPartBidPrice || favPartBidPrice < selectedFavPart.minPrice}
+                          onClick={async () => {
+                            await handleFavPartBid(selectedFavPart, favPartBidPrice);
+                            setShowFavPartBidSheet(false);
+                          }}
+                          className="flex-1 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 py-2.5 rounded-lg font-bold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-800 dark:hover:bg-gray-200"
+                        >
+                          {selectedFavPart.myBid?.bidPrice ? '변경 확인' : '입찰 확인'}
+                        </button>
+                      </div>
+                    </div>
+                  </motion.div>
+                </>
+              )}
             </AnimatePresence>
 
             {/* 토스트 메시지 */}

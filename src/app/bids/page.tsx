@@ -22,13 +22,13 @@ const removeCommas = (value: string) => {
   return value.replace(/,/g, '');
 };
 
-// 육량지수가 없는 등급에 기본값 'A' 추가
-const addYieldGradeIfMissing = (grade: string) => {
-  // 이미 A, B, C가 포함되어 있으면 그대로 반환
-  if (/[ABC]/.test(grade)) return grade;
-  // 1++, 1+, 1, 2 등급 뒤에 (숫자)가 있으면 그 앞에 A 추가
-  // 예: "1++(9)" -> "1++A(9)"
-  return grade.replace(/(\d\+*)\(/, '$1A(');
+const formatGrade = (grade: string, marblingScore: number | null) => {
+  if (!grade) return '';
+  if (grade.includes('(')) return grade;
+  if (marblingScore && grade.startsWith('1++')) {
+    return `${grade}(${marblingScore})`;
+  }
+  return grade;
 };
 
 export default function BidsPage() {
@@ -320,25 +320,25 @@ export default function BidsPage() {
             </div>
           </div>
 
-          {/* 탭 */}
-          <div className="flex-shrink-0 bg-white border-b border-gray-200">
-            <div className="flex">
+          {/* 탭 버튼 */}
+          <div className="flex-shrink-0 bg-white px-4 py-3">
+            <div className="flex gap-2">
               <button
                 onClick={() => setActiveTab('진행중')}
-                className={`flex-1 py-3.5 text-[15px] font-medium transition-colors ${
+                className={`flex-1 py-2.5 text-[14px] font-medium rounded-md transition-colors ${
                   activeTab === '진행중'
-                    ? 'text-gray-900 border-b-2 border-gray-900'
-                    : 'text-gray-500'
+                    ? 'bg-gray-900 text-white'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 }`}
               >
                 진행중
               </button>
               <button
                 onClick={() => setActiveTab('경매결과')}
-                className={`flex-1 py-3.5 text-[15px] font-medium transition-colors ${
+                className={`flex-1 py-2.5 text-[14px] font-medium rounded-md transition-colors ${
                   activeTab === '경매결과'
-                    ? 'text-gray-900 border-b-2 border-gray-900'
-                    : 'text-gray-500'
+                    ? 'bg-gray-900 text-white'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 }`}
               >
                 경매결과
@@ -360,12 +360,6 @@ export default function BidsPage() {
                 <div className="flex items-center justify-center h-full">
                   <div className="text-center py-20">
                     <p className="text-gray-500 text-sm">입찰 내역을 불러오는 중...</p>
-                  </div>
-                </div>
-              ) : allMyBids.length === 0 ? (
-                <div className="flex items-center justify-center h-full">
-                  <div className="text-center py-20">
-                    <p className="text-gray-500 text-sm">{dealerId ? '진행중인 입찰 내역이 없습니다' : '로그인 후 이용해주세요'}</p>
                   </div>
                 </div>
               ) : (
@@ -413,10 +407,9 @@ export default function BidsPage() {
                   >
                     <div className="min-w-[660px]">
 
-                    {/* 필터 결과 없음 */}
                     {filteredBids.length === 0 ? (
                       <div className="py-12 text-center">
-                        <p className="text-gray-500 text-sm">입찰 내역이 없습니다</p>
+                        <p className="text-gray-500 text-sm">{dealerId ? '진행중인 입찰 내역이 없습니다' : '로그인 후 이용해주세요'}</p>
                       </div>
                     ) : (
                     filteredBids.map((bid) => {
@@ -443,7 +436,7 @@ export default function BidsPage() {
                           </div>
                           {/* 등급 */}
                           <div className="text-center text-[13px] text-gray-700" style={{ letterSpacing: '-0.05em' }}>
-                            {addYieldGradeIfMissing(bid.grade)}
+                            {formatGrade(bid.grade, bid.marblingScore)}
                           </div>
                           {/* 중량 */}
                           <div className="text-center text-[13px] text-gray-700">
@@ -463,6 +456,7 @@ export default function BidsPage() {
                               onClick={() => handleReBidClick(bid.listingNo, bid, {
                                 partName: bid.partName,
                                 grade: bid.grade,
+                                marblingScore: bid.marblingScore,
                                 weight: `${bid.weight}kg`,
                                 gender: bid.gender,
                               })}
@@ -635,7 +629,7 @@ export default function BidsPage() {
                           </div>
                           {/* 등급 */}
                           <div className="text-center text-[13px] text-gray-700" style={{ letterSpacing: '-0.05em' }}>
-                            {addYieldGradeIfMissing(result.grade)}
+                            {formatGrade(result.grade, result.marblingScore)}
                           </div>
                           {/* 중량 */}
                           <div className="text-center text-[13px] text-gray-700">
@@ -733,7 +727,7 @@ export default function BidsPage() {
                               {selectedBidInfo.productInfo.gender || '암'}
                             </td>
                             <td className="py-2.5 px-1.5 text-center text-gray-700">
-                              {addYieldGradeIfMissing(selectedBidInfo.productInfo.grade)}
+                              {formatGrade(selectedBidInfo.productInfo.grade, selectedBidInfo.productInfo.marblingScore)}
                             </td>
                             <td className="py-2.5 px-1.5 text-center text-gray-700">32</td>
                             <td className="py-2.5 px-1.5 text-center font-medium text-gray-900">
@@ -861,7 +855,7 @@ export default function BidsPage() {
                         {selectedBidInfo.productInfo.gender || '암'}
                       </td>
                       <td className="py-2.5 px-1.5 text-center text-gray-700 dark:text-gray-300">
-                        {addYieldGradeIfMissing(selectedBidInfo.productInfo.grade)}
+                        {formatGrade(selectedBidInfo.productInfo.grade, selectedBidInfo.productInfo.marblingScore)}
                       </td>
                       <td className="py-2.5 px-1.5 text-center text-gray-700 dark:text-gray-300">32</td>
                       <td className="py-2.5 px-1.5 text-center font-medium text-gray-900 dark:text-gray-100">

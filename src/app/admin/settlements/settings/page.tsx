@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import AdminLayout from '@/components/admin/AdminLayout';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, Loader2 } from 'lucide-react';
+import { useSession } from 'next-auth/react';
 
 interface SettingItem {
   id: string;
@@ -10,49 +11,97 @@ interface SettingItem {
   type: 'percentage' | 'fixed';
   value: number;
   enabled: boolean;
+  sortOrder: number;
   updatedAt: string;
   updatedBy: string;
 }
 
 export default function SettlementSettingsPage() {
-  // 현재 로그인한 관리자 (실제로는 세션에서 가져옴)
-  const currentAdmin = '홍길동';
+  const { data: session } = useSession();
+  const currentAdmin = (session as any)?.user?.name || '관리자';
 
-  const [settingItems, setSettingItems] = useState<SettingItem[]>([
-    { id: 'fee', name: '상장수수료', type: 'percentage', value: 2, enabled: true, updatedAt: '2026-01-20 14:30', updatedBy: '홍길동' },
-    { id: '1', name: '물류비', type: 'fixed', value: 21000, enabled: true, updatedAt: '2026-01-18 09:15', updatedBy: '김관리' },
-    { id: '2', name: '상차비', type: 'fixed', value: 20000, enabled: true, updatedAt: '2026-01-15 11:45', updatedBy: '이매니저' },
-  ]);
+  const [settingItems, setSettingItems] = useState<SettingItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [editingValue, setEditingValue] = useState<Record<string, string>>({});
 
-  const getCurrentDateTime = () => {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-    const hours = String(now.getHours()).padStart(2, '0');
-    const minutes = String(now.getMinutes()).padStart(2, '0');
+  useEffect(() => {
+    fetchSettings();
+  }, []);
+
+  const fetchSettings = async () => {
+    try {
+      setIsLoading(true);
+      const res = await fetch('/api/settlements/settings');
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      setSettingItems(data.items || []);
+    } catch {
+      alert('설정을 불러오는 중 오류가 발생했습니다.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const formatDateTime = (dateStr: string) => {
+    if (!dateStr) return '';
+    const d = new Date(dateStr);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const hours = String(d.getHours()).padStart(2, '0');
+    const minutes = String(d.getMinutes()).padStart(2, '0');
     return `${year}-${month}-${day} ${hours}:${minutes}`;
   };
 
   const handleSave = async () => {
+    const hasEmptyName = settingItems.some(item => !item.name.trim());
+    if (hasEmptyName) {
+      alert('항목명을 입력해주세요.');
+      return;
+    }
+
     setIsSaving(true);
-    await new Promise(resolve => setTimeout(resolve, 500));
-    setIsSaving(false);
-    alert('설정이 저장되었습니다.');
+    try {
+      const res = await fetch('/api/settlements/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          items: settingItems.map((item, idx) => ({
+            id: item.id,
+            name: item.name,
+            type: item.type,
+            value: item.value,
+            enabled: item.enabled,
+            sortOrder: idx,
+          })),
+          updatedBy: currentAdmin,
+        }),
+      });
+
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      setSettingItems(data.items || []);
+      alert('설정이 저장되었습니다.');
+    } catch {
+      alert('설정 저장 중 오류가 발생했습니다.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleAddItem = () => {
-    const newSettingItem: SettingItem = {
-      id: String(Date.now()),
+    const newItem: SettingItem = {
+      id: `new-${Date.now()}`,
       name: '',
       type: 'fixed',
       value: 0,
       enabled: true,
-      updatedAt: getCurrentDateTime(),
+      sortOrder: settingItems.length,
+      updatedAt: new Date().toISOString(),
       updatedBy: currentAdmin,
     };
-    setSettingItems([...settingItems, newSettingItem]);
+    setSettingItems([...settingItems, newItem]);
   };
 
   const handleDeleteItem = (id: string) => {
@@ -60,13 +109,8 @@ export default function SettlementSettingsPage() {
   };
 
   const handleUpdateItem = (id: string, field: keyof SettingItem, value: string | number | boolean) => {
-    setSettingItems(settingItems.map(item => 
-      item.id === id ? { 
-        ...item, 
-        [field]: value,
-        updatedAt: getCurrentDateTime(),
-        updatedBy: currentAdmin,
-      } : item
+    setSettingItems(settingItems.map(item =>
+      item.id === id ? { ...item, [field]: value } : item
     ));
   };
 
@@ -77,7 +121,6 @@ export default function SettlementSettingsPage() {
       </div>
 
       <div className="space-y-6">
-        {/* 정산 항목 설정 */}
         <div className="bg-white border border-gray-200 p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-sm font-bold text-gray-800">정산 항목</h2>
@@ -91,14 +134,14 @@ export default function SettlementSettingsPage() {
               </button>
               <button
                 onClick={handleSave}
-                disabled={isSaving}
+                disabled={isSaving || isLoading}
                 className="px-4 py-1.5 bg-gray-900 text-white text-xs hover:bg-gray-800 disabled:opacity-50"
               >
                 {isSaving ? '저장 중...' : '저장'}
               </button>
             </div>
           </div>
-          
+
           <div className="overflow-x-auto">
             <table className="w-full border-collapse">
               <thead>
@@ -113,79 +156,123 @@ export default function SettlementSettingsPage() {
                 </tr>
               </thead>
               <tbody>
-                {settingItems.map((item) => (
-                  <tr key={item.id} className="hover:bg-gray-50">
-                    <td className="px-3 py-2 border border-gray-200 text-center">
-                      <div className="relative inline-flex items-center justify-center w-4 h-4 overflow-hidden">
-                        <input
-                          type="checkbox"
-                          checked={item.enabled}
-                          onChange={(e) => handleUpdateItem(item.id, 'enabled', e.target.checked)}
-                          className="w-4 h-4 rounded appearance-none bg-white border border-gray-300 checked:bg-gray-700 checked:border-gray-700"
-                        />
-                        {item.enabled && (
-                          <span className="absolute inset-0 flex items-center justify-center text-white text-xs font-bold pointer-events-none">✓</span>
-                        )}
+                {isLoading ? (
+                  <tr>
+                    <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
+                      <div className="flex items-center justify-center gap-2">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        설정을 불러오는 중...
                       </div>
-                    </td>
-                    <td className="px-3 py-2 border border-gray-200">
-                      <input
-                        type="text"
-                        value={item.name}
-                        onChange={(e) => handleUpdateItem(item.id, 'name', e.target.value)}
-                        placeholder="항목명 입력"
-                        className="w-full px-2 py-1 bg-gray-50 border-0 text-xs outline-none focus:bg-white focus:ring-1 focus:ring-gray-300 placeholder:text-gray-400"
-                      />
-                    </td>
-                    <td className="px-3 py-2 border border-gray-200 text-center">
-                      <select
-                        value={item.type}
-                        onChange={(e) => handleUpdateItem(item.id, 'type', e.target.value as 'percentage' | 'fixed')}
-                        className="w-full px-2 py-1 bg-gray-50 border-0 text-xs outline-none focus:bg-white focus:ring-1 focus:ring-gray-300"
-                      >
-                        <option value="fixed">고정금액</option>
-                        <option value="percentage">비율</option>
-                      </select>
-                    </td>
-                    <td className="px-3 py-2 border border-gray-200">
-                      <div className="flex items-center gap-1 justify-center">
-                        <input
-                          type="text"
-                          value={item.value === 0 ? '' : item.value.toLocaleString()}
-                          onChange={(e) => {
-                            const numValue = Number(e.target.value.replace(/,/g, ''));
-                            if (!isNaN(numValue)) {
-                              handleUpdateItem(item.id, 'value', numValue);
-                            }
-                          }}
-                          placeholder="0"
-                          className="w-24 px-2 py-1 bg-gray-50 border-0 text-xs outline-none text-right focus:bg-white focus:ring-1 focus:ring-gray-300 placeholder:text-gray-400"
-                        />
-                        <span className="text-xs text-gray-500 w-6">
-                          {item.type === 'percentage' ? '%' : '원'}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-3 py-2 border border-gray-200 text-center">
-                      <span className="text-xs text-gray-500">{item.updatedAt}</span>
-                    </td>
-                    <td className="px-3 py-2 border border-gray-200 text-center">
-                      <span className="text-xs text-gray-700">{item.updatedBy}</span>
-                    </td>
-                    <td className="px-3 py-2 border border-gray-200 text-center">
-                      <button
-                        onClick={() => handleDeleteItem(item.id)}
-                        className="p-1 text-gray-400 hover:text-red-600"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
                     </td>
                   </tr>
-                ))}
+                ) : settingItems.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
+                      설정된 항목이 없습니다. 항목을 추가해주세요.
+                    </td>
+                  </tr>
+                ) : (
+                  settingItems.map((item) => (
+                    <tr key={item.id} className="hover:bg-gray-50">
+                      <td className="px-3 py-2 border border-gray-200 text-center">
+                        <div className="relative inline-flex items-center justify-center w-4 h-4 overflow-hidden">
+                          <input
+                            type="checkbox"
+                            checked={item.enabled}
+                            onChange={(e) => handleUpdateItem(item.id, 'enabled', e.target.checked)}
+                            className="w-4 h-4 rounded appearance-none bg-white border border-gray-300 checked:bg-gray-700 checked:border-gray-700"
+                          />
+                          {item.enabled && (
+                            <span className="absolute inset-0 flex items-center justify-center text-white text-xs font-bold pointer-events-none">✓</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-3 py-2 border border-gray-200">
+                        <input
+                          type="text"
+                          value={item.name}
+                          onChange={(e) => handleUpdateItem(item.id, 'name', e.target.value)}
+                          placeholder="항목명 입력"
+                          className="w-full px-2 py-1 bg-gray-50 border-0 text-xs outline-none focus:bg-white focus:ring-1 focus:ring-gray-300 placeholder:text-gray-400"
+                        />
+                      </td>
+                      <td className="px-3 py-2 border border-gray-200 text-center">
+                        <select
+                          value={item.type}
+                          onChange={(e) => handleUpdateItem(item.id, 'type', e.target.value as 'percentage' | 'fixed')}
+                          className="w-full px-2 py-1 bg-gray-50 border-0 text-xs outline-none focus:bg-white focus:ring-1 focus:ring-gray-300"
+                        >
+                          <option value="fixed">고정금액</option>
+                          <option value="percentage">비율</option>
+                        </select>
+                      </td>
+                      <td className="px-3 py-2 border border-gray-200">
+                        <div className="flex items-center gap-1 justify-center">
+                          <input
+                            type="text"
+                            value={editingValue[item.id] !== undefined
+                              ? editingValue[item.id]
+                              : (item.value === 0 ? '' : (item.type === 'percentage' ? String(item.value) : item.value.toLocaleString()))
+                            }
+                            onFocus={() => {
+                              setEditingValue(prev => ({
+                                ...prev,
+                                [item.id]: item.value === 0 ? '' : (item.type === 'percentage' ? String(item.value) : item.value.toLocaleString()),
+                              }));
+                            }}
+                            onChange={(e) => {
+                              const raw = e.target.value;
+                              if (item.type === 'percentage') {
+                                if (raw === '' || /^\d*\.?\d*$/.test(raw)) {
+                                  setEditingValue(prev => ({ ...prev, [item.id]: raw }));
+                                }
+                              } else {
+                                const cleaned = raw.replace(/,/g, '');
+                                if (cleaned === '' || /^\d+$/.test(cleaned)) {
+                                  setEditingValue(prev => ({ ...prev, [item.id]: raw }));
+                                }
+                              }
+                            }}
+                            onBlur={() => {
+                              const raw = editingValue[item.id] ?? '';
+                              const numValue = Number(raw.replace(/,/g, ''));
+                              if (!isNaN(numValue)) {
+                                handleUpdateItem(item.id, 'value', numValue);
+                              }
+                              setEditingValue(prev => {
+                                const next = { ...prev };
+                                delete next[item.id];
+                                return next;
+                              });
+                            }}
+                            placeholder="0"
+                            className="w-24 px-2 py-1 bg-gray-50 border-0 text-xs outline-none text-right focus:bg-white focus:ring-1 focus:ring-gray-300 placeholder:text-gray-400"
+                          />
+                          <span className="text-xs text-gray-500 w-6">
+                            {item.type === 'percentage' ? '%' : '원'}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-3 py-2 border border-gray-200 text-center">
+                        <span className="text-xs text-gray-500">{formatDateTime(item.updatedAt)}</span>
+                      </td>
+                      <td className="px-3 py-2 border border-gray-200 text-center">
+                        <span className="text-xs text-gray-700">{item.updatedBy}</span>
+                      </td>
+                      <td className="px-3 py-2 border border-gray-200 text-center">
+                        <button
+                          onClick={() => handleDeleteItem(item.id)}
+                          className="p-1 text-gray-400 hover:text-red-600"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
-
         </div>
       </div>
     </AdminLayout>

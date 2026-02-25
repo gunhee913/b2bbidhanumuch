@@ -16,7 +16,8 @@ import {
   ArrowUpDown,
   ExternalLink,
   Edit2,
-  Star
+  Star,
+  Check
 } from 'lucide-react';
 import BottomNav from '@/components/BottomNav';
 import { Button } from '@/components/ui/button';
@@ -24,6 +25,7 @@ import { useBidStore } from '@/stores/bidStore';
 import { AUCTION_PRODUCTS, getTodayDateCode, getYesterdayDateFormatted } from '@/constants/auction';
 import { useListings } from '@/features/listings/hooks';
 import { format } from 'date-fns';
+import { formatGrade } from '@/lib/utils';
 import { useSession } from 'next-auth/react';
 import { useRealtimeBids } from '@/hooks/useRealtimeBids';
 
@@ -68,9 +70,9 @@ function AuctionPageContent() {
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
   
   // 부위별 필터 상태
-  const [partFilterCompany, setPartFilterCompany] = useState<string>('업체명');
+  const [partFilterCompanies, setPartFilterCompanies] = useState<string[]>([]);
   const [partFilterType, setPartFilterType] = useState<string>('성별');
-  const [partFilterGrade, setPartFilterGrade] = useState<string>('등급');
+  const [partFilterGrades, setPartFilterGrades] = useState<string[]>([]);
   const [partFilterMarbling, setPartFilterMarbling] = useState<string>('근내지방도');
   
   // 부위별 입찰 바텀시트 상태
@@ -119,6 +121,7 @@ function AuctionPageContent() {
   const [remainingTime, setRemainingTime] = useState(0);
   const [roundInfo, setRoundInfo] = useState<{
     currentRound: any;
+    lastClosedRound: any;
     allRounds: any[];
     totalRounds: number;
   } | null>(null);
@@ -157,11 +160,19 @@ function AuctionPageContent() {
   };
   
   // 필터 상태
-  const [selectedType, setSelectedType] = useState<string>('성별');
-  const [selectedGrade, setSelectedGrade] = useState<string>('등급');
-  const [selectedNo, setSelectedNo] = useState<string>('근내지방도');
-  const [selectedCompany, setSelectedCompany] = useState<string>('업체명');
+  const [selectedGrades, setSelectedGrades] = useState<string[]>([]);
+  const [selectedCompanies, setSelectedCompanies] = useState<string[]>([]);
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+
+  const filterLabel = (selected: string[], label: string) => {
+    if (selected.length === 0) return `${label}: 전체`;
+    if (selected.length <= 2) return `${label}: ${selected.join(', ')}`;
+    return `${label}: ${selected.length}개 선택`;
+  };
+
+  const toggleFilter = (selected: string[], value: string, setter: (v: string[]) => void) => {
+    setter(selected.includes(value) ? selected.filter(v => v !== value) : [...selected, value]);
+  };
 
   // 배너 데이터 (빈 상태)
   const banners = [
@@ -183,9 +194,8 @@ function AuctionPageContent() {
       }
     }
     
-    // 업체명 필터 적용
     if (company) {
-      setSelectedCompany(company);
+      setSelectedCompanies([company]);
     }
   }, [searchParams]);
 
@@ -375,7 +385,7 @@ function AuctionPageContent() {
 
   // 승인된 상장 목록 조회 (DB 연동)
   const { data: listingsData, isLoading: isListingsLoading, refetch: refetchListings } = useListings({
-    status: 'approved',
+    status: 'approved,auction' as any,
     listingDateFrom: todayStr,
     listingDateTo: todayStr,
     includeParts: true,
@@ -545,8 +555,13 @@ function AuctionPageContent() {
               slaughterHouse: originalListing?.slaughterHouse || '',
               slaughterDate: originalListing?.slaughterDate || '',
               slaughterNo: originalListing?.slaughterNo || '',
+              processDate: originalListing?.processDate || '',
+              processWeight: originalListing?.processWeight || 0,
               gradeCert: originalListing?.gradeCert || null,
               slaughterCert: originalListing?.slaughterCert || null,
+              // 낙찰 정보
+              hasWinner: !!dbPart.hasWinner,
+              highestBid: dbPart.highestBid || null,
               // 비공개 입찰: 내 입찰만
               myBid: dbPart.myBid || null,
             });
@@ -574,77 +589,106 @@ function AuctionPageContent() {
   }, [selectedPartId, partsData]);
 
   // 부위별 상품 필터링 및 정렬
+  const matchPartGrade = (product: any, selected: string) => {
+    const baseGrade = product.grade.replace(/[ABC]/, '').replace(/\(\d+\)/, '');
+    if (selected === '1++(9)') return baseGrade === '1++' && product.marblingScore === 9;
+    if (selected === '1++(8)') return baseGrade === '1++' && product.marblingScore === 8;
+    if (selected === '1++(7)') return baseGrade === '1++' && product.marblingScore === 7;
+    return baseGrade === selected;
+  };
+
   const filteredPartProducts = useMemo(() => {
     if (!selectedPartId || !partProducts[selectedPartId]) return [];
     
     let filtered = [...partProducts[selectedPartId]];
     
-    // 업체명 필터
-    if (partFilterCompany !== '업체명' && partFilterCompany !== '전체') {
-      filtered = filtered.filter(p => p.company === partFilterCompany);
+    if (partFilterCompanies.length > 0) {
+      filtered = filtered.filter(p => partFilterCompanies.includes(p.company));
     }
     
-    // 성별 필터
     if (partFilterType !== '성별' && partFilterType !== '전체') {
       filtered = filtered.filter(p => p.type === partFilterType);
     }
     
-    // 등급 필터
-    if (partFilterGrade !== '등급' && partFilterGrade !== '전체') {
-      if (partFilterGrade === '1++(9)') {
-        filtered = filtered.filter(p => p.grade.includes('1++') && p.grade.includes('(9)'));
-      } else if (partFilterGrade === '1++(8)') {
-        filtered = filtered.filter(p => p.grade.includes('1++') && p.grade.includes('(8)'));
-      } else if (partFilterGrade === '1++(7)') {
-        filtered = filtered.filter(p => p.grade.includes('1++') && p.grade.includes('(7)'));
-      } else if (partFilterGrade === '1+') {
-        filtered = filtered.filter(p => p.grade.startsWith('1+') && !p.grade.startsWith('1++'));
-      } else if (partFilterGrade === '1') {
-        filtered = filtered.filter(p => p.grade === '1' || (p.grade.startsWith('1') && !p.grade.startsWith('1++')));
-      } else if (partFilterGrade === '2') {
-        filtered = filtered.filter(p => p.grade.startsWith('2'));
-      }
+    if (partFilterGrades.length > 0) {
+      filtered = filtered.filter(p => partFilterGrades.some(g => matchPartGrade(p, g)));
     }
     
-    // 근내지방도 필터
     if (partFilterMarbling !== '근내지방도' && partFilterMarbling !== '전체') {
-      const marblingNo = partFilterMarbling.replace('No.', '');
-      filtered = filtered.filter(p => p.grade.includes(`(${marblingNo})`));
+      const marblingNo = parseInt(partFilterMarbling.replace('No.', ''));
+      filtered = filtered.filter(p => p.marblingScore === marblingNo);
     }
+    
+    filtered.sort((a: any, b: any) => {
+      const aNo = a.auctionNo?.split('-')[1] || '0';
+      const bNo = b.auctionNo?.split('-')[1] || '0';
+      return parseInt(aNo) - parseInt(bNo);
+    });
     
     return filtered;
-  }, [selectedPartId, partProducts, partFilterCompany, partFilterType, partFilterGrade, partFilterMarbling]);
+  }, [selectedPartId, partProducts, partFilterCompanies, partFilterType, partFilterGrades, partFilterMarbling]);
+
+  // 부위별: 진행중 / 경매결과 분리
+  const activePartProducts = useMemo(() => {
+    return filteredPartProducts.filter((p: any) => !p.hasWinner);
+  }, [filteredPartProducts]);
+
+  const settledPartProducts = useMemo(() => {
+    if (!selectedPartId || !partProducts[selectedPartId]) return [];
+    const allForPart = [...partProducts[selectedPartId]];
+    allForPart.sort((a: any, b: any) => {
+      const aNo = a.auctionNo?.split('-')[1] || '0';
+      const bNo = b.auctionNo?.split('-')[1] || '0';
+      return parseInt(aNo) - parseInt(bNo);
+    });
+    return allForPart.filter((p: any) => p.hasWinner);
+  }, [selectedPartId, partProducts]);
+
+  // 부위별: 입찰 가능 여부 (경매 진행중일 때만)
+  const canBidPart = useMemo(() => {
+    if (!roundInfo?.currentRound) return false;
+    return roundInfo.currentRound.status === 'open';
+  }, [roundInfo]);
+
+  // 부위별: 입찰 취소
+  const [cancellingPartBidId, setCancellingPartBidId] = useState<string | null>(null);
+  const handleCancelBidPart = async (bidId: string, partName: string) => {
+    if (!confirm(`${partName} 입찰을 취소하시겠습니까?`)) return;
+    setCancellingPartBidId(bidId);
+    try {
+      const res = await fetch(`/api/bids/${bidId}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) {
+        showToastMessage(data.error || '입찰 취소에 실패했습니다.', 'warning');
+        return;
+      }
+      showToastMessage(`${partName} 입찰이 취소되었습니다.`, 'success');
+      refetchListings();
+    } catch {
+      showToastMessage('입찰 취소 중 오류가 발생했습니다.', 'warning');
+    } finally {
+      setCancellingPartBidId(null);
+    }
+  };
 
   // 부위 목록으로 돌아가기
   const handleBackToPartList = () => {
-    setSelectedPartId(null);
-    router.push('/auction?tab=part');
+    router.push('/?tab=부위별');
   };
 
-  // 필터링된 상품 목록
+  const matchGradePart = (product: any, selected: string) => {
+    const marblingMatch = product.grade.match(/\((\d+)\)/);
+    const marblingNo = marblingMatch ? parseInt(marblingMatch[1]) : 0;
+    if (selected === '1++(9)') return product.gradeCategory === '1++' && marblingNo === 9;
+    if (selected === '1++(8)') return product.gradeCategory === '1++' && marblingNo === 8;
+    if (selected === '1++(7)') return product.gradeCategory === '1++' && marblingNo === 7;
+    return product.gradeCategory === selected;
+  };
+
   const filteredProducts = products.filter(product => {
-    // 성별 필터
-    if (selectedType !== '성별' && selectedType !== '전체' && product.type !== selectedType) return false;
-    
-    // 등급 필터 - gradeCategory로 매칭
-    if (selectedGrade !== '등급' && selectedGrade !== '전체') {
-      if (selectedGrade === '1++등급' && product.gradeCategory !== '1++') return false;
-      if (selectedGrade === '1+등급' && product.gradeCategory !== '1+') return false;
-      if (selectedGrade === '1등급' && product.gradeCategory !== '1') return false;
-      if (selectedGrade === '2등급' && product.gradeCategory !== '2') return false;
-    }
-    
-    // 업체명 필터
-    if (selectedCompany !== '업체명' && selectedCompany !== '전체' && product.company !== selectedCompany) return false;
-    
-    // 근내지방도 필터 (grade에서 추출: 예 "1++A(9)" -> "No.9")
-    if (selectedNo !== '근내지방도' && selectedNo !== '전체') {
-      const marblingMatch = product.grade.match(/\((\d+)\)/);
-      const productNo = marblingMatch ? `No.${marblingMatch[1]}` : '';
-      if (productNo !== selectedNo) return false;
-    }
-    
-    return true;
+    const gradeMatch = selectedGrades.length === 0 || selectedGrades.some(g => matchGradePart(product, g));
+    const companyMatch = selectedCompanies.length === 0 || selectedCompanies.includes(product.company);
+    return gradeMatch && companyMatch;
   });
 
   // 드롭다운 외부 클릭 시 닫기
@@ -692,29 +736,10 @@ function AuctionPageContent() {
                     </div>
                   </div>
                   {roundInfo?.currentRound && (
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">
-                          {roundInfo.currentRound.round_no}회차
-                        </span>
-                        <span className="text-[10px] text-gray-400">/ {roundInfo.totalRounds}회</span>
-                      </div>
-                      <div className="flex items-center gap-0.5">
-                        {roundInfo.allRounds.map((r: any) => (
-                          <div
-                            key={r.id}
-                            className={`w-4 h-4 rounded text-[8px] font-bold flex items-center justify-center ${
-                              r.status === 'open'
-                                ? 'bg-green-500 text-white'
-                                : r.status === 'closed'
-                                ? 'bg-gray-300 text-white'
-                                : 'bg-gray-100 text-gray-400'
-                            }`}
-                          >
-                            {r.round_no}
-                          </div>
-                        ))}
-                      </div>
+                    <div className="flex items-center">
+                      <span className="text-xs font-semibold text-green-600 dark:text-green-400">
+                        경매 진행중
+                      </span>
                     </div>
                   )}
                 </div>
@@ -722,183 +747,99 @@ function AuctionPageContent() {
               
               {activeTab === 'individual' ? (
                 <>
-                  {/* 필터 섹션 */}
-                  <div className="px-3 py-2 bg-white dark:bg-gray-900 transition-colors">
-                    <div className="flex gap-1.5 relative filter-dropdown max-w-sm">
-                      {/* 업체명 필터 */}
-                      <div className="flex-1 relative">
-                        <button
-                          onClick={() => setOpenDropdown(openDropdown === 'company' ? null : 'company')}
-                          className="w-full h-8 px-2 text-[11px] border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 transition-colors flex items-center justify-between"
-                        >
-                          <span className="text-gray-700 dark:text-gray-300 truncate">{selectedCompany}</span>
-                          <motion.div
-                            animate={{ rotate: openDropdown === 'company' ? 180 : 0 }}
-                            transition={{ duration: 0.2 }}
-                          >
-                            <ChevronDown className="h-3.5 w-3.5 text-gray-500 dark:text-gray-400 flex-shrink-0" />
-                          </motion.div>
-                        </button>
-                        <AnimatePresence>
-                          {openDropdown === 'company' && (
-                            <motion.div
-                              initial={{ opacity: 0, y: -10 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              exit={{ opacity: 0, y: -10 }}
-                              transition={{ duration: 0.2 }}
-                              className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg overflow-hidden z-50 max-h-40 overflow-y-auto"
-                            >
-                              {['전체', '건화', '대진엠이스', '안심엘피시', '정직한고기'].map((option) => (
-                                <motion.button
-                                  key={option}
-                                  onClick={() => {
-                                    setSelectedCompany(option);
-                                    setOpenDropdown(null);
-                                  }}
-                                  whileHover={{ backgroundColor: '#fef2f2' }}
-                                  className={`w-full px-2.5 py-1.5 text-[11px] text-left transition-colors ${
-                                    selectedCompany === option ? 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 font-medium' : 'text-gray-700 dark:text-gray-300'
-                                  }`}
-                                >
-                                  {option}
-                                </motion.button>
-                              ))}
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
-                      </div>
-                      
-                      {/* 한우 타입 필터 */}
-                      <div className="flex-1 relative">
-                        <button
-                          onClick={() => setOpenDropdown(openDropdown === 'type' ? null : 'type')}
-                          className="w-full h-8 px-2 text-[11px] border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 transition-colors flex items-center justify-between"
-                        >
-                          <span className="text-gray-700 dark:text-gray-300 truncate">{selectedType}</span>
-                          <motion.div
-                            animate={{ rotate: openDropdown === 'type' ? 180 : 0 }}
-                            transition={{ duration: 0.2 }}
-                          >
-                            <ChevronDown className="h-3.5 w-3.5 text-gray-500 dark:text-gray-400 flex-shrink-0" />
-                          </motion.div>
-                        </button>
-                        
-                        <AnimatePresence>
-                          {openDropdown === 'type' && (
-                            <motion.div
-                              initial={{ opacity: 0, y: -10 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              exit={{ opacity: 0, y: -10 }}
-                              transition={{ duration: 0.2 }}
-                              className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg overflow-hidden z-50"
-                            >
-                              {['전체', '한우거세', '한우암'].map((option) => (
-                                <motion.button
-                                  key={option}
-                                  onClick={() => {
-                                    setSelectedType(option);
-                                    setOpenDropdown(null);
-                                  }}
-                                  whileHover={{ backgroundColor: '#fef2f2' }}
-                                  className={`w-full px-2.5 py-1.5 text-[11px] text-left transition-colors ${
-                                    selectedType === option ? 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 font-medium' : 'text-gray-700 dark:text-gray-300'
-                                  }`}
-                                >
-                                  {option}
-                                </motion.button>
-                              ))}
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
-                      </div>
-                      
+                  {/* 필터 섹션 - 다중 선택 */}
+                  <div className="px-4 py-3 bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 filter-dropdown transition-colors">
+                    <div className="flex items-center gap-2.5 flex-wrap">
                       {/* 등급 필터 */}
-                      <div className="flex-1 relative">
+                      <div className="relative">
                         <button
-                          onClick={() => setOpenDropdown(openDropdown === 'grade' ? null : 'grade')}
-                          className="w-full h-8 px-2 text-[11px] border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 transition-colors flex items-center justify-between"
+                          onClick={() => setOpenDropdown(openDropdown === 'indGrade' ? null : 'indGrade')}
+                          className={`flex items-center gap-1.5 px-3.5 py-2 rounded text-[13px] font-medium transition-colors ${
+                            selectedGrades.length > 0
+                              ? 'bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900'
+                              : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                          }`}
                         >
-                          <span className="text-gray-700 dark:text-gray-300 truncate">{selectedGrade}</span>
-                          <motion.div
-                            animate={{ rotate: openDropdown === 'grade' ? 180 : 0 }}
-                            transition={{ duration: 0.2 }}
-                          >
-                            <ChevronDown className="h-3.5 w-3.5 text-gray-500 dark:text-gray-400 flex-shrink-0" />
-                          </motion.div>
+                          {filterLabel(selectedGrades, '등급')}
+                          <ChevronDown className={`h-4 w-4 transition-transform ${openDropdown === 'indGrade' ? 'rotate-180' : ''}`} />
                         </button>
-                        
-                        <AnimatePresence>
-                          {openDropdown === 'grade' && (
-                            <motion.div
-                              initial={{ opacity: 0, y: -10 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              exit={{ opacity: 0, y: -10 }}
-                              transition={{ duration: 0.2 }}
-                              className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg overflow-hidden z-50 max-h-40 overflow-y-auto"
+                        {openDropdown === 'indGrade' && (
+                          <div className="absolute top-full left-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-20 min-w-[130px]">
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setSelectedGrades([]); setOpenDropdown(null); }}
+                              className={`flex items-center justify-between w-full text-left px-4 py-2.5 text-[13px] hover:bg-gray-50 dark:hover:bg-gray-700 rounded-t-lg ${
+                                selectedGrades.length === 0 ? 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 font-medium' : 'text-gray-700 dark:text-gray-300'
+                              }`}
                             >
-                              {['전체', '1++등급', '1+등급', '1등급', '2등급'].map((option) => (
-                                <motion.button
+                              전체
+                              {selectedGrades.length === 0 && <Check className="h-4 w-4" />}
+                            </button>
+                            {['1++(9)', '1++(8)', '1++(7)', '1+', '1', '2'].map((option, idx, arr) => (
+                              <button
+                                key={option}
+                                onClick={(e) => { e.stopPropagation(); toggleFilter(selectedGrades, option, setSelectedGrades); }}
+                                className={`flex items-center justify-between w-full text-left px-4 py-2.5 text-[13px] hover:bg-gray-50 dark:hover:bg-gray-700 ${
+                                  idx === arr.length - 1 ? 'rounded-b-lg' : ''
+                                } ${
+                                  selectedGrades.includes(option) ? 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 font-medium' : 'text-gray-700 dark:text-gray-300'
+                                }`}
+                              >
+                                {option}
+                                {selectedGrades.includes(option) && <Check className="h-4 w-4" />}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* 업체 필터 */}
+                      <div className="relative">
+                        <button
+                          onClick={() => setOpenDropdown(openDropdown === 'indCompany' ? null : 'indCompany')}
+                          className={`flex items-center gap-1.5 px-3.5 py-2 rounded text-[13px] font-medium transition-colors ${
+                            selectedCompanies.length > 0
+                              ? 'bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900'
+                              : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                          }`}
+                        >
+                          {filterLabel(selectedCompanies, '업체')}
+                          <ChevronDown className={`h-4 w-4 transition-transform ${openDropdown === 'indCompany' ? 'rotate-180' : ''}`} />
+                        </button>
+                        {openDropdown === 'indCompany' && (() => {
+                          const indCompanyOptions = Array.from(new Set(products.map(p => p.company)));
+                          return (
+                            <div className="absolute top-full left-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-20 min-w-[130px]">
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setSelectedCompanies([]); setOpenDropdown(null); }}
+                                className={`flex items-center justify-between w-full text-left px-4 py-2.5 text-[13px] hover:bg-gray-50 dark:hover:bg-gray-700 rounded-t-lg ${
+                                  selectedCompanies.length === 0 ? 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 font-medium' : 'text-gray-700 dark:text-gray-300'
+                                }`}
+                              >
+                                전체
+                                {selectedCompanies.length === 0 && <Check className="h-4 w-4" />}
+                              </button>
+                              {indCompanyOptions.map((option, idx) => (
+                                <button
                                   key={option}
-                                  onClick={() => {
-                                    setSelectedGrade(option);
-                                    setOpenDropdown(null);
-                                  }}
-                                  whileHover={{ backgroundColor: '#fef2f2' }}
-                                  className={`w-full px-2.5 py-1.5 text-[11px] text-left transition-colors ${
-                                    selectedGrade === option ? 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 font-medium' : 'text-gray-700 dark:text-gray-300'
+                                  onClick={(e) => { e.stopPropagation(); toggleFilter(selectedCompanies, option, setSelectedCompanies); }}
+                                  className={`flex items-center justify-between w-full text-left px-4 py-2.5 text-[13px] hover:bg-gray-50 dark:hover:bg-gray-700 whitespace-nowrap ${
+                                    idx === indCompanyOptions.length - 1 ? 'rounded-b-lg' : ''
+                                  } ${
+                                    selectedCompanies.includes(option) ? 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 font-medium' : 'text-gray-700 dark:text-gray-300'
                                   }`}
                                 >
                                   {option}
-                                </motion.button>
+                                  {selectedCompanies.includes(option) && <Check className="h-4 w-4" />}
+                                </button>
                               ))}
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
+                            </div>
+                          );
+                        })()}
                       </div>
-                      
-                      {/* 번호 필터 */}
-                      <div className="flex-1 relative">
-                        <button
-                          onClick={() => setOpenDropdown(openDropdown === 'no' ? null : 'no')}
-                          className="w-full h-8 px-2 text-[11px] border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 transition-colors flex items-center justify-between"
-                        >
-                          <span className="text-gray-700 dark:text-gray-300 truncate">{selectedNo}</span>
-                          <motion.div
-                            animate={{ rotate: openDropdown === 'no' ? 180 : 0 }}
-                            transition={{ duration: 0.2 }}
-                          >
-                            <ChevronDown className="h-3.5 w-3.5 text-gray-500 dark:text-gray-400 flex-shrink-0" />
-                          </motion.div>
-                        </button>
-                        
-                        <AnimatePresence>
-                          {openDropdown === 'no' && (
-                            <motion.div
-                              initial={{ opacity: 0, y: -10 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              exit={{ opacity: 0, y: -10 }}
-                              transition={{ duration: 0.2 }}
-                              className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg overflow-hidden z-50"
-                            >
-                              {['전체', 'No.9', 'No.8', 'No.7', 'No.6', 'No.5'].map((option) => (
-                                <motion.button
-                                  key={option}
-                                  onClick={() => {
-                                    setSelectedNo(option);
-                                    setOpenDropdown(null);
-                                  }}
-                                  whileHover={{ backgroundColor: '#fef2f2' }}
-                                  className={`w-full px-2.5 py-1.5 text-[11px] text-left transition-colors ${
-                                    selectedNo === option ? 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 font-medium' : 'text-gray-700 dark:text-gray-300'
-                                  }`}
-                                >
-                                  {option}
-                                </motion.button>
-                              ))}
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
-                      </div>
+
+                      <span className="ml-auto text-[13px] text-gray-400 dark:text-gray-500">
+                        {filteredProducts.length}개
+                      </span>
                     </div>
                   </div>
 
@@ -932,7 +873,7 @@ function AuctionPageContent() {
                                       {product.type}
                                     </span>
                                     <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300">
-                                      {product.grade}
+                                      {formatGrade(product.grade, (product as any).marblingScore)}
                                     </span>
                                   </div>
                                 </div>
@@ -968,48 +909,78 @@ function AuctionPageContent() {
                   {/* 부위별 상세 목록 헤더 - sticky */}
                   <div className="px-3 h-12 bg-white dark:bg-gray-900 sticky top-0 z-30 flex items-center transition-colors">
                     <button
-                      onClick={() => router.push('/?tab=부위별')}
+                      onClick={handleBackToPartList}
                       className="p-1 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
                     >
                       <ChevronLeft className="h-6 w-6" />
                     </button>
-                    <div className="flex-1 text-center pr-6">
+                    <div className="flex-1 text-center">
                       <h3 className="text-[17px] font-bold text-gray-900 dark:text-gray-100">{selectedPart.name}</h3>
                     </div>
+                    {roundInfo === null ? (
+                      <div className="inline-flex items-center bg-gray-100 dark:bg-gray-800 rounded-full px-2.5 py-0.5 flex-shrink-0">
+                        <div className="w-16 h-3.5 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+                      </div>
+                    ) : roundInfo?.currentRound && remainingTime > 0 ? (
+                      <div className="inline-flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-full px-2.5 py-0.5 flex-shrink-0">
+                        <span className="text-[11px] font-semibold text-green-600 dark:text-green-400">
+                          {roundInfo.currentRound.round_no}차 진행중
+                        </span>
+                        <span className={`text-xs font-bold tabular-nums ${remainingTime <= 60 ? 'text-red-600' : 'text-gray-900 dark:text-gray-100'}`}>
+                          {Math.floor(remainingTime / 60)}분 {String(remainingTime % 60).padStart(2, '0')}초
+                        </span>
+                      </div>
+                    ) : roundInfo?.lastClosedRound ? (
+                      <div className="inline-flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-full px-2.5 py-0.5 flex-shrink-0">
+                        <span className="text-[11px] font-semibold text-gray-500 dark:text-gray-400">
+                          {roundInfo.lastClosedRound.round_no}차 경매 마감
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="w-7" />
+                    )}
                   </div>
                   
 
-                  {/* 부위별 필터 - 메인 페이지 개체별과 동일한 스타일 */}
+                  {/* 부위별 필터 - 다중 선택 */}
                   <div className="px-4 py-3 bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 filter-dropdown transition-colors">
                     <div className="flex items-center gap-2.5 flex-wrap">
                       {/* 등급 필터 */}
                       <div className="relative">
                         <button
                           onClick={() => setOpenDropdown(openDropdown === 'partGrade' ? null : 'partGrade')}
-                          className="flex items-center gap-1.5 px-3.5 py-2 bg-gray-100 dark:bg-gray-800 rounded text-[13px] font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                          className={`flex items-center gap-1.5 px-3.5 py-2 rounded text-[13px] font-medium transition-colors ${
+                            partFilterGrades.length > 0
+                              ? 'bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900'
+                              : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                          }`}
                         >
-                          등급: {partFilterGrade === '등급' ? '전체' : partFilterGrade}
+                          {filterLabel(partFilterGrades, '등급')}
                           <ChevronDown className={`h-4 w-4 transition-transform ${openDropdown === 'partGrade' ? 'rotate-180' : ''}`} />
                         </button>
-                        
-                        {/* 등급 드롭다운 메뉴 */}
                         {openDropdown === 'partGrade' && (
-                          <div className="absolute top-full left-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-20 min-w-[110px]">
-                            {['전체', '1++(9)', '1++(8)', '1++(7)', '1+', '1', '2'].map((option) => (
+                          <div className="absolute top-full left-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-20 min-w-[130px]">
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setPartFilterGrades([]); setOpenDropdown(null); }}
+                              className={`flex items-center justify-between w-full text-left px-4 py-2.5 text-[13px] hover:bg-gray-50 dark:hover:bg-gray-700 rounded-t-lg ${
+                                partFilterGrades.length === 0 ? 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 font-medium' : 'text-gray-700 dark:text-gray-300'
+                              }`}
+                            >
+                              전체
+                              {partFilterGrades.length === 0 && <Check className="h-4 w-4" />}
+                            </button>
+                            {['1++(9)', '1++(8)', '1++(7)', '1+', '1', '2'].map((option, idx, arr) => (
                               <button
                                 key={option}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setPartFilterGrade(option);
-                                  setOpenDropdown(null);
-                                }}
-                                className={`block w-full text-left px-4 py-2.5 text-[13px] hover:bg-gray-50 dark:hover:bg-gray-700 first:rounded-t-lg last:rounded-b-lg ${
-                                  (partFilterGrade === option || (partFilterGrade === '등급' && option === '전체'))
-                                    ? 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 font-medium'
-                                    : 'text-gray-700 dark:text-gray-300'
+                                onClick={(e) => { e.stopPropagation(); toggleFilter(partFilterGrades, option, setPartFilterGrades); }}
+                                className={`flex items-center justify-between w-full text-left px-4 py-2.5 text-[13px] hover:bg-gray-50 dark:hover:bg-gray-700 ${
+                                  idx === arr.length - 1 ? 'rounded-b-lg' : ''
+                                } ${
+                                  partFilterGrades.includes(option) ? 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 font-medium' : 'text-gray-700 dark:text-gray-300'
                                 }`}
                               >
                                 {option}
+                                {partFilterGrades.includes(option) && <Check className="h-4 w-4" />}
                               </button>
                             ))}
                           </div>
@@ -1020,34 +991,45 @@ function AuctionPageContent() {
                       <div className="relative">
                         <button
                           onClick={() => setOpenDropdown(openDropdown === 'partCompany' ? null : 'partCompany')}
-                          className="flex items-center gap-1.5 px-3.5 py-2 bg-gray-100 dark:bg-gray-800 rounded text-[13px] font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                          className={`flex items-center gap-1.5 px-3.5 py-2 rounded text-[13px] font-medium transition-colors ${
+                            partFilterCompanies.length > 0
+                              ? 'bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900'
+                              : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                          }`}
                         >
-                          업체: {partFilterCompany === '업체명' ? '전체' : partFilterCompany}
+                          {filterLabel(partFilterCompanies, '업체')}
                           <ChevronDown className={`h-4 w-4 transition-transform ${openDropdown === 'partCompany' ? 'rotate-180' : ''}`} />
                         </button>
-                        
-                        {/* 업체 드롭다운 메뉴 */}
-                        {openDropdown === 'partCompany' && (
-                          <div className="absolute top-full left-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-20 min-w-[110px]">
-                            {['전체', '건화', '대진엠이스', '안심엘피시', '정직한고기'].map((option) => (
+                        {openDropdown === 'partCompany' && (() => {
+                          const partCompanyOptions = Array.from(new Set((selectedPartId && partProducts[selectedPartId] ? partProducts[selectedPartId] : []).map((p: any) => p.company).filter(Boolean)));
+                          return (
+                            <div className="absolute top-full left-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-20 min-w-[130px]">
                               <button
-                                key={option}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setPartFilterCompany(option);
-                                  setOpenDropdown(null);
-                                }}
-                                className={`block w-full text-left px-4 py-2.5 text-[13px] hover:bg-gray-50 dark:hover:bg-gray-700 first:rounded-t-lg last:rounded-b-lg whitespace-nowrap ${
-                                  (partFilterCompany === option || (partFilterCompany === '업체명' && option === '전체'))
-                                    ? 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 font-medium'
-                                    : 'text-gray-700 dark:text-gray-300'
+                                onClick={(e) => { e.stopPropagation(); setPartFilterCompanies([]); setOpenDropdown(null); }}
+                                className={`flex items-center justify-between w-full text-left px-4 py-2.5 text-[13px] hover:bg-gray-50 dark:hover:bg-gray-700 rounded-t-lg ${
+                                  partFilterCompanies.length === 0 ? 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 font-medium' : 'text-gray-700 dark:text-gray-300'
                                 }`}
                               >
-                                {option}
+                                전체
+                                {partFilterCompanies.length === 0 && <Check className="h-4 w-4" />}
                               </button>
-                            ))}
-                          </div>
-                        )}
+                              {partCompanyOptions.map((option, idx) => (
+                                <button
+                                  key={option}
+                                  onClick={(e) => { e.stopPropagation(); toggleFilter(partFilterCompanies, option, setPartFilterCompanies); }}
+                                  className={`flex items-center justify-between w-full text-left px-4 py-2.5 text-[13px] hover:bg-gray-50 dark:hover:bg-gray-700 whitespace-nowrap ${
+                                    idx === partCompanyOptions.length - 1 ? 'rounded-b-lg' : ''
+                                  } ${
+                                    partFilterCompanies.includes(option) ? 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 font-medium' : 'text-gray-700 dark:text-gray-300'
+                                  }`}
+                                >
+                                  {option}
+                                  {partFilterCompanies.includes(option) && <Check className="h-4 w-4" />}
+                                </button>
+                              ))}
+                            </div>
+                          );
+                        })()}
                       </div>
                       
                       {/* 필터 결과 카운트 */}
@@ -1062,23 +1044,28 @@ function AuctionPageContent() {
                   <div className="flex-1 pb-24" data-scroll-container>
                     {/* 테이블 헤더 - sticky */}
                     <div className="bg-gray-100 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 h-9 flex items-center sticky top-11 z-10 transition-colors">
-                      <div className="grid px-2 text-[13px] font-medium text-gray-500 dark:text-gray-400 w-full" style={{gridTemplateColumns: '1fr 0.6fr 0.9fr 1.1fr 0.6fr 0.5fr'}}>
+                      <div className="grid px-2 text-[13px] font-medium text-gray-500 dark:text-gray-400 w-full" style={{gridTemplateColumns: '1.1fr 0.6fr 0.85fr 1.1fr 0.5fr 0.5fr 0.35fr'}}>
                         <div className="text-center">부위</div>
                         <div className="text-center">중량</div>
                         <div className="text-center">최저단가</div>
                         <div className="text-center">나의입찰가</div>
-                        <div className="text-center">상태</div>
+                        <div className="text-center">변경</div>
+                        <div className="text-center">취소</div>
                         <div className="text-center">관심</div>
                       </div>
                     </div>
 
-                    {/* 테이블 데이터 */}
-                    {filteredPartProducts.length === 0 ? (
+                    {/* 테이블 데이터 - 진행중 항목 */}
+                    {activePartProducts.length === 0 && settledPartProducts.length === 0 ? (
                       <div className="text-center py-12">
                         <p className="text-sm text-gray-500 dark:text-gray-400">조건에 맞는 상품이 없습니다.</p>
                       </div>
+                    ) : activePartProducts.length === 0 && settledPartProducts.length > 0 ? (
+                      <div className="text-center py-8">
+                        <p className="text-sm text-gray-500 dark:text-gray-400">모든 부위의 낙찰이 결정되었습니다.</p>
+                      </div>
                     ) : (
-                      filteredPartProducts.map((product) => {
+                      activePartProducts.map((product) => {
                         const myBidPrice = product.myBid?.bidPrice;
                         const hasBid = !!myBidPrice;
                         
@@ -1092,7 +1079,7 @@ function AuctionPageContent() {
                                   ? 'bg-blue-50/50 dark:bg-blue-900/30' 
                                   : 'bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800'
                               }`}
-                              style={{gridTemplateColumns: '1fr 0.6fr 0.9fr 1.1fr 0.6fr 0.5fr'}}
+                              style={{gridTemplateColumns: '1.1fr 0.6fr 0.85fr 1.1fr 0.5fr 0.5fr 0.35fr'}}
                               onClick={() => {
                                 if (!isExpanded) {
                                   setHighlightedProductId(product.id);
@@ -1102,57 +1089,84 @@ function AuctionPageContent() {
                             >
                               <div className="text-center">
                                 <div className="text-[13px] font-medium text-gray-900 dark:text-gray-100">{product.partName}</div>
-                                <div className="text-[11px] text-gray-500 dark:text-gray-400 whitespace-nowrap">{product.type.includes('거세') ? '거세' : '암'} / {product.grade}</div>
+                                <div className="text-[11px] text-gray-500 dark:text-gray-400 whitespace-nowrap">{product.type.includes('거세') ? '거세' : '암'} / {formatGrade(product.grade, product.marblingScore)}</div>
                               </div>
-                              <div className="text-center text-[13px] text-gray-700 dark:text-gray-300">
+                              <div className="text-center text-[13px] text-gray-700 dark:text-gray-300 flex items-center justify-center">
                                 {product.weight}
                               </div>
-                              <div className="text-center text-[13px] text-gray-700 dark:text-gray-300">
+                              <div className="text-center text-[13px] text-gray-700 dark:text-gray-300 flex items-center justify-center">
                                 {product.price.toLocaleString()}
                               </div>
                               <div 
-                                className="text-center flex items-center justify-center"
+                                className="flex items-center justify-center"
                                 onClick={(e) => e.stopPropagation()}
                               >
                                 {hasBid ? (
-                                  <div className="flex flex-col items-center">
-                                    <span 
-                                      onClick={() => {
-                                        setSelectedProduct(product);
-                                        setPartBidPrice(0);
-                                        setShowPartBidSheet(true);
-                                      }}
-                                      className="text-[13px] font-medium text-gray-900 dark:text-gray-100 leading-none cursor-pointer"
-                                    >
-                                      {myBidPrice.toLocaleString()}
-                                    </span>
-                                    <button
-                                      onClick={() => {
-                                        setSelectedProduct(product);
-                                        setPartBidPrice(0);
-                                        setShowPartBidSheet(true);
-                                      }}
-                                      className="mt-1 px-2 py-0.5 text-[11px] font-medium text-white bg-gray-800 dark:bg-gray-700 rounded hover:bg-gray-900 dark:hover:bg-gray-600 transition-colors"
-                                    >
-                                      재입찰
-                                    </button>
-                                  </div>
+                                  <span className="text-[13px] font-medium text-gray-900 dark:text-gray-100">
+                                    {myBidPrice.toLocaleString()}
+                                  </span>
                                 ) : (
                                   <button
+                                    disabled={!canBidPart}
                                     onClick={() => {
                                       setSelectedProduct(product);
                                       setPartBidPrice(0);
                                       setShowPartBidSheet(true);
                                     }}
-                                    className="px-2 py-1 text-[11px] font-medium text-white bg-gray-800 dark:bg-gray-700 rounded hover:bg-gray-900 dark:hover:bg-gray-600 transition-colors"
+                                    className={`px-2 py-1 text-[11px] font-medium rounded transition-colors ${
+                                      canBidPart
+                                        ? 'text-white bg-gray-800 dark:bg-gray-700 hover:bg-gray-900 dark:hover:bg-gray-600'
+                                        : 'text-gray-400 bg-gray-200 dark:bg-gray-700 cursor-not-allowed'
+                                    }`}
                                   >
                                     입찰하기
                                   </button>
                                 )}
                               </div>
-                              <div className="text-center flex items-center justify-center">
+                              <div className="flex items-center justify-center">
                                 {hasBid ? (
-                                  <span className="text-[11px] font-medium text-blue-600 dark:text-blue-400">입찰완료</span>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (!canBidPart) {
+                                        showToastMessage('경매 진행중이 아닙니다.', 'warning');
+                                        return;
+                                      }
+                                      setSelectedProduct(product);
+                                      setPartBidPrice(0);
+                                      setShowPartBidSheet(true);
+                                    }}
+                                    className={`px-1.5 py-1 text-[11px] font-medium rounded transition-colors ${
+                                      canBidPart
+                                        ? 'text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 hover:bg-blue-50 dark:hover:bg-blue-900/30'
+                                        : 'text-gray-400 dark:text-gray-500 border border-gray-200 dark:border-gray-700'
+                                    }`}
+                                  >
+                                    변경
+                                  </button>
+                                ) : (
+                                  <span className="text-[13px] text-gray-400 dark:text-gray-500">-</span>
+                                )}
+                              </div>
+                              <div className="flex items-center justify-center">
+                                {hasBid && product.myBid?.bidId ? (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (!canBidPart) {
+                                        showToastMessage('경매 진행중이 아닙니다.', 'warning');
+                                        return;
+                                      }
+                                      handleCancelBidPart(product.myBid.bidId, product.partName);
+                                    }}
+                                    className={`px-1.5 py-1 text-[11px] font-medium rounded transition-colors ${
+                                      canBidPart
+                                        ? 'text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 hover:bg-red-50 dark:hover:bg-red-900/30'
+                                        : 'text-gray-400 dark:text-gray-500 border border-gray-200 dark:border-gray-700'
+                                    }`}
+                                  >
+                                    취소
+                                  </button>
                                 ) : (
                                   <span className="text-[13px] text-gray-400 dark:text-gray-500">-</span>
                                 )}
@@ -1357,7 +1371,7 @@ function AuctionPageContent() {
                                           <tr>
                                             <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">{product.breed || '한우'}</td>
                                             <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">{product.type?.includes('거세') ? '거세' : '암'}</td>
-                                            <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">{product.grade}</td>
+                                            <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">{formatGrade(product.grade, product.marblingScore)}</td>
                                             <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">{product.monthAge || '-'}</td>
                                             <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium text-[11px]">{product.traceNo || '-'}</td>
                                           </tr>
@@ -1393,7 +1407,7 @@ function AuctionPageContent() {
                                       </table>
                                     </div>
 
-                                    {/* 3행: 도축장, 도축번호, 도체중, 상장업체 */}
+                                    {/* 3행: 도축장, 도축번호, 도체중, 상장업체, 가공일, 가공중량 */}
                                     <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded overflow-hidden">
                                       <table className="w-full text-[13px]">
                                         <thead>
@@ -1402,6 +1416,8 @@ function AuctionPageContent() {
                                             <th className="py-2.5 px-2 text-center font-medium text-gray-500 dark:text-gray-400">도축번호</th>
                                             <th className="py-2.5 px-2 text-center font-medium text-gray-500 dark:text-gray-400">도체중</th>
                                             <th className="py-2.5 px-2 text-center font-medium text-gray-500 dark:text-gray-400">상장업체</th>
+                                            <th className="py-2.5 px-2 text-center font-medium text-gray-500 dark:text-gray-400">가공일</th>
+                                            <th className="py-2.5 px-2 text-center font-medium text-gray-500 dark:text-gray-400">가공중량</th>
                                           </tr>
                                         </thead>
                                         <tbody>
@@ -1410,6 +1426,8 @@ function AuctionPageContent() {
                                             <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">{product.slaughterNo || '-'}</td>
                                             <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">{product.carcassWeight || '-'}</td>
                                             <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">{product.company || '-'}</td>
+                                            <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">{product.processDate ? product.processDate.replace(/-/g, '.').slice(2) : '-'}</td>
+                                            <td className="py-3 px-2 text-center text-gray-900 dark:text-gray-100 font-medium">{product.processWeight || '-'}</td>
                                           </tr>
                                         </tbody>
                                       </table>
@@ -1430,13 +1448,18 @@ function AuctionPageContent() {
                                     </a>
                                     <div className="flex-1" />
                                     <button
+                                      disabled={!canBidPart}
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         setSelectedProduct(product);
                                         setPartBidPrice(product.price);
                                         setShowPartBidSheet(true);
                                       }}
-                                      className="px-3 py-1.5 text-xs font-bold rounded bg-gray-800 text-white hover:bg-gray-900 transition-colors"
+                                      className={`px-3 py-1.5 text-xs font-bold rounded transition-colors ${
+                                        canBidPart
+                                          ? 'bg-gray-800 text-white hover:bg-gray-900'
+                                          : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                                      }`}
                                     >
                                       입찰하기
                                     </button>
@@ -1465,6 +1488,83 @@ function AuctionPageContent() {
                       })
                     )}
                     
+                    {/* 경매 결과 섹션 */}
+                    {settledPartProducts.length > 0 && (
+                      <div className="mt-4">
+                        <div className="px-3 py-2.5 bg-gray-50 dark:bg-gray-800 border-y border-gray-200 dark:border-gray-700">
+                          <h3 className="text-[13px] font-bold text-gray-900 dark:text-gray-100">
+                            경매 결과 ({settledPartProducts.length}건)
+                          </h3>
+                        </div>
+                        <div 
+                          className="grid px-2 py-2 border-b border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 text-[11px] font-medium text-gray-500 dark:text-gray-400"
+                          style={{gridTemplateColumns: '1fr 0.6fr 0.9fr 0.9fr 0.9fr 0.6fr 0.35fr'}}
+                        >
+                          <div className="text-center">부위</div>
+                          <div className="text-center">중량</div>
+                          <div className="text-center">최저단가</div>
+                          <div className="text-center">낙찰가</div>
+                          <div className="text-center">나의입찰가</div>
+                          <div className="text-center">결과</div>
+                          <div className="text-center">관심</div>
+                        </div>
+                        {settledPartProducts.map((product: any) => {
+                          const isMyWin = !!product.myBid?.isWinning;
+                          return (
+                            <div
+                              key={product.id}
+                              className={`grid px-2 py-3 border-b border-gray-100 dark:border-gray-800 items-center ${
+                                isMyWin ? 'bg-blue-50/50 dark:bg-blue-900/20' : 'bg-white dark:bg-gray-900'
+                              }`}
+                              style={{gridTemplateColumns: '1fr 0.6fr 0.9fr 0.9fr 0.9fr 0.6fr 0.35fr'}}
+                            >
+                              <div className="text-center">
+                                <div className="text-[13px] font-medium text-gray-900 dark:text-gray-100">{product.partName}</div>
+                                <div className="text-[11px] text-gray-500 dark:text-gray-400 whitespace-nowrap">{product.type.includes('거세') ? '거세' : '암'} / {formatGrade(product.grade, product.marblingScore)}</div>
+                              </div>
+                              <div className="text-center text-[13px] text-gray-700 dark:text-gray-300">
+                                {product.weight}
+                              </div>
+                              <div className="text-center text-[13px] text-gray-700 dark:text-gray-300">
+                                {product.price.toLocaleString()}
+                              </div>
+                              <div className="text-center text-[13px] font-medium text-gray-900 dark:text-gray-100">
+                                {product.highestBid?.bidPrice ? product.highestBid.bidPrice.toLocaleString() : '-'}
+                              </div>
+                              <div className="text-center text-[13px] text-gray-700 dark:text-gray-300">
+                                {product.myBid?.bidPrice ? product.myBid.bidPrice.toLocaleString() : '-'}
+                              </div>
+                              <div className="text-center flex items-center justify-center">
+                                {isMyWin ? (
+                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300">
+                                    낙찰
+                                  </span>
+                                ) : product.myBid?.bidPrice ? (
+                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400">
+                                    미낙찰
+                                  </span>
+                                ) : (
+                                  <span className="text-[13px] text-gray-400 dark:text-gray-500">-</span>
+                                )}
+                              </div>
+                              <div className="text-center flex items-center justify-center">
+                                <button
+                                  onClick={() => toggleFavorite(product.listingNo)}
+                                  className={`p-1.5 transition-colors ${
+                                    isFavorite(product.listingNo)
+                                      ? 'text-gray-900 dark:text-gray-100'
+                                      : 'text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                                  }`}
+                                >
+                                  <Star className={`w-5 h-5 ${isFavorite(product.listingNo) ? 'fill-current' : ''}`} />
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
                     {/* 하단 여백 */}
                     <div className="pb-24"></div>
                   </div>

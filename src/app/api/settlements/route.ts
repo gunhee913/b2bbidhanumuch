@@ -6,11 +6,6 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-// 물류비, 상차비 상수 (개체당)
-const LOGISTICS_FEE = 21000;
-const LOADING_FEE = 20000;
-
-// GET: 상장업체별 정산 데이터 조회
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -18,7 +13,22 @@ export async function GET(request: NextRequest) {
     const endDate = searchParams.get('endDate');
     const companyId = searchParams.get('companyId');
 
-    // 1. 마감된 상장 조회 (업체, 부위 정보 포함)
+    // 1. 정산 설정 조회 (활성화된 항목만)
+    const { data: settingsData } = await supabase
+      .from('settlement_settings')
+      .select('*')
+      .eq('enabled', true)
+      .order('sort_order', { ascending: true });
+
+    const feeSettings = (settingsData || []).map((s: any) => ({
+      name: s.name,
+      type: s.type as 'percentage' | 'fixed',
+      value: Number(s.value),
+    }));
+
+    const feeNames = feeSettings.map(s => s.name);
+
+    // 2. 마감된 상장 조회
     let query = supabase
       .from('cattle_listings')
       .select(`
@@ -54,15 +64,12 @@ export async function GET(request: NextRequest) {
       .order('company_id', { ascending: true })
       .order('listing_no', { ascending: true });
 
-    // 상장일 필터 (listing_date 기준)
     if (startDate) {
       query = query.gte('listing_date', startDate);
     }
     if (endDate) {
       query = query.lte('listing_date', endDate);
     }
-
-    // 업체 필터
     if (companyId) {
       query = query.eq('company_id', companyId);
     }
@@ -77,6 +84,7 @@ export async function GET(request: NextRequest) {
     if (!listings || listings.length === 0) {
       return NextResponse.json({
         settlements: [],
+        feeNames,
         summary: {
           totalCompanies: 0,
           totalCattle: 0,
@@ -87,7 +95,7 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // 2. 낙찰된 부위의 딜러 정보 조회
+    // 3. 낙찰된 부위의 딜러 정보 조회
     const winningDealerIds = new Set<string>();
     listings.forEach((listing: any) => {
       (listing.cattle_parts || []).forEach((part: any) => {
@@ -109,10 +117,9 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // 3. 업체별로 그룹핑
+    // 4. 업체별로 그룹핑
     const companyMap: Record<string, any> = {};
 
-    // 등급 포맷팅 함수
     const formatGrade = (grade: string, marblingScore: number | null) => {
       if (!grade) return '';
       if (grade.includes('(')) return grade;
@@ -120,6 +127,13 @@ export async function GET(request: NextRequest) {
         return `${grade}(${marblingScore})`;
       }
       return grade;
+    };
+
+    const calcFee = (setting: { type: 'percentage' | 'fixed'; value: number }, saleAmount: number) => {
+      if (setting.type === 'percentage') {
+        return Math.round(saleAmount * (setting.value / 100));
+      }
+      return setting.value;
     };
 
     listings.forEach((listing: any) => {
@@ -142,7 +156,6 @@ export async function GET(request: NextRequest) {
         };
       }
 
-      // 부위별 내역 구성
       const parts = (listing.cattle_parts || [])
         .filter((part: any) => part.is_included)
         .sort((a: any, b: any) => a.part_no - b.part_no)
@@ -161,19 +174,15 @@ export async function GET(request: NextRequest) {
           };
         });
 
-      // 판매금액 (낙찰금액 합계)
       const saleAmount = parts.reduce((sum: number, p: any) => sum + p.amount, 0);
-      
-      // 상장수수료 (판매금액의 2%)
-      const listingFee = Math.round(saleAmount * 0.02);
-      
-      // 공제금액 합계
-      const deductionTotal = listingFee + LOGISTICS_FEE + LOADING_FEE;
-      
-      // 차인지급액
-      const netPayment = saleAmount - deductionTotal;
 
-      // 도체중 (부위 중량 합계)
+      const fees = feeSettings.map(setting => ({
+        name: setting.name,
+        amount: calcFee(setting, saleAmount),
+      }));
+
+      const deductionTotal = fees.reduce((sum, f) => sum + f.amount, 0);
+      const netPayment = saleAmount - deductionTotal;
       const totalWeight = parts.reduce((sum: number, p: any) => sum + p.weight, 0);
 
       const cattle = {
@@ -186,9 +195,7 @@ export async function GET(request: NextRequest) {
         traceNo: listing.trace_no || '',
         closedAt: listing.closed_at,
         saleAmount,
-        listingFee,
-        logisticsFee: LOGISTICS_FEE,
-        loadingFee: LOADING_FEE,
+        fees,
         deductionTotal,
         netPayment,
         parts,
@@ -200,10 +207,8 @@ export async function GET(request: NextRequest) {
       companyMap[companyIdKey].totalNetPayment += netPayment;
     });
 
-    // 4. 결과 배열로 변환
     const settlements = Object.values(companyMap);
 
-    // 5. 전체 요약
     const summary = {
       totalCompanies: settlements.length,
       totalCattle: settlements.reduce((sum: number, s: any) => sum + s.cattleList.length, 0),
@@ -214,6 +219,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       settlements,
+      feeNames,
       summary,
     });
   } catch (error) {

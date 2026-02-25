@@ -86,6 +86,7 @@ export async function GET(
           dealer_id,
           bid_price,
           bid_amount,
+          is_winning,
           created_at,
           dealers (
             id,
@@ -109,6 +110,7 @@ export async function GET(
           dealerName: bid.dealers?.name || '',
           bidPrice: bid.bid_price,
           bidAmount: bid.bid_amount,
+          isWinning: !!bid.is_winning,
           createdAt: bid.created_at,
         });
       });
@@ -184,13 +186,16 @@ export async function GET(
 
         const isSettled = ['completed', 'closed'].includes(listing.status);
         const highestBid = partBids.length > 0 ? partBids[0] : null;
+        const myBidIsWinning = !!myBid?.isWinning;
+        const hasWinner = partBids.some((b: any) => b.isWinning);
 
         return {
           ...basePartData,
           bidCount: isSettled ? partBids.length : 0,
-          highestBid: isSettled ? (highestBid ? { bidPrice: highestBid.bidPrice, bidAmount: highestBid.bidAmount } : null) : null,
+          highestBid: (isSettled || hasWinner) ? (highestBid ? { bidPrice: highestBid.bidPrice, bidAmount: highestBid.bidAmount } : null) : null,
+          hasWinner,
           allBids: [],
-          myBid: myBid ? { bidId: myBid.id, bidPrice: myBid.bidPrice, bidAmount: myBid.bidAmount } : null,
+          myBid: myBid ? { bidId: myBid.id, bidPrice: myBid.bidPrice, bidAmount: myBid.bidAmount, isWinning: myBidIsWinning } : null,
         };
       }),
     };

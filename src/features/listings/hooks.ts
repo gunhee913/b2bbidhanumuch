@@ -116,7 +116,7 @@ export function useUpdatePart() {
       input: UpdatePartInput;
     }) => updatePart(listingId, partId, input),
     onSuccess: (data, variables) => {
-      // 상장 상세 캐시 업데이트
+      queryClient.invalidateQueries({ queryKey: listingKeys.lists() });
       queryClient.setQueryData<CattleListing>(
         listingKeys.detail(variables.listingId),
         (old) => {

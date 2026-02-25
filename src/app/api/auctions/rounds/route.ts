@@ -8,11 +8,11 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-function calcRoundTimes(startTime: string, roundDurationMin: number, termDurationMin: number, roundIndex: number) {
+function calcRoundTimes(round: any) {
+  const startTime = round.startTime || '08:30';
   const [h, m] = startTime.split(':').map(Number);
-  const baseMin = h * 60 + m;
-  const roundStartMin = baseMin + roundIndex * (roundDurationMin + termDurationMin);
-  const roundEndMin = roundStartMin + roundDurationMin;
+  const roundStartMin = h * 60 + m;
+  const roundEndMin = roundStartMin + (round.durationMin || 20);
   const pad = (n: number) => String(n).padStart(2, '0');
   return {
     start_time: `${pad(Math.floor(roundStartMin / 60))}:${pad(roundStartMin % 60)}:00`,
@@ -31,14 +31,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const {
-      auctionDate,
-      title,
-      rounds,
-      roundDurationMin = 5,
-      termDurationMin = 2,
-      auctionStartTime,
-    } = body;
+    const { auctionDate, title, rounds } = body;
 
     if (!auctionDate || !rounds || rounds.length === 0) {
       return NextResponse.json(
@@ -86,7 +79,9 @@ export async function POST(request: NextRequest) {
       const roundNo = i + 1;
       const auctionNo = `${dateCode}-${String(nextSeq + i).padStart(3, '0')}`;
 
-      const times = auctionStartTime ? calcRoundTimes(auctionStartTime, roundDurationMin, termDurationMin, i) : {};
+      const roundDuration = round.durationMin || 20;
+      const roundTerm = round.termDurationMin ?? 10;
+      const times = calcRoundTimes(round);
 
       const insertData: Record<string, any> = {
         auction_date: auctionDate,
@@ -94,8 +89,8 @@ export async function POST(request: NextRequest) {
         title: title || `${format(new Date(auctionDate), 'yyyy년 MM월 dd일')} 경매`,
         status: roundNo === 1 ? 'open' : 'scheduled',
         round_no: roundNo,
-        round_duration_min: roundDurationMin,
-        term_duration_min: termDurationMin,
+        round_duration_min: roundDuration,
+        term_duration_min: roundTerm,
         auto_next_round: true,
         ...(roundNo === 1 ? { started_at: new Date().toISOString() } : {}),
         ...times,
@@ -170,7 +165,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { auctionDate, rounds, roundDurationMin = 5, termDurationMin = 2, auctionStartTime } = body;
+    const { auctionDate, rounds } = body;
 
     if (!auctionDate || !rounds || rounds.length === 0) {
       return NextResponse.json({ error: '경매일과 회차 정보는 필수입니다.' }, { status: 400 });
@@ -214,7 +209,9 @@ export async function PUT(request: NextRequest) {
       const roundNo = i + 1;
       const auctionNo = `${dateCode}-${String(nextSeq + i).padStart(3, '0')}`;
 
-      const putTimes = auctionStartTime ? calcRoundTimes(auctionStartTime, roundDurationMin, termDurationMin, i) : {};
+      const roundDuration = round.durationMin || 20;
+      const roundTerm = round.termDurationMin ?? 10;
+      const putTimes = calcRoundTimes(round);
 
       const insertData: Record<string, any> = {
         auction_date: auctionDate,
@@ -222,8 +219,8 @@ export async function PUT(request: NextRequest) {
         title: `${format(new Date(auctionDate), 'yyyy년 MM월 dd일')} 경매`,
         status: 'scheduled',
         round_no: roundNo,
-        round_duration_min: roundDurationMin,
-        term_duration_min: termDurationMin,
+        round_duration_min: roundDuration,
+        term_duration_min: roundTerm,
         auto_next_round: true,
         ...putTimes,
       };

@@ -49,7 +49,8 @@ export async function GET(request: NextRequest) {
             grade,
             gender,
             status,
-            closed_at
+            closed_at,
+            marbling_score
           )
         )
       `)
@@ -151,32 +152,36 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 회차별 경매 검증: 해당 상장이 배정된 회차가 open 상태인지 확인
-    const { data: auctionLink } = await supabase
+    // 회차별 경매 검증: 해당 상장이 배정된 open 상태 회차가 있는지 확인
+    const { data: auctionLinks } = await supabase
       .from('auction_listings')
       .select('auction_id, auctions(id, status, round_no, started_at, round_duration_min)')
-      .eq('listing_id', part.listing_id)
-      .limit(1)
-      .maybeSingle();
+      .eq('listing_id', part.listing_id);
 
-    if (auctionLink) {
-      const linkedAuction = (auctionLink as any).auctions;
-      if (linkedAuction && linkedAuction.status !== 'open') {
+    if (!auctionLinks || auctionLinks.length === 0) {
+      return NextResponse.json(
+        { error: '아직 경매가 시작되지 않았습니다.' },
+        { status: 400 }
+      );
+    }
+
+    const openLink = auctionLinks.find((al: any) => al.auctions?.status === 'open');
+    if (!openLink) {
+      return NextResponse.json(
+        { error: '현재 진행 중인 회차가 아닙니다. 해당 회차가 시작될 때까지 기다려주세요.' },
+        { status: 400 }
+      );
+    }
+
+    const linkedAuction = (openLink as any).auctions;
+    if (linkedAuction?.started_at && linkedAuction?.round_duration_min) {
+      const startedAt = new Date(linkedAuction.started_at).getTime();
+      const durationMs = linkedAuction.round_duration_min * 60 * 1000;
+      if (Date.now() > startedAt + durationMs) {
         return NextResponse.json(
-          { error: '현재 진행 중인 회차가 아닙니다. 해당 회차가 시작될 때까지 기다려주세요.' },
+          { error: '해당 회차의 경매 시간이 종료되었습니다.' },
           { status: 400 }
         );
-      }
-      // 타이머 만료 체크: started_at + round_duration_min 이후면 입찰 불가
-      if (linkedAuction?.started_at && linkedAuction?.round_duration_min) {
-        const startedAt = new Date(linkedAuction.started_at).getTime();
-        const durationMs = linkedAuction.round_duration_min * 60 * 1000;
-        if (Date.now() > startedAt + durationMs) {
-          return NextResponse.json(
-            { error: '해당 회차의 경매 시간이 종료되었습니다.' },
-            { status: 400 }
-          );
-        }
       }
     }
 
@@ -210,16 +215,14 @@ export async function POST(request: NextRequest) {
     const partWeight = weight || part.weight || 0;
     const bidAmount = Math.round(bidPrice * partWeight);
 
-    // 기존 입찰 확인 (같은 부위, 같은 중도매인)
     const { data: existingBid } = await supabase
       .from('bids')
-      .select('id, bid_price')
+      .select('id, bid_price, bid_amount, auction_id')
       .eq('part_id', partId)
       .eq('dealer_id', dealerId)
       .single();
 
     if (existingBid) {
-      // 기존 입찰이 있으면 업데이트
       const { data: updatedBid, error: updateError } = await supabase
         .from('bids')
         .update({
@@ -235,6 +238,19 @@ export async function POST(request: NextRequest) {
         console.error('입찰 수정 오류:', updateError);
         return NextResponse.json({ error: updateError.message }, { status: 500 });
       }
+
+      await supabase.from('bid_audit_logs').insert({
+        bid_id: existingBid.id,
+        auction_id: auctionId || existingBid.auction_id || null,
+        part_id: partId,
+        dealer_id: dealerId,
+        action_type: 'dealer_update',
+        old_bid_price: existingBid.bid_price,
+        new_bid_price: bidPrice,
+        old_bid_amount: existingBid.bid_amount,
+        new_bid_amount: bidAmount,
+        performed_by: null,
+      });
 
       return NextResponse.json({
         ...updatedBid,

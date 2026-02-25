@@ -42,7 +42,6 @@ export async function POST(
       );
     }
 
-    // 회차별 경매인 경우 close_round, 아닌 경우 close_auction
     const isRoundAuction = auction.round_no != null;
 
     if (isRoundAuction) {
@@ -55,7 +54,7 @@ export async function POST(
         return NextResponse.json({ error: closeError.message }, { status: 500 });
       }
 
-      // 다음 회차 자동 시작 처리
+      // 다음 회차 자동 시작 처리 (기존 사전 배정된 라운드)
       let nextRound = null;
       if (auction.auto_next_round && auction.session_id) {
         const { data: next } = await supabase
@@ -94,8 +93,8 @@ export async function POST(
         auction: updatedAuction,
         nextRound,
         message: nextRound
-          ? `${auction.round_no}회차가 마감되었습니다. ${nextRound.round_no}회차가 ${auction.term_duration_min}분 후 시작됩니다.`
-          : `${auction.round_no}회차가 마감되었습니다. 마지막 회차입니다.`,
+          ? `경매가 마감되었습니다. 유찰분 ${auction.term_duration_min || 10}분 후 재경매가 시작됩니다.`
+          : `경매가 마감되었습니다.`,
       });
     }
 

@@ -6,6 +6,39 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
+const ADMIN_BID_PASSWORD = process.env.ADMIN_BID_PASSWORD || '1234';
+
+function verifyAdminPassword(password?: string): string | null {
+  if (!password) return '비밀번호를 입력해주세요.';
+  if (password !== ADMIN_BID_PASSWORD) return '비밀번호가 일치하지 않습니다.';
+  return null;
+}
+
+async function checkAuctionOpen(bidId: string): Promise<string | null> {
+  const { data: bid } = await supabase
+    .from('bids')
+    .select('part_id, cattle_parts(listing_id)')
+    .eq('id', bidId)
+    .single();
+
+  if (!bid) return null;
+
+  const listingId = (bid.cattle_parts as any)?.listing_id;
+  if (!listingId) return null;
+
+  const { data: links } = await supabase
+    .from('auction_listings')
+    .select('auction_id, auctions(status)')
+    .eq('listing_id', listingId);
+
+  if (!links || links.length === 0) return null;
+
+  const hasOpen = links.some((l: any) => l.auctions?.status === 'open');
+  if (!hasOpen) return '경매가 종료되어 입찰을 변경할 수 없습니다.';
+
+  return null;
+}
+
 // GET: 단일 입찰 조회
 export async function GET(
   request: NextRequest,
@@ -65,7 +98,7 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { bidPrice, updatedBy } = body;
+    const { bidPrice, updatedBy, adminPassword } = body;
 
     if (!bidPrice || bidPrice <= 0) {
       return NextResponse.json(
@@ -74,12 +107,28 @@ export async function PUT(
       );
     }
 
-    // 기존 입찰 조회
+    const isAdmin = !!updatedBy;
+    if (isAdmin) {
+      const pwError = verifyAdminPassword(adminPassword);
+      if (pwError) {
+        return NextResponse.json({ error: pwError }, { status: 403 });
+      }
+    } else {
+      const auctionError = await checkAuctionOpen(id);
+      if (auctionError) {
+        return NextResponse.json({ error: auctionError }, { status: 400 });
+      }
+    }
+
     const { data: existingBid, error: fetchError } = await supabase
       .from('bids')
       .select(`
         id,
+        auction_id,
         part_id,
+        dealer_id,
+        bid_price,
+        bid_amount,
         cattle_parts (
           id,
           min_price,
@@ -98,7 +147,6 @@ export async function PUT(
 
     const part = existingBid.cattle_parts as any;
     
-    // 최저가 확인
     if (part?.min_price && bidPrice < part.min_price) {
       return NextResponse.json(
         { error: `최저가(${part.min_price.toLocaleString()}원) 이상으로 입찰해주세요.` },
@@ -106,10 +154,8 @@ export async function PUT(
       );
     }
 
-    // 입찰금액 재계산
     const bidAmount = Math.round(bidPrice * (part?.weight || 0));
 
-    // 입찰 수정
     const { data: updatedBid, error: updateError } = await supabase
       .from('bids')
       .update({
@@ -126,6 +172,19 @@ export async function PUT(
       console.error('입찰 수정 오류:', updateError);
       return NextResponse.json({ error: updateError.message }, { status: 500 });
     }
+
+    await supabase.from('bid_audit_logs').insert({
+      bid_id: id,
+      auction_id: existingBid.auction_id,
+      part_id: existingBid.part_id,
+      dealer_id: existingBid.dealer_id,
+      action_type: 'update',
+      old_bid_price: existingBid.bid_price,
+      new_bid_price: bidPrice,
+      old_bid_amount: existingBid.bid_amount,
+      new_bid_amount: bidAmount,
+      performed_by: updatedBy || null,
+    });
 
     return NextResponse.json({
       ...updatedBid,
@@ -148,10 +207,31 @@ export async function DELETE(
   try {
     const { id } = await params;
 
-    // 기존 입찰 확인
+    let isAdmin = false;
+    let adminPassword: string | undefined;
+    let performedBy: string | null = null;
+    try {
+      const body = await request.json();
+      isAdmin = !!body?.isAdmin;
+      adminPassword = body?.adminPassword;
+      performedBy = body?.performedBy || null;
+    } catch {}
+
+    if (isAdmin) {
+      const pwError = verifyAdminPassword(adminPassword);
+      if (pwError) {
+        return NextResponse.json({ error: pwError }, { status: 403 });
+      }
+    } else {
+      const auctionError = await checkAuctionOpen(id);
+      if (auctionError) {
+        return NextResponse.json({ error: auctionError }, { status: 400 });
+      }
+    }
+
     const { data: existingBid, error: fetchError } = await supabase
       .from('bids')
-      .select('id, rank, is_winning')
+      .select('id, auction_id, part_id, dealer_id, bid_price, bid_amount, rank, is_winning')
       .eq('id', id)
       .single();
 
@@ -162,7 +242,6 @@ export async function DELETE(
       );
     }
 
-    // 입찰 삭제
     const { error: deleteError } = await supabase
       .from('bids')
       .delete()
@@ -172,6 +251,19 @@ export async function DELETE(
       console.error('입찰 삭제 오류:', deleteError);
       return NextResponse.json({ error: deleteError.message }, { status: 500 });
     }
+
+    await supabase.from('bid_audit_logs').insert({
+      bid_id: id,
+      auction_id: existingBid.auction_id,
+      part_id: existingBid.part_id,
+      dealer_id: existingBid.dealer_id,
+      action_type: isAdmin ? 'delete' : 'dealer_cancel',
+      old_bid_price: existingBid.bid_price,
+      new_bid_price: null,
+      old_bid_amount: existingBid.bid_amount,
+      new_bid_amount: null,
+      performed_by: performedBy,
+    });
 
     return NextResponse.json({
       message: '입찰이 삭제되었습니다.',
