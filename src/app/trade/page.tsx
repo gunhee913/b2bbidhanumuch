@@ -2,74 +2,78 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
-import { 
+import {
   Plus,
   FileText,
   Settings,
   Bell,
-  Search
+  Search,
+  Loader2
 } from 'lucide-react';
 import BottomNav from '@/components/BottomNav';
-import { useBidStore } from '@/stores/bidStore';
-import { useDealerStore } from '@/features/dealers/store';
+import { useSession } from 'next-auth/react';
+import { useQuery } from '@tanstack/react-query';
+import { format } from 'date-fns';
 
-// 거래 내역 타입
-interface TradeItem {
-  id: string;
-  status: 'ongoing' | 'won' | 'lost';
-  listingNo: string;
+interface WinningPart {
+  partId: string;
+  partNo: number;
   partName: string;
-  weight: string;
-  weightKg: number;
-  myBid: number;
-  highestBid: number;
-  bidTime: string;
-  // 상세 정보
-  traceNo: string;
+  listingPartNo: string;
+  weight: number;
+  bidPrice: number;
+  bidAmount: number;
+  bidAt: string;
+  dealerId: string;
+  dealerNo: string;
+  dealerName: string;
+  listingId: string;
+  listingNo: string;
+  listingDate: string;
   grade: string;
+  traceNo: string;
+  breed: string;
   gender: string;
   monthAge: number;
-  processingCompany: string;
-  slaughterDate: string;
-  processingDate: string;
   carcassWeight: number;
-  // 등급 상세
-  backFat: number;       // 등지방
-  eyeMuscle: number;     // 등심면적
-  marbling: number;      // 근내지방
-  meatColor: number;     // 육색
-  fatColor: number;      // 지방색
-  texture: number;       // 조직감
-  maturity: number;      // 성숙도
-  // 도축/가공 정보
-  slaughterhouse: string;  // 도축장
-  slaughterNo: number;     // 도축번호
-  listingCompany: string;  // 상장업체
-  processWeight: number;   // 가공중량
-  // 거래처 (낙찰 시에만)
-  dealer?: string;
+  backFat: number;
+  eyeMuscle: number;
+  marbling: number;
+  meatColor: number;
+  fatColor: number;
+  texture: number;
+  maturity: number;
+  slaughterHouse: string;
+  slaughterNo: string;
+  slaughterDate: string;
+  processDate: string;
+  processWeight: number;
+  companyName: string;
+}
+
+interface AssignmentInfo {
+  partnerId: string;
+  partnerNo: string;
+  partnerName: string;
+  representative: string;
+  phone: string;
+  address: string;
 }
 
 export default function TradePage() {
-  const { auctionResults, deliveryDealers } = useBidStore();
-  
-  // 거래처 ID로 거래처명 조회
-  const { getDealerById } = useDealerStore();
-  const getDealerName = (listingNo: string) => {
-    const dealerId = deliveryDealers[listingNo];
-    if (!dealerId) return null;
-    const dealer = getDealerById(dealerId);
-    return dealer?.name || null;
-  };
-  
-  // 테이블 스크롤 드래그
+  const { data: session } = useSession();
+  const dealer = (session as any)?.dealer;
+  const employee = (session as any)?.employee;
+  const dealerId = dealer?.id || employee?.dealerId || null;
+
+  const todayStr = format(new Date(), 'yyyy-MM-dd');
+
   const tableScrollRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [startX, setStartX] = useState(0);
   const [scrollLeft, setScrollLeft] = useState(0);
-  
-  // 테이블 스크롤 동기화
+
   const handleTableScroll = () => {
     if (tableScrollRef.current && headerRef.current) {
       headerRef.current.scrollLeft = tableScrollRef.current.scrollLeft;
@@ -91,308 +95,157 @@ export default function TradePage() {
     tableScrollRef.current.scrollLeft = scrollLeft + walk;
   };
 
-  const handleMouseUp = () => {
-    setIsDragging(false);
-  };
+  const handleMouseUp = () => setIsDragging(false);
+  const handleMouseLeave = () => setIsDragging(false);
 
-  const handleMouseLeave = () => {
-    setIsDragging(false);
-  };
-  
-  // 검색어 상태
   const [searchQuery, setSearchQuery] = useState('');
-  
-  // 필터 상태 (거래처 등록 여부)
   const [dealerFilter, setDealerFilter] = useState<'all' | 'registered' | 'unregistered'>('all');
-  
-  // 기간 필터 상태 (기본값: 1월 26일)
-  const getDefaultDate = () => new Date(2026, 0, 26); // 2026년 1월 26일
-  const [startDate, setStartDate] = useState<Date>(getDefaultDate());
-  const [endDate, setEndDate] = useState<Date>(getDefaultDate());
-  const [searchStartDate, setSearchStartDate] = useState<Date>(getDefaultDate());
-  const [searchEndDate, setSearchEndDate] = useState<Date>(getDefaultDate());
-  
-  const formatDateDisplay = (date: Date) => {
-    const yy = String(date.getFullYear()).slice(2);
-    const mm = String(date.getMonth() + 1).padStart(2, '0');
-    const dd = String(date.getDate()).padStart(2, '0');
-    return `${yy}.${mm}.${dd}`;
-  };
 
-  // 동적 viewport 높이 설정
+  const [startDate, setStartDate] = useState(todayStr);
+  const [endDate, setEndDate] = useState(todayStr);
+  const [searchStartDate, setSearchStartDate] = useState(todayStr);
+  const [searchEndDate, setSearchEndDate] = useState(todayStr);
+
   useEffect(() => {
     const setViewportHeight = () => {
       const vh = window.innerHeight * 0.01;
       document.documentElement.style.setProperty('--vh', `${vh}px`);
     };
-
     setViewportHeight();
     window.addEventListener('resize', setViewportHeight);
     window.addEventListener('orientationchange', setViewportHeight);
-
     return () => {
       window.removeEventListener('resize', setViewportHeight);
       window.removeEventListener('orientationchange', setViewportHeight);
     };
   }, []);
 
-  // 거래 내역 데이터 생성 (auctionResults에서 낙찰(won) 데이터만)
-  const tradeItems: TradeItem[] = useMemo(() => {
-    // auctionResults에서 낙찰(won) 데이터만 필터링하여 TradeItem으로 변환
-    return auctionResults
-      .filter(result => result.result === 'won')
-      .map(result => {
-        const weightStr = result.productInfo.weight;
-        const weightKg = parseFloat(weightStr.replace('kg', '')) || 0;
-        const typeStr = result.productInfo.type || '한우거세';
-        const gender = typeStr.includes('암') ? '암' : '거세';
-        
-        return {
-          id: result.listingNo,
-          status: 'won' as const,
-          listingNo: result.listingNo,
-          partName: result.productInfo.partName,
-          weight: weightStr.includes('kg') ? weightStr : `${weightStr}kg`,
-          weightKg: weightKg,
-          myBid: result.myBid,
-          highestBid: result.winningBid,
-          bidTime: result.time,
-          traceNo: '002-1486-7293-1',
-          grade: result.productInfo.grade,
-          gender: gender,
-          monthAge: 32,
-          processingCompany: '건화',
-          slaughterDate: '26.01.17',
-          processingDate: '26.01.17',
-          carcassWeight: 520,
-          // 등급 상세
-          backFat: 16,
-          eyeMuscle: 123,
-          marbling: 9,
-          meatColor: 5,
-          fatColor: 3,
-          texture: 1,
-          maturity: 2,
-          // 도축/가공 정보
-          slaughterhouse: '음성',
-          slaughterNo: 201,
-          listingCompany: '건화',
-          processWeight: 312,
-        };
-      });
-  }, [auctionResults]);
+  const { data: partsData, isLoading } = useQuery<{ winningParts: WinningPart[] }>({
+    queryKey: ['trade-winning-parts', dealerId, searchStartDate, searchEndDate],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (dealerId) params.set('dealerId', dealerId);
+      if (searchStartDate) params.set('startDate', searchStartDate);
+      if (searchEndDate) params.set('endDate', searchEndDate);
+      const res = await fetch(`/api/delivery/winning-parts?${params.toString()}`);
+      if (!res.ok) throw new Error();
+      return res.json();
+    },
+    enabled: !!dealerId,
+  });
 
-  // bidTime을 Date로 파싱하는 헬퍼 함수
-  const parseBidTime = (bidTime: string): Date => {
-    // 25.08.06.(수) 14:01 형식
-    const dateMatch = bidTime.match(/(\d{2})\.(\d{2})\.(\d{2}).*?(\d{2}):(\d{2})/);
-    if (dateMatch) {
-      const year = 2000 + parseInt(dateMatch[1]);
-      const month = parseInt(dateMatch[2]) - 1;
-      const day = parseInt(dateMatch[3]);
-      const hour = parseInt(dateMatch[4]);
-      const minute = parseInt(dateMatch[5]);
-      return new Date(year, month, day, hour, minute);
+  const { data: assignmentsData } = useQuery<{ assignments: Record<string, AssignmentInfo> }>({
+    queryKey: ['trade-assignments', searchStartDate, searchEndDate],
+    queryFn: async () => {
+      const res = await fetch(`/api/delivery/assignments?date=${searchStartDate}`);
+      if (!res.ok) throw new Error();
+      return res.json();
+    },
+    enabled: !!dealerId,
+  });
+
+  const winningParts = partsData?.winningParts || [];
+  const assignments = assignmentsData?.assignments || {};
+
+  const getPartnerName = (partId: string): string | null => {
+    return assignments[partId]?.partnerName || null;
+  };
+
+  const formatBidTime = (bidAt: string, listingDate: string): string => {
+    if (bidAt) {
+      try {
+        const d = new Date(bidAt);
+        return format(d, 'yy.MM.dd HH:mm');
+      } catch {
+        // fall through
+      }
     }
-    return new Date(0);
+    if (listingDate) {
+      return listingDate.replace(/-/g, '.').slice(2);
+    }
+    return '-';
   };
 
-  // 날짜 코드에서 Date 객체로 변환 (YYMMDD -> Date)
-  const dateCodeToDate = (dateCode: string): Date => {
-    const year = 2000 + parseInt(dateCode.slice(0, 2));
-    const month = parseInt(dateCode.slice(2, 4)) - 1;
-    const day = parseInt(dateCode.slice(4, 6));
-    return new Date(year, month, day);
-  };
-  
-  // 기간 필터링된 거래 내역
-  const dateFilteredItems = useMemo(() => {
-    const start = new Date(searchStartDate);
-    const end = new Date(searchEndDate);
-    start.setHours(0, 0, 0, 0);
-    end.setHours(23, 59, 59, 999);
-    
-    return tradeItems.filter(item => {
-      const dateCode = item.listingNo.split('-')[0] || '000000';
-      const itemDate = dateCodeToDate(dateCode);
-      return itemDate >= start && itemDate <= end;
-    });
-  }, [tradeItems, searchStartDate, searchEndDate]);
-  
-  // 요약 정보 계산 (기간 필터 적용 후)
   const summaryInfo = useMemo(() => {
-    const total = dateFilteredItems.length;
-    const registered = dateFilteredItems.filter(item => !!(getDealerName(item.listingNo) || item.dealer)).length;
+    const total = winningParts.length;
+    const registered = winningParts.filter(p => !!getPartnerName(p.partId)).length;
     const unregistered = total - registered;
     return { total, registered, unregistered };
-  }, [dateFilteredItems, deliveryDealers]);
+  }, [winningParts, assignments]);
 
-  // 검색어 필터링된 거래 내역
   const searchFilteredItems = useMemo(() => {
-    if (!searchQuery.trim()) return dateFilteredItems;
-    
+    if (!searchQuery.trim()) return winningParts;
     const query = searchQuery.trim().toLowerCase();
-    return dateFilteredItems.filter(item => {
-      // 상장번호, 부위, 등급, 거래처명 검색
-      const dealerName = getDealerName(item.listingNo) || item.dealer || '';
+    return winningParts.filter(item => {
+      const partnerName = getPartnerName(item.partId) || '';
       return (
+        (item.listingPartNo || '').toLowerCase().includes(query) ||
         item.listingNo.toLowerCase().includes(query) ||
         item.partName.toLowerCase().includes(query) ||
         item.grade.toLowerCase().includes(query) ||
-        dealerName.toLowerCase().includes(query)
+        partnerName.toLowerCase().includes(query)
       );
     });
-  }, [dateFilteredItems, searchQuery, deliveryDealers]);
+  }, [winningParts, searchQuery, assignments]);
 
-  // 필터링된 거래 내역 (거래처 등록 여부로 필터링)
   const filteredItems = useMemo(() => {
     const filtered = searchFilteredItems.filter(item => {
-      const hasDealer = !!(getDealerName(item.listingNo) || item.dealer);
-      
+      const hasDealer = !!getPartnerName(item.partId);
       if (dealerFilter === 'registered') return hasDealer;
       if (dealerFilter === 'unregistered') return !hasDealer;
-      return true; // 'all'
+      return true;
     });
-    
-    // 최신순 정렬 (listingNo 날짜 -> bidTime 순)
+
     return filtered.sort((a, b) => {
-      const dateCodeA = a.listingNo.split('-')[0] || '000000';
-      const dateCodeB = b.listingNo.split('-')[0] || '000000';
-      
-      if (dateCodeA !== dateCodeB) {
-        return dateCodeB.localeCompare(dateCodeA);
-      }
-      
-      const timeA = parseBidTime(a.bidTime);
-      const timeB = parseBidTime(b.bidTime);
-      return timeB.getTime() - timeA.getTime();
+      if (a.listingDate !== b.listingDate) return b.listingDate.localeCompare(a.listingDate);
+      if (a.listingNo !== b.listingNo) return a.listingNo.localeCompare(b.listingNo);
+      return a.partNo - b.partNo;
     });
-  }, [searchFilteredItems, dealerFilter, deliveryDealers]);
-  
-  // 조회 버튼 클릭
+  }, [searchFilteredItems, dealerFilter, assignments]);
+
   const handleSearch = () => {
     setSearchStartDate(startDate);
     setSearchEndDate(endDate);
   };
 
-
-  // 상태별 배지 스타일 (배송지시는 모두 낙찰 내역)
-  const getStatusBadge = () => {
-    return {
-      text: '낙찰',
-      className: 'bg-green-100 text-green-700',
-    };
-  };
-
-  // 총 경락대금 계산
-  const calculateTotalPrice = (item: TradeItem) => {
-    return item.myBid * item.weightKg;
-  };
-
   return (
     <div className="fixed inset-0 bg-white flex justify-center items-center z-[9999] overflow-hidden">
       <div className="w-full md:flex md:justify-center md:items-center bg-white">
-        <div 
-          className="w-full md:max-w-md md:w-[500px] bg-white md:shadow-2xl relative overflow-hidden flex flex-col" 
+        <div
+          className="w-full md:max-w-md md:w-[500px] bg-white md:shadow-2xl relative overflow-hidden flex flex-col"
           style={{
             height: 'calc(var(--vh, 1vh) * 100)',
-            scrollbarWidth: 'none', 
+            scrollbarWidth: 'none',
             msOverflowStyle: 'none'
           }}
         >
           <style jsx global>{`
-            .hide-scrollbar::-webkit-scrollbar {
-              display: none;
-            }
-            .hide-scrollbar {
-              -ms-overflow-style: none;
-              scrollbar-width: none;
-            }
-            .thin-scrollbar::-webkit-scrollbar {
-              width: 4px;
-            }
-            .thin-scrollbar::-webkit-scrollbar-track {
-              background: transparent;
-            }
-            .thin-scrollbar::-webkit-scrollbar-thumb {
-              background: #d1d5db;
-              border-radius: 2px;
-            }
-            .thin-scrollbar-x::-webkit-scrollbar {
-              height: 1px;
-            }
-            .thin-scrollbar-x::-webkit-scrollbar-track {
-              background: #f3f4f6;
-            }
-            .thin-scrollbar-x::-webkit-scrollbar-thumb {
-              background: #d1d5db;
-              border-radius: 1px;
-            }
-            .thin-scrollbar-x {
-              scrollbar-width: thin;
-              scrollbar-color: #d1d5db #f3f4f6;
-            }
-            .custom-checkbox {
-              appearance: none;
-              -webkit-appearance: none;
-              width: 16px;
-              height: 16px;
-              border: 2px solid #d1d5db;
-              border-radius: 4px;
-              background: white;
-              cursor: pointer;
-              position: relative;
-            }
-            .custom-checkbox:checked {
-              background: #dc2626;
-              border-color: #dc2626;
-            }
-            .custom-checkbox:checked::after {
-              content: '';
-              position: absolute;
-              left: 4px;
-              top: 1px;
-              width: 5px;
-              height: 9px;
-              border: solid white;
-              border-width: 0 2px 2px 0;
-              transform: rotate(45deg);
-            }
+            .hide-scrollbar::-webkit-scrollbar { display: none; }
+            .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
           `}</style>
-          
-          {/* 모바일 메인 헤더 */}
+
+          {/* 헤더 */}
           <div className="flex-shrink-0 bg-white">
             <div className="px-4 py-3.5">
               <div className="flex items-center justify-between">
-                {/* 왼쪽 여백 (오른쪽과 동일한 크기) */}
                 <div className="w-[80px]"></div>
-                {/* 가운데 타이틀 */}
                 <h1 className="text-[17px] font-bold text-gray-900">배송지시</h1>
-                {/* 오른쪽 아이콘 */}
                 <div className="flex items-center gap-1">
-                  <Link 
-                    href="/settings"
-                    className="p-2 text-gray-600 hover:text-gray-900 transition-colors flex items-center justify-center"
-                  >
+                  <Link href="/settings" className="p-2 text-gray-600 hover:text-gray-900 transition-colors flex items-center justify-center">
                     <Settings className="w-[22px] h-[22px]" />
                   </Link>
-                  <Link 
-                    href="/notifications"
-                    className="p-2 text-gray-600 hover:text-gray-900 transition-colors flex items-center justify-center relative"
-                  >
+                  <Link href="/notifications" className="p-2 text-gray-600 hover:text-gray-900 transition-colors flex items-center justify-center relative">
                     <Bell className="w-[22px] h-[22px] translate-y-[0.5px]" />
-                    <span className="absolute top-0 right-0 w-4 h-4 bg-red-500 text-white text-[9px] font-medium rounded-full flex items-center justify-center">
-                      2
-                    </span>
+                    <span className="absolute top-0 right-0 w-4 h-4 bg-red-500 text-white text-[9px] font-medium rounded-full flex items-center justify-center">2</span>
                   </Link>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* 메인 콘텐츠 - 스크롤 영역 */}
+          {/* 메인 콘텐츠 */}
           <div className="flex-1 min-h-0 overflow-y-auto bg-gray-50 hide-scrollbar">
-            {/* 검색 - 스크롤 영역에 포함 */}
+            {/* 검색 */}
             <div className="bg-white px-4 py-2 border-b border-gray-200">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -404,32 +257,29 @@ export default function TradePage() {
                   className="w-full pl-9 pr-8 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-gray-400 bg-gray-50"
                 />
                 {searchQuery && (
-                  <button
-                    onClick={() => setSearchQuery('')}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                  >
+                  <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
                     ✕
                   </button>
                 )}
               </div>
             </div>
 
-            {/* 일자 - 스크롤 영역에 포함 */}
+            {/* 일자 */}
             <div className="bg-white px-4 py-2.5">
               <div className="flex items-center gap-2.5">
                 <span className="text-[13px] text-gray-500">일자</span>
                 <input
                   type="date"
-                  value={`20${formatDateDisplay(startDate).replace(/\./g, '-')}`}
-                  onChange={(e) => setStartDate(new Date(e.target.value))}
-                  className="text-[13px] text-gray-700 bg-white border border-gray-200 rounded px-2.5 py-1.5 [&::-webkit-calendar-picker-indicator]:dark:invert-0 [&::-webkit-calendar-picker-indicator]:brightness-0"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="text-[13px] text-gray-700 bg-white border border-gray-200 rounded px-2.5 py-1.5 [&::-webkit-calendar-picker-indicator]:brightness-0"
                 />
                 <span className="text-[13px] text-gray-400">~</span>
                 <input
                   type="date"
-                  value={`20${formatDateDisplay(endDate).replace(/\./g, '-')}`}
-                  onChange={(e) => setEndDate(new Date(e.target.value))}
-                  className="text-[13px] text-gray-700 bg-white border border-gray-200 rounded px-2.5 py-1.5 [&::-webkit-calendar-picker-indicator]:dark:invert-0 [&::-webkit-calendar-picker-indicator]:brightness-0"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="text-[13px] text-gray-700 bg-white border border-gray-200 rounded px-2.5 py-1.5 [&::-webkit-calendar-picker-indicator]:brightness-0"
                 />
                 <button
                   onClick={handleSearch}
@@ -440,10 +290,9 @@ export default function TradePage() {
               </div>
             </div>
 
-            {/* 요약 정보 + 필터 영역 - 스크롤 영역에 포함 */}
+            {/* 요약 + 필터 */}
             <div className="bg-white border-b border-gray-200 px-4 py-2.5">
               <div className="flex items-center justify-between">
-                {/* 필터 버튼 */}
                 <div className="flex gap-2">
                   {(['all', 'registered', 'unregistered'] as const).map((filter) => (
                     <button
@@ -459,45 +308,35 @@ export default function TradePage() {
                     </button>
                   ))}
                 </div>
-                
-                {/* 요약 정보 */}
                 <div className="text-[13px] text-gray-500">
-                  총 <span className="font-medium text-gray-700">{summaryInfo.total}</span>건, 
-                  등록 <span className="font-medium text-gray-700">{summaryInfo.registered}</span>건, 
+                  총 <span className="font-medium text-gray-700">{summaryInfo.total}</span>건,
+                  등록 <span className="font-medium text-gray-700">{summaryInfo.registered}</span>건,
                   미등록 <span className="font-medium text-gray-700">{summaryInfo.unregistered}</span>건
                 </div>
               </div>
             </div>
 
-            {/* 테이블 영역 */}
-            {filteredItems.length === 0 ? (
+            {/* 테이블 */}
+            {isLoading ? (
+              <div className="flex items-center justify-center py-20">
+                <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+              </div>
+            ) : filteredItems.length === 0 ? (
               <div className="text-center py-20">
                 <FileText className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                {tradeItems.length === 0 ? (
-                  <>
-                    <h3 className="text-lg font-medium text-gray-500 mb-2">거래 내역이 없습니다</h3>
-                    <p className="text-sm text-gray-400 mb-6">경매에 참여하여 입찰을 시작해보세요.</p>
-                    <Link href="/auction">
-                      <button className="px-6 py-2.5 bg-red-600 text-white text-sm font-bold rounded-lg hover:bg-red-700 transition-colors">
-                        경매 참여하기
-                      </button>
-                    </Link>
-                  </>
-                ) : (
-                  <>
-                    <h3 className="text-lg font-medium text-gray-500 mb-2">해당 조건의 내역이 없습니다</h3>
-                  </>
-                )}
+                <h3 className="text-lg font-medium text-gray-500 mb-2">
+                  {winningParts.length === 0 ? '낙찰 내역이 없습니다' : '해당 조건의 내역이 없습니다'}
+                </h3>
               </div>
             ) : (
               <div className="pb-24">
-                {/* 테이블 헤더 - sticky로 상단 헤더 아래 고정 */}
-                <div 
+                {/* 테이블 헤더 */}
+                <div
                   ref={headerRef}
                   className="sticky top-0 z-10 bg-gray-100 border-b border-gray-200 overflow-x-hidden"
                 >
                   <div className="min-w-[700px] h-9 flex items-center">
-                    <div className="grid px-2 text-[13px] font-medium text-gray-500 w-full" style={{gridTemplateColumns: '85px 125px 65px 75px 60px 80px 95px 105px'}}>
+                    <div className="grid px-2 text-[13px] font-medium text-gray-500 w-full" style={{ gridTemplateColumns: '85px 125px 65px 75px 60px 80px 95px 105px' }}>
                       <div className="text-center">거래처</div>
                       <div className="text-center">상장번호</div>
                       <div className="text-center">부위</div>
@@ -505,13 +344,13 @@ export default function TradePage() {
                       <div className="text-center">중량</div>
                       <div className="text-center">낙찰가</div>
                       <div className="text-center">경락대금</div>
-                      <div className="text-center">입찰일자</div>
+                      <div className="text-center">낙찰일자</div>
                     </div>
                   </div>
                 </div>
 
-                {/* 테이블 데이터 - 가로 스크롤 가능 */}
-                <div 
+                {/* 테이블 데이터 */}
+                <div
                   ref={tableScrollRef}
                   className="overflow-x-auto cursor-grab active:cursor-grabbing select-none hide-scrollbar"
                   onMouseDown={handleMouseDown}
@@ -522,70 +361,56 @@ export default function TradePage() {
                 >
                   <div className="min-w-[700px]">
                     {filteredItems.map((item) => {
-                      const totalPrice = calculateTotalPrice(item);
-                      
+                      const partnerName = getPartnerName(item.partId);
+
                       return (
-                        <div 
-                          key={item.id}
+                        <div
+                          key={item.partId}
                           className="grid px-2 py-3 border-b border-gray-100 bg-white hover:bg-gray-50 transition-colors items-center"
-                          style={{gridTemplateColumns: '85px 125px 65px 75px 60px 80px 95px 105px'}}
+                          style={{ gridTemplateColumns: '85px 125px 65px 75px 60px 80px 95px 105px' }}
                         >
                           {/* 거래처 */}
                           <div className="text-center">
-                            {(getDealerName(item.listingNo) || item.dealer) ? (
-                              <div className="text-[13px] text-gray-700 truncate">
-                                {getDealerName(item.listingNo) || item.dealer}
-                              </div>
+                            {partnerName ? (
+                              <div className="text-[13px] text-gray-700 truncate">{partnerName}</div>
                             ) : (
-                              <Link href={`/trade/register?listingNo=${item.listingNo}`}>
-                                <button
-                                  className="inline-flex items-center gap-0.5 px-2 py-1 text-[11px] font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded transition-colors"
-                                >
+                              <Link href={`/trade/register?partId=${item.partId}&listingNo=${item.listingPartNo}`}>
+                                <button className="inline-flex items-center gap-0.5 px-2 py-1 text-[11px] font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded transition-colors">
                                   <Plus className="w-3 h-3" />
                                   등록
                                 </button>
                               </Link>
                             )}
                           </div>
-                          
+
                           {/* 상장번호 */}
                           <div className="text-center">
                             <Link
-                              href={`/trade/detail?listingNo=${item.listingNo}`}
+                              href={`/trade/detail?partId=${item.partId}&listingNo=${item.listingPartNo}`}
                               className="text-[13px] font-medium text-gray-900 underline cursor-pointer"
                             >
-                              {item.listingNo}
+                              {item.listingPartNo || item.listingNo}
                             </Link>
                           </div>
-                          
+
                           {/* 부위 */}
-                          <div className="text-center text-[13px] text-gray-700">
-                            {item.partName}
-                          </div>
-                          
+                          <div className="text-center text-[13px] text-gray-700">{item.partName}</div>
+
                           {/* 등급 */}
-                          <div className="text-center text-[13px] text-gray-700" style={{ letterSpacing: '-0.05em' }}>
-                            {item.grade}
-                          </div>
-                          
+                          <div className="text-center text-[13px] text-gray-700" style={{ letterSpacing: '-0.05em' }}>{item.grade}</div>
+
                           {/* 중량 */}
-                          <div className="text-center text-[13px] text-gray-700">
-                            {item.weight}
-                          </div>
-                          
+                          <div className="text-center text-[13px] text-gray-700">{item.weight.toFixed(1)}kg</div>
+
                           {/* 낙찰가 */}
-                          <div className="text-center text-[13px] font-medium text-gray-900">
-                            {item.myBid.toLocaleString()}
-                          </div>
-                          
+                          <div className="text-center text-[13px] font-medium text-gray-900">{item.bidPrice.toLocaleString()}</div>
+
                           {/* 경락대금 */}
-                          <div className="text-center text-[13px] font-medium text-gray-900">
-                            {Math.round(totalPrice).toLocaleString()}
-                          </div>
-                          
-                          {/* 입찰일자 */}
+                          <div className="text-center text-[13px] font-medium text-gray-900">{item.bidAmount.toLocaleString()}</div>
+
+                          {/* 낙찰일자 */}
                           <div className="text-center text-[13px] text-gray-700">
-                            {item.bidTime.split(' ')[0]} {item.bidTime.split(' ')[1]}
+                            {formatBidTime(item.bidAt, item.listingDate)}
                           </div>
                         </div>
                       );
@@ -596,7 +421,6 @@ export default function TradePage() {
             )}
           </div>
 
-          {/* 하단 네비게이션 */}
           <BottomNav />
         </div>
       </div>
