@@ -62,6 +62,14 @@ export default function DeliveryPartnersPage() {
   const [dealerSearch, setDealerSearch] = useState('');
   const [isSaved, setIsSaved] = useState(true);
 
+  const [sSelectedDate, setSSelectedDate] = useState(todayStr);
+  const [sDealerSearch, setSDealerSearch] = useState('');
+
+  const handleSearch = () => {
+    setSSelectedDate(selectedDate);
+    setSDealerSearch(dealerSearch);
+  };
+
   const [partnerInputs, setPartnerInputs] = useState<PartnerInputs>({});
   const [savedAssignments, setSavedAssignments] = useState<Record<string, AssignmentInfo>>({});
 
@@ -72,9 +80,9 @@ export default function DeliveryPartnersPage() {
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
   const { data: partsData, isLoading: partsLoading } = useQuery<{ winningParts: WinningPart[] }>({
-    queryKey: ['delivery-winning-parts', selectedDate],
+    queryKey: ['delivery-winning-parts', sSelectedDate],
     queryFn: async () => {
-      const res = await fetch(`/api/delivery/winning-parts?date=${selectedDate}`);
+      const res = await fetch(`/api/delivery/winning-parts?date=${sSelectedDate}`);
       if (!res.ok) throw new Error();
       return res.json();
     },
@@ -90,9 +98,9 @@ export default function DeliveryPartnersPage() {
   });
 
   const { data: assignmentsData } = useQuery<{ assignments: Record<string, AssignmentInfo> }>({
-    queryKey: ['delivery-assignments', selectedDate],
+    queryKey: ['delivery-assignments', sSelectedDate],
     queryFn: async () => {
-      const res = await fetch(`/api/delivery/assignments?date=${selectedDate}`);
+      const res = await fetch(`/api/delivery/assignments?date=${sSelectedDate}`);
       if (!res.ok) throw new Error();
       return res.json();
     },
@@ -145,9 +153,9 @@ export default function DeliveryPartnersPage() {
 
   const filteredParts = useMemo(() => {
     let result = winningParts.filter(part => {
-      if (dealerSearch) {
-        const search = dealerSearch.toLowerCase();
-        if (!part.dealerName.toLowerCase().includes(search) && !part.dealerNo.includes(dealerSearch)) {
+      if (sDealerSearch) {
+        const search = sDealerSearch.toLowerCase();
+        if (!part.dealerName.toLowerCase().includes(search) && !part.dealerNo.includes(sDealerSearch)) {
           return false;
         }
       }
@@ -167,7 +175,7 @@ export default function DeliveryPartnersPage() {
     }
 
     return result;
-  }, [winningParts, dealerSearch, sortField, sortDirection]);
+  }, [winningParts, sDealerSearch, sortField, sortDirection]);
 
   const handleSort = (field: 'listingNo' | 'partName') => {
     if (sortField === field) {
@@ -314,10 +322,17 @@ export default function DeliveryPartnersPage() {
             <div className="text-xs text-gray-600">
               거래처 지정: <span className={totalStats.assigned === totalStats.total && totalStats.total > 0 ? 'text-blue-600 font-semibold' : 'text-gray-900'}>{totalStats.assigned}/{totalStats.total}</span>
             </div>
+            <button
+              type="button"
+              onClick={handleSearch}
+              className="px-4 py-1.5 bg-gray-900 text-white text-xs hover:bg-gray-800"
+            >
+              조회
+            </button>
             <div className="flex items-center gap-2 ml-auto">
               <button
                 type="button"
-                onClick={() => { setDealerSearch(''); setSelectedDate(todayStr); }}
+                onClick={() => { setDealerSearch(''); setSelectedDate(todayStr); setSSelectedDate(todayStr); setSDealerSearch(''); }}
                 className="px-4 py-1.5 border border-gray-300 text-gray-600 text-xs hover:bg-gray-50"
               >
                 초기화

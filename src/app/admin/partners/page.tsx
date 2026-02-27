@@ -55,7 +55,17 @@ export default function PartnersPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [businessTypeFilter, setBusinessTypeFilter] = useState('전체');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
-  
+
+  const [sSearchTerm, setSSearchTerm] = useState('');
+  const [sBusinessTypeFilter, setSBusinessTypeFilter] = useState('전체');
+  const [sStatusFilter, setSStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
+
+  const handleSearch = () => {
+    setSSearchTerm(searchTerm);
+    setSBusinessTypeFilter(businessTypeFilter);
+    setSStatusFilter(statusFilter);
+  };
+
   // 인라인 추가/수정 상태
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -76,12 +86,12 @@ export default function PartnersPage() {
 
   // 거래처 목록 조회
   const { data: partnersData, isLoading: isLoadingPartners } = useQuery<PartnersResponse>({
-    queryKey: ['partners', searchTerm, businessTypeFilter, statusFilter],
+    queryKey: ['partners', sSearchTerm, sBusinessTypeFilter, sStatusFilter],
     queryFn: async () => {
       const params = new URLSearchParams();
-      if (searchTerm) params.set('search', searchTerm);
-      if (businessTypeFilter !== '전체') params.set('businessType', businessTypeFilter);
-      if (statusFilter !== 'all') params.set('status', statusFilter);
+      if (sSearchTerm) params.set('search', sSearchTerm);
+      if (sBusinessTypeFilter !== '전체') params.set('businessType', sBusinessTypeFilter);
+      if (sStatusFilter !== 'all') params.set('status', sStatusFilter);
       
       const response = await fetch(`/api/partners?${params.toString()}`);
       if (!response.ok) throw new Error('거래처 조회 실패');
@@ -414,6 +424,14 @@ export default function PartnersPage() {
             </div>
           </div>
 
+          <button
+            type="button"
+            onClick={handleSearch}
+            className="px-4 py-1.5 bg-gray-900 text-white text-xs hover:bg-gray-800"
+          >
+            조회
+          </button>
+
           {/* 버튼 그룹 */}
           <div className="flex items-center gap-2 ml-auto">
             <button
@@ -422,6 +440,9 @@ export default function PartnersPage() {
                 setSearchTerm('');
                 setBusinessTypeFilter('전체');
                 setStatusFilter('all');
+                setSSearchTerm('');
+                setSBusinessTypeFilter('전체');
+                setSStatusFilter('all');
               }}
               className="px-4 py-1.5 border border-gray-300 text-gray-600 text-xs hover:bg-gray-50"
             >

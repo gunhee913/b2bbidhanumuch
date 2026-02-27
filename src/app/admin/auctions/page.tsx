@@ -216,11 +216,21 @@ export default function AuctionsListPage() {
   const [endDate, setEndDate] = useState<string>(tomorrowDateString);
   const [companyFilter, setCompanyFilter] = useState<string>('all');
 
+  const [searchStartDate, setSearchStartDate] = useState<string>(tomorrowDateString);
+  const [searchEndDate, setSearchEndDate] = useState<string>(tomorrowDateString);
+  const [searchCompanyFilter, setSearchCompanyFilter] = useState<string>('all');
+
+  const handleSearch = () => {
+    setSearchStartDate(startDate);
+    setSearchEndDate(endDate);
+    setSearchCompanyFilter(companyFilter);
+  };
+
   // 실제 데이터 조회
   const { data: listingsData, isLoading } = useListings({
-    companyId: companyFilter !== 'all' ? companyFilter : undefined,
-    listingDateFrom: startDate || undefined,
-    listingDateTo: endDate || undefined,
+    companyId: searchCompanyFilter !== 'all' ? searchCompanyFilter : undefined,
+    listingDateFrom: searchStartDate || undefined,
+    listingDateTo: searchEndDate || undefined,
     includeParts: true,
   });
 
@@ -570,6 +580,14 @@ export default function AuctionsListPage() {
             </select>
           </div>
 
+          <button
+            type="button"
+            onClick={handleSearch}
+            className="px-4 py-1.5 bg-gray-900 text-white text-xs hover:bg-gray-800"
+          >
+            조회
+          </button>
+
           {/* 초기화/엑셀 버튼 */}
           <div className="flex items-center gap-2 ml-auto">
             <button
@@ -578,6 +596,9 @@ export default function AuctionsListPage() {
                 setStartDate(tomorrowDateString);
                 setEndDate(tomorrowDateString);
                 setCompanyFilter('all');
+                setSearchStartDate(tomorrowDateString);
+                setSearchEndDate(tomorrowDateString);
+                setSearchCompanyFilter('all');
                 if (startDateRef.current) startDateRef.current.value = tomorrowDateString;
                 if (endDateRef.current) endDateRef.current.value = tomorrowDateString;
               }}

@@ -46,12 +46,19 @@ interface ResultsResponse {
 export default function AuctionResultsPage() {
   const [startDate, setStartDate] = useState(todayDateValue);
   const [endDate, setEndDate] = useState(todayDateValue);
+  const [searchStartDate, setSearchStartDate] = useState(todayDateValue);
+  const [searchEndDate, setSearchEndDate] = useState(todayDateValue);
+
+  const handleSearch = () => {
+    setSearchStartDate(startDate);
+    setSearchEndDate(endDate);
+  };
 
   // 데이터 조회
   const { data: resultsData, isLoading } = useQuery<ResultsResponse>({
-    queryKey: ['auction-results', startDate, endDate],
+    queryKey: ['auction-results', searchStartDate, searchEndDate],
     queryFn: async () => {
-      const response = await fetch(`/api/auctions/results?startDate=${startDate}&endDate=${endDate}`);
+      const response = await fetch(`/api/auctions/results?startDate=${searchStartDate}&endDate=${searchEndDate}`);
       if (!response.ok) throw new Error('데이터 조회 실패');
       return response.json();
     },
@@ -116,6 +123,14 @@ export default function AuctionResultsPage() {
             />
           </div>
 
+          <button
+            type="button"
+            onClick={handleSearch}
+            className="px-4 py-1.5 bg-gray-900 text-white text-xs hover:bg-gray-800"
+          >
+            조회
+          </button>
+
           {/* 초기화/엑셀 버튼 */}
           <div className="flex items-center gap-2 ml-auto">
             <button
@@ -123,6 +138,8 @@ export default function AuctionResultsPage() {
               onClick={() => {
                 setStartDate(todayDateValue);
                 setEndDate(todayDateValue);
+                setSearchStartDate(todayDateValue);
+                setSearchEndDate(todayDateValue);
               }}
               className="px-4 py-1.5 border border-gray-300 text-gray-600 text-xs hover:bg-gray-50"
             >

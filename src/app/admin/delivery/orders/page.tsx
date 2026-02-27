@@ -59,19 +59,27 @@ export default function DeliveryOrdersPage() {
   const [selectedDate, setSelectedDate] = useState(todayStr);
   const [partnerSearch, setPartnerSearch] = useState('');
 
+  const [sSelectedDate, setSSelectedDate] = useState(todayStr);
+  const [sPartnerSearch, setSPartnerSearch] = useState('');
+
+  const handleSearch = () => {
+    setSSelectedDate(selectedDate);
+    setSPartnerSearch(partnerSearch);
+  };
+
   const { data: partsData, isLoading: partsLoading } = useQuery<{ winningParts: WinningPart[] }>({
-    queryKey: ['delivery-winning-parts', selectedDate],
+    queryKey: ['delivery-winning-parts', sSelectedDate],
     queryFn: async () => {
-      const res = await fetch(`/api/delivery/winning-parts?date=${selectedDate}`);
+      const res = await fetch(`/api/delivery/winning-parts?date=${sSelectedDate}`);
       if (!res.ok) throw new Error();
       return res.json();
     },
   });
 
   const { data: assignmentsData } = useQuery<{ assignments: Record<string, AssignmentInfo> }>({
-    queryKey: ['delivery-assignments', selectedDate],
+    queryKey: ['delivery-assignments', sSelectedDate],
     queryFn: async () => {
-      const res = await fetch(`/api/delivery/assignments?date=${selectedDate}`);
+      const res = await fetch(`/api/delivery/assignments?date=${sSelectedDate}`);
       if (!res.ok) throw new Error();
       return res.json();
     },
@@ -110,13 +118,13 @@ export default function DeliveryOrdersPage() {
   }, [winningParts, assignments]);
 
   const filteredItems = useMemo(() => {
-    if (!partnerSearch) return deliveryItems;
-    const search = partnerSearch.toLowerCase();
+    if (!sPartnerSearch) return deliveryItems;
+    const search = sPartnerSearch.toLowerCase();
     return deliveryItems.filter(item =>
       item.partnerName.toLowerCase().includes(search) ||
       item.partnerNo.includes(search)
     );
-  }, [deliveryItems, partnerSearch]);
+  }, [deliveryItems, sPartnerSearch]);
 
   const partnerSubtotals = useMemo(() => {
     const subtotals = new Map<string, { count: number; weight: number; amount: number }>();
@@ -381,10 +389,17 @@ export default function DeliveryOrdersPage() {
             <div className="text-xs text-gray-600">
               총 {totals.count}건 / {totals.weight.toFixed(1)}kg / {totals.amount.toLocaleString()}원
             </div>
+            <button
+              type="button"
+              onClick={handleSearch}
+              className="px-4 py-1.5 bg-gray-900 text-white text-xs hover:bg-gray-800"
+            >
+              조회
+            </button>
             <div className="flex items-center gap-2 ml-auto">
               <button
                 type="button"
-                onClick={() => { setPartnerSearch(''); setSelectedDate(todayStr); }}
+                onClick={() => { setPartnerSearch(''); setSelectedDate(todayStr); setSSelectedDate(todayStr); setSPartnerSearch(''); }}
                 className="px-4 py-1.5 border border-gray-300 text-gray-600 text-xs hover:bg-gray-50"
               >
                 초기화

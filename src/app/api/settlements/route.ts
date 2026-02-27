@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
       value: Number(s.value),
     }));
 
-    const feeNames = feeSettings.map(s => s.name);
+    const feeNames = [...new Set(feeSettings.map(s => s.name))];
 
     // 2. 마감된 상장 조회
     let query = supabase
@@ -176,10 +176,13 @@ export async function GET(request: NextRequest) {
 
       const saleAmount = parts.reduce((sum: number, p: any) => sum + p.amount, 0);
 
-      const fees = feeSettings.map(setting => ({
-        name: setting.name,
-        amount: calcFee(setting, saleAmount),
-      }));
+      const seenFeeNames = new Set<string>();
+      const fees: { name: string; amount: number }[] = [];
+      feeSettings.forEach(setting => {
+        if (seenFeeNames.has(setting.name)) return;
+        seenFeeNames.add(setting.name);
+        fees.push({ name: setting.name, amount: calcFee(setting, saleAmount) });
+      });
 
       const deductionTotal = fees.reduce((sum, f) => sum + f.amount, 0);
       const netPayment = saleAmount - deductionTotal;

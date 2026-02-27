@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import AdminLayout from '@/components/admin/AdminLayout';
-import { ChevronDown, ChevronUp, RefreshCw, Square, Timer, Play, FileText } from 'lucide-react';
+import { ChevronDown, ChevronUp, RefreshCw, Square, Timer, Play, FileText, Clock, List } from 'lucide-react';
 import { useLiveListings } from '@/features/listings/hooks';
 import { useCompanies } from '@/features/companies/hooks';
 import { useSession } from 'next-auth/react';
@@ -74,6 +74,14 @@ export default function AuctionLivePage() {
   const [showAuditModal, setShowAuditModal] = useState(false);
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
   const [isLoadingAudit, setIsLoadingAudit] = useState(false);
+
+  // 경매이력 모달
+  const [showRoundHistoryModal, setShowRoundHistoryModal] = useState(false);
+
+  // 마감이력 모달
+  const [showCloseHistoryModal, setShowCloseHistoryModal] = useState(false);
+  const [closeHistoryData, setCloseHistoryData] = useState<any[]>([]);
+  const [isLoadingCloseHistory, setIsLoadingCloseHistory] = useState(false);
 
   // 비밀번호 모달
   const [pwModal, setPwModal] = useState<{
@@ -380,6 +388,16 @@ export default function AuctionLivePage() {
         else failCount++;
       }
 
+      await fetch('/api/listings/close-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          actionType: 'close_all',
+          listingCount: successCount,
+          actionDate: selectedDate,
+        }),
+      }).catch(() => {});
+
       refetch();
       if (failCount > 0) {
         alert(`마감 완료: 성공 ${successCount}건, 실패 ${failCount}건`);
@@ -417,6 +435,16 @@ export default function AuctionLivePage() {
         successCount++;
       }
       
+      await fetch('/api/listings/close-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          actionType: 'reopen_all',
+          listingCount: successCount,
+          actionDate: selectedDate,
+        }),
+      }).catch(() => {});
+
       refetch();
       
       if (errorMessage) {
@@ -545,6 +573,20 @@ export default function AuctionLivePage() {
     }
   };
 
+  const fetchCloseHistory = async () => {
+    setIsLoadingCloseHistory(true);
+    try {
+      const res = await fetch(`/api/listings/close-status?date=${selectedDate}`);
+      if (res.ok) {
+        setCloseHistoryData(await res.json());
+      }
+    } catch {
+      setCloseHistoryData([]);
+    } finally {
+      setIsLoadingCloseHistory(false);
+    }
+  };
+
   const fetchAuditLogs = async () => {
     setIsLoadingAudit(true);
     try {
@@ -632,6 +674,27 @@ export default function AuctionLivePage() {
             >
               <RefreshCw className="w-3 h-3" />
               새로고침
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                fetchCloseHistory();
+                setShowCloseHistoryModal(true);
+              }}
+              className="px-4 py-1.5 border border-gray-300 text-gray-600 text-xs hover:bg-gray-50 flex items-center gap-1"
+            >
+              <List className="w-3 h-3" />
+              마감이력
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setShowRoundHistoryModal(true)}
+              className="px-4 py-1.5 border border-gray-300 text-gray-600 text-xs hover:bg-gray-50 flex items-center gap-1"
+            >
+              <Clock className="w-3 h-3" />
+              경매이력
             </button>
 
             <button
@@ -1079,6 +1142,178 @@ export default function AuctionLivePage() {
               )}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* 경매이력 모달 */}
+      {showRoundHistoryModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setShowRoundHistoryModal(false)} />
+          <div className="relative bg-white rounded-lg shadow-xl w-[600px] max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
+              <div>
+                <h3 className="text-sm font-semibold text-gray-900">경매 회차 이력</h3>
+                <p className="text-xs text-gray-500 mt-0.5">{selectedDate} 기준</p>
+              </div>
+              <button
+                onClick={() => setShowRoundHistoryModal(false)}
+                className="text-gray-400 hover:text-gray-600 text-lg leading-none"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="overflow-auto flex-1 p-4">
+              {allRounds.length === 0 ? (
+                <div className="text-center py-12 text-sm text-gray-400">
+                  경매 이력이 없습니다.
+                </div>
+              ) : (
+                <table className="w-full border-collapse text-xs">
+                  <thead>
+                    <tr className="bg-gray-50">
+                      <th className="px-3 py-2 border border-gray-200 text-center font-medium text-gray-600 w-[50px]">회차</th>
+                      <th className="px-3 py-2 border border-gray-200 text-center font-medium text-gray-600 w-[60px]">상태</th>
+                      <th className="px-3 py-2 border border-gray-200 text-center font-medium text-gray-600">시작시간</th>
+                      <th className="px-3 py-2 border border-gray-200 text-center font-medium text-gray-600 w-[60px]">시작자</th>
+                      <th className="px-3 py-2 border border-gray-200 text-center font-medium text-gray-600">종료시간</th>
+                      <th className="px-3 py-2 border border-gray-200 text-center font-medium text-gray-600 w-[60px]">종료자</th>
+                      <th className="px-3 py-2 border border-gray-200 text-center font-medium text-gray-600 w-[80px]">경과시간</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {allRounds.map((round: any) => {
+                      const startedAt = round.started_at ? new Date(round.started_at) : null;
+                      const endedAt = round.ended_at ? new Date(round.ended_at) : null;
+                      let elapsed = '-';
+                      if (startedAt && endedAt) {
+                        const diffMs = endedAt.getTime() - startedAt.getTime();
+                        const diffMin = Math.floor(diffMs / 60000);
+                        const diffSec = Math.floor((diffMs % 60000) / 1000);
+                        elapsed = `${diffMin}분 ${diffSec}초`;
+                      } else if (startedAt && round.status === 'open') {
+                        const diffMs = Date.now() - startedAt.getTime();
+                        const diffMin = Math.floor(diffMs / 60000);
+                        const diffSec = Math.floor((diffMs % 60000) / 1000);
+                        elapsed = `${diffMin}분 ${diffSec}초 (진행중)`;
+                      }
+                      return (
+                        <tr key={round.id} className="bg-white hover:bg-gray-50">
+                          <td className="px-3 py-2 border border-gray-200 text-center font-medium text-gray-900">
+                            {round.round_no}차
+                          </td>
+                          <td className="px-3 py-2 border border-gray-200 text-center">
+                            {round.status === 'open' ? (
+                              <span className="text-green-600 font-medium">진행중</span>
+                            ) : (
+                              <span className="text-gray-500">종료</span>
+                            )}
+                          </td>
+                          <td className="px-3 py-2 border border-gray-200 text-center text-gray-700">
+                            {startedAt ? format(startedAt, 'HH:mm:ss') : '-'}
+                          </td>
+                          <td className="px-3 py-2 border border-gray-200 text-center text-gray-500">
+                            {round.started_by || '-'}
+                          </td>
+                          <td className="px-3 py-2 border border-gray-200 text-center text-gray-700">
+                            {endedAt ? format(endedAt, 'HH:mm:ss') : '-'}
+                          </td>
+                          <td className="px-3 py-2 border border-gray-200 text-center text-gray-500">
+                            {round.ended_by || '-'}
+                          </td>
+                          <td className="px-3 py-2 border border-gray-200 text-center text-gray-500">
+                            {elapsed}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </div>
+            <div className="px-5 py-3 border-t border-gray-200 flex justify-between items-center">
+              <span className="text-xs text-gray-400">총 {allRounds.length}건</span>
+              <button
+                onClick={() => setShowRoundHistoryModal(false)}
+                className="px-4 py-1.5 text-xs font-medium text-gray-600 border border-gray-300 rounded hover:bg-gray-50"
+              >
+                닫기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 마감이력 모달 */}
+      {showCloseHistoryModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setShowCloseHistoryModal(false)} />
+          <div className="relative bg-white rounded-lg shadow-xl w-[700px] max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
+              <div>
+                <h3 className="text-sm font-semibold text-gray-900">마감 이력</h3>
+                <p className="text-xs text-gray-500 mt-0.5">{selectedDate} 기준</p>
+              </div>
+              <button
+                onClick={() => setShowCloseHistoryModal(false)}
+                className="text-gray-400 hover:text-gray-600 text-lg leading-none"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="overflow-auto flex-1 p-4">
+              {isLoadingCloseHistory ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="w-5 h-5 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin" />
+                </div>
+              ) : closeHistoryData.length === 0 ? (
+                <div className="text-center py-12 text-sm text-gray-400">
+                  마감 이력이 없습니다.
+                </div>
+              ) : (
+                <table className="w-full border-collapse text-xs">
+                  <thead>
+                    <tr className="bg-gray-50">
+                      <th className="px-3 py-2 border border-gray-200 text-center font-medium text-gray-600 w-[80px]">구분</th>
+                      <th className="px-3 py-2 border border-gray-200 text-center font-medium text-gray-600 w-[70px]">상장수</th>
+                      <th className="px-3 py-2 border border-gray-200 text-center font-medium text-gray-600">실행시간</th>
+                      <th className="px-3 py-2 border border-gray-200 text-center font-medium text-gray-600 w-[80px]">실행자</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {closeHistoryData.map((log: any) => (
+                      <tr key={log.id} className="bg-white hover:bg-gray-50">
+                        <td className="px-3 py-2 border border-gray-200 text-center font-medium">
+                          {log.action_type === 'close_all' ? (
+                            <span className="text-red-500">전체 마감</span>
+                          ) : (
+                            <span className="text-blue-500">마감 취소</span>
+                          )}
+                        </td>
+                        <td className="px-3 py-2 border border-gray-200 text-center text-gray-700">
+                          {log.listing_count}건
+                        </td>
+                        <td className="px-3 py-2 border border-gray-200 text-center text-gray-700">
+                          {log.created_at ? format(new Date(log.created_at), 'HH:mm:ss') : '-'}
+                        </td>
+                        <td className="px-3 py-2 border border-gray-200 text-center text-gray-500">
+                          {log.performed_by || '-'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+            <div className="px-5 py-3 border-t border-gray-200 flex justify-between items-center">
+              <span className="text-xs text-gray-400">총 {closeHistoryData.length}건</span>
+              <button
+                onClick={() => setShowCloseHistoryModal(false)}
+                className="px-4 py-1.5 text-xs font-medium text-gray-600 border border-gray-300 rounded hover:bg-gray-50"
+              >
+                닫기
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

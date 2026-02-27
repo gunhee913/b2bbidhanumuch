@@ -81,6 +81,16 @@ export default function SettlementsPage() {
   const [startDate, setStartDate] = useState(todayStr);
   const [endDate, setEndDate] = useState(todayStr);
 
+  const [searchCompanyFilter, setSearchCompanyFilter] = useState('all');
+  const [searchStartDate, setSearchStartDate] = useState(todayStr);
+  const [searchEndDate, setSearchEndDate] = useState(todayStr);
+
+  const handleSearch = () => {
+    setSearchCompanyFilter(companyFilter);
+    setSearchStartDate(startDate);
+    setSearchEndDate(endDate);
+  };
+
   const { data: companiesData } = useQuery<{ companies: { id: string; name: string; companyNo: string }[] }>({
     queryKey: ['companies-for-filter'],
     queryFn: async () => {
@@ -93,12 +103,12 @@ export default function SettlementsPage() {
   const companies = companiesData?.companies || [];
 
   const { data, isLoading } = useQuery<SettlementsResponse>({
-    queryKey: ['settlements', startDate, endDate, companyFilter],
+    queryKey: ['settlements', searchStartDate, searchEndDate, searchCompanyFilter],
     queryFn: async () => {
       const params = new URLSearchParams();
-      if (startDate) params.append('startDate', startDate);
-      if (endDate) params.append('endDate', endDate);
-      if (companyFilter !== 'all') params.append('companyId', companyFilter);
+      if (searchStartDate) params.append('startDate', searchStartDate);
+      if (searchEndDate) params.append('endDate', searchEndDate);
+      if (searchCompanyFilter !== 'all') params.append('companyId', searchCompanyFilter);
       
       const response = await fetch(`/api/settlements?${params.toString()}`);
       if (!response.ok) throw new Error('정산 데이터 조회 실패');
@@ -408,6 +418,14 @@ export default function SettlementsPage() {
             />
           </div>
 
+          <button
+            type="button"
+            onClick={handleSearch}
+            className="px-4 py-1.5 bg-gray-900 text-white text-xs hover:bg-gray-800"
+          >
+            조회
+          </button>
+
           <div className="flex items-center gap-2 ml-auto">
             <button
               type="button"
@@ -415,6 +433,9 @@ export default function SettlementsPage() {
                 setCompanyFilter('all');
                 setStartDate('');
                 setEndDate('');
+                setSearchCompanyFilter('all');
+                setSearchStartDate('');
+                setSearchEndDate('');
               }}
               className="px-4 py-1.5 border border-gray-300 text-gray-600 text-xs hover:bg-gray-50"
             >

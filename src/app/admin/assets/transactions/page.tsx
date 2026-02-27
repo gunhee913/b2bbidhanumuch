@@ -40,13 +40,25 @@ export default function TransactionsPage() {
   const [startDate, setStartDate] = useState(monthAgoStr);
   const [endDate, setEndDate] = useState(todayStr);
 
+  const [sStartDate, setSStartDate] = useState(monthAgoStr);
+  const [sEndDate, setSEndDate] = useState(todayStr);
+  const [sTypeFilter, setSTypeFilter] = useState('all');
+  const [sDealerSearch, setSDealerSearch] = useState('');
+
+  const handleSearch = () => {
+    setSStartDate(startDate);
+    setSEndDate(endDate);
+    setSTypeFilter(typeFilter);
+    setSDealerSearch(dealerSearch);
+  };
+
   const { data, isLoading } = useQuery<{ transactions: Transaction[] }>({
-    queryKey: ['dealer-transactions-list', startDate, endDate, typeFilter, dealerSearch],
+    queryKey: ['dealer-transactions-list', sStartDate, sEndDate, sTypeFilter, sDealerSearch],
     queryFn: async () => {
       const params = new URLSearchParams();
-      if (startDate) params.append('startDate', startDate);
-      if (endDate) params.append('endDate', endDate);
-      if (typeFilter && typeFilter !== 'all') params.append('type', typeFilter);
+      if (sStartDate) params.append('startDate', sStartDate);
+      if (sEndDate) params.append('endDate', sEndDate);
+      if (sTypeFilter && sTypeFilter !== 'all') params.append('type', sTypeFilter);
       const res = await fetch(`/api/dealer-transactions?${params}`);
       if (!res.ok) throw new Error();
       return res.json();
@@ -56,12 +68,12 @@ export default function TransactionsPage() {
   const allTransactions = data?.transactions || [];
 
   const filteredTransactions = useMemo(() => {
-    if (!dealerSearch) return allTransactions;
-    const search = dealerSearch.toLowerCase();
+    if (!sDealerSearch) return allTransactions;
+    const search = sDealerSearch.toLowerCase();
     return allTransactions.filter(tx =>
-      tx.dealerName.toLowerCase().includes(search) || tx.dealerNo.includes(dealerSearch)
+      tx.dealerName.toLowerCase().includes(search) || tx.dealerNo.includes(sDealerSearch)
     );
-  }, [allTransactions, dealerSearch]);
+  }, [allTransactions, sDealerSearch]);
 
   const dealerGroups = useMemo(() => {
     const groupMap = new Map<string, DealerGroup>();
@@ -179,8 +191,12 @@ export default function TransactionsPage() {
               <option value="auction_deduct">차감</option>
             </select>
           </div>
+          <button type="button" onClick={handleSearch}
+            className="px-4 py-1.5 bg-gray-900 text-white text-xs hover:bg-gray-800">
+            조회
+          </button>
           <div className="flex items-center gap-2 ml-auto">
-            <button type="button" onClick={() => { setStartDate(monthAgoStr); setEndDate(todayStr); setDealerSearch(''); setTypeFilter('all'); }}
+            <button type="button" onClick={() => { setStartDate(monthAgoStr); setEndDate(todayStr); setDealerSearch(''); setTypeFilter('all'); setSStartDate(monthAgoStr); setSEndDate(todayStr); setSDealerSearch(''); setSTypeFilter('all'); }}
               className="px-4 py-1.5 border border-gray-300 text-gray-600 text-xs hover:bg-gray-50">
               초기화
             </button>

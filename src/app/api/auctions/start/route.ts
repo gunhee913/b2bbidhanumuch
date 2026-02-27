@@ -77,6 +77,7 @@ export async function POST(request: NextRequest) {
       started_at: now.toISOString(),
       start_time: startTime,
       auto_next_round: false,
+      started_by: (token.name as string) || null,
     };
 
     if (durationMin) {

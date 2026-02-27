@@ -50,6 +50,16 @@ export default function PartnersDealersPage() {
   const [dealerFilter, setDealerFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
 
+  const [sSearchTerm, setSSearchTerm] = useState('');
+  const [sDealerFilter, setSDealerFilter] = useState('all');
+  const [sStatusFilter, setSStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
+
+  const handleSearch = () => {
+    setSSearchTerm(searchTerm);
+    setSDealerFilter(dealerFilter);
+    setSStatusFilter(statusFilter);
+  };
+
   // 중도매인 목록 조회
   const { data: dealersData, isLoading: isLoadingDealers } = useQuery<DealersResponse>({
     queryKey: ['dealers'],
@@ -102,18 +112,18 @@ export default function PartnersDealersPage() {
 
   // 필터링된 중도매인 데이터
   const filteredData = dealers
-    .filter(dealer => dealerFilter === 'all' || dealer.id === dealerFilter)
+    .filter(dealer => sDealerFilter === 'all' || dealer.id === sDealerFilter)
     .map(dealer => {
       const dealerPartners = getPartnersForDealer(dealer.id).filter(partner => {
-        const matchSearch = searchTerm === '' || 
-          partner.name.includes(searchTerm) || 
-          (partner.representative && partner.representative.includes(searchTerm));
-        const matchStatus = statusFilter === 'all' || partner.status === statusFilter;
+        const matchSearch = sSearchTerm === '' || 
+          partner.name.includes(sSearchTerm) || 
+          (partner.representative && partner.representative.includes(sSearchTerm));
+        const matchStatus = sStatusFilter === 'all' || partner.status === sStatusFilter;
         return matchSearch && matchStatus;
       });
       return { ...dealer, partners: dealerPartners };
     })
-    .filter(dealer => dealerFilter !== 'all' || dealer.partners.length > 0 || searchTerm === '');
+    .filter(dealer => sDealerFilter !== 'all' || dealer.partners.length > 0 || sSearchTerm === '');
 
   // 전체 연결 수
   const totalLinks = filteredData.reduce((acc, d) => acc + d.partners.length, 0);
@@ -211,6 +221,14 @@ export default function PartnersDealersPage() {
             />
           </div>
 
+          <button
+            type="button"
+            onClick={handleSearch}
+            className="px-4 py-1.5 bg-gray-900 text-white text-xs hover:bg-gray-800"
+          >
+            조회
+          </button>
+
           {/* 버튼 그룹 */}
           <div className="flex items-center gap-2 ml-auto">
             <button
@@ -219,6 +237,9 @@ export default function PartnersDealersPage() {
                 setSearchTerm('');
                 setDealerFilter('all');
                 setStatusFilter('all');
+                setSSearchTerm('');
+                setSDealerFilter('all');
+                setSStatusFilter('all');
               }}
               className="px-4 py-1.5 border border-gray-300 text-gray-600 text-xs hover:bg-gray-50"
             >

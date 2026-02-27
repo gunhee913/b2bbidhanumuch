@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { getToken } from 'next-auth/jwt';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -13,6 +14,9 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
+    const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
+    const isAdmin = token?.userType === 'admin_user';
+    const operatorName = isAdmin ? ((token?.name as string) || '관리자') : '자동종료';
 
     const { data: auction, error: fetchError } = await supabase
       .from('auctions')
@@ -53,6 +57,11 @@ export async function POST(
         console.error('회차 마감 오류:', closeError);
         return NextResponse.json({ error: closeError.message }, { status: 500 });
       }
+
+      await supabase
+        .from('auctions')
+        .update({ ended_by: operatorName })
+        .eq('id', id);
 
       // 다음 회차 자동 시작 처리 (기존 사전 배정된 라운드)
       let nextRound = null;
@@ -107,6 +116,11 @@ export async function POST(
       console.error('경매 마감 오류:', closeError);
       return NextResponse.json({ error: closeError.message }, { status: 500 });
     }
+
+    await supabase
+      .from('auctions')
+      .update({ ended_by: operatorName })
+      .eq('id', id);
 
     const { data: updatedAuction } = await supabase
       .from('auctions')

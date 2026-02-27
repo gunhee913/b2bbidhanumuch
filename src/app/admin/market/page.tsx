@@ -108,6 +108,18 @@ export default function MarketPage() {
   const [yieldGradeFilter, setYieldGradeFilter] = useState<string>('all');
   const [genderFilter, setGenderFilter] = useState<string>('all');
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+
+  const [sPartFilter, setSPartFilter] = useState<string>('all');
+  const [sGradeFilter, setSGradeFilter] = useState<string>('all');
+  const [sYieldGradeFilter, setSYieldGradeFilter] = useState<string>('all');
+  const [sGenderFilter, setSGenderFilter] = useState<string>('all');
+
+  const handleSearch = () => {
+    setSPartFilter(partFilter);
+    setSGradeFilter(gradeFilter);
+    setSYieldGradeFilter(yieldGradeFilter);
+    setSGenderFilter(genderFilter);
+  };
   
   // 중도매인별 낙찰 데이터 가져오기
   const dealerSettlements = useMemo(() => generateDealerSettlements(), []);
@@ -157,14 +169,11 @@ export default function MarketPage() {
       });
     });
     
-    // 실제 데이터 추가 (육량등급, 성별 필터 적용)
     allBidRecords.forEach(record => {
-      // 육량등급 필터 적용
-      if (yieldGradeFilter !== 'all' && record.yieldGrade !== yieldGradeFilter) {
+      if (sYieldGradeFilter !== 'all' && record.yieldGrade !== sYieldGradeFilter) {
         return;
       }
-      // 성별 필터 적용
-      if (genderFilter !== 'all' && record.gender !== genderFilter) {
+      if (sGenderFilter !== 'all' && record.gender !== sGenderFilter) {
         return;
       }
       
@@ -224,16 +233,16 @@ export default function MarketPage() {
       const gradeOrderB = GRADES.indexOf(b.grade);
       return gradeOrderA - gradeOrderB;
     });
-  }, [allBidRecords, yieldGradeFilter, genderFilter]);
+  }, [allBidRecords, sYieldGradeFilter, sGenderFilter]);
   
   // 필터링된 데이터
   const filteredData = useMemo(() => {
     return summaryData.filter(item => {
-      const matchesPart = partFilter === 'all' || item.partName === partFilter;
-      const matchesGrade = gradeFilter === 'all' || item.grade === gradeFilter;
+      const matchesPart = sPartFilter === 'all' || item.partName === sPartFilter;
+      const matchesGrade = sGradeFilter === 'all' || item.grade === sGradeFilter;
       return matchesPart && matchesGrade;
     });
-  }, [summaryData, partFilter, gradeFilter]);
+  }, [summaryData, sPartFilter, sGradeFilter]);
   
   // 행 확장/축소
   const toggleRow = (key: string) => {
@@ -285,6 +294,10 @@ export default function MarketPage() {
     setGradeFilter('all');
     setYieldGradeFilter('all');
     setGenderFilter('all');
+    setSPartFilter('all');
+    setSGradeFilter('all');
+    setSYieldGradeFilter('all');
+    setSGenderFilter('all');
     setExpandedRows(new Set());
   };
 
@@ -375,6 +388,14 @@ export default function MarketPage() {
               ))}
             </select>
           </div>
+
+          <button
+            type="button"
+            onClick={handleSearch}
+            className="px-4 py-1.5 bg-gray-900 text-white text-xs hover:bg-gray-800"
+          >
+            조회
+          </button>
 
           {/* 버튼 */}
           <div className="flex items-center gap-2 ml-auto">

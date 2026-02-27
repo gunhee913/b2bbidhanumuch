@@ -82,16 +82,30 @@ export default function AuctionBidsPage() {
   const [dealerFilter, setDealerFilter] = useState('');
   const [hideFailed, setHideFailed] = useState(false);
 
+  const [searchStartDate, setSearchStartDate] = useState(todayDateValue);
+  const [searchEndDate, setSearchEndDate] = useState(todayDateValue);
+  const [searchCompanyFilter, setSearchCompanyFilter] = useState('');
+  const [searchDealerFilter, setSearchDealerFilter] = useState('');
+  const [searchHideFailed, setSearchHideFailed] = useState(false);
+
+  const handleSearch = () => {
+    setSearchStartDate(startDate);
+    setSearchEndDate(endDate);
+    setSearchCompanyFilter(companyFilter);
+    setSearchDealerFilter(dealerFilter);
+    setSearchHideFailed(hideFailed);
+  };
+
   // 업체 목록 조회
   const { data: companiesData } = useCompanies();
 
   // 경락 내역 조회
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ['settledBids', startDate, endDate, companyFilter],
+    queryKey: ['settledBids', searchStartDate, searchEndDate, searchCompanyFilter],
     queryFn: () => fetchSettledBids({
-      closedDateFrom: startDate || undefined,
-      closedDateTo: endDate || undefined,
-      companyId: companyFilter || undefined,
+      closedDateFrom: searchStartDate || undefined,
+      closedDateTo: searchEndDate || undefined,
+      companyId: searchCompanyFilter || undefined,
     }),
   });
 
@@ -100,9 +114,9 @@ export default function AuctionBidsPage() {
 
   // 필터링 (중도매인 검색, 유찰분 숨김)
   const filteredRecords = records.filter(record => {
-    if (hideFailed && record.isFailed) return false;
-    if (dealerFilter && record.dealerName && !record.dealerName.includes(dealerFilter)) return false;
-    if (dealerFilter && !record.dealerName) return false;
+    if (searchHideFailed && record.isFailed) return false;
+    if (searchDealerFilter && record.dealerName && !record.dealerName.includes(searchDealerFilter)) return false;
+    if (searchDealerFilter && !record.dealerName) return false;
     return true;
   });
 
@@ -235,6 +249,14 @@ export default function AuctionBidsPage() {
             </label>
           </div>
 
+          <button
+            type="button"
+            onClick={handleSearch}
+            className="px-4 py-1.5 bg-gray-900 text-white text-xs hover:bg-gray-800"
+          >
+            조회
+          </button>
+
           {/* 버튼들 */}
           <div className="flex items-center gap-2 ml-auto">
             <button
@@ -253,6 +275,11 @@ export default function AuctionBidsPage() {
                 setCompanyFilter('');
                 setDealerFilter('');
                 setHideFailed(false);
+                setSearchStartDate(todayDateValue);
+                setSearchEndDate(todayDateValue);
+                setSearchCompanyFilter('');
+                setSearchDealerFilter('');
+                setSearchHideFailed(false);
               }}
               className="px-4 py-1.5 border border-gray-300 text-gray-600 text-xs hover:bg-gray-50"
             >

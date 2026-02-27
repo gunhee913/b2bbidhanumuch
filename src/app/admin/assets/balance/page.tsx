@@ -56,6 +56,14 @@ export default function DealerBalancePage() {
   const [selectedDate, setSelectedDate] = useState(todayStr);
   const [expandedDealers, setExpandedDealers] = useState<string[]>([]);
 
+  const [sSelectedDate, setSSelectedDate] = useState(todayStr);
+  const [sSearchTerm, setSSearchTerm] = useState('');
+
+  const handleSearch = () => {
+    setSSelectedDate(selectedDate);
+    setSSearchTerm(searchTerm);
+  };
+
   const [editingDealer, setEditingDealer] = useState<string | null>(null);
   const [transactionType, setTransactionType] = useState<'deposit' | 'withdraw'>('deposit');
   const [amount, setAmount] = useState('');
@@ -75,9 +83,9 @@ export default function DealerBalancePage() {
 
   // 잔액 조회
   const { data: balanceData, isLoading: balanceLoading } = useQuery<{ balances: DealerBalance[]; summary: any }>({
-    queryKey: ['dealer-balances', selectedDate],
+    queryKey: ['dealer-balances', sSelectedDate],
     queryFn: async () => {
-      const res = await fetch(`/api/dealer-balances?date=${selectedDate}`);
+      const res = await fetch(`/api/dealer-balances?date=${sSelectedDate}`);
       if (!res.ok) throw new Error();
       return res.json();
     },
@@ -105,9 +113,9 @@ export default function DealerBalancePage() {
   };
 
   const filteredDealers = dealers.filter(dealer => {
-    if (!searchTerm) return true;
-    const search = searchTerm.toLowerCase();
-    return dealer.dealerName.toLowerCase().includes(search) || dealer.dealerNo.includes(searchTerm);
+    if (!sSearchTerm) return true;
+    const search = sSearchTerm.toLowerCase();
+    return dealer.dealerName.toLowerCase().includes(search) || dealer.dealerNo.includes(sSearchTerm);
   });
 
   const totalDeposit = filteredDealers.reduce((sum, d) => sum + d.totalDeposit, 0);
@@ -338,10 +346,18 @@ export default function DealerBalancePage() {
               className="px-3 py-1.5 border border-gray-200 text-xs outline-none bg-white w-48"
             />
           </div>
+          <button
+            type="button"
+            onClick={handleSearch}
+            className="px-4 py-1.5 bg-gray-900 text-white text-xs hover:bg-gray-800"
+          >
+            조회
+          </button>
+
           <div className="flex items-center gap-2 ml-auto">
             <button
               type="button"
-              onClick={() => { setSearchTerm(''); setSelectedDate(todayStr); }}
+              onClick={() => { setSearchTerm(''); setSelectedDate(todayStr); setSSelectedDate(todayStr); setSSearchTerm(''); }}
               className="px-4 py-1.5 border border-gray-300 text-gray-600 text-xs hover:bg-gray-50"
             >
               초기화

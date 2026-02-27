@@ -122,15 +122,25 @@ export default function DealerSettlementsPage() {
   const [dealerSearch, setDealerSearch] = useState('');
   const [startDate, setStartDate] = useState(todayStr);
   const [endDate, setEndDate] = useState(todayStr);
+
+  const [sDealerSearch, setSDealerSearch] = useState('');
+  const [sStartDate, setSStartDate] = useState(todayStr);
+  const [sEndDate, setSEndDate] = useState(todayStr);
+
+  const handleSearch = () => {
+    setSDealerSearch(dealerSearch);
+    setSStartDate(startDate);
+    setSEndDate(endDate);
+  };
   
   // API 데이터 조회
   const { data, isLoading, refetch } = useQuery<DealerSettlementsResponse>({
-    queryKey: ['dealer-settlements', startDate, endDate, dealerSearch],
+    queryKey: ['dealer-settlements', sStartDate, sEndDate, sDealerSearch],
     queryFn: async () => {
       const params = new URLSearchParams();
-      if (startDate) params.append('startDate', startDate);
-      if (endDate) params.append('endDate', endDate);
-      if (dealerSearch) params.append('search', dealerSearch);
+      if (sStartDate) params.append('startDate', sStartDate);
+      if (sEndDate) params.append('endDate', sEndDate);
+      if (sDealerSearch) params.append('search', sDealerSearch);
       const res = await fetch(`/api/settlements/dealers?${params}`);
       if (!res.ok) throw new Error('Failed to fetch');
       return res.json();
@@ -535,6 +545,14 @@ export default function DealerSettlementsPage() {
             />
           </div>
 
+          <button
+            type="button"
+            onClick={handleSearch}
+            className="px-4 py-1.5 bg-gray-900 text-white text-xs hover:bg-gray-800"
+          >
+            조회
+          </button>
+
           <div className="flex items-center gap-2 ml-auto">
             <button
               type="button"
@@ -542,6 +560,9 @@ export default function DealerSettlementsPage() {
                 setDealerSearch('');
                 setStartDate(todayStr);
                 setEndDate(todayStr);
+                setSDealerSearch('');
+                setSStartDate(todayStr);
+                setSEndDate(todayStr);
               }}
               className="px-4 py-1.5 border border-gray-300 text-gray-600 text-xs hover:bg-gray-50"
             >

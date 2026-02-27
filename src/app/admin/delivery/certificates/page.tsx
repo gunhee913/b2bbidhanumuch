@@ -87,6 +87,16 @@ export default function CertificatesPage() {
   const [selectedDate, setSelectedDate] = useState(todayStr);
   const [companyFilter, setCompanyFilter] = useState('전체');
   const [searchTerm, setSearchTerm] = useState('');
+
+  const [sSelectedDate, setSSelectedDate] = useState(todayStr);
+  const [sCompanyFilter, setSCompanyFilter] = useState('전체');
+  const [sSearchTerm, setSSearchTerm] = useState('');
+
+  const handleSearch = () => {
+    setSSelectedDate(selectedDate);
+    setSCompanyFilter(companyFilter);
+    setSSearchTerm(searchTerm);
+  };
   
   // 업체 목록
   const companies = useMemo(() => {
@@ -97,9 +107,9 @@ export default function CertificatesPage() {
   // 필터링된 데이터
   const filteredData = useMemo(() => {
     return cattleData.filter(item => {
-      if (companyFilter !== '전체' && item.company !== companyFilter) return false;
-      if (searchTerm) {
-        const search = searchTerm.toLowerCase();
+      if (sCompanyFilter !== '전체' && item.company !== sCompanyFilter) return false;
+      if (sSearchTerm) {
+        const search = sSearchTerm.toLowerCase();
         if (!item.auctionNo.toLowerCase().includes(search) && 
             !item.traceNo.toLowerCase().includes(search)) {
           return false;
@@ -107,7 +117,7 @@ export default function CertificatesPage() {
       }
       return true;
     });
-  }, [cattleData, companyFilter, searchTerm]);
+  }, [cattleData, sCompanyFilter, sSearchTerm]);
   
   // 이력번호 정제 (하이픈 제거)
   const cleanTraceNo = (traceNo: string): string => {
@@ -189,6 +199,13 @@ export default function CertificatesPage() {
                 className="px-2 py-1.5 border border-gray-300 text-xs outline-none bg-white w-36"
               />
             </div>
+            <button
+              type="button"
+              onClick={handleSearch}
+              className="px-4 py-1.5 bg-gray-900 text-white text-xs hover:bg-gray-800"
+            >
+              조회
+            </button>
             <div className="flex items-center gap-2 ml-auto">
               <button
                 type="button"
@@ -196,6 +213,9 @@ export default function CertificatesPage() {
                   setCompanyFilter('전체');
                   setSearchTerm('');
                   setSelectedDate(todayStr);
+                  setSCompanyFilter('전체');
+                  setSSearchTerm('');
+                  setSSelectedDate(todayStr);
                 }}
                 className="px-4 py-1.5 border border-gray-300 text-gray-600 text-xs hover:bg-gray-50"
               >
