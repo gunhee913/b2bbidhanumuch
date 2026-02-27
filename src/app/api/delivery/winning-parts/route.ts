@@ -77,7 +77,6 @@ export async function GET(request: NextRequest) {
 
     const filtered = (parts || []).filter((part: any) => {
       const listing = part.cattle_listings;
-      if (listing?.status !== 'closed') return false;
       if (date && listing?.listing_date !== date) return false;
       if (startDate && listing?.listing_date < startDate) return false;
       if (endDate && listing?.listing_date > endDate) return false;

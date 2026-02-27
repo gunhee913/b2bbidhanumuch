@@ -385,7 +385,7 @@ function AuctionPageContent() {
 
   // 승인된 상장 목록 조회 (DB 연동)
   const { data: listingsData, isLoading: isListingsLoading, refetch: refetchListings } = useListings({
-    status: 'approved,auction' as any,
+    status: 'approved,auction,closed' as any,
     listingDateFrom: todayStr,
     listingDateTo: todayStr,
     includeParts: true,

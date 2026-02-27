@@ -40,24 +40,18 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    // 3. 미정산 낙찰대금 (completed/cancelled 제외한 모든 낙찰분)
+    // 3. 낙찰대금 (winning_dealer_id 기준)
     const { data: winningParts } = await supabase
       .from('cattle_parts')
       .select(`
         winning_dealer_id,
-        bid_amount,
-        cattle_listings!inner (
-          status
-        )
+        bid_amount
       `)
       .not('winning_dealer_id', 'is', null)
       .not('bid_amount', 'is', null);
 
     const unsettledMap: Record<string, number> = {};
     (winningParts || []).forEach((part: any) => {
-      const status = part.cattle_listings?.status;
-      if (status !== 'closed') return;
-
       const did = part.winning_dealer_id;
       if (!unsettledMap[did]) unsettledMap[did] = 0;
       unsettledMap[did] += Number(part.bid_amount || 0);

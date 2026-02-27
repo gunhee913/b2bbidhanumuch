@@ -54,49 +54,6 @@ export async function POST(
         return NextResponse.json({ error: closeError.message }, { status: 500 });
       }
 
-      // 낙찰된 상장 자동 마감 처리
-      const { data: auctionListings } = await supabase
-        .from('auction_listings')
-        .select('listing_id')
-        .eq('auction_id', id);
-
-      if (auctionListings && auctionListings.length > 0) {
-        const listingIds = auctionListings.map((al: any) => al.listing_id);
-
-        const { data: winningParts } = await supabase
-          .from('cattle_parts')
-          .select('listing_id')
-          .in('listing_id', listingIds)
-          .not('winning_dealer_id', 'is', null);
-
-        const wonListingIds = [...new Set((winningParts || []).map((p: any) => p.listing_id))];
-
-        if (wonListingIds.length > 0) {
-          const now = new Date().toISOString();
-          await supabase
-            .from('cattle_listings')
-            .update({ status: 'closed', closed_at: now })
-            .in('id', wonListingIds)
-            .neq('status', 'closed');
-
-          // 마감 날짜 기록
-          const { data: closedListings } = await supabase
-            .from('cattle_listings')
-            .select('listing_date')
-            .in('id', wonListingIds);
-
-          const uniqueDates = [...new Set((closedListings || []).map((l: any) => l.listing_date).filter(Boolean))];
-          if (uniqueDates.length > 0) {
-            await supabase
-              .from('auction_close_dates')
-              .upsert(
-                uniqueDates.map((d) => ({ close_date: d })),
-                { onConflict: 'close_date', ignoreDuplicates: true }
-              );
-          }
-        }
-      }
-
       // 다음 회차 자동 시작 처리 (기존 사전 배정된 라운드)
       let nextRound = null;
       if (auction.auto_next_round && auction.session_id) {

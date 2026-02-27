@@ -8,6 +8,44 @@ const supabase = createClient(
 
 const ADMIN_BID_PASSWORD = process.env.ADMIN_BID_PASSWORD || '1234';
 
+async function recalcWinnerForPart(partId: string) {
+  const { data: bids } = await supabase
+    .from('bids')
+    .select('id, bid_price, bid_amount, dealer_id')
+    .eq('part_id', partId)
+    .order('bid_price', { ascending: false })
+    .order('created_at', { ascending: true });
+
+  if (!bids || bids.length === 0) {
+    await supabase
+      .from('bids')
+      .update({ is_winning: false, rank: null })
+      .eq('part_id', partId);
+    await supabase
+      .from('cattle_parts')
+      .update({ bid_price: null, bid_amount: null, winning_dealer_id: null })
+      .eq('id', partId);
+    return;
+  }
+
+  const topBid = bids[0];
+  for (let i = 0; i < bids.length; i++) {
+    await supabase
+      .from('bids')
+      .update({ rank: i + 1, is_winning: i === 0 })
+      .eq('id', bids[i].id);
+  }
+
+  await supabase
+    .from('cattle_parts')
+    .update({
+      bid_price: topBid.bid_price,
+      bid_amount: topBid.bid_amount,
+      winning_dealer_id: topBid.dealer_id,
+    })
+    .eq('id', partId);
+}
+
 function verifyAdminPassword(password?: string): string | null {
   if (!password) return '비밀번호를 입력해주세요.';
   if (password !== ADMIN_BID_PASSWORD) return '비밀번호가 일치하지 않습니다.';
@@ -186,6 +224,8 @@ export async function PUT(
       performed_by: updatedBy || null,
     });
 
+    await recalcWinnerForPart(existingBid.part_id);
+
     return NextResponse.json({
       ...updatedBid,
       message: '입찰가가 수정되었습니다.',
@@ -264,6 +304,8 @@ export async function DELETE(
       new_bid_amount: null,
       performed_by: performedBy,
     });
+
+    await recalcWinnerForPart(existingBid.part_id);
 
     return NextResponse.json({
       message: '입찰이 삭제되었습니다.',

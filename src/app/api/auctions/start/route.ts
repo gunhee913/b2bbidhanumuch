@@ -22,9 +22,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '경매일은 필수입니다.' }, { status: 400 });
     }
 
-    const { data: allListings, error: listingsError } = await supabase
+    const { data: approvedListings, error: listingsError } = await supabase
       .from('cattle_listings')
-      .select('id, status')
+      .select('id')
       .eq('listing_date', auctionDate)
       .in('status', ['approved', 'auction', 'closed']);
 
@@ -32,30 +32,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: listingsError.message }, { status: 500 });
     }
 
-    if (!allListings || allListings.length === 0) {
+    if (!approvedListings || approvedListings.length === 0) {
       return NextResponse.json({ error: '해당일에 승인된 상장이 없습니다.' }, { status: 400 });
     }
 
-    const closedIds = allListings.filter((l) => l.status === 'closed').map((l) => l.id);
-    let wonListingIds = new Set<string>();
-
-    if (closedIds.length > 0) {
-      const { data: winningParts } = await supabase
-        .from('cattle_parts')
-        .select('listing_id')
-        .in('listing_id', closedIds)
-        .not('winning_dealer_id', 'is', null);
-
-      wonListingIds = new Set((winningParts || []).map((p: any) => p.listing_id));
-    }
-
-    const listingIds = allListings
-      .filter((l) => !wonListingIds.has(l.id))
-      .map((l) => l.id);
-
-    if (listingIds.length === 0) {
-      return NextResponse.json({ error: '경매할 상장이 없습니다. (모든 상장이 낙찰 완료)' }, { status: 400 });
-    }
+    const listingIds = approvedListings.map((l) => l.id);
 
     const { data: lastRound } = await supabase
       .from('auctions')

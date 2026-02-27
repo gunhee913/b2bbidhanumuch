@@ -112,7 +112,7 @@ function AuctionDetailContent({ params }: PageProps) {
 
   const todayStr = useMemo(() => format(new Date(), 'yyyy-MM-dd'), []);
   const { data: allListings } = useListings({
-    status: 'approved,auction,completed' as any,
+    status: 'approved,auction,closed,completed' as any,
     listingDateFrom: todayStr,
     listingDateTo: todayStr,
   });

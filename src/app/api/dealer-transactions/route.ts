@@ -121,7 +121,7 @@ export async function GET(request: NextRequest) {
     }
 
     const { data: winningPartsRaw } = await auctionQuery;
-    const winningParts = (winningPartsRaw || []).filter((p: any) => p.cattle_listings?.status === 'closed');
+    const winningParts = winningPartsRaw || [];
 
     // 딜러 정보 매핑
     const winnerIds = [...new Set((winningParts || []).map((p: any) => p.winning_dealer_id))];

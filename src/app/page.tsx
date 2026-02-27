@@ -112,7 +112,7 @@ function MainPageContent() {
 
   // 상장 목록 조회 (DB 연동)
   const { data: listingsData, isLoading: isListingsLoading, refetch: refetchListings } = useListings({
-    status: 'approved,auction,completed' as any,
+    status: 'approved,auction,closed,completed' as any,
     listingDateFrom: selectedDateStr,
     listingDateTo: selectedDateStr,
     includeParts: true,
