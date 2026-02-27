@@ -22,7 +22,9 @@ async function buildRoundListingMap(allRounds: any[]) {
 
   (allAuctionListings || []).forEach((al: any) => {
     const roundNo = auctionToRound.get(al.auction_id);
-    if (roundNo) roundListingMap[al.listing_id] = roundNo;
+    if (roundNo && (!roundListingMap[al.listing_id] || roundNo > roundListingMap[al.listing_id])) {
+      roundListingMap[al.listing_id] = roundNo;
+    }
   });
 
   return roundListingMap;
