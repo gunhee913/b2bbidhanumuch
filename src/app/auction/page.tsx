@@ -1133,7 +1133,7 @@ function AuctionPageContent() {
                                         return;
                                       }
                                       setSelectedProduct(product);
-                                      setPartBidPrice(0);
+                                      setPartBidPrice(product.myBid?.bidPrice || 0);
                                       setShowPartBidSheet(true);
                                     }}
                                     className={`px-1.5 py-1 text-[11px] font-medium rounded transition-colors ${
@@ -1722,7 +1722,7 @@ function AuctionPageContent() {
                         </div>
                         {/* 금액 조정 버튼 */}
                         <div className="grid grid-cols-5 gap-1.5">
-                          {[100, 1000, 10000, 50000].map((amount) => (
+                          {[1, 10, 100, 1000].map((amount) => (
                             <button
                               key={amount}
                               onClick={() => {
@@ -1753,8 +1753,8 @@ function AuctionPageContent() {
                         <div className="flex justify-between items-center">
                           <span className="text-sm font-bold text-gray-700 dark:text-gray-300">총 입찰금액</span>
                           <span className="text-xl font-bold text-gray-900 dark:text-gray-100">
-                            {partBidPrice > 0 && selectedProduct.weight 
-                              ? `${(partBidPrice * parseFloat(selectedProduct.weight)).toLocaleString()}원`
+                            {partBidPrice > 0 && selectedProduct.weight
+                              ? `${Math.round(partBidPrice * parseFloat(selectedProduct.weight)).toLocaleString()}원`
                               : '-'}
                           </span>
                         </div>
@@ -1828,7 +1828,7 @@ function AuctionPageContent() {
                       <div className="flex justify-between items-center pt-2 border-t border-gray-200 dark:border-gray-700">
                         <span className="text-sm font-bold text-gray-900 dark:text-gray-100">총 입찰금액</span>
                         <span className="text-lg font-bold text-gray-900 dark:text-gray-100">
-                          {(partBidPrice * parseFloat(selectedProduct.weight)).toLocaleString()}원
+                          {Math.round(partBidPrice * parseFloat(selectedProduct.weight)).toLocaleString()}원
                         </span>
                       </div>
                     </div>

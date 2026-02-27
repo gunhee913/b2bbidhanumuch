@@ -127,7 +127,7 @@ export default function BidsPage() {
   // 입찰가 변경 버튼 클릭 핸들러
   const handleReBidClick = (listingNo: string, bid: any, productInfo: any) => {
     setSelectedBidInfo({ listingNo, bid, productInfo });
-    setBidPrice('');
+    setBidPrice(bid.myBid ? bid.myBid.toString() : '');
     setShowBidSheet(true);
   };
 
@@ -764,7 +764,7 @@ export default function BidsPage() {
                       </div>
                       {/* 금액 조정 버튼 */}
                       <div className="grid grid-cols-5 gap-1.5">
-                        {[100, 1000, 10000, 50000].map((amount) => (
+                        {[1, 10, 100, 1000].map((amount) => (
                           <button
                             key={amount}
                             onClick={() => {

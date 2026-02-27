@@ -1038,7 +1038,7 @@ function MainPageContent() {
                                     <div className="flex items-center justify-center">
                                       {hasBid ? (
                                         <button
-                                          onClick={(e) => { e.stopPropagation(); if (!canBidFavPart) { showToastMessage('경매 진행중이 아닙니다.', 'warning'); return; } setSelectedFavPart(part); setFavPartBidPrice(0); setShowFavPartBidSheet(true); }}
+                                          onClick={(e) => { e.stopPropagation(); if (!canBidFavPart) { showToastMessage('경매 진행중이 아닙니다.', 'warning'); return; } setSelectedFavPart(part); setFavPartBidPrice(part.myBid?.bidPrice || 0); setShowFavPartBidSheet(true); }}
                                           className={`px-1.5 py-1 text-[11px] font-medium rounded transition-colors ${canBidFavPart ? 'text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 hover:bg-blue-50 dark:hover:bg-blue-900/30' : 'text-gray-400 dark:text-gray-500 border border-gray-200 dark:border-gray-700'}`}
                                         >변경</button>
                                       ) : (<span className="text-[13px] text-gray-400 dark:text-gray-500">-</span>)}
@@ -1696,7 +1696,7 @@ function MainPageContent() {
                       </div>
                         {/* 가격 조정 버튼 */}
                         <div className="grid grid-cols-5 gap-1.5">
-                          {[100, 1000, 10000, 50000].map((amount) => (
+                          {[1, 10, 100, 1000].map((amount) => (
                     <button
                               key={amount}
                       onClick={() => {
@@ -1754,89 +1754,125 @@ function MainPageContent() {
                 <>
                   <motion.div
                     initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                    className="fixed inset-0 bg-black/40 z-[60]"
                     onClick={() => setShowFavPartBidSheet(false)}
+                    className="absolute inset-0 bg-black/50 z-40"
                   />
                   <motion.div
                     initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
                     transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                    className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-900 rounded-t-2xl z-[61] max-h-[60vh] overflow-y-auto shadow-2xl"
+                    className="absolute bottom-0 left-0 right-0 bg-white dark:bg-gray-900 rounded-t-2xl shadow-2xl max-h-[70vh] overflow-y-auto z-[100] transition-colors"
                   >
-                    <div className="p-5">
-                      <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">
-                          {selectedFavPart.myBid?.bidPrice ? '입찰 변경' : '입찰하기'}
-                        </h3>
-                        <button onClick={() => setShowFavPartBidSheet(false)} className="p-1 text-gray-400 hover:text-gray-600">
-                          <X className="h-5 w-5" />
+                    <div className="flex justify-center pt-3 pb-2">
+                      <div className="w-10 h-1 bg-gray-300 dark:bg-gray-600 rounded-full" />
+                    </div>
+
+                    <div className="px-4 pb-3 border-b border-gray-200 dark:border-gray-700">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">입찰하기</h3>
+                        <button
+                          onClick={() => setShowFavPartBidSheet(false)}
+                          className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"
+                        >
+                          <X className="h-5 w-5 text-gray-500 dark:text-gray-400" />
                         </button>
                       </div>
-                      <div className="flex items-center gap-1 mb-4 flex-wrap">
-                        <span className="text-xs px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded font-medium">
-                          {selectedFavPart.auctionNo}
-                        </span>
-                        <span className="text-xs px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded font-medium">
-                          {selectedFavPart.gender}
-                        </span>
-                        <span className="text-xs px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded font-medium">
-                          {formatGrade(selectedFavPart.grade, selectedFavPart.marblingScore)}
-                        </span>
+                    </div>
+
+                    <div className="p-4 space-y-4">
+                      <div className="border border-gray-200 dark:border-gray-700 rounded overflow-hidden overflow-x-auto">
+                        <table className="w-full text-[11px]">
+                          <thead>
+                            <tr className="bg-gray-100 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+                              <th className="py-2 px-1.5 text-center font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">상장번호</th>
+                              <th className="py-2 px-1.5 text-center font-medium text-gray-500 dark:text-gray-400">축종</th>
+                              <th className="py-2 px-1.5 text-center font-medium text-gray-500 dark:text-gray-400">성별</th>
+                              <th className="py-2 px-1.5 text-center font-medium text-gray-500 dark:text-gray-400">등급</th>
+                              <th className="py-2 px-1.5 text-center font-medium text-gray-500 dark:text-gray-400">개월령</th>
+                              <th className="py-2 px-1.5 text-center font-medium text-gray-500 dark:text-gray-400">부위</th>
+                              <th className="py-2 px-1.5 text-center font-medium text-gray-500 dark:text-gray-400">중량</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            <tr>
+                              <td className="py-2.5 px-1.5 text-center text-gray-700 dark:text-gray-300 whitespace-nowrap">{selectedFavPart.auctionNo}</td>
+                              <td className="py-2.5 px-1.5 text-center text-gray-700 dark:text-gray-300">한우</td>
+                              <td className="py-2.5 px-1.5 text-center text-gray-700 dark:text-gray-300">{selectedFavPart.gender}</td>
+                              <td className="py-2.5 px-1.5 text-center text-gray-700 dark:text-gray-300">{formatGrade(selectedFavPart.grade, selectedFavPart.marblingScore)}</td>
+                              <td className="py-2.5 px-1.5 text-center text-gray-700 dark:text-gray-300">{selectedFavPart.monthAge || '-'}</td>
+                              <td className="py-2.5 px-1.5 text-center font-medium text-gray-900 dark:text-gray-100">{selectedFavPart.partName}</td>
+                              <td className="py-2.5 px-1.5 text-center font-medium text-gray-900 dark:text-gray-100">{selectedFavPart.weight}</td>
+                            </tr>
+                          </tbody>
+                        </table>
                       </div>
-                      <div className="grid grid-cols-2 gap-3 mb-4">
-                        <div>
-                          <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">부위</div>
-                          <div className="w-full px-3 py-2.5 text-sm font-bold border border-gray-200 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-center">
-                            {selectedFavPart.partName}
-                          </div>
-                        </div>
-                        <div>
-                          <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">중량</div>
-                          <div className="w-full px-3 py-2.5 text-sm font-bold border border-gray-200 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-center">
-                            {selectedFavPart.weight}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="mb-4">
-                        <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">입찰단가 (원/kg)</div>
-                        <div className="relative">
+
+                      <div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400 mb-2">입찰가격 (원/kg)</div>
+                        <div className="relative mb-2">
                           <input
                             type="text"
                             inputMode="numeric"
-                            value={favPartBidPrice ? favPartBidPrice.toLocaleString() : ''}
+                            value={favPartBidPrice > 0 ? favPartBidPrice.toLocaleString('ko-KR') : ''}
                             onChange={(e) => {
-                              const value = e.target.value.replace(/[^0-9]/g, '');
+                              const value = e.target.value.replace(/,/g, '').replace(/[^0-9]/g, '');
                               setFavPartBidPrice(value ? parseInt(value) : 0);
                             }}
-                            placeholder={`최저단가 ${selectedFavPart.minPrice.toLocaleString()}`}
-                            className="w-full px-3 py-3 pr-10 text-right text-xl font-bold border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-gray-500 dark:focus:ring-gray-400 focus:border-gray-500 bg-white dark:bg-gray-700 text-black dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500"
+                            className="w-full px-4 py-3.5 pr-12 text-right text-xl font-bold border border-gray-200 dark:border-gray-700 rounded focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500 focus:border-gray-400 dark:focus:border-gray-500 bg-white dark:bg-gray-800 text-black dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500"
+                            placeholder={`최저단가 ${(selectedFavPart.minPrice || 0).toLocaleString()}`}
                           />
-                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">원</span>
+                          <div className="absolute right-4 top-1/2 transform -translate-y-1/2 text-sm text-gray-400 dark:text-gray-500">원</div>
+                        </div>
+                        <div className="grid grid-cols-5 gap-1.5">
+                          {[1, 10, 100, 1000].map((amount) => (
+                            <button
+                              key={amount}
+                              onClick={() => {
+                                setFavPartBidPrice(prev => {
+                                  if (prev === 0 && selectedFavPart) {
+                                    return (selectedFavPart.minPrice || 0) + amount;
+                                  }
+                                  return prev + amount;
+                                });
+                              }}
+                              className="py-2 text-xs border border-gray-200 dark:border-gray-700 rounded hover:bg-gray-50 dark:hover:bg-gray-800 font-medium text-gray-700 dark:text-gray-300 transition-colors"
+                            >
+                              +{amount.toLocaleString()}
+                            </button>
+                          ))}
+                          <button
+                            onClick={() => setFavPartBidPrice(0)}
+                            className="py-2 text-xs bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 font-medium transition-colors"
+                          >
+                            초기화
+                          </button>
                         </div>
                       </div>
-                      <div className="mb-4 px-1 flex justify-between text-xs text-gray-500 dark:text-gray-400">
-                        <span>예상 총액</span>
-                        <span className="font-bold text-gray-900 dark:text-gray-100">
-                          {favPartBidPrice ? `${Math.round(favPartBidPrice * parseFloat(selectedFavPart.weight)).toLocaleString()}원` : '-'}
-                        </span>
+
+                      <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-700">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm font-bold text-gray-700 dark:text-gray-300">총 입찰금액</span>
+                          <span className="text-xl font-bold text-gray-900 dark:text-gray-100">
+                            {favPartBidPrice > 0 && selectedFavPart.weight
+                              ? `${Math.round(favPartBidPrice * parseFloat(selectedFavPart.weight)).toLocaleString()}원`
+                              : '-'}
+                          </span>
+                        </div>
                       </div>
-                      <div className="flex gap-3">
-                        <button
-                          onClick={() => setShowFavPartBidSheet(false)}
-                          className="flex-1 bg-white text-gray-700 border-2 border-gray-300 py-2.5 rounded-lg font-bold hover:bg-gray-50"
-                        >
-                          취소
-                        </button>
-                        <button
-                          disabled={!favPartBidPrice || favPartBidPrice < selectedFavPart.minPrice}
-                          onClick={async () => {
-                            await handleFavPartBid(selectedFavPart, favPartBidPrice);
-                            setShowFavPartBidSheet(false);
-                          }}
-                          className="flex-1 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 py-2.5 rounded-lg font-bold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-800 dark:hover:bg-gray-200"
-                        >
-                          {selectedFavPart.myBid?.bidPrice ? '변경 확인' : '입찰 확인'}
-                        </button>
-                      </div>
+
+                      <button
+                        onClick={() => {
+                          if (favPartBidPrice < (selectedFavPart.minPrice || 0)) {
+                            alert(`최저단가(${(selectedFavPart.minPrice || 0).toLocaleString()}원) 이상으로 입찰해주세요.`);
+                            return;
+                          }
+                          handleFavPartBid(selectedFavPart, favPartBidPrice);
+                          setShowFavPartBidSheet(false);
+                        }}
+                        disabled={favPartBidPrice === 0}
+                        className="w-full py-3.5 bg-gray-800 dark:bg-gray-700 hover:bg-gray-900 dark:hover:bg-gray-600 disabled:bg-gray-300 dark:disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-bold text-base rounded transition-colors"
+                      >
+                        입찰하기
+                      </button>
                     </div>
                   </motion.div>
                 </>

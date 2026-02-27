@@ -1359,7 +1359,7 @@ function AuctionDetailContent({ params }: PageProps) {
                                   onClick={() => {
                                     setSelectedPart(item.part);
                                     setSelectedWeight(item.weight);
-                                    setBidPrice('');
+                                    setBidPrice(myBidPrice ? myBidPrice.toString() : '');
                                     setShowBidSheet(true);
                                   }}
                                   className="px-1.5 py-1 text-[11px] font-medium text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 rounded hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors"
@@ -1571,7 +1571,7 @@ function AuctionDetailContent({ params }: PageProps) {
                       </div>
                       {/* 금액 조정 버튼 */}
                       <div className="grid grid-cols-5 gap-1.5">
-                        {[100, 1000, 10000, 50000].map((amount) => (
+                        {[1, 10, 100, 1000].map((amount) => (
                           <button
                             key={amount}
                             onClick={() => {
