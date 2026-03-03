@@ -13,6 +13,7 @@ export async function GET(request: NextRequest) {
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
     const search = searchParams.get('search');
+    const dealerId = searchParams.get('dealerId');
 
     // 1. 마감된 상장의 낙찰 부위 조회
     let query = supabase
@@ -48,6 +49,10 @@ export async function GET(request: NextRequest) {
       .not('winning_dealer_id', 'is', null)
       .not('bid_price', 'is', null)
       .eq('cattle_listings.status', 'closed');
+
+    if (dealerId) {
+      query = query.eq('winning_dealer_id', dealerId);
+    }
 
     const { data: parts, error: partsError } = await query;
 
@@ -149,9 +154,12 @@ export async function GET(request: NextRequest) {
       const bidPart = {
         id: part.id,
         listingNo: part.listing_part_no || `${listing?.listing_no}-${String(part.part_no).padStart(2, '0')}`,
+        cattleListingNo: listing?.listing_no || '',
         partName: part.part_name,
         companyName: company?.name || '',
         companyNo: company?.company_no || '',
+        breed: listing?.breed || '',
+        gender: listing?.gender || '',
         grade: formatGrade(listing?.grade, listing?.marbling_score),
         weight: part.weight || 0,
         unitPrice: part.bid_price || 0,

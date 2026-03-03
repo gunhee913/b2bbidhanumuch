@@ -13,6 +13,7 @@ export async function GET(request: NextRequest) {
     const closedDateFrom = searchParams.get('closedDateFrom');
     const closedDateTo = searchParams.get('closedDateTo');
     const companyId = searchParams.get('companyId');
+    const dealerId = searchParams.get('dealerId');
 
     // 수수료 설정 조회
     const { data: feeSettings } = await supabase
@@ -135,6 +136,7 @@ export async function GET(request: NextRequest) {
 
       (listing.cattle_parts || [])
         .filter((part: any) => part.is_included)
+        .filter((part: any) => !dealerId || part.winning_dealer_id === dealerId)
         .sort((a: any, b: any) => a.part_no - b.part_no)
         .forEach((part: any) => {
           const dealer = part.winning_dealer_id ? dealersMap[part.winning_dealer_id] : null;
