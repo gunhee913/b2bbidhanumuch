@@ -1088,7 +1088,7 @@ function AuctionPageContent() {
                                 setExpandedProductId(isExpanded ? null : product.id);
                               }}
                             >
-                              <div className="text-center text-[11px] text-gray-500 dark:text-gray-400 flex items-center justify-center">
+                              <div className="text-center text-[11px] text-gray-500 dark:text-gray-400 flex items-center justify-center whitespace-nowrap">
                                 {product.company}
                               </div>
                               <div className="text-center">
@@ -1523,7 +1523,7 @@ function AuctionPageContent() {
                               }`}
                               style={{gridTemplateColumns: '0.6fr 1fr 0.6fr 0.9fr 0.9fr 0.9fr 0.6fr 0.35fr'}}
                             >
-                              <div className="text-center text-[11px] text-gray-500 dark:text-gray-400 flex items-center justify-center">
+                              <div className="text-center text-[11px] text-gray-500 dark:text-gray-400 flex items-center justify-center whitespace-nowrap">
                                 {product.company}
                               </div>
                               <div className="text-center">

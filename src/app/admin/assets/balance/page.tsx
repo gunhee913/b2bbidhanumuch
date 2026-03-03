@@ -39,11 +39,13 @@ interface DealerBalance {
   dealerNo: string;
   dealerName: string;
   phone: string;
+  todayDeposit: number;
+  todayDeduct: number;
+  availableAmount: number;
   totalDeposit: number;
   totalWithdraw: number;
   auctionDeduct: number;
   totalDeduct: number;
-  availableAmount: number;
 }
 
 export default function DealerBalancePage() {
@@ -118,8 +120,8 @@ export default function DealerBalancePage() {
     return dealer.dealerName.toLowerCase().includes(search) || dealer.dealerNo.includes(sSearchTerm);
   });
 
-  const totalDeposit = filteredDealers.reduce((sum, d) => sum + d.totalDeposit, 0);
-  const totalDeduct = filteredDealers.reduce((sum, d) => sum + d.totalDeduct, 0);
+  const totalDeposit = filteredDealers.reduce((sum, d) => sum + d.todayDeposit, 0);
+  const totalDeduct = filteredDealers.reduce((sum, d) => sum + d.todayDeduct, 0);
   const totalAvailable = filteredDealers.reduce((sum, d) => sum + d.availableAmount, 0);
 
   const toggleDealer = (dealerId: string) => {
@@ -303,9 +305,9 @@ export default function DealerBalancePage() {
     const excelData = filteredDealers.map(dealer => ({
       '중도매인번호': dealer.dealerNo,
       '중도매인명': dealer.dealerName,
-      '입금': dealer.totalDeposit,
-      '출금(차감)': dealer.totalDeduct,
-      '판매가능금액': dealer.availableAmount,
+      '입금(당일)': dealer.todayDeposit,
+      '출금(당일)': dealer.todayDeduct,
+      '잔액': dealer.availableAmount,
     }));
 
     const worksheet = XLSX.utils.json_to_sheet(excelData);
@@ -388,9 +390,9 @@ export default function DealerBalancePage() {
                 <th className={`${thClass} w-[4%]`}></th>
                 <th className={`${thClass} w-[13%]`}>중도매인번호</th>
                 <th className={`${thClass} w-[13%]`}>중도매인명</th>
-                <th className={`${thClass} w-[18%]`}>입금</th>
-                <th className={`${thClass} w-[18%]`}>출금(차감)</th>
-                <th className={`${thClass} w-[18%]`}>판매가능금액</th>
+                <th className={`${thClass} w-[18%]`}>입금(당일)</th>
+                <th className={`${thClass} w-[18%]`}>출금(당일)</th>
+                <th className={`${thClass} w-[18%]`}>잔액</th>
                 <th className={`${thClass} w-[16%]`}>입출금</th>
               </tr>
             </thead>
@@ -416,8 +418,8 @@ export default function DealerBalancePage() {
                       </td>
                       <td className={tdClass}>{dealer.dealerNo}</td>
                       <td className={`${tdClass} font-medium`}>{dealer.dealerName}</td>
-                      <td className={`${tdClass} text-right`}>{dealer.totalDeposit.toLocaleString()}</td>
-                      <td className={`${tdClass} text-right`}>{dealer.totalDeduct.toLocaleString()}</td>
+                      <td className={`${tdClass} text-right`}>{dealer.todayDeposit.toLocaleString()}</td>
+                      <td className={`${tdClass} text-right`}>{dealer.todayDeduct.toLocaleString()}</td>
                       <td className={`${tdClass} text-right font-semibold ${dealer.availableAmount < 0 ? 'text-red-600' : ''}`}>
                         {dealer.availableAmount.toLocaleString()}
                       </td>
@@ -523,7 +525,7 @@ export default function DealerBalancePage() {
                                             ) : ''}
                                           </td>
                                           <td className={tdClass}>
-                                            {record.type === 'withdraw' ? (
+                                            {(record.type === 'withdraw' || record.type === 'auction_deduct') ? (
                                               <input type="text" value={editAmount} onChange={(e) => setEditAmount(formatAmount(e.target.value))}
                                                 className="px-2 py-1 border border-gray-200 text-xs outline-none bg-white w-24 text-right" autoFocus />
                                             ) : ''}
@@ -551,7 +553,7 @@ export default function DealerBalancePage() {
                                             {record.type === 'deposit' ? `+${record.amount.toLocaleString()}` : ''}
                                           </td>
                                           <td className={`${tdClass} text-right text-red-600 ${record.status === 'cancelled' ? 'line-through' : ''}`}>
-                                            {record.type === 'withdraw' ? `-${record.amount.toLocaleString()}` : ''}
+                                            {(record.type === 'withdraw' || record.type === 'auction_deduct') ? `-${record.amount.toLocaleString()}` : ''}
                                           </td>
                                           <td className={tdClass}>{record.createdBy}</td>
                                           <td className={tdClass}>

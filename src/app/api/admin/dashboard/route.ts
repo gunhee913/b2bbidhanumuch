@@ -58,6 +58,7 @@ export async function GET(request: NextRequest) {
         byPart: [],
         byGrade: [],
         byCompany: [],
+        byDealer: [],
       });
     }
 
@@ -123,20 +124,31 @@ export async function GET(request: NextRequest) {
 
     const daily = [...dailyMap.entries()]
       .sort(([a], [b]) => b.localeCompare(a))
-      .map(([date, d]) => ({ date, ...d, feeAmount: Math.round(d.wonAmount * feeRate / 100) }));
+      .map(([date, d]) => ({ date, ...d, feeAmount: Math.round(d.wonAmount * feeRate / 100), deliveryFeeAmount: Math.round(d.wonAmount * deliveryFeeRate / 100) }));
 
     // --- 부위별 집계 ---
-    const partAgg = new Map<string, { count: number; amount: number; weight: number }>();
-    wonParts.forEach(p => {
+    const partAgg = new Map<string, { partCount: number; count: number; amount: number; weight: number }>();
+    allParts.forEach(p => {
       const name = PART_NORMALIZE[p.part_name] || p.part_name;
-      if (!partAgg.has(name)) partAgg.set(name, { count: 0, amount: 0, weight: 0 });
+      if (!partAgg.has(name)) partAgg.set(name, { partCount: 0, count: 0, amount: 0, weight: 0 });
       const a = partAgg.get(name)!;
-      a.count++;
-      a.amount += p.bid_amount || 0;
-      a.weight += p.weight || 0;
+      a.partCount++;
+      if (p.winning_dealer_id) {
+        a.count++;
+        a.amount += p.bid_amount || 0;
+        a.weight += p.weight || 0;
+      }
     });
     const byPart = [...partAgg.entries()]
-      .map(([name, d]) => ({ name, ...d, ratio: wonAmount > 0 ? +(d.amount / wonAmount * 100).toFixed(1) : 0 }))
+      .map(([name, d]) => ({
+        name,
+        partCount: d.partCount,
+        count: d.count,
+        amount: d.amount,
+        weight: d.weight,
+        bidRate: d.partCount > 0 ? +(d.count / d.partCount * 100).toFixed(1) : 0,
+        ratio: wonAmount > 0 ? +(d.amount / wonAmount * 100).toFixed(1) : 0,
+      }))
       .sort((a, b) => b.amount - a.amount);
 
     // --- 등급별 집계 ---
@@ -199,12 +211,65 @@ export async function GET(request: NextRequest) {
       }))
       .sort((a, b) => b.wonAmount - a.wonAmount);
 
+    // --- 중도매인별 낙찰현황 ---
+    const dealerIds = [...new Set(wonParts.map(p => p.winning_dealer_id).filter(Boolean))];
+    let dealerNameMap = new Map<string, string>();
+    if (dealerIds.length > 0) {
+      const { data: dealers } = await supabase
+        .from('dealers')
+        .select('id, name')
+        .in('id', dealerIds);
+      (dealers || []).forEach(d => dealerNameMap.set(d.id, d.name));
+    }
+
+    const dealerAgg = new Map<string, { dealerName: string; cattleIds: Set<string>; partCount: number; wonCount: number; wonAmount: number }>();
+    allParts.forEach(p => {
+      const listing = listingMap.get(p.listing_id);
+      if (!listing) return;
+      const dealerId = p.winning_dealer_id;
+
+      if (dealerId) {
+        if (!dealerAgg.has(dealerId)) {
+          dealerAgg.set(dealerId, { dealerName: dealerNameMap.get(dealerId) || '알 수 없음', cattleIds: new Set(), partCount: 0, wonCount: 0, wonAmount: 0 });
+        }
+        const a = dealerAgg.get(dealerId)!;
+        a.cattleIds.add(listing.id);
+        a.wonCount++;
+        a.wonAmount += p.bid_amount || 0;
+      }
+    });
+
+    // partCount: 해당 중도매인이 낙찰 받은 개체의 전체 부위 수
+    const dealerCattlePartCount = new Map<string, number>();
+    dealerAgg.forEach((d, dealerId) => {
+      let totalParts = 0;
+      d.cattleIds.forEach(cattleId => {
+        totalParts += allParts.filter(p => p.listing_id === cattleId).length;
+      });
+      dealerCattlePartCount.set(dealerId, totalParts);
+    });
+
+    const byDealer = [...dealerAgg.entries()]
+      .map(([dealerId, d]) => ({
+        name: d.dealerName,
+        cattleCount: d.cattleIds.size,
+        partCount: dealerCattlePartCount.get(dealerId) || 0,
+        wonCount: d.wonCount,
+        wonAmount: d.wonAmount,
+        bidRate: (dealerCattlePartCount.get(dealerId) || 0) > 0
+          ? +(d.wonCount / (dealerCattlePartCount.get(dealerId) || 1) * 100).toFixed(1)
+          : 0,
+        ratio: wonAmount > 0 ? +(d.wonAmount / wonAmount * 100).toFixed(1) : 0,
+      }))
+      .sort((a, b) => b.wonAmount - a.wonAmount);
+
     return NextResponse.json({
       summary: { cattleCount, partCount, wonCount, wonAmount, feeRate, feeAmount, deliveryFeeRate, deliveryFeeAmount },
       daily,
       byPart,
       byGrade,
       byCompany,
+      byDealer,
     });
   } catch (error) {
     console.error('대시보드 조회 오류:', error);

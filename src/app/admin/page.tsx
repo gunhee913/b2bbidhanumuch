@@ -25,12 +25,15 @@ interface DashboardData {
     wonCount: number;
     wonAmount: number;
     feeAmount: number;
+    deliveryFeeAmount: number;
   }[];
   byPart: {
     name: string;
+    partCount: number;
     count: number;
     amount: number;
     weight: number;
+    bidRate: number;
     ratio: number;
   }[];
   byGrade: {
@@ -50,6 +53,15 @@ interface DashboardData {
     wonCount: number;
     wonAmount: number;
     weight: number;
+    bidRate: number;
+    ratio: number;
+  }[];
+  byDealer: {
+    name: string;
+    cattleCount: number;
+    partCount: number;
+    wonCount: number;
+    wonAmount: number;
     bidRate: number;
     ratio: number;
   }[];
@@ -81,6 +93,7 @@ export default function AdminDashboardPage() {
   const byPart = data?.byPart ?? [];
   const byGrade = data?.byGrade ?? [];
   const byCompany = data?.byCompany ?? [];
+  const byDealer = data?.byDealer ?? [];
 
   const handleExcelDownload = () => {
     const wb = XLSX.utils.book_new();
@@ -92,14 +105,17 @@ export default function AdminDashboardPage() {
       '낙찰 건수': d.wonCount,
       '낙찰대금(원)': d.wonAmount,
       '상장수수료(원)': d.feeAmount,
+      '배송수수료(원)': d.deliveryFeeAmount,
     })));
     XLSX.utils.book_append_sheet(wb, dailySheet, '일별경매');
 
     const partSheet = XLSX.utils.json_to_sheet(byPart.map(p => ({
       '부위': p.name,
+      '경매 건수': p.partCount,
+      '낙찰 건수': p.count,
       '낙찰대금(원)': p.amount,
       '중량(kg)': Math.round(p.weight * 10) / 10,
-      '건수': p.count,
+      '낙찰률(%)': p.bidRate,
       '비중(%)': p.ratio,
     })));
     XLSX.utils.book_append_sheet(wb, partSheet, '부위별경매');
@@ -125,6 +141,18 @@ export default function AdminDashboardPage() {
       '비중(%)': c.ratio,
     })));
     XLSX.utils.book_append_sheet(wb, companySheet, '상장업체별경매');
+
+    const dealerSheet = XLSX.utils.json_to_sheet(byDealer.map((d, idx) => ({
+      '순위': idx + 1,
+      '중도매인': d.name,
+      '경매 두수': d.cattleCount,
+      '경매 건수': d.partCount,
+      '낙찰 건수': d.wonCount,
+      '낙찰대금(원)': d.wonAmount,
+      '낙찰률(%)': d.bidRate,
+      '비중(%)': d.ratio,
+    })));
+    XLSX.utils.book_append_sheet(wb, dealerSheet, '중도매인별낙찰');
 
     XLSX.writeFile(wb, `플랫폼운영현황_${searchStartDate}_${searchEndDate}.xlsx`);
   };
@@ -223,12 +251,13 @@ export default function AdminDashboardPage() {
                     <th className="px-4 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">낙찰 건수</th>
                     <th className="px-4 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">낙찰대금</th>
                     <th className="px-4 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">상장수수료</th>
+                    <th className="px-4 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">배송수수료</th>
                   </tr>
                 </thead>
                 <tbody>
                   {daily.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="px-4 py-8 text-center text-xs text-gray-400 border border-gray-200">
+                      <td colSpan={7} className="px-4 py-8 text-center text-xs text-gray-400 border border-gray-200">
                         조회된 데이터가 없습니다.
                       </td>
                     </tr>
@@ -242,6 +271,7 @@ export default function AdminDashboardPage() {
                           <td className="px-4 py-2 text-xs text-center border border-gray-200">{day.wonCount}건</td>
                           <td className="px-4 py-2 text-xs text-center border border-gray-200 font-medium">{day.wonAmount.toLocaleString()}원</td>
                           <td className="px-4 py-2 text-xs text-center border border-gray-200">{day.feeAmount.toLocaleString()}원</td>
+                          <td className="px-4 py-2 text-xs text-center border border-gray-200">{day.deliveryFeeAmount.toLocaleString()}원</td>
                         </tr>
                       ))}
                       <tr className="bg-gray-50 font-bold">
@@ -251,6 +281,7 @@ export default function AdminDashboardPage() {
                         <td className="px-4 py-2 text-xs text-center border border-gray-200">{summary.wonCount.toLocaleString()}건</td>
                         <td className="px-4 py-2 text-xs text-center border border-gray-200">{summary.wonAmount.toLocaleString()}원</td>
                         <td className="px-4 py-2 text-xs text-center border border-gray-200">{summary.feeAmount.toLocaleString()}원</td>
+                        <td className="px-4 py-2 text-xs text-center border border-gray-200">{summary.deliveryFeeAmount.toLocaleString()}원</td>
                       </tr>
                     </>
                   )}
@@ -269,15 +300,17 @@ export default function AdminDashboardPage() {
                     <tr>
                       <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">순위</th>
                       <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">부위</th>
+                      <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">경매 건수</th>
                       <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">낙찰 건수</th>
                       <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">낙찰대금</th>
+                      <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">낙찰률</th>
                       <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">비중</th>
                     </tr>
                   </thead>
                   <tbody>
                     {byPart.length === 0 ? (
                       <tr>
-                        <td colSpan={5} className="px-3 py-8 text-center text-xs text-gray-400 border border-gray-200">데이터 없음</td>
+                        <td colSpan={7} className="px-3 py-8 text-center text-xs text-gray-400 border border-gray-200">데이터 없음</td>
                       </tr>
                     ) : (
                       <>
@@ -285,15 +318,21 @@ export default function AdminDashboardPage() {
                           <tr key={part.name} className="hover:bg-gray-50">
                             <td className="px-3 py-2 text-xs text-center border border-gray-200">{idx + 1}</td>
                             <td className="px-3 py-2 text-xs text-center border border-gray-200 font-medium">{part.name}</td>
+                            <td className="px-3 py-2 text-xs text-center border border-gray-200">{part.partCount}건</td>
                             <td className="px-3 py-2 text-xs text-center border border-gray-200">{part.count}건</td>
                             <td className="px-3 py-2 text-xs text-center border border-gray-200">{part.amount.toLocaleString()}원</td>
+                            <td className="px-3 py-2 text-xs text-center border border-gray-200">{part.bidRate}%</td>
                             <td className="px-3 py-2 text-xs text-center border border-gray-200">{part.ratio}%</td>
                           </tr>
                         ))}
                         <tr className="bg-gray-50 font-bold">
                           <td colSpan={2} className="px-3 py-2 text-xs text-center border border-gray-200">합계</td>
+                          <td className="px-3 py-2 text-xs text-center border border-gray-200">{summary.partCount.toLocaleString()}건</td>
                           <td className="px-3 py-2 text-xs text-center border border-gray-200">{summary.wonCount}건</td>
                           <td className="px-3 py-2 text-xs text-center border border-gray-200">{summary.wonAmount.toLocaleString()}원</td>
+                          <td className="px-3 py-2 text-xs text-center border border-gray-200">
+                            {summary.partCount > 0 ? (summary.wonCount / summary.partCount * 100).toFixed(1) : 0}%
+                          </td>
                           <td className="px-3 py-2 text-xs text-center border border-gray-200">100%</td>
                         </tr>
                       </>
@@ -397,6 +436,64 @@ export default function AdminDashboardPage() {
                             <td colSpan={2} className="px-3 py-2 text-xs text-center border border-gray-200">합계</td>
                             <td className="px-3 py-2 text-xs text-center border border-gray-200">{summary.cattleCount}두</td>
                             <td className="px-3 py-2 text-xs text-center border border-gray-200">{summary.partCount.toLocaleString()}건</td>
+                            <td className="px-3 py-2 text-xs text-center border border-gray-200">{summary.wonCount.toLocaleString()}건</td>
+                            <td className="px-3 py-2 text-xs text-center border border-gray-200">{summary.wonAmount.toLocaleString()}원</td>
+                            <td className="px-3 py-2 text-xs text-center border border-gray-200">
+                              {summary.partCount > 0 ? (summary.wonCount / summary.partCount * 100).toFixed(1) : 0}%
+                            </td>
+                            <td className="px-3 py-2 text-xs text-center border border-gray-200">100%</td>
+                          </tr>
+                        </>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* 중도매인별 낙찰현황 */}
+              <div className="bg-white border border-gray-200 p-4">
+                <h2 className="text-sm font-bold text-gray-800 mb-4">중도매인별 낙찰현황</h2>
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse">
+                    <thead>
+                      <tr>
+                        <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">순위</th>
+                        <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">중도매인</th>
+                        <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">경매 두수</th>
+                        <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">경매 건수</th>
+                        <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">낙찰 건수</th>
+                        <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">낙찰대금</th>
+                        <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">낙찰률</th>
+                        <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">비중</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {byDealer.length === 0 ? (
+                        <tr>
+                          <td colSpan={8} className="px-3 py-8 text-center text-xs text-gray-400 border border-gray-200">데이터 없음</td>
+                        </tr>
+                      ) : (
+                        <>
+                          {byDealer.map((dealer, idx) => (
+                            <tr key={dealer.name} className="hover:bg-gray-50">
+                              <td className="px-3 py-2 text-xs text-center border border-gray-200">{idx + 1}</td>
+                              <td className="px-3 py-2 text-xs text-center border border-gray-200 font-medium">{dealer.name}</td>
+                              <td className="px-3 py-2 text-xs text-center border border-gray-200">{dealer.cattleCount}두</td>
+                              <td className="px-3 py-2 text-xs text-center border border-gray-200">{dealer.partCount}건</td>
+                              <td className="px-3 py-2 text-xs text-center border border-gray-200">{dealer.wonCount}건</td>
+                              <td className="px-3 py-2 text-xs text-center border border-gray-200">{dealer.wonAmount.toLocaleString()}원</td>
+                              <td className="px-3 py-2 text-xs text-center border border-gray-200">{dealer.bidRate}%</td>
+                              <td className="px-3 py-2 text-xs text-center border border-gray-200">{dealer.ratio}%</td>
+                            </tr>
+                          ))}
+                          <tr className="bg-gray-50 font-bold">
+                            <td colSpan={2} className="px-3 py-2 text-xs text-center border border-gray-200">합계</td>
+                            <td className="px-3 py-2 text-xs text-center border border-gray-200">
+                              {byDealer.reduce((s, d) => s + d.cattleCount, 0)}두
+                            </td>
+                            <td className="px-3 py-2 text-xs text-center border border-gray-200">
+                              {byDealer.reduce((s, d) => s + d.partCount, 0)}건
+                            </td>
                             <td className="px-3 py-2 text-xs text-center border border-gray-200">{summary.wonCount.toLocaleString()}건</td>
                             <td className="px-3 py-2 text-xs text-center border border-gray-200">{summary.wonAmount.toLocaleString()}원</td>
                             <td className="px-3 py-2 text-xs text-center border border-gray-200">

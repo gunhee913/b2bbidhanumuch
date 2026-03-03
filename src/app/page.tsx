@@ -989,7 +989,8 @@ function MainPageContent() {
                           <div className="bg-white dark:bg-gray-900 transition-colors">
                             {/* 진행중 헤더 */}
                             <div className="bg-gray-100 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 h-9 flex items-center sticky top-0 z-10 transition-colors">
-                              <div className="grid px-2 text-[13px] font-medium text-gray-500 dark:text-gray-400 w-full" style={{gridTemplateColumns: '1.1fr 0.6fr 0.85fr 1.1fr 0.5fr 0.5fr 0.35fr'}}>
+                              <div className="grid px-2 text-[13px] font-medium text-gray-500 dark:text-gray-400 w-full" style={{gridTemplateColumns: '0.6fr 1.1fr 0.6fr 0.85fr 1.1fr 0.5fr 0.5fr 0.35fr'}}>
+                                <div className="text-center">업체</div>
                                 <div className="text-center">부위</div>
                                 <div className="text-center">중량</div>
                                 <div className="text-center">최저단가</div>
@@ -1014,8 +1015,11 @@ function MainPageContent() {
                                     className={`grid px-2 py-3 border-b border-gray-100 dark:border-gray-800 cursor-pointer transition-colors items-center ${
                                       hasBid ? 'bg-blue-50/50 dark:bg-blue-900/30' : 'bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800'
                                     }`}
-                                    style={{gridTemplateColumns: '1.1fr 0.6fr 0.85fr 1.1fr 0.5fr 0.5fr 0.35fr'}}
+                                    style={{gridTemplateColumns: '0.6fr 1.1fr 0.6fr 0.85fr 1.1fr 0.5fr 0.5fr 0.35fr'}}
                                   >
+                                    <div className="text-center text-[11px] text-gray-500 dark:text-gray-400 flex items-center justify-center whitespace-nowrap">
+                                      {part.company}
+                                    </div>
                                     <div className="text-center">
                                       <div className="text-[13px] font-medium text-gray-900 dark:text-gray-100">{part.partName}</div>
                                       <div className="text-[11px] text-gray-500 dark:text-gray-400 whitespace-nowrap">{part.gender} / {formatGrade(part.grade, part.marblingScore)}</div>
@@ -1241,8 +1245,9 @@ function MainPageContent() {
                                 </div>
                                 <div
                                   className="grid px-2 py-2 border-b border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 text-[11px] font-medium text-gray-500 dark:text-gray-400"
-                                  style={{gridTemplateColumns: '1fr 0.6fr 0.9fr 0.9fr 0.9fr 0.6fr 0.35fr'}}
+                                  style={{gridTemplateColumns: '0.6fr 1fr 0.6fr 0.9fr 0.9fr 0.9fr 0.6fr 0.35fr'}}
                                 >
+                                  <div className="text-center">업체</div>
                                   <div className="text-center">부위</div>
                                   <div className="text-center">중량</div>
                                   <div className="text-center">최저단가</div>
@@ -1259,8 +1264,11 @@ function MainPageContent() {
                                       className={`grid px-2 py-3 border-b border-gray-100 dark:border-gray-800 items-center ${
                                         isMyWin ? 'bg-blue-50/50 dark:bg-blue-900/20' : 'bg-white dark:bg-gray-900'
                                       }`}
-                                      style={{gridTemplateColumns: '1fr 0.6fr 0.9fr 0.9fr 0.9fr 0.6fr 0.35fr'}}
+                                      style={{gridTemplateColumns: '0.6fr 1fr 0.6fr 0.9fr 0.9fr 0.9fr 0.6fr 0.35fr'}}
                                     >
+                                      <div className="text-center text-[11px] text-gray-500 dark:text-gray-400 flex items-center justify-center whitespace-nowrap">
+                                        {part.company}
+                                      </div>
                                       <div className="text-center">
                                         <div className="text-[13px] font-medium text-gray-900 dark:text-gray-100">{part.partName}</div>
                                         <div className="text-[11px] text-gray-500 dark:text-gray-400 whitespace-nowrap">{part.gender} / {formatGrade(part.grade, part.marblingScore)}</div>

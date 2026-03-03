@@ -97,34 +97,85 @@ export async function GET(request: NextRequest) {
       source: 'manual',
     }));
 
-    // 낙찰(경락)대금 조회 - 마감(closed)된 상장의 낙찰 부위만
-    let auctionQuery = supabase
-      .from('cattle_parts')
-      .select(`
-        id,
-        part_name,
-        listing_part_no,
-        bid_amount,
-        winning_dealer_id,
-        cattle_listings!inner (
-          listing_no,
-          listing_date,
-          status,
-          closed_at
-        )
-      `)
-      .not('winning_dealer_id', 'is', null)
+    // 낙찰(경락)대금 조회 - is_winning 입찰
+    let winningBidsQuery = supabase
+      .from('bids')
+      .select('id, part_id, dealer_id, bid_amount, created_at')
+      .eq('is_winning', true)
       .not('bid_amount', 'is', null);
 
     if (dealerId) {
-      auctionQuery = auctionQuery.eq('winning_dealer_id', dealerId);
+      winningBidsQuery = winningBidsQuery.eq('dealer_id', dealerId);
     }
 
-    const { data: winningPartsRaw } = await auctionQuery;
-    const winningParts = winningPartsRaw || [];
+    const { data: winningBidsRaw } = await winningBidsQuery;
+    const winningBids = winningBidsRaw || [];
+
+    // part_id → listing 정보 매핑
+    const partIds = [...new Set(winningBids.map((b: any) => b.part_id))];
+    let partListingMap: Record<string, { listingId: string; listingDate: string }> = {};
+    if (partIds.length > 0) {
+      const { data: partsData } = await supabase
+        .from('cattle_parts')
+        .select('id, listing_id, cattle_listings(listing_date)')
+        .in('id', partIds);
+      (partsData || []).forEach((p: any) => {
+        partListingMap[p.id] = {
+          listingId: p.listing_id,
+          listingDate: (p.cattle_listings as any)?.listing_date || '',
+        };
+      });
+    }
+
+    // listing_id → 해당 listing이 속한 모든 회차 정보 (auction_listings 경유)
+    const allListingIds = [...new Set(Object.values(partListingMap).map(p => p.listingId).filter(Boolean))];
+    // listingDate별로 해당 날짜의 모든 회차 조회
+    const allListingDates = [...new Set(Object.values(partListingMap).map(p => p.listingDate).filter(Boolean))];
+
+    interface RoundInfo { roundNo: number; endedAt: string; startedAt: string; }
+    let dateRoundsMap: Record<string, RoundInfo[]> = {};
+
+    if (allListingDates.length > 0) {
+      const { data: auctionsData } = await supabase
+        .from('auctions')
+        .select('id, round_no, started_at, ended_at, status, auction_date')
+        .eq('status', 'closed')
+        .in('auction_date', allListingDates)
+        .order('round_no', { ascending: true });
+
+      (auctionsData || []).forEach((a: any) => {
+        const aDate = a.auction_date;
+        if (!dateRoundsMap[aDate]) dateRoundsMap[aDate] = [];
+        dateRoundsMap[aDate].push({
+          roundNo: a.round_no || 0,
+          startedAt: a.started_at || '',
+          endedAt: a.ended_at || '',
+        });
+      });
+    }
+
+    // bid.created_at을 기준으로 어떤 회차에 속하는지 매핑
+    const getBidRound = (bidCreatedAt: string, listingDate: string): RoundInfo | null => {
+      const rounds = dateRoundsMap[listingDate];
+      if (!rounds || rounds.length === 0) return null;
+
+      const bidTime = new Date(bidCreatedAt).getTime();
+      for (const round of rounds) {
+        const start = new Date(round.startedAt).getTime();
+        const end = new Date(round.endedAt).getTime();
+        if (bidTime >= start && bidTime <= end) return round;
+      }
+      // 폴백: bid가 어떤 회차 종료 이전에 생성되었으면 그 회차로 매핑
+      for (const round of [...rounds].reverse()) {
+        const end = new Date(round.endedAt).getTime();
+        if (bidTime <= end) return round;
+      }
+      // 최종 폴백: 마지막 회차
+      return rounds[rounds.length - 1];
+    };
 
     // 딜러 정보 매핑
-    const winnerIds = [...new Set((winningParts || []).map((p: any) => p.winning_dealer_id))];
+    const winnerIds = [...new Set(winningBids.map((b: any) => b.dealer_id))];
     let dealerMap: Record<string, any> = {};
     if (winnerIds.length > 0) {
       const { data: dealerRows } = await supabase
@@ -134,24 +185,28 @@ export async function GET(request: NextRequest) {
       (dealerRows || []).forEach((d: any) => { dealerMap[d.id] = d; });
     }
 
-    // 딜러+마감시간별로 경락대금 합산
-    const dailyMap: Record<string, { dealerId: string; closedAt: string; listingDate: string; total: number; count: number }> = {};
-    (winningParts || []).forEach((part: any) => {
-      const listing = part.cattle_listings;
-      const did = part.winning_dealer_id;
-      const closedAt = listing?.closed_at || '';
-      const listingDate = listing?.listing_date || '';
-      const key = `${did}_${listingDate}`;
+    // 딜러 + 상장일 + 회차별로 경락대금 합산
+    const dailyMap: Record<string, { dealerId: string; endedAt: string; listingDate: string; roundNo: number; total: number; count: number }> = {};
+    winningBids.forEach((bid: any) => {
+      const partInfo = partListingMap[bid.part_id] || { listingId: '', listingDate: '' };
+      const roundInfo = getBidRound(bid.created_at, partInfo.listingDate);
+      const did = bid.dealer_id;
+      const listingDate = partInfo.listingDate;
+      const roundNo = roundInfo?.roundNo || 0;
+      const endedAt = roundInfo?.endedAt || `${listingDate}T00:00:00`;
+      const key = `${did}_${listingDate}_${roundNo}`;
 
       if (!dailyMap[key]) {
-        dailyMap[key] = { dealerId: did, closedAt: closedAt || `${listingDate}T00:00:00`, listingDate, total: 0, count: 0 };
+        dailyMap[key] = { dealerId: did, endedAt, listingDate, roundNo, total: 0, count: 0 };
       }
-      dailyMap[key].total += Number(part.bid_amount || 0);
+      dailyMap[key].total += Number(bid.bid_amount || 0);
       dailyMap[key].count += 1;
     });
 
     const auctionTxs = Object.entries(dailyMap).map(([key, info]) => {
       const dealer = dealerMap[info.dealerId];
+      const dateLabel = info.listingDate.replace(/-/g, '').slice(2);
+      const roundLabel = info.roundNo > 0 ? `${info.roundNo}차` : '';
       return {
         id: `auction-${key}`,
         dealerId: info.dealerId,
@@ -160,10 +215,10 @@ export async function GET(request: NextRequest) {
         type: 'auction_deduct' as const,
         amount: info.total,
         balance: 0,
-        description: `${info.listingDate.replace(/-/g, '').slice(2)} 경락대금 (${info.count}건)`,
+        description: `${dateLabel} ${roundLabel} 경락대금 (${info.count}건)`.replace(/\s+/g, ' ').trim(),
         status: 'active',
         createdBy: '시스템',
-        createdAt: info.closedAt,
+        createdAt: info.endedAt,
         cancelledAt: null,
         cancelledBy: null,
         cancelReason: null,

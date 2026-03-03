@@ -223,14 +223,17 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       {/* 사이드바 - 항상 고정 */}
       <aside className="fixed left-0 top-0 z-40 h-screen bg-gray-900 w-64">
         {/* 로고 영역 */}
-        <div className="flex items-center h-14 px-4 border-b border-gray-800">
+        <div className="flex items-center h-16 px-4 border-b border-gray-800">
           <Link href="/admin" className="flex items-center">
-            <span className="text-white font-bold text-lg">HanuMuch</span>
+            <span className="flex flex-col gap-1">
+              <span className="text-white font-bold text-[15px] tracking-tight">부분육 온라인경매 플랫폼</span>
+              <span className="inline-flex self-start px-1.5 py-0.5 rounded bg-white/10 text-[10px] text-gray-300 font-medium">관리자 센터</span>
+            </span>
           </Link>
         </div>
 
         {/* 네비게이션 메뉴 */}
-        <nav className="px-3 py-4 overflow-y-auto h-[calc(100vh-56px-56px)]">
+        <nav className="px-3 py-4 overflow-y-auto h-[calc(100vh-64px-56px)]">
           <ul className="space-y-1">
             {menuItems.map((item) => (
               <li key={item.href}>
@@ -317,20 +320,14 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         {/* 미니 상단 바 */}
         <header className="sticky top-0 z-30 h-10 bg-white border-b border-gray-200">
           <div className="flex items-center justify-end h-full px-4">
-            {/* 오른쪽: 로그인 정보 + 로그아웃 */}
-            <div className="flex items-center gap-4">
-              {/* 로그인 정보 */}
-              <span className="text-xs text-gray-600">
-                [ <span className="font-medium text-gray-700">{session?.admin?.name || '관리자'}</span> ] 로그인
-              </span>
-
-              {/* 구분선 */}
-              <span className="text-gray-200">|</span>
-
-              {/* 로그아웃 */}
+            <div className="flex items-center gap-3 text-xs">
+              <span className="text-gray-600">중부미트센터</span>
+              <span className="text-gray-300">|</span>
+              <span className="text-gray-600">[ <span className="font-medium text-gray-700">{session?.admin?.name || '관리자'}</span> ]</span>
+              <span className="text-gray-300">|</span>
               <button
                 onClick={handleLogout}
-                className="text-xs text-gray-500 hover:text-gray-700"
+                className="text-gray-500 hover:text-gray-700"
               >
                 로그아웃
               </button>

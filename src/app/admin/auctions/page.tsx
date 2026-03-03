@@ -8,6 +8,7 @@ import {
   X,
   Download,
   Printer,
+  Check,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { useListings, useApproveListing, useDeleteListing, useUpdateListing, useUpdatePart } from '@/features/listings/hooks';
@@ -412,6 +413,38 @@ export default function AuctionsListPage() {
     }
   };
 
+  // 전체 승인
+  const pendingAuctions = auctions.filter(a => a.status === '대기');
+  const [isApprovingAll, setIsApprovingAll] = useState(false);
+
+  const handleApproveAll = async () => {
+    if (pendingAuctions.length === 0) {
+      alert('승인할 대기 상장이 없습니다.');
+      return;
+    }
+    if (!confirm(`대기 상태인 ${pendingAuctions.length}건을 전체 승인하시겠습니까?`)) return;
+
+    setIsApprovingAll(true);
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const auction of pendingAuctions) {
+      try {
+        await approveListing.mutateAsync({ id: auction.id });
+        successCount++;
+      } catch {
+        failCount++;
+      }
+    }
+
+    setIsApprovingAll(false);
+    if (failCount > 0) {
+      alert(`${successCount}건 승인 완료, ${failCount}건 실패`);
+    } else {
+      alert(`${successCount}건 전체 승인 완료`);
+    }
+  };
+
   // 상태 변경 핸들러
   const handleStatusChange = async (auctionId: string, newStatus: AuctionStatus) => {
     if (newStatus === '승인') {
@@ -587,25 +620,24 @@ export default function AuctionsListPage() {
           >
             조회
           </button>
+          <button
+            type="button"
+            onClick={() => {
+              setStartDate(tomorrowDateString);
+              setEndDate(tomorrowDateString);
+              setCompanyFilter('all');
+              setSearchStartDate(tomorrowDateString);
+              setSearchEndDate(tomorrowDateString);
+              setSearchCompanyFilter('all');
+              if (startDateRef.current) startDateRef.current.value = tomorrowDateString;
+              if (endDateRef.current) endDateRef.current.value = tomorrowDateString;
+            }}
+            className="px-4 py-1.5 border border-gray-300 text-gray-600 text-xs hover:bg-gray-50"
+          >
+            초기화
+          </button>
 
-          {/* 초기화/엑셀 버튼 */}
           <div className="flex items-center gap-2 ml-auto">
-            <button
-              type="button"
-              onClick={() => {
-                setStartDate(tomorrowDateString);
-                setEndDate(tomorrowDateString);
-                setCompanyFilter('all');
-                setSearchStartDate(tomorrowDateString);
-                setSearchEndDate(tomorrowDateString);
-                setSearchCompanyFilter('all');
-                if (startDateRef.current) startDateRef.current.value = tomorrowDateString;
-                if (endDateRef.current) endDateRef.current.value = tomorrowDateString;
-              }}
-              className="px-4 py-1.5 border border-gray-300 text-gray-600 text-xs hover:bg-gray-50"
-            >
-              초기화
-            </button>
             <button
               type="button"
               onClick={handleExcelDownload}
@@ -613,6 +645,15 @@ export default function AuctionsListPage() {
             >
               <Download className="w-3.5 h-3.5" />
               엑셀
+            </button>
+            <button
+              type="button"
+              onClick={handleApproveAll}
+              disabled={isApprovingAll || pendingAuctions.length === 0}
+              className="flex items-center gap-1.5 px-4 py-1.5 bg-blue-600 text-white text-xs hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Check className="w-3.5 h-3.5" />
+              전체 승인{pendingAuctions.length > 0 ? ` (${pendingAuctions.length}건)` : ''}
             </button>
           </div>
         </div>
