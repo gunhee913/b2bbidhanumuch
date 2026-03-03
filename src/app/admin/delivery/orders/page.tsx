@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo } from 'react';
 import AdminLayout from '@/components/admin/AdminLayout';
-import { Printer, Download, Loader2 } from 'lucide-react';
+import { Printer, Download, Loader2, Tag } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { useQuery } from '@tanstack/react-query';
 import { format } from 'date-fns';
@@ -24,6 +24,7 @@ interface WinningPart {
   grade: string;
   traceNo: string;
   companyName: string;
+  marbling: number;
 }
 
 interface AssignmentInfo {
@@ -61,7 +62,7 @@ export default function DeliveryOrdersPage() {
 
   const [sSelectedDate, setSSelectedDate] = useState(todayStr);
   const [sPartnerSearch, setSPartnerSearch] = useState('');
-
+  const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
   const handleSearch = () => {
     setSSelectedDate(selectedDate);
     setSPartnerSearch(partnerSearch);
@@ -89,6 +90,13 @@ export default function DeliveryOrdersPage() {
   const assignments = assignmentsData?.assignments || {};
 
   const deliveryItems = useMemo(() => {
+    const formatGrade = (grade: string, marbling: number) => {
+      if (!grade) return '';
+      if (grade.includes('(')) return grade;
+      if (marbling && grade.startsWith('1++')) return `${grade}(${marbling})`;
+      return grade;
+    };
+
     const items: DeliveryItem[] = winningParts.map(part => {
       const assignment = assignments[part.partId];
       return {
@@ -103,7 +111,7 @@ export default function DeliveryOrdersPage() {
         listingPartNo: part.listingPartNo || '',
         traceNo: part.traceNo || '-',
         partName: part.partName,
-        grade: part.grade,
+        grade: formatGrade(part.grade, part.marbling),
         weight: part.weight,
         bidPrice: part.bidPrice,
         bidAmount: part.bidAmount,
@@ -258,6 +266,153 @@ export default function DeliveryOrdersPage() {
     printWindow.print();
   };
 
+  const assignableItems = useMemo(() => {
+    return filteredItems.filter(item => item.partnerName !== '미지정');
+  }, [filteredItems]);
+
+  const isAllSelected = assignableItems.length > 0 && assignableItems.every(item => selectedItems.has(item.partId));
+
+  const toggleAll = () => {
+    if (isAllSelected) {
+      setSelectedItems(new Set());
+    } else {
+      setSelectedItems(new Set(assignableItems.map(item => item.partId)));
+    }
+  };
+
+  const handleLabelPrint = () => {
+    const selected = filteredItems.filter(item => selectedItems.has(item.partId));
+    if (selected.length === 0) {
+      alert('라벨 출력할 항목을 선택해주세요.');
+      return;
+    }
+
+    const grouped = new Map<string, DeliveryItem[]>();
+    selected.forEach(item => {
+      const existing = grouped.get(item.partnerName) || [];
+      grouped.set(item.partnerName, [...existing, item]);
+    });
+
+    const dateShort = sSelectedDate.replace(/-/g, '.').slice(2);
+    const labels: string[] = [];
+
+    Array.from(grouped.entries()).forEach(([partnerName, items]) => {
+      const partner = items[0];
+      const totalCount = items.length;
+
+      items.forEach((item, idx) => {
+        const boxNo = `${idx + 1}/${totalCount}`;
+        labels.push(`
+          <div class="label">
+            <table>
+              <tr>
+                <th>부위</th>
+                <td class="bold part-name">${item.partName}</td>
+                <th>등급</th>
+                <td class="bold">${item.grade}</td>
+              </tr>
+              <tr>
+                <th>중량</th>
+                <td class="bold">${item.weight.toFixed(1)}kg</td>
+                <th>보관</th>
+                <td class="bold">냉장</td>
+              </tr>
+              <tr>
+                <th>상장번호</th>
+                <td colspan="3">${item.listingPartNo}</td>
+              </tr>
+              <tr>
+                <th>이력번호</th>
+                <td colspan="3">002-${item.traceNo}</td>
+              </tr>
+              <tr>
+                <th>받는분</th>
+                <td>${partnerName}</td>
+                <th>연락처</th>
+                <td>${partner.partnerPhone}</td>
+              </tr>
+              <tr>
+                <th>출고일</th>
+                <td>${dateShort}</td>
+                <th>박스</th>
+                <td class="bold">${boxNo}</td>
+              </tr>
+              <tr>
+                <th>취급안내</th>
+                <td colspan="3" class="notice">냉장/냉동제품으로 수령 후 저온 보관을 권장합니다</td>
+              </tr>
+            </table>
+          </div>
+        `);
+      });
+    });
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html lang="ko">
+        <head>
+          <meta charset="UTF-8">
+          <title>라벨 출력</title>
+          <style>
+            @page { size: 80mm 40mm; margin: 1.5mm; }
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body { font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif; }
+            .label {
+              width: 77mm;
+              height: 37mm;
+              padding: 0;
+              page-break-after: always;
+              overflow: hidden;
+            }
+            .label:last-child { page-break-after: avoid; }
+            table {
+              width: 100%;
+              height: 100%;
+              border-collapse: collapse;
+              border: 0.6mm solid #cc0000;
+              table-layout: fixed;
+            }
+            th, td {
+              border: 0.3mm solid #cc0000;
+              padding: 0.5mm 1mm;
+              font-size: 6.5pt;
+              line-height: 1.25;
+              vertical-align: middle;
+              overflow: hidden;
+              text-overflow: ellipsis;
+              white-space: nowrap;
+            }
+            th {
+              background: #f5f0e0;
+              font-weight: bold;
+              text-align: center;
+              width: 12mm;
+              font-size: 6pt;
+              color: #333;
+            }
+            td { text-align: left; color: #111; }
+            td.bold, .bold { font-weight: bold; }
+            td.part-name { font-size: 8pt; }
+            td.notice { font-size: 5.5pt; color: #555; }
+            @media screen {
+              body { background: #ddd; display: flex; flex-wrap: wrap; gap: 12px; padding: 24px; justify-content: center; }
+              .label { background: #fff; border-radius: 3px; box-shadow: 0 1px 4px rgba(0,0,0,.15); }
+            }
+          </style>
+        </head>
+        <body>
+          ${labels.join('')}
+        </body>
+      </html>
+    `);
+
+    printWindow.document.close();
+    setTimeout(() => printWindow.print(), 300);
+  };
+
   const handleExcelDownload = () => {
     const data = filteredItems.map(item => ({
       '거래처번호': item.partnerNo,
@@ -303,7 +458,7 @@ export default function DeliveryOrdersPage() {
           const subtotal = partnerSubtotals.get(currentPartner)!;
           rows.push(
             <tr key={`subtotal-${currentPartner}`} className="bg-gray-50 font-semibold">
-              <td className={`${tdClass} text-right`} colSpan={10}>
+              <td className={`${tdClass} text-right`} colSpan={11}>
                 {currentPartner} 소계 ({subtotal.count}건)
               </td>
               <td className={`${tdClass} text-right`}>{subtotal.weight.toFixed(1)}</td>
@@ -318,9 +473,32 @@ export default function DeliveryOrdersPage() {
 
       const isFirstOfPartner = idx === partnerStartIdx;
       const partnerItemCount = filteredItems.filter(i => i.partnerName === item.partnerName).length;
+      const isAssignable = item.partnerName !== '미지정';
 
       rows.push(
         <tr key={`${item.partId}-${idx}`} className={`hover:bg-gray-50 ${item.partnerName === '미지정' ? 'text-gray-400' : ''}`}>
+          {isFirstOfPartner ? (
+            <td className={`${tdClass} text-center`} rowSpan={partnerItemCount}>
+              <input
+                type="checkbox"
+                checked={
+                  isAssignable &&
+                  filteredItems.filter(i => i.partnerName === item.partnerName).every(i => selectedItems.has(i.partId))
+                }
+                disabled={!isAssignable}
+                onChange={() => {
+                  const partnerPartIds = filteredItems.filter(i => i.partnerName === item.partnerName).map(i => i.partId);
+                  const allChecked = partnerPartIds.every(id => selectedItems.has(id));
+                  setSelectedItems(prev => {
+                    const next = new Set(prev);
+                    partnerPartIds.forEach(id => allChecked ? next.delete(id) : next.add(id));
+                    return next;
+                  });
+                }}
+                className="w-3.5 h-3.5 accent-blue-600 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+              />
+            </td>
+          ) : null}
           {isFirstOfPartner ? (
             <>
               <td className={`${tdClass} text-center`} rowSpan={partnerItemCount}>{item.partnerNo}</td>
@@ -346,7 +524,7 @@ export default function DeliveryOrdersPage() {
       const subtotal = partnerSubtotals.get(currentPartner)!;
       rows.push(
         <tr key={`subtotal-${currentPartner}-last`} className="bg-gray-50 font-semibold">
-          <td className={`${tdClass} text-right`} colSpan={10}>
+          <td className={`${tdClass} text-right`} colSpan={11}>
             {currentPartner} 소계 ({subtotal.count}건)
           </td>
           <td className={`${tdClass} text-right`}>{subtotal.weight.toFixed(1)}</td>
@@ -420,6 +598,15 @@ export default function DeliveryOrdersPage() {
                 <Printer className="w-3.5 h-3.5" />
                 인쇄
               </button>
+              <button
+                type="button"
+                onClick={handleLabelPrint}
+                disabled={selectedItems.size === 0}
+                className="flex items-center gap-1.5 px-4 py-1.5 bg-blue-600 text-white text-xs hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Tag className="w-3.5 h-3.5" />
+                라벨 출력{selectedItems.size > 0 ? ` (${selectedItems.size}건)` : ''}
+              </button>
             </div>
           </div>
         </div>
@@ -433,6 +620,14 @@ export default function DeliveryOrdersPage() {
             <table className="w-full border-collapse table-fixed">
               <thead>
                 <tr>
+                  <th className={`${thClass} w-[35px]`}>
+                    <input
+                      type="checkbox"
+                      checked={isAllSelected}
+                      onChange={toggleAll}
+                      className="w-3.5 h-3.5 accent-blue-600 cursor-pointer"
+                    />
+                  </th>
                   <th className={`${thClass} w-[55px]`}>거래처번호</th>
                   <th className={`${thClass} w-[70px]`}>거래처명</th>
                   <th className={`${thClass} w-[45px]`}>대표자</th>
@@ -453,7 +648,7 @@ export default function DeliveryOrdersPage() {
 
                 {!partsLoading && filteredItems.length === 0 && (
                   <tr>
-                    <td colSpan={13} className="px-4 py-8 text-center text-gray-400 text-sm">
+                    <td colSpan={14} className="px-4 py-8 text-center text-gray-400 text-sm">
                       조회된 내역이 없습니다.
                     </td>
                   </tr>
@@ -462,7 +657,7 @@ export default function DeliveryOrdersPage() {
               {filteredItems.length > 0 && (
                 <tfoot>
                   <tr className="font-bold border-t-2 border-gray-400">
-                    <td className={`${tdClass} text-right`} colSpan={10}>
+                    <td className={`${tdClass} text-right`} colSpan={11}>
                       전체 합계 ({totals.count}건)
                     </td>
                     <td className={`${tdClass} text-right`}>{totals.weight.toFixed(1)}</td>

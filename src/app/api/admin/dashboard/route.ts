@@ -222,7 +222,35 @@ export async function GET(request: NextRequest) {
       (dealers || []).forEach(d => dealerNameMap.set(d.id, d.name));
     }
 
-    const dealerAgg = new Map<string, { dealerName: string; cattleIds: Set<string>; partCount: number; wonCount: number; wonAmount: number }>();
+    const dealerAgg = new Map<string, { dealerName: string; cattleIds: Set<string>; bidCount: number; wonCount: number; wonAmount: number }>();
+
+    const partIds = allParts.map(p => p.id);
+    const { data: allBids } = await supabase
+      .from('bids')
+      .select('id, dealer_id, part_id')
+      .in('part_id', partIds);
+
+    const bidsByDealer = new Map<string, number>();
+    (allBids || []).forEach(b => {
+      bidsByDealer.set(b.dealer_id, (bidsByDealer.get(b.dealer_id) || 0) + 1);
+    });
+
+    const bidDealerIds = new Set<string>([...(allBids || []).map(b => b.dealer_id)]);
+    if (bidDealerIds.size > 0 && dealerIds.length === 0) {
+      const { data: extraDealers } = await supabase
+        .from('dealers')
+        .select('id, name')
+        .in('id', [...bidDealerIds]);
+      (extraDealers || []).forEach(d => dealerNameMap.set(d.id, d.name));
+    }
+
+    bidDealerIds.forEach(dealerId => {
+      if (!dealerAgg.has(dealerId)) {
+        dealerAgg.set(dealerId, { dealerName: dealerNameMap.get(dealerId) || '알 수 없음', cattleIds: new Set(), bidCount: 0, wonCount: 0, wonAmount: 0 });
+      }
+      dealerAgg.get(dealerId)!.bidCount = bidsByDealer.get(dealerId) || 0;
+    });
+
     allParts.forEach(p => {
       const listing = listingMap.get(p.listing_id);
       if (!listing) return;
@@ -230,7 +258,7 @@ export async function GET(request: NextRequest) {
 
       if (dealerId) {
         if (!dealerAgg.has(dealerId)) {
-          dealerAgg.set(dealerId, { dealerName: dealerNameMap.get(dealerId) || '알 수 없음', cattleIds: new Set(), partCount: 0, wonCount: 0, wonAmount: 0 });
+          dealerAgg.set(dealerId, { dealerName: dealerNameMap.get(dealerId) || '알 수 없음', cattleIds: new Set(), bidCount: bidsByDealer.get(dealerId) || 0, wonCount: 0, wonAmount: 0 });
         }
         const a = dealerAgg.get(dealerId)!;
         a.cattleIds.add(listing.id);
@@ -239,25 +267,16 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    // partCount: 해당 중도매인이 낙찰 받은 개체의 전체 부위 수
-    const dealerCattlePartCount = new Map<string, number>();
-    dealerAgg.forEach((d, dealerId) => {
-      let totalParts = 0;
-      d.cattleIds.forEach(cattleId => {
-        totalParts += allParts.filter(p => p.listing_id === cattleId).length;
-      });
-      dealerCattlePartCount.set(dealerId, totalParts);
-    });
-
     const byDealer = [...dealerAgg.entries()]
-      .map(([dealerId, d]) => ({
+      .filter(([, d]) => d.bidCount > 0 || d.wonCount > 0)
+      .map(([, d]) => ({
         name: d.dealerName,
         cattleCount: d.cattleIds.size,
-        partCount: dealerCattlePartCount.get(dealerId) || 0,
+        bidCount: d.bidCount,
         wonCount: d.wonCount,
         wonAmount: d.wonAmount,
-        bidRate: (dealerCattlePartCount.get(dealerId) || 0) > 0
-          ? +(d.wonCount / (dealerCattlePartCount.get(dealerId) || 1) * 100).toFixed(1)
+        bidRate: d.bidCount > 0
+          ? +(d.wonCount / d.bidCount * 100).toFixed(1)
           : 0,
         ratio: wonAmount > 0 ? +(d.wonAmount / wonAmount * 100).toFixed(1) : 0,
       }))

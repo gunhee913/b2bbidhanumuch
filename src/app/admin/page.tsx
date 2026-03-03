@@ -59,7 +59,7 @@ interface DashboardData {
   byDealer: {
     name: string;
     cattleCount: number;
-    partCount: number;
+    bidCount: number;
     wonCount: number;
     wonAmount: number;
     bidRate: number;
@@ -146,8 +146,8 @@ export default function AdminDashboardPage() {
       '순위': idx + 1,
       '중도매인': d.name,
       '경매 두수': d.cattleCount,
-      '경매 건수': d.partCount,
-      '낙찰 건수': d.wonCount,
+      '입찰 수': d.bidCount,
+      '낙찰 수': d.wonCount,
       '낙찰대금(원)': d.wonAmount,
       '낙찰률(%)': d.bidRate,
       '비중(%)': d.ratio,
@@ -460,8 +460,8 @@ export default function AdminDashboardPage() {
                         <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">순위</th>
                         <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">중도매인</th>
                         <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">경매 두수</th>
-                        <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">경매 건수</th>
-                        <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">낙찰 건수</th>
+                        <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">입찰 수</th>
+                        <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">낙찰 수</th>
                         <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">낙찰대금</th>
                         <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">낙찰률</th>
                         <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">비중</th>
@@ -479,7 +479,7 @@ export default function AdminDashboardPage() {
                               <td className="px-3 py-2 text-xs text-center border border-gray-200">{idx + 1}</td>
                               <td className="px-3 py-2 text-xs text-center border border-gray-200 font-medium">{dealer.name}</td>
                               <td className="px-3 py-2 text-xs text-center border border-gray-200">{dealer.cattleCount}두</td>
-                              <td className="px-3 py-2 text-xs text-center border border-gray-200">{dealer.partCount}건</td>
+                              <td className="px-3 py-2 text-xs text-center border border-gray-200">{dealer.bidCount}건</td>
                               <td className="px-3 py-2 text-xs text-center border border-gray-200">{dealer.wonCount}건</td>
                               <td className="px-3 py-2 text-xs text-center border border-gray-200">{dealer.wonAmount.toLocaleString()}원</td>
                               <td className="px-3 py-2 text-xs text-center border border-gray-200">{dealer.bidRate}%</td>
@@ -492,12 +492,14 @@ export default function AdminDashboardPage() {
                               {byDealer.reduce((s, d) => s + d.cattleCount, 0)}두
                             </td>
                             <td className="px-3 py-2 text-xs text-center border border-gray-200">
-                              {byDealer.reduce((s, d) => s + d.partCount, 0)}건
+                              {byDealer.reduce((s, d) => s + d.bidCount, 0)}건
                             </td>
-                            <td className="px-3 py-2 text-xs text-center border border-gray-200">{summary.wonCount.toLocaleString()}건</td>
+                            <td className="px-3 py-2 text-xs text-center border border-gray-200">
+                              {byDealer.reduce((s, d) => s + d.wonCount, 0)}건
+                            </td>
                             <td className="px-3 py-2 text-xs text-center border border-gray-200">{summary.wonAmount.toLocaleString()}원</td>
                             <td className="px-3 py-2 text-xs text-center border border-gray-200">
-                              {summary.partCount > 0 ? (summary.wonCount / summary.partCount * 100).toFixed(1) : 0}%
+                              {(() => { const totalBid = byDealer.reduce((s, d) => s + d.bidCount, 0); const totalWon = byDealer.reduce((s, d) => s + d.wonCount, 0); return totalBid > 0 ? (totalWon / totalBid * 100).toFixed(1) : 0; })()}%
                             </td>
                             <td className="px-3 py-2 text-xs text-center border border-gray-200">100%</td>
                           </tr>
