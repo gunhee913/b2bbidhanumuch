@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Settings, Bell, X } from 'lucide-react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import BottomNav from '@/components/BottomNav';
 import { useSession } from 'next-auth/react';
@@ -33,8 +33,10 @@ const formatGrade = (grade: string, marblingScore: number | null) => {
 
 export default function BidsPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [mounted, setMounted] = useState(false);
-  const [activeTab, setActiveTab] = useState<'진행중' | '경매결과'>('진행중');
+  const tabParam = searchParams.get('tab');
+  const [activeTab, setActiveTab] = useState<'진행중' | '경매결과'>(tabParam === '경매결과' ? '경매결과' : '진행중');
 
   const [resultFilter, setResultFilter] = useState<'전체' | '낙찰' | '미낙찰'>('전체');
   

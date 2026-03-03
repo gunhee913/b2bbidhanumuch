@@ -1495,10 +1495,17 @@ function AuctionPageContent() {
                     {/* 경매 결과 섹션 */}
                     {settledPartProducts.length > 0 && (
                       <div className="mt-4">
-                        <div className="px-3 py-2.5 bg-gray-50 dark:bg-gray-800 border-y border-gray-200 dark:border-gray-700">
+                        <div className="px-3 py-2.5 bg-gray-50 dark:bg-gray-800 border-y border-gray-200 dark:border-gray-700 flex items-center justify-between">
                           <h3 className="text-[13px] font-bold text-gray-900 dark:text-gray-100">
                             경매 결과 ({settledPartProducts.length}건)
                           </h3>
+                          <button
+                            type="button"
+                            onClick={() => router.push('/bids?tab=경매결과')}
+                            className="text-[11px] text-gray-900 dark:text-gray-100 hover:text-gray-600 font-medium"
+                          >
+                            전체 보기 &gt;
+                          </button>
                         </div>
                         <div 
                           className="grid px-2 py-2 border-b border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 text-[11px] font-medium text-gray-500 dark:text-gray-400"

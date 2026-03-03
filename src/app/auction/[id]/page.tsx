@@ -1394,10 +1394,17 @@ function AuctionDetailContent({ params }: PageProps) {
               {settledParts.length > 0 && (
                 <div className="border-t-4 border-gray-300 dark:border-gray-600">
                   {/* 경매 결과 섹션 헤더 */}
-                  <div className="bg-gray-50 dark:bg-gray-800/80 px-3 py-2.5">
+                  <div className="bg-gray-50 dark:bg-gray-800/80 px-3 py-2.5 flex items-center justify-between">
                     <span className="text-[13px] font-bold text-gray-700 dark:text-gray-300">
                       경매 결과 ({settledParts.length}건)
                     </span>
+                    <button
+                      type="button"
+                      onClick={() => router.push('/bids?tab=경매결과')}
+                      className="text-[11px] text-gray-900 dark:text-gray-100 hover:text-gray-600 font-medium"
+                    >
+                      전체 보기 &gt;
+                    </button>
                   </div>
 
                   {/* 경매 결과 헤더 */}
