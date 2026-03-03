@@ -220,6 +220,7 @@ export default function DealerAuctionsPage() {
       }).join('');
 
       return `
+        <tbody class="listing-group">
         <tr class="listing-row">
           <td class="td bold">${listing.listingNo}</td>
           <td class="td">${listing.breed}</td>
@@ -248,7 +249,8 @@ export default function DealerAuctionsPage() {
             <div class="parts-label">부위: ${allParts.filter((p: PartData) => p.isIncluded).length}/${allParts.length}</div>
             <div class="parts-grid">${partsGridHtml}</div>
           </td>
-        </tr>`;
+        </tr>
+        </tbody>`;
     }).join('');
 
     printWindow.document.write(`
@@ -274,8 +276,7 @@ export default function DealerAuctionsPage() {
             .parts-col th { padding: 3px 2px; text-align: center; font-size: 8px; font-weight: 600; color: #4b5563; background: #f9fafb; border-right: 1px solid #e5e7eb; }
             .parts-col td { padding: 2px 2px; text-align: center; font-size: 8px; border-top: 1px solid #f3f4f6; border-right: 1px solid #e5e7eb; }
             .parts-col th:last-child, .parts-col td:last-child { border-right: none; }
-            .listing-row + tr { page-break-after: always; }
-            .listing-row + tr:last-child { page-break-after: auto; }
+            .listing-group { page-break-inside: avoid; }
             .footer { font-size: 9px; color: #6b7280; padding-top: 6px; border-top: 1px solid #e5e7eb; margin-top: 4px; }
           </style>
         </head>
@@ -310,9 +311,7 @@ export default function DealerAuctionsPage() {
                 <th class="th">상태</th>
               </tr>
             </thead>
-            <tbody>
-              ${listingsHtml}
-            </tbody>
+            ${listingsHtml}
           </table>
           <div class="footer">총 ${listings.length}개</div>
         </body>
