@@ -200,13 +200,21 @@ export default function CompanyAuctionsListPage() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [startDate, setStartDate] = useState<string>(tomorrowDateString);
   const [endDate, setEndDate] = useState<string>(tomorrowDateString);
+  const [sStartDate, setSStartDate] = useState<string>(tomorrowDateString);
+  const [sEndDate, setSEndDate] = useState<string>(tomorrowDateString);
   const itemsPerPage = 10;
+
+  const handleSearch = () => {
+    setSStartDate(startDate);
+    setSEndDate(endDate);
+    setCurrentPage(1);
+  };
   
   // 실제 데이터 조회
   const { data: listingsData, isLoading } = useListings({
     companyId: companyId || undefined,
-    listingDateFrom: startDate || undefined,
-    listingDateTo: endDate || undefined,
+    listingDateFrom: sStartDate || undefined,
+    listingDateTo: sEndDate || undefined,
     includeParts: true,
   });
 
@@ -310,7 +318,6 @@ export default function CompanyAuctionsListPage() {
               value={startDate}
               onChange={(e) => {
                 setStartDate(e.target.value);
-                setCurrentPage(1);
               }}
               className="w-36 px-3 py-1.5 border border-gray-200 text-xs outline-none bg-white"
             />
@@ -322,10 +329,16 @@ export default function CompanyAuctionsListPage() {
               min={startDate}
               onChange={(e) => {
                 setEndDate(e.target.value);
-                setCurrentPage(1);
               }}
               className="w-36 px-3 py-1.5 border border-gray-200 text-xs outline-none bg-white"
             />
+            <button
+              type="button"
+              onClick={handleSearch}
+              className="px-4 py-1.5 bg-gray-900 text-white text-xs hover:bg-gray-800"
+            >
+              조회
+            </button>
           </div>
 
           {/* 초기화/엑셀 버튼 */}
@@ -335,6 +348,8 @@ export default function CompanyAuctionsListPage() {
               onClick={() => {
                 setStartDate(tomorrowDateString);
                 setEndDate(tomorrowDateString);
+                setSStartDate(tomorrowDateString);
+                setSEndDate(tomorrowDateString);
                 setCurrentPage(1);
                 if (startDateRef.current) startDateRef.current.value = tomorrowDateString;
                 if (endDateRef.current) endDateRef.current.value = tomorrowDateString;

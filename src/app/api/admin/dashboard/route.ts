@@ -27,12 +27,13 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
+    const companyId = searchParams.get('companyId');
 
     if (!startDate || !endDate) {
       return NextResponse.json({ error: '기간은 필수입니다.' }, { status: 400 });
     }
 
-    const { data: listings, error: listingsError } = await supabase
+    let listingsQuery = supabase
       .from('cattle_listings')
       .select(`
         id,
@@ -46,6 +47,12 @@ export async function GET(request: NextRequest) {
       .gte('listing_date', startDate)
       .lte('listing_date', endDate)
       .in('status', ['approved', 'auction', 'closed', 'completed']);
+
+    if (companyId) {
+      listingsQuery = listingsQuery.eq('company_id', companyId);
+    }
+
+    const { data: listings, error: listingsError } = await listingsQuery;
 
     if (listingsError) {
       return NextResponse.json({ error: listingsError.message }, { status: 500 });
@@ -63,14 +70,19 @@ export async function GET(request: NextRequest) {
     }
 
     const listingIds = listings.map(l => l.id);
+    const BATCH_SIZE = 200;
 
-    const { data: parts, error: partsError } = await supabase
-      .from('cattle_parts')
-      .select('id, listing_id, part_name, weight, bid_price, bid_amount, winning_dealer_id')
-      .in('listing_id', listingIds);
-
-    if (partsError) {
-      return NextResponse.json({ error: partsError.message }, { status: 500 });
+    const allPartsArr: any[] = [];
+    for (let i = 0; i < listingIds.length; i += BATCH_SIZE) {
+      const batch = listingIds.slice(i, i + BATCH_SIZE);
+      const { data: batchParts, error: batchError } = await supabase
+        .from('cattle_parts')
+        .select('id, listing_id, part_name, weight, bid_price, bid_amount, winning_dealer_id')
+        .in('listing_id', batch);
+      if (batchError) {
+        return NextResponse.json({ error: batchError.message }, { status: 500 });
+      }
+      if (batchParts) allPartsArr.push(...batchParts);
     }
 
     const { data: feeSettings } = await supabase
@@ -85,7 +97,7 @@ export async function GET(request: NextRequest) {
     const listingMap = new Map<string, any>();
     listings.forEach(l => listingMap.set(l.id, l));
 
-    const allParts = parts || [];
+    const allParts = allPartsArr;
     const wonParts = allParts.filter(p => p.winning_dealer_id);
 
     const cattleCount = listings.length;
@@ -225,17 +237,22 @@ export async function GET(request: NextRequest) {
     const dealerAgg = new Map<string, { dealerName: string; cattleIds: Set<string>; bidCount: number; wonCount: number; wonAmount: number }>();
 
     const partIds = allParts.map(p => p.id);
-    const { data: allBids } = await supabase
-      .from('bids')
-      .select('id, dealer_id, part_id')
-      .in('part_id', partIds);
+    const allBidsArr: any[] = [];
+    for (let i = 0; i < partIds.length; i += BATCH_SIZE) {
+      const batch = partIds.slice(i, i + BATCH_SIZE);
+      const { data: batchBids } = await supabase
+        .from('bids')
+        .select('id, dealer_id, part_id')
+        .in('part_id', batch);
+      if (batchBids) allBidsArr.push(...batchBids);
+    }
 
     const bidsByDealer = new Map<string, number>();
-    (allBids || []).forEach(b => {
+    allBidsArr.forEach(b => {
       bidsByDealer.set(b.dealer_id, (bidsByDealer.get(b.dealer_id) || 0) + 1);
     });
 
-    const bidDealerIds = new Set<string>([...(allBids || []).map(b => b.dealer_id)]);
+    const bidDealerIds = new Set<string>(allBidsArr.map(b => b.dealer_id));
     if (bidDealerIds.size > 0 && dealerIds.length === 0) {
       const { data: extraDealers } = await supabase
         .from('dealers')

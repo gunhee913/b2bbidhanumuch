@@ -11,6 +11,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const date = searchParams.get('date');
     const dealerId = searchParams.get('dealerId');
+    const companyId = searchParams.get('companyId');
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
 
@@ -80,6 +81,7 @@ export async function GET(request: NextRequest) {
       if (date && listing?.listing_date !== date) return false;
       if (startDate && listing?.listing_date < startDate) return false;
       if (endDate && listing?.listing_date > endDate) return false;
+      if (companyId && listing?.company_id !== companyId) return false;
       return true;
     });
 

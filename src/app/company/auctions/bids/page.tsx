@@ -32,6 +32,7 @@ interface BidRecord {
   bidPrice: number | null;
   bidAmount: number | null;
   commission: number | null;
+  deliveryFee: number | null;
   breed: string;
   gender: string;
   dealerNo: string | null;
@@ -57,17 +58,24 @@ export default function CompanyAuctionBidsPage() {
   
   const [startDate, setStartDate] = useState(todayDateValue);
   const [endDate, setEndDate] = useState(todayDateValue);
+  const [sStartDate, setSStartDate] = useState(todayDateValue);
+  const [sEndDate, setSEndDate] = useState(todayDateValue);
   const [dealerFilter, setDealerFilter] = useState('');
   const [hideFailed, setHideFailed] = useState(false);
 
+  const handleSearch = () => {
+    setSStartDate(startDate);
+    setSEndDate(endDate);
+  };
+
   // API 호출
   const { data: settledData, isLoading } = useQuery<SettledResponse>({
-    queryKey: ['companySettledBids', companyId, startDate, endDate],
+    queryKey: ['companySettledBids', companyId, sStartDate, sEndDate],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (companyId) params.set('companyId', companyId);
-      if (startDate) params.set('closedDateFrom', startDate);
-      if (endDate) params.set('closedDateTo', endDate);
+      if (sStartDate) params.set('closedDateFrom', sStartDate);
+      if (sEndDate) params.set('closedDateTo', sEndDate);
       
       const response = await fetch(`/api/bids/settled?${params.toString()}`);
       if (!response.ok) throw new Error('데이터 조회 실패');
@@ -93,6 +101,7 @@ export default function CompanyAuctionBidsPage() {
   const totalWeight = successRecords.reduce((sum: number, r: BidRecord) => sum + r.weight, 0);
   const totalAmount = successRecords.reduce((sum: number, r: BidRecord) => sum + (r.bidAmount || 0), 0);
   const totalCommission = successRecords.reduce((sum: number, r: BidRecord) => sum + (r.commission || 0), 0);
+  const totalDeliveryFee = successRecords.reduce((sum: number, r: BidRecord) => sum + (r.deliveryFee || 0), 0);
 
   const thClass = "px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50";
   const tdClass = "px-2 py-2 text-xs text-gray-600 text-center whitespace-nowrap border border-gray-200";
@@ -125,6 +134,7 @@ export default function CompanyAuctionBidsPage() {
       '낙찰단가': record.bidPrice || '-',
       '낙찰금액': record.bidAmount || '-',
       '상장수수료': record.commission || '-',
+      '배송수수료': record.deliveryFee || '-',
       '축종': record.breed,
       '성별': record.gender,
       '중도매인번호': record.dealerNo || '-',
@@ -168,6 +178,13 @@ export default function CompanyAuctionBidsPage() {
               onChange={(e) => setEndDate(e.target.value)}
               className="px-3 py-1.5 border border-gray-200 text-xs outline-none bg-white"
             />
+            <button
+              type="button"
+              onClick={handleSearch}
+              className="px-4 py-1.5 bg-gray-900 text-white text-xs hover:bg-gray-800"
+            >
+              조회
+            </button>
           </div>
 
           {/* 중도매인 검색 */}
@@ -203,6 +220,8 @@ export default function CompanyAuctionBidsPage() {
               onClick={() => {
                 setStartDate(todayDateValue);
                 setEndDate(todayDateValue);
+                setSStartDate(todayDateValue);
+                setSEndDate(todayDateValue);
                 setDealerFilter('');
                 setHideFailed(false);
               }}
@@ -249,6 +268,10 @@ export default function CompanyAuctionBidsPage() {
             <span className="text-sm text-gray-500">총 수수료</span>
             <span className="text-sm font-semibold text-gray-900">{totalCommission.toLocaleString()}원</span>
           </div>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-500">총 배송수수료</span>
+            <span className="text-sm font-semibold text-gray-900">{totalDeliveryFee.toLocaleString()}원</span>
+          </div>
         </div>
       </div>
 
@@ -279,6 +302,7 @@ export default function CompanyAuctionBidsPage() {
                     <th className={thClass}>낙찰단가</th>
                     <th className={thClass}>낙찰금액</th>
                     <th className={thClass}>상장수수료</th>
+                    <th className={thClass}>배송수수료</th>
                     <th className={thClass}>축종</th>
                     <th className={thClass}>성별</th>
                     <th className={thClass}>중도매인번호</th>
@@ -309,6 +333,7 @@ export default function CompanyAuctionBidsPage() {
                         {record.bidAmount ? record.bidAmount.toLocaleString() : '-'}
                       </td>
                       <td className={tdClass}>{record.commission ? record.commission.toLocaleString() : '-'}</td>
+                      <td className={tdClass}>{record.deliveryFee ? record.deliveryFee.toLocaleString() : '-'}</td>
                       <td className={tdClass}>{record.breed}</td>
                       <td className={tdClass}>{record.gender}</td>
                       <td className={tdClass}>{record.dealerNo || '-'}</td>

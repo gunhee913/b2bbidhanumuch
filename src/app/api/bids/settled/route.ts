@@ -14,6 +14,16 @@ export async function GET(request: NextRequest) {
     const closedDateTo = searchParams.get('closedDateTo');
     const companyId = searchParams.get('companyId');
 
+    // 수수료 설정 조회
+    const { data: feeSettings } = await supabase
+      .from('settlement_settings')
+      .select('name, type, value')
+      .eq('enabled', true);
+
+    const feeRate = Number(feeSettings?.find(s => s.name === '상장수수료')?.value) || 2;
+    const deliveryFeeSetting = feeSettings?.find(s => s.name === '배송수수료');
+    const deliveryFeeRate = Number(deliveryFeeSetting?.value) || 0;
+
     // 1. 마감된 상장 조회
     let listingsQuery = supabase
       .from('cattle_listings')
@@ -137,8 +147,9 @@ export async function GET(request: NextRequest) {
             totalAmount += part.bid_amount || 0;
           }
 
-          // 수수료 계산 (낙찰금액의 2%)
-          const commission = part.bid_amount ? Math.round(part.bid_amount * 0.02) : null;
+          // 수수료 계산
+          const commission = part.bid_amount ? Math.round(part.bid_amount * feeRate / 100) : null;
+          const deliveryFee = part.bid_amount ? Math.round(part.bid_amount * deliveryFeeRate / 100) : null;
 
           records.push({
             id: `${listing.id}-${part.id}`,
@@ -155,6 +166,7 @@ export async function GET(request: NextRequest) {
             bidPrice: part.bid_price,
             bidAmount: part.bid_amount,
             commission,
+            deliveryFee,
             breed: listing.breed,
             gender: listing.gender,
             traceNo: listing.trace_no,

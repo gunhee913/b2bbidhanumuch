@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import CompanyLayout from '@/components/company/CompanyLayout';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, Timer, Clock } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { useQuery } from '@tanstack/react-query';
+import { format } from 'date-fns';
 
 // 경매 항목 타입
 interface AuctionItem {
@@ -63,17 +64,74 @@ export default function CompanyAuctionLivePage() {
   const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
   
   const [selectedDate, setSelectedDate] = useState(todayStr);
+  const [searchDate, setSearchDate] = useState(todayStr);
   const [bidFilter, setBidFilter] = useState('all');
   const [showSubtotal, setShowSubtotal] = useState(true);
+  const [remainingSeconds, setRemainingSeconds] = useState<number | null>(null);
+  const [showRoundHistoryModal, setShowRoundHistoryModal] = useState(false);
 
   // 오늘 날짜인지 확인
-  const isToday = selectedDate === todayStr;
+  const isToday = searchDate === todayStr;
+
+  const handleSearch = () => {
+    setSearchDate(selectedDate);
+  };
+
+  // 경매 회차 정보 조회 (5초 간격)
+  const { data: roundData } = useQuery({
+    queryKey: ['rounds', 'current'],
+    queryFn: async () => {
+      const res = await fetch('/api/auctions/rounds/current');
+      if (!res.ok) return null;
+      return res.json();
+    },
+    refetchInterval: 5000,
+  });
+
+  const currentRound = roundData?.currentRound;
+  const lastClosedRound = roundData?.lastClosedRound;
+  const allRounds = roundData?.allRounds || [];
+
+  // 타이머 로직
+  useEffect(() => {
+    if (!currentRound?.started_at) {
+      setRemainingSeconds(null);
+      return;
+    }
+
+    const hasDuration = !!currentRound.round_duration_min;
+
+    const calculateRemaining = () => {
+      const now = Date.now();
+      const startedAt = new Date(currentRound.started_at).getTime();
+
+      if (hasDuration) {
+        const durationMs = currentRound.round_duration_min * 60 * 1000;
+        const endTime = startedAt + durationMs;
+        const remaining = Math.max(0, Math.floor((endTime - now) / 1000));
+        setRemainingSeconds(remaining);
+      } else {
+        const elapsed = Math.floor((now - startedAt) / 1000);
+        setRemainingSeconds(elapsed);
+      }
+    };
+
+    calculateRemaining();
+    const interval = setInterval(calculateRemaining, 1000);
+    return () => clearInterval(interval);
+  }, [currentRound?.started_at, currentRound?.round_duration_min, currentRound?.id]);
+
+  const formatTimer = (seconds: number) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  };
 
   // API 호출
   const { data: liveData, isLoading, refetch } = useQuery({
-    queryKey: ['companyLiveListings', selectedDate, companyId],
+    queryKey: ['companyLiveListings', searchDate, companyId],
     queryFn: () => fetchLiveListings({
-      listingDate: selectedDate,
+      listingDate: searchDate,
       companyId: companyId || undefined,
     }),
     enabled: !!companyId,
@@ -162,6 +220,13 @@ export default function CompanyAuctionLivePage() {
               onChange={(e) => setSelectedDate(e.target.value)}
               className="px-3 py-1.5 border border-gray-200 text-xs outline-none bg-white"
             />
+            <button
+              type="button"
+              onClick={handleSearch}
+              className="px-4 py-1.5 bg-gray-900 text-white text-xs hover:bg-gray-800"
+            >
+              조회
+            </button>
           </div>
 
           <div className="flex items-center gap-2">
@@ -203,6 +268,7 @@ export default function CompanyAuctionLivePage() {
               type="button"
               onClick={() => {
                 setSelectedDate(todayStr);
+                setSearchDate(todayStr);
                 setBidFilter('all');
               }}
               className="px-4 py-1.5 border border-gray-300 text-gray-600 text-xs hover:bg-gray-50"
@@ -211,6 +277,83 @@ export default function CompanyAuctionLivePage() {
             </button>
           </div>
         </div>
+      </div>
+
+      {/* 경매 상태 패널 */}
+      <div className="bg-white border border-gray-200 p-4 mb-4">
+        {currentRound ? (
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-6">
+              <span className="px-2 py-0.5 text-xs font-semibold bg-green-100 text-green-700 rounded">
+                {currentRound.round_no}차 경매 진행중
+              </span>
+              {remainingSeconds != null && (
+                <div className="flex items-center gap-2">
+                  <Timer className={`w-4 h-4 ${
+                    currentRound.round_duration_min
+                      ? (remainingSeconds <= 60 ? 'text-red-500' : 'text-gray-500')
+                      : 'text-blue-500'
+                  }`} />
+                  <span
+                    className={`text-2xl font-mono font-bold tabular-nums ${
+                      currentRound.round_duration_min
+                        ? (remainingSeconds <= 60 ? 'text-red-600' : remainingSeconds <= 120 ? 'text-orange-500' : 'text-gray-900')
+                        : 'text-blue-600'
+                    }`}
+                  >
+                    {formatTimer(remainingSeconds)}
+                  </span>
+                  {!currentRound.round_duration_min && (
+                    <span className="text-xs text-blue-500 font-medium">경과</span>
+                  )}
+                </div>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowRoundHistoryModal(true)}
+              className="px-4 py-1.5 border border-gray-300 text-gray-600 text-xs hover:bg-gray-50 flex items-center gap-1"
+            >
+              <Clock className="w-3 h-3" />
+              경매이력
+            </button>
+          </div>
+        ) : lastClosedRound ? (
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <span className="px-2 py-0.5 text-xs font-semibold bg-gray-200 text-gray-700 rounded">
+                {lastClosedRound.round_no}차 종료
+              </span>
+              <span className="text-xs text-gray-500">
+                다음 차수 대기 중입니다.
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowRoundHistoryModal(true)}
+              className="px-4 py-1.5 border border-gray-300 text-gray-600 text-xs hover:bg-gray-50 flex items-center gap-1"
+            >
+              <Clock className="w-3 h-3" />
+              경매이력
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-gray-600">
+              {isToday ? '경매가 아직 시작되지 않았습니다.' : `${searchDate} 경매 현황`}
+            </span>
+            {allRounds.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setShowRoundHistoryModal(true)}
+                className="px-4 py-1.5 border border-gray-300 text-gray-600 text-xs hover:bg-gray-50 flex items-center gap-1"
+              >
+                <Clock className="w-3 h-3" />
+                경매이력
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* 통계 요약 */}
@@ -357,6 +500,96 @@ export default function CompanyAuctionLivePage() {
               )}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* 경매이력 모달 */}
+      {showRoundHistoryModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setShowRoundHistoryModal(false)} />
+          <div className="relative bg-white rounded-lg shadow-xl w-[600px] max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
+              <div>
+                <h3 className="text-sm font-semibold text-gray-900">경매 회차 이력</h3>
+                <p className="text-xs text-gray-500 mt-0.5">{searchDate} 기준</p>
+              </div>
+              <button
+                onClick={() => setShowRoundHistoryModal(false)}
+                className="text-gray-400 hover:text-gray-600 text-lg leading-none"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="overflow-auto flex-1 p-4">
+              {allRounds.length === 0 ? (
+                <div className="text-center py-12 text-sm text-gray-400">
+                  경매 이력이 없습니다.
+                </div>
+              ) : (
+                <table className="w-full border-collapse text-xs">
+                  <thead>
+                    <tr className="bg-gray-50">
+                      <th className="px-3 py-2 border border-gray-200 text-center font-medium text-gray-600 w-[50px]">회차</th>
+                      <th className="px-3 py-2 border border-gray-200 text-center font-medium text-gray-600 w-[60px]">상태</th>
+                      <th className="px-3 py-2 border border-gray-200 text-center font-medium text-gray-600">시작시간</th>
+                      <th className="px-3 py-2 border border-gray-200 text-center font-medium text-gray-600">종료시간</th>
+                      <th className="px-3 py-2 border border-gray-200 text-center font-medium text-gray-600 w-[80px]">경과시간</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {allRounds.map((round: any) => {
+                      const startedAt = round.started_at ? new Date(round.started_at) : null;
+                      const endedAt = round.ended_at ? new Date(round.ended_at) : null;
+                      let elapsed = '-';
+                      if (startedAt && endedAt) {
+                        const diffMs = endedAt.getTime() - startedAt.getTime();
+                        const diffMin = Math.floor(diffMs / 60000);
+                        const diffSec = Math.floor((diffMs % 60000) / 1000);
+                        elapsed = `${diffMin}분 ${diffSec}초`;
+                      } else if (startedAt && round.status === 'open') {
+                        const diffMs = Date.now() - startedAt.getTime();
+                        const diffMin = Math.floor(diffMs / 60000);
+                        const diffSec = Math.floor((diffMs % 60000) / 1000);
+                        elapsed = `${diffMin}분 ${diffSec}초 (진행중)`;
+                      }
+                      return (
+                        <tr key={round.id} className="bg-white hover:bg-gray-50">
+                          <td className="px-3 py-2 border border-gray-200 text-center font-medium text-gray-900">
+                            {round.round_no}차
+                          </td>
+                          <td className="px-3 py-2 border border-gray-200 text-center">
+                            {round.status === 'open' ? (
+                              <span className="text-green-600 font-medium">진행중</span>
+                            ) : (
+                              <span className="text-gray-500">종료</span>
+                            )}
+                          </td>
+                          <td className="px-3 py-2 border border-gray-200 text-center text-gray-700">
+                            {startedAt ? format(startedAt, 'HH:mm:ss') : '-'}
+                          </td>
+                          <td className="px-3 py-2 border border-gray-200 text-center text-gray-700">
+                            {endedAt ? format(endedAt, 'HH:mm:ss') : '-'}
+                          </td>
+                          <td className="px-3 py-2 border border-gray-200 text-center text-gray-500">
+                            {elapsed}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </div>
+            <div className="px-5 py-3 border-t border-gray-200 flex justify-between items-center">
+              <span className="text-xs text-gray-400">총 {allRounds.length}건</span>
+              <button
+                onClick={() => setShowRoundHistoryModal(false)}
+                className="px-4 py-1.5 text-xs font-medium text-gray-600 border border-gray-300 rounded hover:bg-gray-50"
+              >
+                닫기
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </CompanyLayout>

@@ -145,7 +145,6 @@ export default function AdminDashboardPage() {
     const dealerSheet = XLSX.utils.json_to_sheet(byDealer.map((d, idx) => ({
       '순위': idx + 1,
       '중도매인': d.name,
-      '경매 두수': d.cattleCount,
       '입찰 수': d.bidCount,
       '낙찰 수': d.wonCount,
       '낙찰대금(원)': d.wonAmount,
@@ -459,7 +458,6 @@ export default function AdminDashboardPage() {
                       <tr>
                         <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">순위</th>
                         <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">중도매인</th>
-                        <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">경매 두수</th>
                         <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">입찰 수</th>
                         <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">낙찰 수</th>
                         <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">낙찰대금</th>
@@ -470,7 +468,7 @@ export default function AdminDashboardPage() {
                     <tbody>
                       {byDealer.length === 0 ? (
                         <tr>
-                          <td colSpan={8} className="px-3 py-8 text-center text-xs text-gray-400 border border-gray-200">데이터 없음</td>
+                          <td colSpan={7} className="px-3 py-8 text-center text-xs text-gray-400 border border-gray-200">데이터 없음</td>
                         </tr>
                       ) : (
                         <>
@@ -478,7 +476,6 @@ export default function AdminDashboardPage() {
                             <tr key={dealer.name} className="hover:bg-gray-50">
                               <td className="px-3 py-2 text-xs text-center border border-gray-200">{idx + 1}</td>
                               <td className="px-3 py-2 text-xs text-center border border-gray-200 font-medium">{dealer.name}</td>
-                              <td className="px-3 py-2 text-xs text-center border border-gray-200">{dealer.cattleCount}두</td>
                               <td className="px-3 py-2 text-xs text-center border border-gray-200">{dealer.bidCount}건</td>
                               <td className="px-3 py-2 text-xs text-center border border-gray-200">{dealer.wonCount}건</td>
                               <td className="px-3 py-2 text-xs text-center border border-gray-200">{dealer.wonAmount.toLocaleString()}원</td>
@@ -488,9 +485,6 @@ export default function AdminDashboardPage() {
                           ))}
                           <tr className="bg-gray-50 font-bold">
                             <td colSpan={2} className="px-3 py-2 text-xs text-center border border-gray-200">합계</td>
-                            <td className="px-3 py-2 text-xs text-center border border-gray-200">
-                              {byDealer.reduce((s, d) => s + d.cattleCount, 0)}두
-                            </td>
                             <td className="px-3 py-2 text-xs text-center border border-gray-200">
                               {byDealer.reduce((s, d) => s + d.bidCount, 0)}건
                             </td>
