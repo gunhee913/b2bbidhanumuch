@@ -13,6 +13,8 @@ import {
   Truck,
   Wallet,
   Building2,
+  Menu,
+  X,
 } from 'lucide-react';
 
 interface DealerLayoutProps {
@@ -93,6 +95,7 @@ export default function DealerLayout({ children }: DealerLayoutProps) {
 
   const [expandedMenus, setExpandedMenus] = useState<string[]>(() => getInitialExpandedMenus(pathname));
   const [isAnimationEnabled, setIsAnimationEnabled] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const prevPathnameRef = useRef(pathname);
   const previousThemeRef = useRef<string | undefined>(undefined);
 
@@ -122,6 +125,7 @@ export default function DealerLayout({ children }: DealerLayoutProps) {
     if (prevPathnameRef.current !== pathname) {
       setIsAnimationEnabled(false);
       setExpandedMenus(getInitialExpandedMenus(pathname));
+      setSidebarOpen(false);
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
           setIsAnimationEnabled(true);
@@ -152,11 +156,28 @@ export default function DealerLayout({ children }: DealerLayoutProps) {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <aside className="fixed left-0 top-0 z-40 h-screen bg-gray-900 w-64">
+      {/* 모바일 오버레이 배경 */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-black/50 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* 사이드바 */}
+      <aside className={`fixed left-0 top-0 z-40 h-screen bg-gray-900 w-64 transition-transform duration-200 ease-in-out lg:translate-x-0 ${
+        sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+      }`}>
         <div className="flex items-center h-14 px-4 border-b border-gray-800">
           <Link href="/dealer" className="flex items-center">
             <span className="text-white font-bold text-lg">HanuMuch</span>
           </Link>
+          <button
+            onClick={() => setSidebarOpen(false)}
+            className="ml-auto p-1 text-gray-400 hover:text-white lg:hidden"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
 
         <nav className="px-3 py-4 overflow-y-auto h-[calc(100vh-56px-56px)]">
@@ -240,10 +261,18 @@ export default function DealerLayout({ children }: DealerLayoutProps) {
         </div>
       </aside>
 
-      <div className="ml-64">
-        <header className="sticky top-0 z-30 h-10 bg-white border-b border-gray-200">
-          <div className="flex items-center justify-end h-full px-4">
-            <div className="flex items-center gap-4">
+      {/* 메인 콘텐츠 영역 */}
+      <div className="lg:ml-64 overflow-x-auto">
+        {/* 상단 바 */}
+        <header className="sticky top-0 z-20 h-10 bg-white border-b border-gray-200">
+          <div className="flex items-center h-full px-4">
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="p-1 -ml-1 text-gray-500 hover:text-gray-700 lg:hidden"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+            <div className="flex items-center gap-4 ml-auto">
               <span className="text-xs text-gray-600">
                 [ <span className="font-medium text-gray-700">{session?.dealer?.name}</span> ] {session?.employee?.name || session?.user?.name} 로그인
               </span>
@@ -258,7 +287,7 @@ export default function DealerLayout({ children }: DealerLayoutProps) {
           </div>
         </header>
 
-        <main className="p-4 lg:p-6">
+        <main className="p-4 lg:p-6 min-w-[1024px]">
           {children}
         </main>
       </div>

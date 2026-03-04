@@ -6,7 +6,7 @@ export const viewport: Viewport = {
   userScalable: true,
 };
 
-export default function AdminRootLayout({
+export default function CompanyRootLayout({
   children,
 }: {
   children: React.ReactNode;

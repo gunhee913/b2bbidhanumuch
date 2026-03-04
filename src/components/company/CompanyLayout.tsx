@@ -11,6 +11,8 @@ import {
   Gavel,
   ClipboardList,
   Truck,
+  Menu,
+  X,
 } from 'lucide-react';
 
 interface CompanyLayoutProps {
@@ -83,6 +85,7 @@ export default function CompanyLayout({ children }: CompanyLayoutProps) {
   // 초기값을 현재 경로 기반으로 설정 (애니메이션 없이 바로 열림)
   const [expandedMenus, setExpandedMenus] = useState<string[]>(() => getInitialExpandedMenus(pathname));
   const [isAnimationEnabled, setIsAnimationEnabled] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const prevPathnameRef = useRef(pathname);
   const previousThemeRef = useRef<string | undefined>(undefined);
   
@@ -112,11 +115,11 @@ export default function CompanyLayout({ children }: CompanyLayoutProps) {
     return () => clearTimeout(timer);
   }, []);
 
-  // 경로 변경 시 메뉴 상태 업데이트 (애니메이션 없이)
   useEffect(() => {
     if (prevPathnameRef.current !== pathname) {
       setIsAnimationEnabled(false);
       setExpandedMenus(getInitialExpandedMenus(pathname));
+      setSidebarOpen(false);
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
           setIsAnimationEnabled(true);
@@ -147,13 +150,29 @@ export default function CompanyLayout({ children }: CompanyLayoutProps) {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      {/* 사이드바 - 항상 고정 */}
-      <aside className="fixed left-0 top-0 z-40 h-screen bg-gray-900 w-64">
+      {/* 모바일 오버레이 배경 */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-black/50 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* 사이드바 */}
+      <aside className={`fixed left-0 top-0 z-40 h-screen bg-gray-900 w-64 transition-transform duration-200 ease-in-out lg:translate-x-0 ${
+        sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+      }`}>
         {/* 로고 영역 */}
         <div className="flex items-center h-14 px-4 border-b border-gray-800">
           <Link href="/company" className="flex items-center">
             <span className="text-white font-bold text-lg">HanuMuch</span>
           </Link>
+          <button
+            onClick={() => setSidebarOpen(false)}
+            className="ml-auto p-1 text-gray-400 hover:text-white lg:hidden"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
 
         {/* 네비게이션 메뉴 */}
@@ -239,22 +258,22 @@ export default function CompanyLayout({ children }: CompanyLayoutProps) {
         </div>
       </aside>
 
-      {/* 메인 콘텐츠 영역 - 항상 사이드바 오른쪽에 */}
-      <div className="ml-64">
-        {/* 미니 상단 바 */}
-        <header className="sticky top-0 z-30 h-10 bg-white border-b border-gray-200">
-          <div className="flex items-center justify-end h-full px-4">
-            {/* 오른쪽: 로그인 정보 + 로그아웃 */}
-            <div className="flex items-center gap-4">
-              {/* 로그인 정보 */}
+      {/* 메인 콘텐츠 영역 */}
+      <div className="lg:ml-64 overflow-x-auto">
+        {/* 상단 바 */}
+        <header className="sticky top-0 z-20 h-10 bg-white border-b border-gray-200">
+          <div className="flex items-center h-full px-4">
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="p-1 -ml-1 text-gray-500 hover:text-gray-700 lg:hidden"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+            <div className="flex items-center gap-4 ml-auto">
               <span className="text-xs text-gray-600">
                 [ <span className="font-medium text-gray-700">{session?.company?.name}</span> ] {session?.companyEmployee?.name || session?.user?.name} 로그인
               </span>
-
-              {/* 구분선 */}
               <span className="text-gray-200">|</span>
-
-              {/* 로그아웃 */}
               <button
                 onClick={handleLogout}
                 className="text-xs text-gray-500 hover:text-gray-700"
@@ -266,7 +285,7 @@ export default function CompanyLayout({ children }: CompanyLayoutProps) {
         </header>
 
         {/* 메인 콘텐츠 */}
-        <main className="p-4 lg:p-6">
+        <main className="p-4 lg:p-6 min-w-[1024px]">
           {children}
         </main>
       </div>
