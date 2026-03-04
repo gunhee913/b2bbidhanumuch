@@ -4,10 +4,10 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { 
   ChevronDown,
-  Settings,
-  Bell
+  Settings
 } from 'lucide-react';
 import BottomNav from '@/components/BottomNav';
+import NotificationBell from '@/components/NotificationBell';
 import { createChart, ColorType, Time, HistogramSeries, HistogramData, AreaSeries, LineSeries, LineData, AreaData } from 'lightweight-charts';
 import { format, subDays, subWeeks, subMonths, isWeekend, startOfWeek, startOfMonth, endOfWeek, endOfMonth } from 'date-fns';
 import { ko } from 'date-fns/locale';
@@ -770,15 +770,7 @@ export default function MarketPage() {
                   >
                     <Settings className="w-[22px] h-[22px]" />
                   </Link>
-                  <Link 
-                    href="/notifications"
-                    className="p-2 text-gray-600 hover:text-gray-900 transition-colors flex items-center justify-center relative"
-                  >
-                    <Bell className="w-[22px] h-[22px] translate-y-[0.5px]" />
-                    <span className="absolute top-0 right-0 w-4 h-4 bg-red-500 text-white text-[9px] font-medium rounded-full flex items-center justify-center">
-                      2
-                    </span>
-                  </Link>
+                  <NotificationBell />
                 </div>
               </div>
             </div>

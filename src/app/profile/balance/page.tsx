@@ -8,10 +8,10 @@ import {
   ChevronDown,
   Calendar as CalendarIcon,
   Settings,
-  Bell,
   Loader2
 } from 'lucide-react';
 import BottomNav from '@/components/BottomNav';
+import NotificationBell from '@/components/NotificationBell';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -348,15 +348,7 @@ function BalanceHistoryContent() {
                     >
                       <Settings className="w-[22px] h-[22px]" />
                     </Link>
-                    <Link 
-                      href="/notifications"
-                      className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 transition-colors flex items-center justify-center relative"
-                    >
-                      <Bell className="w-[22px] h-[22px] translate-y-[0.5px]" />
-                      <span className="absolute top-0 right-0 w-4 h-4 bg-red-500 text-white text-[9px] font-medium rounded-full flex items-center justify-center">
-                        2
-                      </span>
-                    </Link>
+                    <NotificationBell />
                   </div>
                 </div>
               </div>

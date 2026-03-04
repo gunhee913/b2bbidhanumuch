@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getToken } from 'next-auth/jwt';
+import { createNotificationForAllWithTemplate } from '@/lib/notifications';
 import { format } from 'date-fns';
 
 const supabase = createClient(
@@ -121,6 +122,12 @@ export async function POST(request: NextRequest) {
       .from('cattle_listings')
       .update({ status: 'auction' })
       .in('id', listingIds);
+
+    createNotificationForAllWithTemplate(
+      'auction_start',
+      { roundNo: String(roundNo), count: String(listingIds.length) },
+      '/'
+    ).catch(() => {});
 
     return NextResponse.json({
       round: auction,

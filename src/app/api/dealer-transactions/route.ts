@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { createNotificationWithTemplate } from '@/lib/notifications';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -298,6 +299,29 @@ export async function POST(request: NextRequest) {
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
+
+    const amountFormatted = amount.toLocaleString();
+    const typeLabel = type === 'deposit' ? '입금' : '출금';
+
+    const { data: allWinningBids } = await supabase
+      .from('bids')
+      .select('bid_amount')
+      .eq('dealer_id', dealerId)
+      .eq('is_winning', true)
+      .not('bid_amount', 'is', null);
+
+    const totalAuctionDeduct = (allWinningBids || []).reduce(
+      (sum: number, b: any) => sum + Number(b.bid_amount || 0), 0
+    );
+    const realBalance = newBalance - totalAuctionDeduct;
+    const balanceFormatted = realBalance.toLocaleString();
+
+    createNotificationWithTemplate(
+      dealerId,
+      'balance',
+      { type: typeLabel, amount: amountFormatted, balance: balanceFormatted },
+      '/profile/balance'
+    ).catch(() => {});
 
     return NextResponse.json({ transaction: data });
   } catch (error) {

@@ -1,200 +1,223 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft } from 'lucide-react';
+import { format } from 'date-fns';
+import { ko } from 'date-fns/locale';
 import BottomNav from '@/components/BottomNav';
-import { useBidStore } from '@/stores/bidStore';
-import { useEffect, useState } from 'react';
 
-// 목업 알림 데이터 생성
-const generateMockNotifications = () => [
-  {
-    id: '0',
-    type: 'listingInfo' as const,
-    title: '상장 정보 업로드',
-    message: '내일(01/27) 상장 정보가 업로드 되었습니다.\n\n총 28두 (거세 22두, 암 6두)\n- 건화: 7두\n- 대진엠이스: 7두\n- 안심엘피시: 7두\n- 정직한고기: 7두',
-    time: '26.01.26 17:00',
-    isRead: false,
-  },
-  {
-    id: '1',
-    type: 'auctionStart' as const,
-    title: '경매 시작',
-    message: '오늘의 부분육 경매가 시작되었습니다.\n경매시간 : 08:00 ~ 09:00',
-    time: '26.01.26 08:00',
-    isRead: false,
-  },
-  {
-    id: '2',
-    type: 'secondBid' as const,
-    title: '차순위 알림',
-    message: '260126-101-01 등심(좌) 입찰에서 차순위가 되었습니다.',
-    time: '26.01.26 10:30',
-    isRead: false,
-    data: { listingNo: '260126-101-01', auctionId: '260126-101' },
-  },
-  {
-    id: '3',
-    type: 'listingInfo' as const,
-    title: '상장 정보 업로드',
-    message: '내일(01/26) 상장 정보가 업로드 되었습니다.\n\n총 24두 (거세 20두, 암 4두)\n- 건화: 6두\n- 대진엠이스: 6두\n- 안심엘피시: 6두\n- 정직한고기: 6두',
-    time: '26.01.25 17:00',
-    isRead: true,
-  },
-  {
-    id: '4',
-    type: 'auctionResult' as const,
-    title: '경매 결과',
-    message: '금일 경매 결과 안내드립니다.\n\n총 18건, 낙찰 14건, 유찰 4건\n총 낙찰대금 : 13,523,000원',
-    time: '26.01.25 18:00',
-    isRead: true,
-  },
-  {
-    id: '5',
-    type: 'secondBid' as const,
-    title: '차순위 알림',
-    message: '260125-055-03 채끝 입찰에서 차순위가 되었습니다.',
-    time: '26.01.25 14:20',
-    isRead: true,
-    data: { listingNo: '260125-055-03', auctionId: '260125-055' },
-  },
-];
+interface GradeTableRow {
+  label: string;
+  values: number[];
+}
+
+interface GradeTable {
+  cols: string[];
+  rows: GradeTableRow[];
+}
+
+interface Notification {
+  id: string;
+  type: string;
+  title: string;
+  message: string;
+  isRead: boolean;
+  link: string | null;
+  createdAt: string;
+  metadata?: { gradeTable?: GradeTable } & Record<string, any>;
+}
 
 export default function NotificationsPage() {
   const router = useRouter();
-  const {
-    notifications,
-    markAsRead,
-    markAllAsRead,
-    deleteNotification,
-    clearAllNotifications,
-  } = useBidStore();
-  
-  const [isHydrated, setIsHydrated] = useState(false);
-  const [localNotifications, setLocalNotifications] = useState(generateMockNotifications());
+  const queryClient = useQueryClient();
 
-  useEffect(() => {
-    setIsHydrated(true);
-  }, []);
+  const { data: notifications = [], isLoading } = useQuery<Notification[]>({
+    queryKey: ['notifications'],
+    queryFn: async () => {
+      const res = await fetch('/api/notifications');
+      if (!res.ok) return [];
+      return res.json();
+    },
+  });
 
-  // 실제 알림이 있으면 사용, 없으면 목업 데이터 사용
-  const displayNotifications = notifications.length > 0 ? notifications : localNotifications;
-  const unreadCount = displayNotifications.filter(n => !n.isRead).length;
+  const unreadCount = notifications.filter(n => !n.isRead).length;
 
-  const handleNotificationClick = (notification: typeof displayNotifications[0]) => {
-    // 읽음 처리
-    if (notifications.length > 0) {
-      markAsRead(notification.id);
-    } else {
-      setLocalNotifications(prev => 
-        prev.map(n => n.id === notification.id ? { ...n, isRead: true } : n)
-      );
+  const markReadMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await fetch(`/api/notifications/${id}`, { method: 'PATCH' });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      queryClient.invalidateQueries({ queryKey: ['unread-count'] });
+    },
+  });
+
+  const markAllReadMutation = useMutation({
+    mutationFn: async () => {
+      await fetch('/api/notifications/read-all', { method: 'PATCH' });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      queryClient.invalidateQueries({ queryKey: ['unread-count'] });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await fetch(`/api/notifications/${id}`, { method: 'DELETE' });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      queryClient.invalidateQueries({ queryKey: ['unread-count'] });
+    },
+  });
+
+  const clearAllMutation = useMutation({
+    mutationFn: async () => {
+      await fetch('/api/notifications/clear', { method: 'DELETE' });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      queryClient.invalidateQueries({ queryKey: ['unread-count'] });
+    },
+  });
+
+  const handleNotificationClick = (notification: Notification) => {
+    if (!notification.isRead) {
+      markReadMutation.mutate(notification.id);
     }
-
-    // 경매 상세 페이지로 이동 (관련 데이터가 있는 경우)
-    if (notification.data?.auctionId) {
-      router.push(`/auction/${notification.data.auctionId}`);
+    if (notification.link) {
+      router.push(notification.link);
     }
   };
 
   const handleDelete = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    if (notifications.length > 0) {
-      deleteNotification(id);
-    } else {
-      setLocalNotifications(prev => prev.filter(n => n.id !== id));
-    }
+    deleteMutation.mutate(id);
   };
-
-  const handleMarkAllAsRead = () => {
-    if (notifications.length > 0) {
-      markAllAsRead();
-    } else {
-      setLocalNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
-    }
-  };
-
-  const handleClearAll = () => {
-    if (notifications.length > 0) {
-      clearAllNotifications();
-    } else {
-      setLocalNotifications([]);
-    }
-  };
-
-  if (!isHydrated) {
-    return null;
-  }
 
   return (
     <div className="fixed inset-0 bg-white flex justify-center items-center z-[9999] overflow-hidden">
       <div className="w-full md:flex md:justify-center md:items-center bg-white">
-        <div 
-          className="w-full md:max-w-md md:w-[500px] bg-white dark:bg-gray-900 md:shadow-2xl relative overflow-hidden flex flex-col transition-colors" 
-          style={{
-            height: 'calc(var(--vh, 1vh) * 100)',
-            scrollbarWidth: 'none', 
-            msOverflowStyle: 'none'
-          }}
+        <div
+          className="w-full md:max-w-md md:w-[500px] bg-white md:shadow-2xl relative overflow-hidden flex flex-col"
+          style={{ height: '100dvh' }}
         >
-          {/* 헤더 */}
-          <div className="flex-shrink-0 px-4 py-3 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between transition-colors">
+          <div className="flex-shrink-0 px-4 py-3 bg-white border-b border-gray-200 flex items-center justify-between">
             <div className="flex items-center">
               <button
                 onClick={() => router.back()}
-                className="p-1 rounded transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 mr-3"
-                aria-label="뒤로가기"
+                className="p-1 rounded hover:bg-gray-100 mr-3"
               >
-                <ArrowLeft className="h-5 w-5 text-gray-700 dark:text-gray-300" />
+                <ArrowLeft className="h-5 w-5 text-gray-700" />
               </button>
-              <h1 className="text-base font-bold text-gray-900 dark:text-gray-100">알림</h1>
+              <h1 className="text-base font-bold text-gray-900">알림</h1>
               {unreadCount > 0 && (
-                <span className="ml-2 px-1.5 py-0.5 text-[10px] font-medium bg-red-500 text-white rounded-full">
+                <span className="ml-2 min-w-[18px] h-[18px] flex items-center justify-center text-[10px] font-bold bg-red-500 text-white rounded-full leading-none">
                   {unreadCount}
                 </span>
               )}
             </div>
+            {notifications.length > 0 && (
+              <div className="flex items-center gap-3">
+                {unreadCount > 0 && (
+                  <button
+                    onClick={() => markAllReadMutation.mutate()}
+                    className="text-xs text-gray-500 hover:text-gray-700"
+                  >
+                    전체 읽음
+                  </button>
+                )}
+                <button
+                  onClick={() => clearAllMutation.mutate()}
+                  className="text-xs text-gray-500 hover:text-gray-700"
+                >
+                  전체 삭제
+                </button>
+              </div>
+            )}
           </div>
 
-          {/* 메인 콘텐츠 */}
-          <div className="flex-1 min-h-0 overflow-y-auto bg-gray-50 dark:bg-gray-900 transition-colors">
-            {displayNotifications.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-gray-400 dark:text-gray-500">
-                <p className="text-sm">알림이 없습니다</p>
+          <div className="flex-1 min-h-0 overflow-y-auto bg-gray-50">
+            {isLoading ? (
+              <div className="flex items-center justify-center h-full text-gray-400 text-sm">
+                로딩 중...
+              </div>
+            ) : notifications.length === 0 ? (
+              <div className="flex items-center justify-center h-full text-gray-400 text-sm">
+                알림이 없습니다
               </div>
             ) : (
-                <div className="p-3 space-y-2.5">
-                {displayNotifications.map((notification) => (
+              <div className="p-3 space-y-2.5">
+                {notifications.map((notification) => (
                   <div
                     key={notification.id}
                     onClick={() => handleNotificationClick(notification)}
-                    className={`p-4 rounded-lg bg-white dark:bg-gray-800 border cursor-pointer transition-colors ${
-                      notification.isRead 
-                        ? 'border-gray-200 dark:border-gray-700' 
-                        : 'border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-750'
+                    className={`p-4 rounded-lg bg-white border cursor-pointer transition-colors ${
+                      notification.isRead
+                        ? 'border-gray-200'
+                        : 'border-gray-300 bg-gray-50'
                     }`}
                   >
-                    <div className="flex items-center gap-2 mb-1.5">
-                      {!notification.isRead && (
-                        <span className="w-2 h-2 bg-red-500 rounded-full flex-shrink-0" />
-                      )}
-                      <p className={`text-[15px] ${notification.isRead ? 'text-gray-700 dark:text-gray-300' : 'text-gray-900 dark:text-gray-100 font-semibold'}`}>
-                        {notification.title}
-                      </p>
+                  <div>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1.5">
+                          {!notification.isRead && (
+                            <span className="w-2 h-2 bg-red-500 rounded-full flex-shrink-0" />
+                          )}
+                          <p className={`text-[15px] ${notification.isRead ? 'text-gray-700' : 'text-gray-900 font-semibold'}`}>
+                            {notification.title}
+                          </p>
+                        </div>
+                        <p className="text-[13px] text-gray-600 leading-relaxed whitespace-pre-line">
+                          {notification.message}
+                        </p>
+                      </div>
+                      <button
+                        onClick={(e) => handleDelete(e, notification.id)}
+                        className="text-[11px] text-gray-400 hover:text-gray-600 flex-shrink-0 pt-0.5"
+                      >
+                        삭제
+                      </button>
                     </div>
-                    <p className="text-[13px] text-gray-600 dark:text-gray-400 leading-relaxed mb-2.5 whitespace-pre-line">
-                      {notification.message}
+                    {notification.metadata?.gradeTable && (
+                      <div className="mt-2 mb-1">
+                        <table className="w-full text-[11px] border-collapse table-fixed">
+                          <thead>
+                            <tr className="bg-gray-100">
+                              <th className="py-1.5 text-center font-medium text-gray-500 border border-gray-200">성별</th>
+                              {notification.metadata.gradeTable.cols.map((col: string) => (
+                                <th key={col} className="py-1.5 text-center font-medium text-gray-500 border border-gray-200">{col}</th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {notification.metadata.gradeTable.rows.map((row: GradeTableRow, idx: number) => (
+                              <tr key={row.label} className={idx === notification.metadata!.gradeTable!.rows.length - 1 ? 'bg-gray-50 font-semibold' : ''}>
+                                <td className="py-1.5 text-center text-gray-600 border border-gray-200">{row.label}</td>
+                                {row.values.map((val: number, i: number) => (
+                                  <td key={i} className={`py-1.5 text-center border border-gray-200 ${i === row.values.length - 1 ? 'font-semibold text-gray-900' : 'text-gray-700'}`}>
+                                    {val}
+                                  </td>
+                                ))}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                    <p className="text-[12px] text-gray-400 mt-2.5">
+                      {format(new Date(notification.createdAt), 'MM.dd(EEE) HH:mm', { locale: ko })}
                     </p>
-                    <p className="text-[12px] text-gray-400 dark:text-gray-500">
-                      {notification.time}
-                    </p>
+                  </div>
                   </div>
                 ))}
               </div>
             )}
           </div>
 
-          {/* 하단 네비게이션 */}
           <BottomNav />
         </div>
       </div>

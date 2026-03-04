@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getToken } from 'next-auth/jwt';
+import { createNotificationWithTemplate } from '@/lib/notifications';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -98,6 +99,51 @@ export async function POST(
         .eq('id', id)
         .single();
 
+      // 회차별 경매 결과 알림 발송
+      try {
+        const { data: allBids } = await supabase
+          .from('bids')
+          .select('dealer_id, bid_amount, is_winning')
+          .eq('auction_id', id);
+
+        if (allBids && allBids.length > 0) {
+          const dealerStats: Record<string, { total: number; success: number; failed: number; amount: number }> = {};
+
+          for (const bid of allBids) {
+            const did = bid.dealer_id;
+            if (!dealerStats[did]) {
+              dealerStats[did] = { total: 0, success: 0, failed: 0, amount: 0 };
+            }
+            dealerStats[did].total++;
+            if (bid.is_winning) {
+              dealerStats[did].success++;
+              dealerStats[did].amount += Number(bid.bid_amount || 0);
+            } else {
+              dealerStats[did].failed++;
+            }
+          }
+
+          const roundNo = String(auction.round_no || 1);
+
+          for (const [dealerId, stats] of Object.entries(dealerStats)) {
+            createNotificationWithTemplate(
+              dealerId,
+              'auction_result',
+              {
+                roundNo,
+                totalCount: String(stats.total),
+                successCount: String(stats.success),
+                failedCount: String(stats.failed),
+                bidAmount: stats.amount.toLocaleString(),
+              },
+              '/bids?tab=경매결과'
+            ).catch(() => {});
+          }
+        }
+      } catch (notifErr) {
+        console.error('경매 결과 알림 발송 오류:', notifErr);
+      }
+
       return NextResponse.json({
         auction: updatedAuction,
         nextRound,
@@ -148,6 +194,51 @@ export async function POST(
       `)
       .eq('auction_id', id)
       .eq('is_winning', true);
+
+    // 단일 경매 마감 결과 알림 발송
+    try {
+      const { data: allBidsForNotif } = await supabase
+        .from('bids')
+        .select('dealer_id, bid_amount, is_winning')
+        .eq('auction_id', id);
+
+      if (allBidsForNotif && allBidsForNotif.length > 0) {
+        const dealerStats: Record<string, { total: number; success: number; failed: number; amount: number }> = {};
+
+        for (const bid of allBidsForNotif) {
+          const did = bid.dealer_id;
+          if (!dealerStats[did]) {
+            dealerStats[did] = { total: 0, success: 0, failed: 0, amount: 0 };
+          }
+          dealerStats[did].total++;
+          if (bid.is_winning) {
+            dealerStats[did].success++;
+            dealerStats[did].amount += Number(bid.bid_amount || 0);
+          } else {
+            dealerStats[did].failed++;
+          }
+        }
+
+        const roundNo = String(auction.round_no || 1);
+
+        for (const [dealerId, stats] of Object.entries(dealerStats)) {
+          createNotificationWithTemplate(
+            dealerId,
+            'auction_result',
+            {
+              roundNo,
+              totalCount: String(stats.total),
+              successCount: String(stats.success),
+              failedCount: String(stats.failed),
+              bidAmount: stats.amount.toLocaleString(),
+            },
+            '/bids?tab=경매결과'
+          ).catch(() => {});
+        }
+      }
+    } catch (notifErr) {
+      console.error('경매 결과 알림 발송 오류:', notifErr);
+    }
 
     return NextResponse.json({
       auction: updatedAuction,

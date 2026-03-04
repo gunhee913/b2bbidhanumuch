@@ -1,11 +1,12 @@
 'use client';
 
 import React, { Suspense, useState, useEffect, useRef, useCallback } from 'react';
-import { Settings, Bell, X } from 'lucide-react';
+import { Settings, X } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import BottomNav from '@/components/BottomNav';
+import NotificationBell from '@/components/NotificationBell';
 import { useSession } from 'next-auth/react';
 import { useMyBidsWithStatus, useMyAuctionResults } from '@/features/bids/hooks';
 import { AuctionResult } from '@/features/bids/types';
@@ -316,15 +317,7 @@ function BidsPageContent() {
                   >
                     <Settings className="w-[22px] h-[22px]" />
                   </Link>
-                  <Link 
-                    href="/notifications"
-                    className="p-2 text-gray-600 hover:text-gray-900 transition-colors flex items-center justify-center relative"
-                  >
-                    <Bell className="w-[22px] h-[22px] translate-y-[0.5px]" />
-                    <span className="absolute top-0 right-0 w-4 h-4 bg-red-500 text-white text-[9px] font-medium rounded-full flex items-center justify-center">
-                      2
-                    </span>
-                  </Link>
+                  <NotificationBell />
                 </div>
               </div>
             </div>

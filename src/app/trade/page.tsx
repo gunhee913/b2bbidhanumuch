@@ -6,11 +6,11 @@ import {
   Plus,
   FileText,
   Settings,
-  Bell,
   Search,
   Loader2
 } from 'lucide-react';
 import BottomNav from '@/components/BottomNav';
+import NotificationBell from '@/components/NotificationBell';
 import { useSession } from 'next-auth/react';
 import { useQuery } from '@tanstack/react-query';
 import { format } from 'date-fns';
@@ -234,10 +234,7 @@ export default function TradePage() {
                   <Link href="/settings" className="p-2 text-gray-600 hover:text-gray-900 transition-colors flex items-center justify-center">
                     <Settings className="w-[22px] h-[22px]" />
                   </Link>
-                  <Link href="/notifications" className="p-2 text-gray-600 hover:text-gray-900 transition-colors flex items-center justify-center relative">
-                    <Bell className="w-[22px] h-[22px] translate-y-[0.5px]" />
-                    <span className="absolute top-0 right-0 w-4 h-4 bg-red-500 text-white text-[9px] font-medium rounded-full flex items-center justify-center">2</span>
-                  </Link>
+                  <NotificationBell />
                 </div>
               </div>
             </div>

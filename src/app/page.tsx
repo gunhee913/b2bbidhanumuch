@@ -17,11 +17,11 @@ import {
   Settings,
   ChevronRight,
   ChevronDown,
-  Bell,
   Star,
   ExternalLink
 } from 'lucide-react';
 import BottomNav from '@/components/BottomNav';
+import NotificationBell from '@/components/NotificationBell';
 import { Button } from '@/components/ui/button';
 import DatePicker, { registerLocale } from 'react-datepicker';
 import { ko } from 'date-fns/locale';
@@ -580,15 +580,7 @@ function MainPageContent() {
                     >
                       <Settings className="w-[22px] h-[22px]" />
                     </Link>
-                    <Link 
-                      href="/notifications"
-                      className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors flex items-center justify-center relative"
-                    >
-                      <Bell className="w-[22px] h-[22px] translate-y-[0.5px]" />
-                      <span className="absolute top-0 right-0 w-4 h-4 bg-red-500 text-white text-[9px] font-medium rounded-full flex items-center justify-center">
-                        2
-                      </span>
-                    </Link>
+                    <NotificationBell />
                   </div>
                 </div>
               </div>

@@ -9,10 +9,10 @@ import { ko } from 'date-fns/locale';
 import { 
   ChevronRight,
   ChevronDown,
-  Bell,
   Loader2,
 } from 'lucide-react';
 import BottomNav from '@/components/BottomNav';
+import NotificationBell from '@/components/NotificationBell';
 
 export default function ProfilePage() {
   const { data: session, status } = useSession();
@@ -105,15 +105,7 @@ export default function ProfilePage() {
                   <h1 className="text-[17px] font-bold text-gray-900">내정보</h1>
                   {/* 오른쪽 아이콘 */}
                   <div className="w-[80px] flex items-center justify-end">
-                    <Link 
-                      href="/notifications"
-                      className="p-2 text-gray-600 hover:text-gray-900 transition-colors flex items-center justify-center relative"
-                    >
-                      <Bell className="w-[22px] h-[22px] translate-y-[0.5px]" />
-                      <span className="absolute top-0 right-0 w-4 h-4 bg-red-500 text-white text-[9px] font-medium rounded-full flex items-center justify-center">
-                        2
-                      </span>
-                    </Link>
+                    <NotificationBell />
                   </div>
                 </div>
               </div>
