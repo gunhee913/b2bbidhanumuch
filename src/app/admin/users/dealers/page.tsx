@@ -5,8 +5,6 @@ import AdminLayout from '@/components/admin/AdminLayout';
 import { 
   Plus, 
   Edit, 
-  ChevronLeft,
-  ChevronRight,
   Download,
   ChevronDown,
   ChevronUp,
@@ -46,9 +44,7 @@ export default function DealersPage() {
   const updateEmployeeStatusMutation = useUpdateDealerEmployeeStatus();
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
   const [expandedDealer, setExpandedDealer] = useState<string | null>(null);
-  const itemsPerPage = 10;
 
   // 중도매인 상태
   const [editingDealerId, setEditingDealerId] = useState<string | null>(null);
@@ -64,8 +60,9 @@ export default function DealersPage() {
   const [formData, setFormData] = useState({
     dealerNo: '',
     name: '',
+    representativeName: '',
+    businessNo: '',
     phone: '',
-    password: '',
     auctionPassword: '',
     address: '',
     status: 'active' as 'active' | 'inactive',
@@ -94,13 +91,7 @@ export default function DealersPage() {
     );
     
     return matchesDealerSearch || matchesEmployeeSearch;
-  });
-
-  const totalPages = Math.ceil(filteredDealers.length / itemsPerPage);
-  const paginatedDealers = filteredDealers.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
+  }).sort((a, b) => a.dealerNo.localeCompare(b.dealerNo));
 
   const toggleExpand = (dealerId: string) => {
     setExpandedDealer(expandedDealer === dealerId ? null : dealerId);
@@ -113,8 +104,9 @@ export default function DealersPage() {
     setFormData({
       dealerNo: dealer.dealerNo,
       name: dealer.name,
+      representativeName: dealer.representativeName || '',
+      businessNo: dealer.businessNo || '',
       phone: dealer.phone,
-      password: '',
       auctionPassword: '',
       address: dealer.address || '',
       status: dealer.status,
@@ -125,7 +117,7 @@ export default function DealersPage() {
   const handleEditCancel = () => {
     setEditingDealerId(null);
     setSelectedDealer(null);
-    setFormData({ dealerNo: '', name: '', phone: '', password: '', auctionPassword: '', address: '', status: 'active' });
+    setFormData({ dealerNo: '', name: '', representativeName: '', businessNo: '', phone: '', auctionPassword: '', address: '', status: 'active' });
   };
 
   const handleEditSave = async () => {
@@ -133,12 +125,13 @@ export default function DealersPage() {
     
     const input: UpdateDealerInput = {
       name: formData.name,
+      representativeName: formData.representativeName || undefined,
+      businessNo: formData.businessNo || undefined,
       phone: formData.phone,
       address: formData.address || undefined,
       status: formData.status,
     };
-    
-    if (formData.password) input.password = formData.password;
+
     if (formData.auctionPassword) input.auctionPassword = formData.auctionPassword;
 
     try {
@@ -156,8 +149,9 @@ export default function DealersPage() {
     setFormData({
       dealerNo: nextNo.toString(),
       name: '',
+      representativeName: '',
+      businessNo: '',
       phone: '',
-      password: '',
       auctionPassword: '',
       address: '',
       status: 'active',
@@ -167,16 +161,18 @@ export default function DealersPage() {
 
   const handleAddCancel = () => {
     setIsAddingDealer(false);
-    setFormData({ dealerNo: '', name: '', phone: '', password: '', auctionPassword: '', address: '', status: 'active' });
+    setFormData({ dealerNo: '', name: '', representativeName: '', businessNo: '', phone: '', auctionPassword: '', address: '', status: 'active' });
   };
 
   const handleAddSave = async () => {
     const input: CreateDealerInput = {
       dealerNo: formData.dealerNo,
       name: formData.name,
+      representativeName: formData.representativeName || undefined,
+      businessNo: formData.businessNo || undefined,
       phone: formData.phone,
-      password: formData.password,
-      auctionPassword: formData.auctionPassword,
+      password: '0000',
+      auctionPassword: formData.auctionPassword || '0000',
       address: formData.address || undefined,
       status: formData.status,
     };
@@ -302,6 +298,17 @@ export default function DealersPage() {
     }
   };
 
+  const formatBusinessNo = (value: string) => {
+    const numbers = value.replace(/[^0-9]/g, '');
+    if (numbers.length <= 3) {
+      return numbers;
+    } else if (numbers.length <= 5) {
+      return `${numbers.slice(0, 3)}-${numbers.slice(3)}`;
+    } else {
+      return `${numbers.slice(0, 3)}-${numbers.slice(3, 5)}-${numbers.slice(5, 10)}`;
+    }
+  };
+
   const handlePhoneChange = (value: string) => {
     const formatted = formatPhoneNumber(value);
     setEmployeeFormData({ ...employeeFormData, phone: formatted });
@@ -325,13 +332,11 @@ export default function DealersPage() {
   const formatDateTime = (dateStr: string | null) => {
     if (!dateStr) return '-';
     const date = new Date(dateStr);
-    return date.toLocaleString('ko-KR', { 
-      year: 'numeric', 
-      month: '2-digit', 
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+    const datePart = date.toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' })
+      .replace(/\. /g, '-').replace('.', '');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${datePart} ${hours}:${minutes}`;
   };
 
   if (isLoading) {
@@ -391,21 +396,21 @@ export default function DealersPage() {
 
       <div className="bg-white border border-gray-200 overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full border-collapse">
+          <table className="w-full border-collapse" style={{ minWidth: '1100px' }}>
             <thead>
               <tr>
-                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50 w-8"></th>
-                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">중도매인번호</th>
-                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">중도매인명</th>
-                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">연락처(ID)</th>
-                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">비밀번호</th>
-                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">경매 비밀번호</th>
-                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">주소</th>
+                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50" style={{ width: 32 }}></th>
+                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50" style={{ minWidth: 100 }}>중도매인번호</th>
+                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50" style={{ minWidth: 100 }}>중도매인명</th>
+                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50" style={{ minWidth: 80 }}>대표자명</th>
+                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50" style={{ minWidth: 120 }}>사업자등록번호</th>
+                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50" style={{ minWidth: 130 }}>대표번호</th>
+                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50" style={{ minWidth: 90 }}>경매 비밀번호</th>
+                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50 w-full">주소</th>
                 <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">등록일</th>
-                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">최근로그인</th>
                 <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">직원수</th>
-                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">수정</th>
-                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">상태</th>
+                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50" style={{ minWidth: 50 }}>수정</th>
+                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50" style={{ minWidth: 90 }}>상태</th>
               </tr>
             </thead>
             <tbody>
@@ -434,19 +439,28 @@ export default function DealersPage() {
                   <td className="px-2 py-2 border border-gray-200">
                     <input
                       type="text"
-                      value={formData.phone}
-                      onChange={(e) => handleDealerPhoneChange(e.target.value)}
-                      placeholder="010-0000-0000"
-                      maxLength={13}
+                      value={formData.representativeName}
+                      onChange={(e) => setFormData({ ...formData, representativeName: e.target.value })}
+                      placeholder="대표자명"
                       className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
                     />
                   </td>
                   <td className="px-2 py-2 border border-gray-200">
                     <input
                       type="text"
-                      value={formData.password}
-                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                      placeholder="비밀번호"
+                      value={formData.businessNo}
+                      onChange={(e) => setFormData({ ...formData, businessNo: formatBusinessNo(e.target.value) })}
+                      placeholder="000-00-00000"
+                      maxLength={12}
+                      className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
+                    />
+                  </td>
+                  <td className="px-2 py-2 border border-gray-200">
+                    <input
+                      type="text"
+                      value={formData.phone}
+                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                      placeholder="대표번호"
                       className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
                     />
                   </td>
@@ -455,7 +469,7 @@ export default function DealersPage() {
                       type="text"
                       value={formData.auctionPassword}
                       onChange={(e) => setFormData({ ...formData, auctionPassword: e.target.value })}
-                      placeholder="경매비밀번호"
+                      placeholder="경매 비밀번호"
                       className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
                     />
                   </td>
@@ -470,12 +484,11 @@ export default function DealersPage() {
                   </td>
                   <td className="px-2 py-2 border border-gray-200 text-sm text-gray-400 text-center">-</td>
                   <td className="px-2 py-2 border border-gray-200 text-sm text-gray-400 text-center">-</td>
-                  <td className="px-2 py-2 border border-gray-200 text-sm text-gray-400 text-center">-</td>
                   <td className="px-2 py-2 border border-gray-200" colSpan={2}>
                     <div className="flex items-center justify-center gap-2">
                       <button
                         onClick={handleAddSave}
-                        disabled={!formData.dealerNo || !formData.name || !formData.phone || !formData.password || !formData.auctionPassword || createDealerMutation.isPending}
+                        disabled={!formData.dealerNo || !formData.name || !formData.phone || createDealerMutation.isPending}
                         className="px-3 py-1 text-xs bg-gray-700 text-white rounded hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {createDealerMutation.isPending ? '저장중...' : '저장'}
@@ -490,7 +503,7 @@ export default function DealersPage() {
                   </td>
                 </tr>
               )}
-              {paginatedDealers.map((dealer) => (
+              {filteredDealers.map((dealer) => (
                 <React.Fragment key={dealer.id}>
                   {editingDealerId === dealer.id ? (
                     <tr>
@@ -520,18 +533,27 @@ export default function DealersPage() {
                       <td className="px-2 py-2 border border-gray-200">
                         <input
                           type="text"
-                          value={formData.phone}
-                          onChange={(e) => handleDealerPhoneChange(e.target.value)}
-                          maxLength={13}
+                          value={formData.representativeName}
+                          onChange={(e) => setFormData({ ...formData, representativeName: e.target.value })}
+                          placeholder="대표자명"
                           className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
                         />
                       </td>
                       <td className="px-2 py-2 border border-gray-200">
                         <input
                           type="text"
-                          value={formData.password}
-                          onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                          placeholder="변경시 입력"
+                          value={formData.businessNo}
+                          onChange={(e) => setFormData({ ...formData, businessNo: formatBusinessNo(e.target.value) })}
+                          placeholder="000-00-00000"
+                          maxLength={12}
+                          className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
+                        />
+                      </td>
+                      <td className="px-2 py-2 border border-gray-200">
+                        <input
+                          type="text"
+                          value={formData.phone}
+                          onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                           className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
                         />
                       </td>
@@ -553,7 +575,6 @@ export default function DealersPage() {
                         />
                       </td>
                       <td className="px-2 py-2 border border-gray-200 text-sm text-gray-500 text-center">{formatDate(dealer.createdAt)}</td>
-                      <td className="px-2 py-2 border border-gray-200 text-sm text-gray-500 text-center">{formatDateTime(dealer.lastLoginAt)}</td>
                       <td className="px-2 py-2 border border-gray-200 text-sm text-gray-500 text-center">{dealer.employees.length}명</td>
                       <td className="px-2 py-2 border border-gray-200" colSpan={2}>
                         <div className="flex items-center justify-center gap-2">
@@ -585,15 +606,15 @@ export default function DealersPage() {
                           <ChevronDown className="w-4 h-4 text-gray-500 mx-auto" />
                         )}
                       </td>
-                      <td className="px-2 py-2 border border-gray-200 text-sm font-medium text-gray-900 text-center">{dealer.dealerNo}</td>
-                      <td className="px-2 py-2 border border-gray-200 text-sm font-medium text-gray-900 text-center">{dealer.name}</td>
-                      <td className="px-2 py-2 border border-gray-200 text-sm text-gray-600 text-center">{dealer.phone}</td>
-                      <td className="px-2 py-2 border border-gray-200 text-sm text-gray-600 text-center">••••</td>
+                      <td className="px-2 py-2 border border-gray-200 text-sm font-medium text-gray-900 text-center whitespace-nowrap">{dealer.dealerNo}</td>
+                      <td className="px-2 py-2 border border-gray-200 text-sm font-medium text-gray-900 text-center whitespace-nowrap">{dealer.name}</td>
+                      <td className="px-2 py-2 border border-gray-200 text-sm text-gray-600 text-center whitespace-nowrap">{dealer.representativeName || '-'}</td>
+                      <td className="px-2 py-2 border border-gray-200 text-sm text-gray-600 text-center whitespace-nowrap">{dealer.businessNo || '-'}</td>
+                      <td className="px-2 py-2 border border-gray-200 text-sm text-gray-600 text-center whitespace-nowrap">{dealer.phone}</td>
                       <td className="px-2 py-2 border border-gray-200 text-sm text-gray-600 text-center">••••</td>
                       <td className="px-2 py-2 border border-gray-200 text-sm text-gray-600 text-center">{dealer.address || '-'}</td>
-                      <td className="px-2 py-2 border border-gray-200 text-sm text-gray-500 text-center">{formatDate(dealer.createdAt)}</td>
-                      <td className="px-2 py-2 border border-gray-200 text-sm text-gray-500 text-center">{formatDateTime(dealer.lastLoginAt)}</td>
-                      <td className="px-2 py-2 border border-gray-200 text-sm text-gray-500 text-center">{dealer.employees.length}명</td>
+                      <td className="px-2 py-2 border border-gray-200 text-sm text-gray-500 text-center whitespace-nowrap">{formatDate(dealer.createdAt)}</td>
+                      <td className="px-2 py-2 border border-gray-200 text-sm text-gray-500 text-center whitespace-nowrap">{dealer.employees.length}명</td>
                       <td className="px-2 py-2 border border-gray-200">
                         <div className="flex items-center justify-center">
                           <button 
@@ -857,36 +878,9 @@ export default function DealersPage() {
           </table>
         </div>
 
-        <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
+        <div className="px-6 py-4 border-t border-gray-100">
           <div className="text-sm text-gray-500">
             총 {filteredDealers.length}명
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-              disabled={currentPage === 1}
-              className="p-2 border border-gray-100 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed bg-white"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-              <button
-                key={page}
-                onClick={() => setCurrentPage(page)}
-                className={`px-3 py-1.5 text-sm font-medium transition-colors ${
-                  currentPage === page ? 'bg-gray-700 text-white' : 'text-gray-600 hover:bg-gray-100'
-                }`}
-              >
-                {page}
-              </button>
-            ))}
-            <button
-              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-              disabled={currentPage === totalPages || totalPages === 0}
-              className="p-2 border border-gray-100 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed bg-white"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
           </div>
         </div>
       </div>

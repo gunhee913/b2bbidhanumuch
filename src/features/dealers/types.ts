@@ -7,6 +7,8 @@ export interface DealerRow {
   id: string;
   dealer_no: string;
   name: string;
+  representative_name: string | null;
+  business_no: string | null;
   phone: string;
   password_hash: string;
   auction_password_hash: string;
@@ -35,6 +37,8 @@ export interface Dealer {
   id: string;
   dealerNo: string;
   name: string;
+  representativeName: string | null;
+  businessNo: string | null;
   phone: string;
   address: string | null;
   status: 'active' | 'inactive';
@@ -60,6 +64,8 @@ export interface DealerEmployee {
 export interface CreateDealerInput {
   dealerNo: string;
   name: string;
+  representativeName?: string;
+  businessNo?: string;
   phone: string;
   password: string;
   auctionPassword: string;
@@ -81,6 +87,8 @@ export interface CreateDealerEmployeeInput {
 // 수정용 타입
 export interface UpdateDealerInput {
   name?: string;
+  representativeName?: string;
+  businessNo?: string;
   phone?: string;
   password?: string;
   auctionPassword?: string;
@@ -109,6 +117,8 @@ export function toDealerFromRow(row: DealerRow): Dealer {
     id: row.id,
     dealerNo: row.dealer_no,
     name: row.name,
+    representativeName: row.representative_name,
+    businessNo: row.business_no,
     phone: row.phone,
     address: row.address,
     status: row.status,

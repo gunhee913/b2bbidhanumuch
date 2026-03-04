@@ -44,9 +44,9 @@ export default function ProfilePage() {
   // 세션에서 정보 추출
   const userName = session?.user?.name || '사용자';
   const userPhone = session?.user?.phone || '';
-  const userRole = session?.user?.role === 'employee' ? '직원' : '중도매인';
+  const userRole = '중도매인';
   const dealerNo = session?.dealer?.dealerNo || '';
-  const displayNo = dealerNo.slice(-2) || '00'; // 마지막 2자리
+  const displayNo = dealerNo ? String(parseInt(dealerNo, 10) - 7000000) : '0';
 
   return (
     <div className="fixed inset-0 bg-white flex justify-center items-center z-[9999] overflow-hidden">

@@ -12,7 +12,7 @@ export async function PATCH(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { name, phone, password, auctionPassword, address, status } = body;
+    const { name, representativeName, businessNo, phone, password, auctionPassword, address, status } = body;
 
     const supabase = await createPureClient();
 
@@ -31,6 +31,8 @@ export async function PATCH(
 
     const updateData: Record<string, unknown> = {};
     if (name !== undefined) updateData.name = name;
+    if (representativeName !== undefined) updateData.representative_name = representativeName;
+    if (businessNo !== undefined) updateData.business_no = businessNo;
     if (phone !== undefined) updateData.phone = phone;
     if (address !== undefined) updateData.address = address;
     if (status !== undefined) updateData.status = status;
@@ -64,6 +66,8 @@ export async function PATCH(
       id: data.id,
       dealerNo: data.dealer_no,
       name: data.name,
+      representativeName: data.representative_name,
+      businessNo: data.business_no,
       phone: data.phone,
       address: data.address,
       status: data.status,

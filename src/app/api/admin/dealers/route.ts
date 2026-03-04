@@ -48,6 +48,8 @@ export async function GET() {
         id: row.id,
         dealerNo: row.dealer_no,
         name: row.name,
+        representativeName: row.representative_name,
+        businessNo: row.business_no,
         phone: row.phone,
         address: row.address,
         status: row.status,
@@ -68,7 +70,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { dealerNo, name, phone, password, auctionPassword, address, status } = body;
+    const { dealerNo, name, representativeName, businessNo, phone, password, auctionPassword, address, status } = body;
 
     if (!dealerNo || !name || !phone || !password || !auctionPassword) {
       return NextResponse.json({ error: '필수 항목을 입력해주세요.' }, { status: 400 });
@@ -95,6 +97,8 @@ export async function POST(request: NextRequest) {
       .insert({
         dealer_no: dealerNo,
         name,
+        representative_name: representativeName || null,
+        business_no: businessNo || null,
         phone,
         password_hash: passwordHash,
         auction_password_hash: auctionPasswordHash,
@@ -122,6 +126,8 @@ export async function POST(request: NextRequest) {
       id: data.id,
       dealerNo: data.dealer_no,
       name: data.name,
+      representativeName: data.representative_name,
+      businessNo: data.business_no,
       phone: data.phone,
       address: data.address,
       status: data.status,
