@@ -216,11 +216,25 @@ function AuctionPageContent() {
     };
   }, []);
   
-  // 회차별 경매 정보 폴링 (5초 간격)
+  // 활성 경매일 (API에서 가져옴)
+  const [activeDate, setActiveDate] = useState(() => format(new Date(), 'yyyy-MM-dd'));
+  const [activeDateReady, setActiveDateReady] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/active-auction-date')
+      .then(res => res.json())
+      .then(data => {
+        if (data.date) setActiveDate(data.date);
+      })
+      .catch(() => {})
+      .finally(() => setActiveDateReady(true));
+  }, []);
+
+  // 회차별 경매 정보 폴링 (5초 간격, activeDate 기준)
   useEffect(() => {
     const fetchRoundInfo = async () => {
       try {
-        const res = await fetch('/api/auctions/rounds/current');
+        const res = await fetch(`/api/auctions/rounds/current?date=${activeDate}`);
         if (res.ok) {
           const data = await res.json();
           setRoundInfo(data);
@@ -230,7 +244,7 @@ function AuctionPageContent() {
     fetchRoundInfo();
     const interval = setInterval(fetchRoundInfo, 5000);
     return () => clearInterval(interval);
-  }, []);
+  }, [activeDate]);
 
   // 타이머 계산 (회차 기반)
   useEffect(() => {
@@ -380,16 +394,13 @@ function AuctionPageContent() {
   // 경매 상품 데이터 (공통 상수에서 가져옴)
   const products = AUCTION_PRODUCTS;
 
-  // 오늘 날짜 (API 호출용)
-  const todayStr = useMemo(() => format(new Date(), 'yyyy-MM-dd'), []);
-
-  // 승인된 상장 목록 조회 (DB 연동)
+  // 승인된 상장 목록 조회 (활성 경매일 확정 후)
   const { data: listingsData, isLoading: isListingsLoading, refetch: refetchListings } = useListings({
     status: 'approved,auction,closed' as any,
-    listingDateFrom: todayStr,
-    listingDateTo: todayStr,
+    listingDateFrom: activeDate,
+    listingDateTo: activeDate,
     includeParts: true,
-  });
+  }, { enabled: activeDateReady });
   
   // 실시간 입찰 변경 구독 (Optimistic Update)
   // payload가 있으면 캐시에서 이미 업데이트됨, 없으면(DELETE) refetch

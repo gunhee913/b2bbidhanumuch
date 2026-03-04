@@ -54,13 +54,14 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    // 진행중인 회차가 없는 경우: 오늘 날짜의 회차 정보를 반환
+    // 진행중인 회차가 없는 경우: 지정 날짜(또는 오늘)의 회차 정보를 반환
     if (!currentRound) {
-      const today = format(new Date(), 'yyyy-MM-dd');
+      const dateParam = searchParams.get('date');
+      const targetDate = dateParam || format(new Date(), 'yyyy-MM-dd');
       const { data: todayRounds } = await supabase
         .from('auctions')
         .select('id, round_no, status, started_at, ended_at, session_id, start_time, end_time, round_duration_min, started_by, ended_by')
-        .eq('auction_date', today)
+        .eq('auction_date', targetDate)
         .not('round_no', 'is', null)
         .order('round_no', { ascending: true });
 

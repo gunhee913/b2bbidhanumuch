@@ -56,6 +56,18 @@ export default function AuctionLivePage() {
   
   // 조회 날짜 상태
   const [selectedDate, setSelectedDate] = useState(todayStr);
+  const [maxSelectableDate, setMaxSelectableDate] = useState(todayStr);
+
+  // 상장이 등록된 최대 날짜 조회 (미래 날짜 선택 가능하게)
+  useEffect(() => {
+    fetch('/api/listings/max-date')
+      .then(res => res.ok ? res.json() : { date: todayStr })
+      .then(data => {
+        const maxDate = data.date && data.date > todayStr ? data.date : todayStr;
+        setMaxSelectableDate(maxDate);
+      })
+      .catch(() => {});
+  }, [todayStr]);
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
   const [companyFilter, setCompanyFilter] = useState('all');
   const [bidFilter, setBidFilter] = useState('all');
@@ -100,6 +112,8 @@ export default function AuctionLivePage() {
 
   // 오늘 날짜인지 확인
   const isToday = selectedDate === todayStr;
+  // 선택된 날짜가 오늘 이후(미래)이거나 오늘인지 → 경매 시작 가능 여부
+  const canStartAuction = selectedDate >= todayStr;
 
   // --- 경매 관련 ---
   const [isClosingRound, setIsClosingRound] = useState(false);
@@ -107,11 +121,11 @@ export default function AuctionLivePage() {
   const [isStartingAuction, setIsStartingAuction] = useState(false);
   const [auctionDurationMin, setAuctionDurationMin] = useState<number | ''>(20);
 
-  // 현재 회차 조회 (5초 간격)
+  // 현재 회차 조회 (5초 간격, selectedDate 기준)
   const { data: roundData, refetch: refetchRound } = useQuery({
-    queryKey: ['rounds', 'current'],
+    queryKey: ['rounds', 'current', selectedDate],
     queryFn: async () => {
-      const res = await fetch('/api/auctions/rounds/current');
+      const res = await fetch(`/api/auctions/rounds/current?date=${selectedDate}`);
       if (!res.ok) return null;
       return res.json();
     },
@@ -177,7 +191,7 @@ export default function AuctionLivePage() {
   // API Hooks - 경매 없이 승인된 상장 직접 조회
   const { data: liveData, isLoading, refetch } = useLiveListings(
     { listingDate: selectedDate },
-    { refetchInterval: isToday ? 5000 : false } // 오늘이면 5초마다 새로고침
+    { refetchInterval: canStartAuction ? 5000 : false } // 오늘 이후면 5초마다 새로고침
   );
   const { data: companiesData } = useCompanies();
 
@@ -404,6 +418,15 @@ export default function AuctionLivePage() {
       } else {
         alert('마감이 완료되었습니다.');
       }
+
+      // 최대 선택 가능 날짜 갱신
+      fetch('/api/listings/max-date')
+        .then(res => res.ok ? res.json() : { date: todayStr })
+        .then(data => {
+          const maxDate = data.date && data.date > todayStr ? data.date : todayStr;
+          setMaxSelectableDate(maxDate);
+        })
+        .catch(() => {});
     } catch (error: any) {
       alert(error.message || '마감 처리 중 오류 발생');
     }
@@ -621,7 +644,7 @@ export default function AuctionLivePage() {
               type="date"
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
-              max={todayStr}
+              max={maxSelectableDate}
               className="px-3 py-1.5 border border-gray-200 text-xs outline-none bg-white"
             />
           </div>
@@ -810,10 +833,10 @@ export default function AuctionLivePage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <span className="text-sm text-gray-600">
-                {isToday ? '경매가 아직 시작되지 않았습니다.' : `${selectedDate} 경매 현황`}
+                {canStartAuction ? '경매가 아직 시작되지 않았습니다.' : `${selectedDate} 경매 현황`}
               </span>
             </div>
-            {isToday && (
+            {canStartAuction && (
               <div className="flex items-center gap-2">
                 <div className="flex items-center gap-1.5">
                   <input

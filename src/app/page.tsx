@@ -69,12 +69,6 @@ function MainPageContent() {
   // hydration 완료 여부
   const [isHydrated, setIsHydrated] = useState(false);
   
-  // 앱 로드 시 오래된 입찰 데이터 정리 및 hydration 완료 표시
-  useEffect(() => {
-    cleanOldBids();
-    setIsHydrated(true);
-  }, [cleanOldBids]);
-  
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isBalanceVisible, setIsBalanceVisible] = useState(false);
   const [activeTab, setActiveTab] = useState(() => {
@@ -90,6 +84,29 @@ function MainPageContent() {
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [activeDateLoaded, setActiveDateLoaded] = useState(false);
+
+  // 앱 로드 시 오래된 입찰 데이터 정리 및 hydration 완료 표시
+  useEffect(() => {
+    cleanOldBids();
+    setIsHydrated(true);
+  }, [cleanOldBids]);
+
+  // 활성 경매일 기준으로 초기 날짜 설정
+  useEffect(() => {
+    if (!activeDateLoaded) {
+      fetch('/api/active-auction-date')
+        .then(res => res.json())
+        .then(data => {
+          if (data.date) {
+            const [y, m, d] = data.date.split('-').map(Number);
+            setSelectedDate(new Date(y, m - 1, d));
+          }
+        })
+        .catch(() => {})
+        .finally(() => setActiveDateLoaded(true));
+    }
+  }, [activeDateLoaded]);
   const [toastType, setToastType] = useState<'warning' | 'success'>('success');
   const [selectedGrades, setSelectedGrades] = useState<string[]>([]);
   const [selectedCompanies, setSelectedCompanies] = useState<string[]>([]);
@@ -110,13 +127,13 @@ function MainPageContent() {
     return format(selectedDate, 'yyyy-MM-dd');
   }, [selectedDate]);
 
-  // 상장 목록 조회 (DB 연동)
+  // 상장 목록 조회 (활성 경매일 확정 후 조회)
   const { data: listingsData, isLoading: isListingsLoading, refetch: refetchListings } = useListings({
     status: 'approved,auction,closed,completed' as any,
     listingDateFrom: selectedDateStr,
     listingDateTo: selectedDateStr,
     includeParts: true,
-  });
+  }, { enabled: activeDateLoaded });
   
   // 실시간 입찰 변경 구독 (Optimistic Update)
   // payload가 있으면 캐시에서 이미 업데이트됨, 없으면(DELETE) refetch
@@ -135,11 +152,11 @@ function MainPageContent() {
     enabled: true,
   });
 
-  // 회차별 경매 정보 (폴링 5초)
+  // 회차별 경매 정보 (폴링 5초, selectedDate 기준)
   const { data: roundData } = useQuery({
-    queryKey: ['rounds', 'current'],
+    queryKey: ['rounds', 'current', selectedDateStr],
     queryFn: async () => {
-      const res = await fetch('/api/auctions/rounds/current');
+      const res = await fetch(`/api/auctions/rounds/current?date=${selectedDateStr}`);
       if (!res.ok) return null;
       return res.json();
     },

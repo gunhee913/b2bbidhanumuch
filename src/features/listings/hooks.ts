@@ -33,10 +33,11 @@ export const listingKeys = {
 };
 
 // 상장 목록 조회 훅
-export function useListings(filter?: ListingFilter & { includeParts?: boolean }) {
+export function useListings(filter?: ListingFilter & { includeParts?: boolean }, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: listingKeys.list(filter),
     queryFn: () => fetchListings(filter),
+    enabled: options?.enabled !== false,
   });
 }
 

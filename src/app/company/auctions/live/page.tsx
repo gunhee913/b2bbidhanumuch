@@ -77,11 +77,11 @@ export default function CompanyAuctionLivePage() {
     setSearchDate(selectedDate);
   };
 
-  // 경매 회차 정보 조회 (5초 간격)
+  // 경매 회차 정보 조회 (5초 간격, searchDate 기준)
   const { data: roundData } = useQuery({
-    queryKey: ['rounds', 'current'],
+    queryKey: ['rounds', 'current', searchDate],
     queryFn: async () => {
-      const res = await fetch('/api/auctions/rounds/current');
+      const res = await fetch(`/api/auctions/rounds/current?date=${searchDate}`);
       if (!res.ok) return null;
       return res.json();
     },

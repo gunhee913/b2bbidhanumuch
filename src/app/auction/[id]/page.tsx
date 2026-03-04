@@ -816,11 +816,12 @@ function AuctionDetailContent({ params }: PageProps) {
 
 
 
-  // 회차별 경매 정보 폴링 (5초 간격)
+  // 회차별 경매 정보 폴링 (5초 간격, 상장일 기준)
+  const listingDateStr = (listingData as any)?.listingDate || format(new Date(), 'yyyy-MM-dd');
   useEffect(() => {
     const fetchRoundInfo = async () => {
       try {
-        const res = await fetch('/api/auctions/rounds/current');
+        const res = await fetch(`/api/auctions/rounds/current?date=${listingDateStr}`);
         if (res.ok) {
           const data = await res.json();
           setRoundInfo(data);
@@ -830,7 +831,7 @@ function AuctionDetailContent({ params }: PageProps) {
     fetchRoundInfo();
     const interval = setInterval(fetchRoundInfo, 5000);
     return () => clearInterval(interval);
-  }, []);
+  }, [listingDateStr]);
 
   // 자동 마감 처리용 ref (중복 호출 방지)
   const closingRoundRef = useRef<string | null>(null);
@@ -878,7 +879,7 @@ function AuctionDetailContent({ params }: PageProps) {
     const autoClose = async () => {
       try {
         await fetch(`/api/auctions/${cr.id}/close`, { method: 'POST' });
-        const res = await fetch('/api/auctions/rounds/current');
+        const res = await fetch(`/api/auctions/rounds/current?date=${listingDateStr}`);
         if (res.ok) setRoundInfo(await res.json());
       } catch {
         closingRoundRef.current = null;
