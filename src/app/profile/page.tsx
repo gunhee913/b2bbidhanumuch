@@ -1,10 +1,14 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSession, signOut } from 'next-auth/react';
+import { useQuery } from '@tanstack/react-query';
+import { format } from 'date-fns';
+import { ko } from 'date-fns/locale';
 import { 
   ChevronRight,
+  ChevronDown,
   Bell,
   Loader2,
 } from 'lucide-react';
@@ -32,6 +36,32 @@ export default function ProfilePage() {
     await signOut({ callbackUrl: '/login' });
   };
 
+  const { data: noticeList = [] } = useQuery<any[]>({
+    queryKey: ['profile-notices'],
+    queryFn: async () => {
+      const res = await fetch('/api/notices?target=dealer&limit=5');
+      if (!res.ok) return [];
+      return res.json();
+    },
+  });
+
+  const { data: companyInfo } = useQuery<{
+    name: string;
+    representative: string;
+    phone: string;
+    fax: string;
+    businessNumber: string;
+    ecommerceNumber: string;
+    address: string;
+  }>({
+    queryKey: ['company-info'],
+    queryFn: async () => {
+      const res = await fetch('/api/company-info');
+      if (!res.ok) return { name: '농협 중부미트센터', representative: '', phone: '', fax: '', businessNumber: '', ecommerceNumber: '', address: '' };
+      return res.json();
+    },
+  });
+
   // 로딩 상태
   if (status === 'loading') {
     return (
@@ -44,7 +74,7 @@ export default function ProfilePage() {
   // 세션에서 정보 추출
   const userName = session?.user?.name || '사용자';
   const userPhone = session?.user?.phone || '';
-  const userRole = '중도매인';
+  const userRole = (session as any)?.employee?.role || '중도매인';
   const dealerNo = session?.dealer?.dealerNo || '';
   const displayNo = dealerNo ? String(parseInt(dealerNo, 10) - 7000000) : '0';
 
@@ -126,32 +156,34 @@ export default function ProfilePage() {
                   </Link>
                 </div>
                 <div className="pb-1">
-                  <Link href="/notice/1" className="flex items-center justify-between px-4 py-2.5 hover:bg-gray-200 transition-colors">
-                    <span className="text-sm text-gray-900 truncate flex-1">1월 경매 일정 안내드립니다.</span>
-                    <span className="text-xs text-gray-400 ml-3 flex-shrink-0">01.26</span>
-                  </Link>
-                  <Link href="/notice/2" className="flex items-center justify-between px-4 py-2.5 hover:bg-gray-200 transition-colors">
-                    <span className="text-sm text-gray-900 truncate flex-1">설 연휴 경매장 운영 안내</span>
-                    <span className="text-xs text-gray-400 ml-3 flex-shrink-0">01.24</span>
-                  </Link>
-                  <Link href="/notice/3" className="flex items-center justify-between px-4 py-2.5 hover:bg-gray-200 transition-colors">
-                    <span className="text-sm text-gray-900 truncate flex-1">2026년 1월 시세 동향 안내</span>
-                    <span className="text-xs text-gray-400 ml-3 flex-shrink-0">01.20</span>
-                  </Link>
-                  <Link href="/notice/4" className="flex items-center justify-between px-4 py-2.5 hover:bg-gray-200 transition-colors">
-                    <span className="text-sm text-gray-900 truncate flex-1">앱 업데이트 안내 (v1.2.0)</span>
-                    <span className="text-xs text-gray-400 ml-3 flex-shrink-0">01.15</span>
-                  </Link>
-                  <Link href="/notice/5" className="flex items-center justify-between px-4 py-2.5 hover:bg-gray-200 transition-colors">
-                    <span className="text-sm text-gray-900 truncate flex-1">정산 계좌 변경 안내</span>
-                    <span className="text-xs text-gray-400 ml-3 flex-shrink-0">01.10</span>
-                  </Link>
+                  {noticeList.length > 0 ? noticeList.map((n: any) => {
+                    const isNew = (Date.now() - new Date(n.createdAt).getTime()) < 3 * 24 * 60 * 60 * 1000;
+                    return (
+                      <Link key={n.id} href={`/notice/${n.id}`} className="flex items-center justify-between px-4 py-2.5 hover:bg-gray-200 transition-colors">
+                        <span className="text-sm text-gray-900 truncate flex-1 flex items-center gap-1">
+                          {n.title}
+                          {isNew && <span className="text-[10px] font-bold text-red-500 flex-shrink-0">New</span>}
+                        </span>
+                        <span className="text-xs text-gray-400 ml-3 flex-shrink-0">
+                          {format(new Date(n.createdAt), 'MM.dd(EEE)', { locale: ko })}
+                        </span>
+                      </Link>
+                    );
+                  }) : (
+                    <div className="px-4 py-3 text-sm text-gray-400">등록된 공지사항이 없습니다.</div>
+                  )}
                 </div>
               </div>
 
               {/* 메뉴 섹션 */}
-              <div className="mt-3">
+              <div className="mt-3 pb-4">
                 <div className="my-4 border-t border-gray-200"></div>
+                {/* 경매내역 */}
+                <Link href="/bids?tab=경매결과" className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-gray-50 transition-colors">
+                  <span className="text-sm text-gray-900">경매내역</span>
+                  <ChevronRight className="w-5 h-5 text-gray-400" />
+                </Link>
+
                 {/* 잔고내역 */}
                 <Link href="/profile/balance" className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-gray-50 transition-colors">
                   <span className="text-sm text-gray-900">잔고내역</span>
@@ -176,23 +208,8 @@ export default function ProfilePage() {
                   <ChevronRight className="w-5 h-5 text-gray-400" />
                 </Link>
 
-                {/* 고객센터 */}
-                <div className="w-full px-4 py-3.5">
-                  <span className="text-sm text-gray-900">농협 중부미트센터</span>
-                  <div className="mt-2 flex flex-col gap-1.5">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-500">전화</span>
-                      <a href="tel:031-123-4567" className="text-sm text-gray-700 hover:text-gray-900">031-123-4567</a>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-500">팩스</span>
-                      <span className="text-sm text-gray-700">031-123-4568</span>
-                    </div>
-                  </div>
-                </div>
-
                 {/* 로그아웃 */}
-                <div className="my-2 border-t border-gray-200"></div>
+                <div className="my-4 border-t border-gray-200"></div>
                 <button 
                   onClick={handleLogout}
                   className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-gray-50 transition-colors"
@@ -201,12 +218,59 @@ export default function ProfilePage() {
                 </button>
               </div>
 
+              {/* 풋터 - 사업자 정보 */}
+              <ProfileFooter companyInfo={companyInfo} />
+
             </div>
 
             {/* 하단 네비게이션 */}
             <BottomNav />
           </div>
         </div>
+    </div>
+  );
+}
+
+function ProfileFooter({ companyInfo }: { companyInfo: any }) {
+  const [open, setOpen] = useState(false);
+  const year = new Date().getFullYear();
+
+  const infoRows = [
+    { label: '상호', value: companyInfo?.name },
+    { label: '대표', value: companyInfo?.representative },
+    { label: '주소', value: companyInfo?.address },
+    { label: '사업자등록번호', value: companyInfo?.businessNumber },
+    { label: '통신판매번호', value: companyInfo?.ecommerceNumber },
+    { label: '전화', value: companyInfo?.phone },
+    { label: '팩스', value: companyInfo?.fax },
+  ].filter(r => r.value);
+
+  return (
+    <div className="bg-gray-50 border-t border-gray-200 px-4 py-8">
+      <div className="flex justify-center">
+        <button
+          onClick={() => setOpen(prev => !prev)}
+          className="flex items-center gap-1 text-xs font-medium text-gray-500"
+        >
+          사업자 정보
+          <ChevronDown className={`w-3.5 h-3.5 transition-transform ${open ? 'rotate-180' : ''}`} />
+        </button>
+      </div>
+
+      {open && (
+        <div className="mt-4 space-y-2.5">
+          {infoRows.map(({ label, value }) => (
+            <div key={label} className="flex gap-4 text-[11px]">
+              <span className="text-gray-400 whitespace-nowrap w-20">{label}</span>
+              <span className="text-gray-500">{value}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <p className="mt-6 text-[10px] text-gray-400 text-center">
+        © {year} (주)농협경제지주. All rights reserved.
+      </p>
     </div>
   );
 }

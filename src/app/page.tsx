@@ -597,7 +597,6 @@ function MainPageContent() {
             {/* 메인 콘텐츠 */}
             <div className="flex-1 min-h-0 overflow-y-auto bg-white dark:bg-gray-900 transition-colors">
 
-
               {/* 내 잔고 링크 */}
               <Link 
                 href="/profile/balance?from=main"

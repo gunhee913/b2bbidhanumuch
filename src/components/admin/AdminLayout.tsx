@@ -19,6 +19,7 @@ import {
   Wallet,
   Menu,
   X,
+  Megaphone,
 } from 'lucide-react';
 
 interface AdminLayoutProps {
@@ -101,6 +102,17 @@ const menuItems = [
     ],
   },
   {
+    title: '고객센터 관리',
+    href: '/admin/content',
+    icon: Megaphone,
+    subItems: [
+      { title: '공지사항 관리', href: '/admin/notices' },
+      { title: '이용약관 관리', href: '/admin/content/terms' },
+      { title: '개인정보처리방침 관리', href: '/admin/content/privacy' },
+      { title: '사업장 정보 관리', href: '/admin/content/company-info' },
+    ],
+  },
+  {
     title: '설정',
     href: '/admin/settings',
     icon: Settings,
@@ -115,7 +127,6 @@ const menuItems = [
 const getInitialExpandedMenus = (currentPathname: string) => {
   const openMenus: string[] = [];
   
-  // 대시보드는 최상위 메뉴이므로 하위 메뉴 열기에서 제외
   if (currentPathname === '/admin') {
     return openMenus;
   }
@@ -123,7 +134,6 @@ const getInitialExpandedMenus = (currentPathname: string) => {
   menuItems.forEach(item => {
     if (item.subItems) {
       const isSubItemActive = item.subItems.some(subItem => currentPathname.startsWith(subItem.href));
-      // 정산설정 경로일 때 정산관리 메뉴는 열지 않음 (설정 메뉴만 열림)
       if (currentPathname === '/admin/settlements/settings' && item.href === '/admin/settlements') {
         return;
       }

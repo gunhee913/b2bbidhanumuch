@@ -1,0 +1,1 @@
+ALTER TABLE company_info ADD COLUMN IF NOT EXISTS business_number VARCHAR(20) NOT NULL DEFAULT '';

@@ -72,11 +72,10 @@ export function useAuctionAuth(): UseAuctionAuthReturn {
   }, [update, pendingAction]);
 
   const requireAuctionAuth = useCallback((onSuccess: () => void) => {
-    if (isVerified) {
-      // 이미 인증됨 - 바로 실행
+    const enabled = typeof window !== 'undefined' && localStorage.getItem('auctionPasswordEnabled') === 'true';
+    if (!enabled || isVerified) {
       onSuccess();
     } else {
-      // 인증 필요 - 모달 표시
       setPendingAction(() => onSuccess);
       setShowModal(true);
     }

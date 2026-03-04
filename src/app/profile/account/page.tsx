@@ -5,15 +5,11 @@ import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import { 
   ChevronLeft,
-  ChevronRight,
   User,
   Phone,
   Lock,
-  Fingerprint,
-  KeyRound,
   Settings,
   Bell,
-  Camera,
   Gavel,
   Loader2,
 } from 'lucide-react';
@@ -22,8 +18,12 @@ import BottomNav from '@/components/BottomNav';
 export default function AccountPage() {
   const { data: session, status } = useSession();
 
-  const [biometricEnabled, setBiometricEnabled] = useState(false);
   const [auctionPasswordEnabled, setAuctionPasswordEnabled] = useState(false);
+
+  useEffect(() => {
+    const saved = localStorage.getItem('auctionPasswordEnabled');
+    if (saved === 'true') setAuctionPasswordEnabled(true);
+  }, []);
 
   // 동적 viewport 높이 설정
   useEffect(() => {
@@ -40,6 +40,12 @@ export default function AccountPage() {
     };
   }, []);
 
+  const handleToggleAuctionPassword = () => {
+    const next = !auctionPasswordEnabled;
+    setAuctionPasswordEnabled(next);
+    localStorage.setItem('auctionPasswordEnabled', String(next));
+  };
+
   // 로딩 상태
   if (status === 'loading') {
     return (
@@ -52,7 +58,7 @@ export default function AccountPage() {
   // 세션에서 정보 추출
   const userName = session?.user?.name || '사용자';
   const userPhone = session?.user?.phone || '';
-  const userRole = session?.user?.role === 'employee' ? '직원' : '중도매인';
+  const userRole = (session as any)?.employee?.role || '중도매인';
   const dealerNo = session?.dealer?.dealerNo || '';
   const dealerName = session?.dealer?.name || '';
   const dealerAddress = session?.dealer?.address || '';
@@ -126,12 +132,8 @@ export default function AccountPage() {
                 <div className="w-20 h-20 rounded-full bg-gray-300 flex items-center justify-center text-white text-2xl font-bold overflow-hidden">
                   {displayNo}
                 </div>
-                <button className="absolute bottom-0 right-0 w-7 h-7 bg-gray-800 rounded-full flex items-center justify-center border-2 border-white">
-                  <Camera className="w-3.5 h-3.5 text-white" />
-                </button>
               </div>
               <p className="mt-3 text-base font-bold text-gray-900">{userName}</p>
-              <p className="text-sm text-gray-500">{displayNo}번 {userRole}</p>
               {session?.user?.role === 'employee' && (
                 <p className="text-xs text-gray-400 mt-1">소속: {dealerName}</p>
               )}
@@ -228,31 +230,12 @@ export default function AccountPage() {
                   <span className="text-xs text-gray-400">관리자에게 문의</span>
                 </div>
                 
-                <button className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-gray-50 transition-colors">
+                <div className="w-full flex items-center justify-between px-4 py-3.5">
                   <div className="flex items-center gap-3">
-                    <KeyRound className="w-5 h-5 text-gray-400" />
-                    <span className="text-sm text-gray-900">PIN 설정</span>
+                    <Gavel className="w-5 h-5 text-gray-400" />
+                    <span className="text-sm text-gray-900">경매 비밀번호 변경</span>
                   </div>
-                  <ChevronRight className="w-5 h-5 text-gray-400" />
-                </button>
-                
-                <div className="flex items-center justify-between px-4 py-3.5">
-                  <div className="flex items-center gap-3">
-                    <Fingerprint className="w-5 h-5 text-gray-400" />
-                    <span className="text-sm text-gray-900">생체 인증</span>
-                  </div>
-                  <button
-                    onClick={() => setBiometricEnabled(!biometricEnabled)}
-                    className={`relative w-11 h-6 rounded-full transition-colors ${
-                      biometricEnabled ? 'bg-gray-900' : 'bg-gray-300'
-                    }`}
-                  >
-                    <div
-                      className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
-                        biometricEnabled ? 'translate-x-5' : 'translate-x-0'
-                      }`}
-                    />
-                  </button>
+                  <span className="text-xs text-gray-400">관리자에게 문의</span>
                 </div>
                 
                 <div className="flex items-center justify-between px-4 py-3.5">
@@ -261,7 +244,7 @@ export default function AccountPage() {
                     <span className="text-sm text-gray-900">경매 비밀번호 사용</span>
                   </div>
                   <button
-                    onClick={() => setAuctionPasswordEnabled(!auctionPasswordEnabled)}
+                    onClick={handleToggleAuctionPassword}
                     className={`relative w-11 h-6 rounded-full transition-colors ${
                       auctionPasswordEnabled ? 'bg-gray-900' : 'bg-gray-300'
                     }`}
@@ -272,14 +255,6 @@ export default function AccountPage() {
                       }`}
                     />
                   </button>
-                </div>
-                
-                <div className="w-full flex items-center justify-between px-4 py-3.5">
-                  <div className="flex items-center gap-3">
-                    <Gavel className="w-5 h-5 text-gray-400" />
-                    <span className="text-sm text-gray-900">경매 비밀번호 변경</span>
-                  </div>
-                  <span className="text-xs text-gray-400">관리자에게 문의</span>
                 </div>
               </div>
             </div>
