@@ -16,19 +16,6 @@ export async function PATCH(
 
     const supabase = await createPureClient();
 
-    // 전화번호 변경 시 직원 테이블에서도 중복 체크
-    if (phone !== undefined) {
-      const { data: existingEmployee } = await supabase
-        .from('dealer_employees')
-        .select('id')
-        .eq('phone', phone)
-        .single();
-
-      if (existingEmployee) {
-        return NextResponse.json({ error: '이미 등록된 전화번호입니다.' }, { status: 409 });
-      }
-    }
-
     const updateData: Record<string, unknown> = {};
     if (name !== undefined) updateData.name = name;
     if (representativeName !== undefined) updateData.representative_name = representativeName;

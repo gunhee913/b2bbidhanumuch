@@ -78,17 +78,6 @@ export async function POST(request: NextRequest) {
 
     const supabase = await createPureClient();
 
-    // 직원 테이블에서도 전화번호 중복 체크
-    const { data: existingEmployee } = await supabase
-      .from('dealer_employees')
-      .select('id')
-      .eq('phone', phone)
-      .single();
-
-    if (existingEmployee) {
-      return NextResponse.json({ error: '이미 등록된 전화번호입니다.' }, { status: 409 });
-    }
-
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
     const auctionPasswordHash = await bcrypt.hash(auctionPassword, SALT_ROUNDS);
 

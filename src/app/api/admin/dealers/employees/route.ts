@@ -16,17 +16,6 @@ export async function POST(request: NextRequest) {
 
     const supabase = await createPureClient();
 
-    // 중도매인 테이블에서도 전화번호 중복 체크
-    const { data: existingDealer } = await supabase
-      .from('dealers')
-      .select('id')
-      .eq('phone', phone)
-      .single();
-
-    if (existingDealer) {
-      return NextResponse.json({ error: '이미 등록된 전화번호입니다.' }, { status: 409 });
-    }
-
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
 
     const { data, error } = await supabase

@@ -7,7 +7,8 @@ import { AdminRow, toAdminFromRow, Admin } from './types';
 // 관리자 로그인 인증
 export async function verifyAdminCredentials(
   phone: string,
-  password: string
+  password: string,
+  loginIp?: string
 ): Promise<{ admin: Admin } | null> {
   const supabase = await createPureClient();
 
@@ -31,10 +32,13 @@ export async function verifyAdminCredentials(
     return null;
   }
 
-  // 최근 로그인 시간 업데이트
+  // 최근 로그인 시간 및 IP 업데이트
   await supabase
     .from('admins')
-    .update({ last_login_at: new Date().toISOString() })
+    .update({
+      last_login_at: new Date().toISOString(),
+      ...(loginIp && { last_login_ip: loginIp }),
+    })
     .eq('id', admin.id);
 
   return {

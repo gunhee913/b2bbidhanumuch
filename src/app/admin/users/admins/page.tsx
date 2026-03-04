@@ -81,13 +81,11 @@ export default function AdminsPage() {
   const formatDateTime = (dateString: string | null) => {
     if (!dateString) return '-';
     const date = new Date(dateString);
-    return date.toLocaleString('ko-KR', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-    }).replace(/\. /g, '.').replace(/\.$/, '');
+    const datePart = date.toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' })
+      .replace(/\. /g, '-').replace('.', '');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${datePart} ${hours}:${minutes}`;
   };
 
   // 수정 인라인 열기
@@ -442,7 +440,12 @@ export default function AdminsPage() {
                       <td className="px-2 py-2 border border-gray-200 text-sm text-gray-600 text-center">••••</td>
                       <td className="px-2 py-2 border border-gray-200 text-sm text-gray-900 text-center">{getRoleText(admin.role)}</td>
                       <td className="px-2 py-2 border border-gray-200 text-sm text-gray-500 text-center">{formatDate(admin.createdAt)}</td>
-                      <td className="px-2 py-2 border border-gray-200 text-sm text-gray-500 text-center">{formatDateTime(admin.lastLoginAt)}</td>
+                      <td className="px-2 py-2 border border-gray-200 text-center">
+                        <div className="text-sm text-gray-500">{formatDateTime(admin.lastLoginAt)}</div>
+                        {admin.lastLoginIp && (
+                          <div className="text-[10px] text-gray-400">{admin.lastLoginIp}</div>
+                        )}
+                      </td>
                       <td className="px-2 py-2 border border-gray-200">
                         <div className="flex items-center justify-center">
                           <button 

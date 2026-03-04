@@ -10,6 +10,7 @@ export interface AdminRow {
   status: 'active' | 'inactive';
   created_at: string;
   last_login_at: string | null;
+  last_login_ip: string | null;
 }
 
 // 클라이언트용 관리자 타입 (비밀번호 해시 제외)
@@ -23,6 +24,7 @@ export interface Admin {
   status: 'active' | 'inactive';
   createdAt: string;
   lastLoginAt: string | null;
+  lastLoginIp: string | null;
 }
 
 // 관리자 생성 Input
@@ -59,5 +61,6 @@ export function toAdminFromRow(row: AdminRow): Admin {
     status: row.status,
     createdAt: row.created_at,
     lastLoginAt: row.last_login_at,
+    lastLoginIp: row.last_login_ip,
   };
 }

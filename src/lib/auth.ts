@@ -54,14 +54,18 @@ export const authOptions: NextAuthOptions = {
         phone: { label: "전화번호", type: "text", placeholder: "010-0000-0000" },
         password: { label: "비밀번호", type: "password" },
       },
-      async authorize(credentials) {
+      async authorize(credentials, req) {
         if (!credentials?.phone || !credentials?.password) {
           throw new Error("전화번호와 비밀번호를 입력해주세요.");
         }
 
+        const forwarded = req?.headers?.['x-forwarded-for'];
+        const ip = typeof forwarded === 'string' ? forwarded.split(',')[0].trim() : undefined;
+
         const result = await verifyAdminCredentials(
           credentials.phone,
-          credentials.password
+          credentials.password,
+          ip
         );
 
         if (!result) {
