@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { Suspense, useState, useEffect, useRef, useCallback } from 'react';
 import { Settings, Bell, X } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -32,6 +32,14 @@ const formatGrade = (grade: string, marblingScore: number | null) => {
 };
 
 export default function BidsPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-white" />}>
+      <BidsPageContent />
+    </Suspense>
+  );
+}
+
+function BidsPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [mounted, setMounted] = useState(false);

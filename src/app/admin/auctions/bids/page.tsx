@@ -86,14 +86,11 @@ export default function AuctionBidsPage() {
   const [searchEndDate, setSearchEndDate] = useState(todayDateValue);
   const [searchCompanyFilter, setSearchCompanyFilter] = useState('');
   const [searchDealerFilter, setSearchDealerFilter] = useState('');
-  const [searchHideFailed, setSearchHideFailed] = useState(false);
-
   const handleSearch = () => {
     setSearchStartDate(startDate);
     setSearchEndDate(endDate);
     setSearchCompanyFilter(companyFilter);
     setSearchDealerFilter(dealerFilter);
-    setSearchHideFailed(hideFailed);
   };
 
   // 업체 목록 조회
@@ -114,7 +111,7 @@ export default function AuctionBidsPage() {
 
   // 필터링 (중도매인 검색, 유찰분 숨김)
   const filteredRecords = records.filter(record => {
-    if (searchHideFailed && record.isFailed) return false;
+    if (hideFailed && record.isFailed) return false;
     if (searchDealerFilter && record.dealerName && !record.dealerName.includes(searchDealerFilter)) return false;
     if (searchDealerFilter && !record.dealerName) return false;
     return true;
@@ -279,7 +276,6 @@ export default function AuctionBidsPage() {
                 setSearchEndDate(todayDateValue);
                 setSearchCompanyFilter('');
                 setSearchDealerFilter('');
-                setSearchHideFailed(false);
               }}
               className="px-4 py-1.5 border border-gray-300 text-gray-600 text-xs hover:bg-gray-50"
             >

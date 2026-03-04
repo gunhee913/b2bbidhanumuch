@@ -140,7 +140,7 @@ export async function GET(request: NextRequest) {
         .sort((a: any, b: any) => a.part_no - b.part_no)
         .forEach((part: any) => {
           const dealer = part.winning_dealer_id ? dealersMap[part.winning_dealer_id] : null;
-          const isFailed = !part.bid_price;
+          const isFailed = !part.winning_dealer_id || !part.bid_price;
           
           if (isFailed) {
             failedCount++;
