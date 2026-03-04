@@ -35,6 +35,7 @@ interface SettledRecord {
   bidPrice: number | null;
   bidAmount: number | null;
   commission: number | null;
+  deliveryFee: number | null;
   breed: string;
   gender: string;
   traceNo: string;
@@ -123,6 +124,7 @@ export default function AuctionBidsPage() {
   const totalWeight = successRecords.reduce((sum, r) => sum + r.weight, 0);
   const totalAmount = successRecords.reduce((sum, r) => sum + (r.bidAmount || 0), 0);
   const totalCommission = successRecords.reduce((sum, r) => sum + (r.commission || 0), 0);
+  const totalDeliveryFee = successRecords.reduce((sum, r) => sum + (r.deliveryFee || 0), 0);
 
   const thClass = "px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50";
   const tdClass = "px-2 py-2 text-xs text-gray-600 text-center whitespace-nowrap border border-gray-200";
@@ -149,6 +151,7 @@ export default function AuctionBidsPage() {
       '낙찰단가': record.bidPrice || '-',
       '낙찰금액': record.bidAmount || '-',
       '상장수수료': record.commission || '-',
+      '배송수수료': record.deliveryFee || '-',
       '축종': record.breed,
       '성별': record.gender,
       '중도매인번호': record.dealerNo || '-',
@@ -163,9 +166,9 @@ export default function AuctionBidsPage() {
     
     worksheet['!cols'] = [
       { wch: 8 }, { wch: 12 }, { wch: 12 }, { wch: 18 }, { wch: 10 },
-      { wch: 10 }, { wch: 10 }, { wch: 12 }, { wch: 14 }, { wch: 12 },
+      { wch: 10 }, { wch: 10 }, { wch: 12 }, { wch: 14 }, { wch: 14 },
       { wch: 8 }, { wch: 8 }, { wch: 12 }, { wch: 12 }, { wch: 12 },
-      { wch: 14 }, { wch: 14 },
+      { wch: 14 }, { wch: 14 }, { wch: 14 },
     ];
 
     const workbook = XLSX.utils.book_new();
@@ -295,7 +298,7 @@ export default function AuctionBidsPage() {
       </div>
 
       {/* 합계 정보 */}
-      <div className="grid grid-cols-6 gap-4 mb-4">
+      <div className="grid grid-cols-7 gap-4 mb-4">
         <div className="bg-white border border-gray-200 p-4">
           <div className="text-xs text-gray-500">총 건수</div>
           <div className="text-xl font-bold text-gray-900">{filteredRecords.length}건</div>
@@ -320,6 +323,10 @@ export default function AuctionBidsPage() {
           <div className="text-xs text-gray-500">총 상장수수료</div>
           <div className="text-xl font-bold text-gray-900">{totalCommission.toLocaleString()}원</div>
         </div>
+        <div className="bg-white border border-gray-200 p-4">
+          <div className="text-xs text-gray-500">총 배송수수료</div>
+          <div className="text-xl font-bold text-gray-900">{totalDeliveryFee.toLocaleString()}원</div>
+        </div>
       </div>
 
       {/* 테이블 */}
@@ -337,6 +344,7 @@ export default function AuctionBidsPage() {
                 <th className={thClass}>낙찰단가</th>
                 <th className={thClass}>낙찰금액</th>
                 <th className={thClass}>상장수수료</th>
+                <th className={thClass}>배송수수료</th>
                 <th className={thClass}>축종</th>
                 <th className={thClass}>성별</th>
                 <th className={thClass}>중도매인번호</th>
@@ -350,13 +358,13 @@ export default function AuctionBidsPage() {
             <tbody>
               {isLoading ? (
                 <tr>
-                  <td colSpan={17} className="px-4 py-8 text-center text-gray-500 border border-gray-200">
+                  <td colSpan={18} className="px-4 py-8 text-center text-gray-500 border border-gray-200">
                     데이터를 불러오는 중...
                   </td>
                 </tr>
               ) : filteredRecords.length === 0 ? (
                 <tr>
-                  <td colSpan={17} className="px-4 py-8 text-center text-gray-500 border border-gray-200">
+                  <td colSpan={18} className="px-4 py-8 text-center text-gray-500 border border-gray-200">
                     마감된 경락 내역이 없습니다.
                   </td>
                 </tr>
@@ -380,6 +388,7 @@ export default function AuctionBidsPage() {
                       {record.bidAmount ? record.bidAmount.toLocaleString() : '-'}
                     </td>
                     <td className={tdClass}>{record.commission ? record.commission.toLocaleString() : '-'}</td>
+                    <td className={tdClass}>{record.deliveryFee ? record.deliveryFee.toLocaleString() : '-'}</td>
                     <td className={tdClass}>{record.breed}</td>
                     <td className={tdClass}>{record.gender}</td>
                     <td className={tdClass}>{record.dealerNo || '-'}</td>

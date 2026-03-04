@@ -560,6 +560,157 @@ export default function AuctionsListPage() {
     XLSX.writeFile(workbook, fileName);
   };
 
+  const handlePrint = () => {
+    if (filteredAuctions.length === 0) {
+      alert('인쇄할 데이터가 없습니다.');
+      return;
+    }
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    const statusBadge = (status: string) => {
+      switch (status) {
+        case '경매중': return '<span style="padding:1px 6px;font-size:9px;font-weight:600;color:#15803d;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:3px">경매중</span>';
+        case '마감': return '<span style="padding:1px 6px;font-size:9px;font-weight:600;color:#6b7280;background:#f3f4f6;border-radius:3px">마감</span>';
+        case '승인': return '<span style="padding:1px 6px;font-size:9px;font-weight:600;color:#1d4ed8;background:#eff6ff;border:1px solid #bfdbfe;border-radius:3px">승인</span>';
+        default: return `<span style="font-size:9px;color:#6b7280">${status}</span>`;
+      }
+    };
+
+    const listingsHtml = filteredAuctions.map((auction) => {
+      const allParts = auction.parts;
+
+      const partsGridHtml = [0, 1, 2].map(colIndex => {
+        const rows = Array.from({ length: 7 }).map((_, idx) => {
+          const part = allParts[colIndex * 7 + idx];
+          if (!part) {
+            return '<tr><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td></tr>';
+          }
+          const excluded = !part.isIncluded;
+          const cls = excluded ? 'color:#9ca3af;' : '';
+          const strike = excluded ? 'text-decoration:line-through;' : '';
+          return `<tr style="${excluded ? 'background:#f3f4f6;' : ''}">
+            <td style="${cls}${strike}">${part.isIncluded ? generateListingNo(auction.auctionNo, colIndex * 7 + idx) : '-'}</td>
+            <td style="${cls}${strike}${!excluded ? 'font-weight:500;color:#111;' : ''}">${part.name}</td>
+            <td style="${cls}">${part.isIncluded ? part.weight + 'kg' : '-'}</td>
+            <td style="${cls}">${part.isIncluded ? part.minPrice.toLocaleString() : '-'}</td>
+            <td>${part.isIncluded && part.bidPrice ? '<b style="color:#111">' + part.bidPrice.toLocaleString() + '</b>' : '<span style="color:#9ca3af">-</span>'}</td>
+          </tr>`;
+        }).join('');
+
+        return `<table class="parts-col">
+          <thead><tr><th>상장번호</th><th>부위</th><th>중량</th><th>최저가격</th><th>낙찰가격</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>`;
+      }).join('');
+
+      return `
+        <tbody class="listing-group">
+        <tr class="listing-row">
+          <td class="td bold">${auction.auctionNo}</td>
+          <td class="td">${auction.breed}</td>
+          <td class="td">${auction.gender}</td>
+          <td class="td bold">${auction.grade}</td>
+          <td class="td">${auction.monthAge}</td>
+          <td class="td">${auction.backFat}</td>
+          <td class="td">${auction.eyeMuscle}</td>
+          <td class="td">${auction.fatMarbling || ''}</td>
+          <td class="td">${auction.meatColor}</td>
+          <td class="td">${auction.fatColor}</td>
+          <td class="td">${auction.texture}</td>
+          <td class="td">${auction.maturity}</td>
+          <td class="td trace">002-${auction.traceNo || ''}</td>
+          <td class="td">${auction.slaughterHouse || ''}</td>
+          <td class="td">${auction.slaughterDate}</td>
+          <td class="td">${auction.slaughterNo || ''}</td>
+          <td class="td">${auction.carcassWeight}</td>
+          <td class="td">${auction.company || ''}</td>
+          <td class="td">${auction.processDate}</td>
+          <td class="td">${auction.processWeight}</td>
+          <td class="td">${statusBadge(auction.status)}</td>
+        </tr>
+        <tr>
+          <td colspan="21" class="parts-cell">
+            <div class="parts-label">부위: ${allParts.filter(p => p.isIncluded).length}/${allParts.length}</div>
+            <div class="parts-grid">${partsGridHtml}</div>
+          </td>
+        </tr>
+        </tbody>`;
+    }).join('');
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>부분육 상장 조회</title>
+          <style>
+            @page { size: A4 landscape; margin: 8mm; }
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body { font-family: 'Malgun Gothic', sans-serif; font-size: 9px; color: #333; }
+            .header { text-align: center; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 2px solid #333; }
+            .header h1 { font-size: 14px; margin-bottom: 2px; }
+            .header p { font-size: 9px; color: #666; }
+            .main-table { width: 100%; border-collapse: collapse; }
+            .main-table thead { display: table-header-group; }
+            .th { padding: 4px 2px; text-align: center; font-size: 8px; font-weight: 600; color: #4b5563; white-space: nowrap; border: 1px solid #e5e7eb; background: #f9fafb; }
+            .td { padding: 4px 2px; text-align: center; font-size: 8px; white-space: nowrap; border: 1px solid #e5e7eb; color: #4b5563; }
+            .td.bold { font-weight: 600; color: #111827; }
+            .td.trace { font-size: 7px; }
+            .parts-cell { padding: 6px 8px; background: #fff; border: 1px solid #e5e7eb; }
+            .parts-label { font-size: 9px; font-weight: 600; color: #374151; margin-bottom: 4px; }
+            .parts-grid { display: flex; gap: 8px; }
+            .parts-col { flex: 1; border-collapse: collapse; border: 1px solid #e5e7eb; }
+            .parts-col th { padding: 3px 2px; text-align: center; font-size: 8px; font-weight: 600; color: #4b5563; background: #f9fafb; border-right: 1px solid #e5e7eb; }
+            .parts-col td { padding: 2px 2px; text-align: center; font-size: 8px; border-top: 1px solid #f3f4f6; border-right: 1px solid #e5e7eb; }
+            .parts-col th:last-child, .parts-col td:last-child { border-right: none; }
+            .listing-group { page-break-inside: avoid; }
+            .footer { font-size: 9px; color: #6b7280; padding-top: 6px; border-top: 1px solid #e5e7eb; margin-top: 4px; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>부분육 상장 조회</h1>
+            <p>조회기간: ${searchStartDate} ~ ${searchEndDate} | 총 ${filteredAuctions.length}건</p>
+          </div>
+          <table class="main-table">
+            <thead>
+              <tr>
+                <th class="th">접수번호</th>
+                <th class="th">축종</th>
+                <th class="th">성별</th>
+                <th class="th">등급</th>
+                <th class="th">개월령</th>
+                <th class="th">등지방</th>
+                <th class="th">등심면적</th>
+                <th class="th">근내지방</th>
+                <th class="th">육색</th>
+                <th class="th">지방색</th>
+                <th class="th">조직감</th>
+                <th class="th">성숙도</th>
+                <th class="th">이력번호</th>
+                <th class="th">도축장</th>
+                <th class="th">도축일</th>
+                <th class="th">도축번호</th>
+                <th class="th">도체중</th>
+                <th class="th">상장업체</th>
+                <th class="th">가공일</th>
+                <th class="th">가공중량</th>
+                <th class="th">상태</th>
+              </tr>
+            </thead>
+            ${listingsHtml}
+          </table>
+          <div class="footer">총 ${filteredAuctions.length}개</div>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.onload = () => {
+      printWindow.print();
+      printWindow.close();
+    };
+  };
+
   return (
     <AdminLayout>
       <style dangerouslySetInnerHTML={{ __html: hideSpinnerStyle }} />
@@ -645,6 +796,14 @@ export default function AuctionsListPage() {
             >
               <Download className="w-3.5 h-3.5" />
               엑셀
+            </button>
+            <button
+              type="button"
+              onClick={handlePrint}
+              className="flex items-center gap-1.5 px-4 py-1.5 bg-gray-700 text-white text-xs hover:bg-gray-800"
+            >
+              <Printer className="w-3.5 h-3.5" />
+              인쇄
             </button>
             <button
               type="button"
