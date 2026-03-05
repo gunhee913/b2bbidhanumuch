@@ -61,9 +61,21 @@ export default function DealerTransactionsPage() {
 
   const myTransactions = useMemo(() => {
     const all = data?.transactions || [];
-    return all
+    const sorted = all
       .filter(tx => tx.dealerId === dealerId)
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+
+    let runningBalance = 0;
+    const withBalance = sorted.map(tx => {
+      if (tx.type === 'deposit') {
+        runningBalance += tx.amount;
+      } else {
+        runningBalance -= tx.amount;
+      }
+      return { ...tx, balance: runningBalance };
+    });
+
+    return withBalance.reverse();
   }, [data, dealerId]);
 
   const totals = useMemo(() => {
@@ -99,11 +111,12 @@ export default function DealerTransactionsPage() {
   };
 
   const handleExcelDownload = () => {
-    const excelData = myTransactions.map(tx => ({
+    const excelData = [...myTransactions].reverse().map(tx => ({
       '거래일시': formatDateTime(tx.createdAt),
       '구분': getTypeLabel(tx.type),
       '입금': tx.type === 'deposit' ? tx.amount : '',
       '출금(차감)': (tx.type === 'withdraw' || tx.type === 'auction_deduct') ? tx.amount : '',
+      '잔액': tx.balance,
       '비고': tx.description,
     }));
 
@@ -190,20 +203,21 @@ export default function DealerTransactionsPage() {
               <th className={thClass}>구분</th>
               <th className={thClass}>입금</th>
               <th className={thClass}>출금(차감)</th>
+              <th className={thClass}>잔액</th>
               <th className={thClass}>비고</th>
             </tr>
           </thead>
           <tbody>
             {isLoading ? (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-gray-400 text-sm">
+                <td colSpan={6} className="px-4 py-8 text-center text-gray-400 text-sm">
                   <Loader2 className="w-5 h-5 animate-spin mx-auto mb-2" />
                   데이터를 불러오는 중...
                 </td>
               </tr>
             ) : myTransactions.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-gray-400 text-sm">
+                <td colSpan={6} className="px-4 py-8 text-center text-gray-400 text-sm">
                   조회된 내역이 없습니다.
                 </td>
               </tr>
@@ -214,7 +228,9 @@ export default function DealerTransactionsPage() {
                     <td className={tdClass}>{formatDateTime(tx.createdAt)}</td>
                     <td className={tdClass}>
                       <span className={
-                        tx.type === 'deposit' ? 'text-blue-600 font-medium' : 'text-red-600 font-medium'
+                        tx.type === 'deposit' ? 'text-blue-600 font-medium' :
+                        tx.type === 'auction_deduct' ? 'text-red-600 font-medium' :
+                        'text-red-600 font-medium'
                       }>
                         {getTypeLabel(tx.type)}
                       </span>
@@ -224,6 +240,9 @@ export default function DealerTransactionsPage() {
                     </td>
                     <td className={`${tdClass} text-right text-red-600`}>
                       {(tx.type === 'withdraw' || tx.type === 'auction_deduct') ? `-${tx.amount.toLocaleString()}` : ''}
+                    </td>
+                    <td className={`${tdClass} text-right font-medium ${tx.balance < 0 ? 'text-red-600' : 'text-gray-900'}`}>
+                      {tx.balance.toLocaleString()}
                     </td>
                     <td className={`${tdClass} text-left`}>{tx.description}</td>
                   </tr>
@@ -235,6 +254,9 @@ export default function DealerTransactionsPage() {
                   </td>
                   <td className={`${tdClass} text-right text-red-600`}>
                     -{(totals.totalWithdraw + totals.totalAuctionDeduct).toLocaleString()}
+                  </td>
+                  <td className={`${tdClass} text-right font-medium ${(myTransactions[0]?.balance ?? 0) < 0 ? 'text-red-600' : 'text-gray-900'}`}>
+                    {myTransactions.length > 0 ? myTransactions[0].balance.toLocaleString() : '-'}
                   </td>
                   <td className={tdClass}></td>
                 </tr>

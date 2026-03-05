@@ -103,7 +103,19 @@ export default function TransactionsPage() {
     });
 
     groupMap.forEach(group => {
-      group.transactions.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      const sorted = [...group.transactions].sort(
+        (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+      );
+      let runningBalance = 0;
+      const withBalance = sorted.map(tx => {
+        if (tx.type === 'deposit') {
+          runningBalance += tx.amount;
+        } else {
+          runningBalance -= tx.amount;
+        }
+        return { ...tx, balance: runningBalance };
+      });
+      group.transactions = withBalance.reverse();
     });
 
     return Array.from(groupMap.values()).sort((a, b) => a.dealerNo.localeCompare(b.dealerNo));
@@ -137,7 +149,10 @@ export default function TransactionsPage() {
   };
 
   const handleExcelDownload = () => {
-    const excelData = filteredTransactions.map(tx => ({
+    const allTxsWithBalance = dealerGroups.flatMap(g =>
+      [...g.transactions].reverse()
+    );
+    const excelData = allTxsWithBalance.map(tx => ({
       '거래일시': formatDateTime(tx.createdAt),
       '중도매인번호': tx.dealerNo,
       '중도매인명': tx.dealerName,
@@ -145,6 +160,7 @@ export default function TransactionsPage() {
       '입금': tx.type === 'deposit' ? tx.amount : '',
       '출금': tx.type === 'withdraw' ? tx.amount : '',
       '경락대금': tx.type === 'auction_deduct' ? tx.amount : '',
+      '잔액': tx.balance,
       '비고': tx.description,
       '처리자': tx.createdBy,
     }));
@@ -220,6 +236,7 @@ export default function TransactionsPage() {
               <th className={thClass}>구분</th>
               <th className={thClass}>입금</th>
               <th className={thClass}>출금(차감)</th>
+              <th className={thClass}>잔액</th>
               <th className={thClass}>비고</th>
               <th className={thClass}>처리자</th>
             </tr>
@@ -227,14 +244,14 @@ export default function TransactionsPage() {
           <tbody>
             {isLoading ? (
               <tr>
-                <td colSpan={8} className="px-4 py-8 text-center text-gray-400 text-sm">
+                <td colSpan={9} className="px-4 py-8 text-center text-gray-400 text-sm">
                   <Loader2 className="w-5 h-5 animate-spin mx-auto mb-2" />
                   데이터를 불러오는 중...
                 </td>
               </tr>
             ) : dealerGroups.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-4 py-8 text-center text-gray-400 text-sm">
+                <td colSpan={9} className="px-4 py-8 text-center text-gray-400 text-sm">
                   조회된 내역이 없습니다.
                 </td>
               </tr>
@@ -270,6 +287,9 @@ export default function TransactionsPage() {
                         <td className={`${tdClass} text-right text-red-600`}>
                           {(tx.type === 'withdraw' || tx.type === 'auction_deduct') ? `-${tx.amount.toLocaleString()}` : ''}
                         </td>
+                        <td className={`${tdClass} text-right font-medium ${tx.balance < 0 ? 'text-red-600' : 'text-gray-900'}`}>
+                          {tx.balance.toLocaleString()}
+                        </td>
                         <td className={`${tdClass} text-left`}>{tx.description}</td>
                         <td className={tdClass}>{tx.createdBy}</td>
                       </tr>
@@ -283,6 +303,9 @@ export default function TransactionsPage() {
                       <td className={`${tdClass} text-right text-red-600`}>
                         -{(group.totalWithdraw + group.totalAuctionDeduct).toLocaleString()}
                       </td>
+                      <td className={`${tdClass} text-right font-medium ${group.transactions[0]?.balance < 0 ? 'text-red-600' : 'text-gray-900'}`}>
+                        {group.transactions[0]?.balance.toLocaleString() || '-'}
+                      </td>
                       <td className={tdClass} colSpan={2}></td>
                     </tr>
                   </React.Fragment>
@@ -295,6 +318,7 @@ export default function TransactionsPage() {
                   <td className={`${tdClass} text-right text-red-600`}>
                     -{(grandTotal.totalWithdraw + grandTotal.totalAuctionDeduct).toLocaleString()}
                   </td>
+                  <td className={tdClass}></td>
                   <td className={tdClass} colSpan={2}></td>
                 </tr>
               </>
