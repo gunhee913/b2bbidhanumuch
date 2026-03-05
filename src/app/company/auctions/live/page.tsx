@@ -529,11 +529,11 @@ export default function CompanyAuctionLivePage() {
                 <table className="w-full border-collapse text-xs">
                   <thead>
                     <tr className="bg-gray-50">
-                      <th className="px-3 py-2 border border-gray-200 text-center font-medium text-gray-600 w-[50px]">회차</th>
-                      <th className="px-3 py-2 border border-gray-200 text-center font-medium text-gray-600 w-[60px]">상태</th>
-                      <th className="px-3 py-2 border border-gray-200 text-center font-medium text-gray-600">시작시간</th>
-                      <th className="px-3 py-2 border border-gray-200 text-center font-medium text-gray-600">종료시간</th>
-                      <th className="px-3 py-2 border border-gray-200 text-center font-medium text-gray-600 w-[80px]">경과시간</th>
+                      <th className="px-2 py-2 border border-gray-200 text-center font-medium text-gray-600 w-[50px]">회차</th>
+                      <th className="px-2 py-2 border border-gray-200 text-center font-medium text-gray-600 w-[60px]">상태</th>
+                      <th className="px-2 py-2 border border-gray-200 text-center font-medium text-gray-600">시작시간</th>
+                      <th className="px-2 py-2 border border-gray-200 text-center font-medium text-gray-600">종료시간</th>
+                      <th className="px-2 py-2 border border-gray-200 text-center font-medium text-gray-600 w-[80px]">경과시간</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -554,23 +554,23 @@ export default function CompanyAuctionLivePage() {
                       }
                       return (
                         <tr key={round.id} className="bg-white hover:bg-gray-50">
-                          <td className="px-3 py-2 border border-gray-200 text-center font-medium text-gray-900">
+                          <td className="px-2 py-2 border border-gray-200 text-center font-medium text-gray-900 whitespace-nowrap">
                             {round.round_no}차
                           </td>
-                          <td className="px-3 py-2 border border-gray-200 text-center">
+                          <td className="px-2 py-2 border border-gray-200 text-center whitespace-nowrap">
                             {round.status === 'open' ? (
                               <span className="text-green-600 font-medium">진행중</span>
                             ) : (
                               <span className="text-gray-500">종료</span>
                             )}
                           </td>
-                          <td className="px-3 py-2 border border-gray-200 text-center text-gray-700">
+                          <td className="px-2 py-2 border border-gray-200 text-center text-gray-700 whitespace-nowrap">
                             {startedAt ? format(startedAt, 'HH:mm:ss') : '-'}
                           </td>
-                          <td className="px-3 py-2 border border-gray-200 text-center text-gray-700">
+                          <td className="px-2 py-2 border border-gray-200 text-center text-gray-700 whitespace-nowrap">
                             {endedAt ? format(endedAt, 'HH:mm:ss') : '-'}
                           </td>
-                          <td className="px-3 py-2 border border-gray-200 text-center text-gray-500">
+                          <td className="px-2 py-2 border border-gray-200 text-center text-gray-500 whitespace-nowrap">
                             {elapsed}
                           </td>
                         </tr>

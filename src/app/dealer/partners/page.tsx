@@ -108,8 +108,8 @@ export default function DealerPartnersPage() {
     XLSX.writeFile(workbook, fileName);
   };
 
-  const thClass = "px-3 py-2 text-xs font-medium text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50 text-center";
-  const tdClass = "px-3 py-2 text-xs border border-gray-200 text-center whitespace-nowrap";
+  const thClass = "px-2 py-2 text-xs font-medium text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50 text-center";
+  const tdClass = "px-2 py-2 text-xs border border-gray-200 text-center whitespace-nowrap";
 
   return (
     <DealerLayout>

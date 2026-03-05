@@ -391,20 +391,20 @@ export default function CompaniesPage() {
 
       <div className="bg-white border border-gray-200 overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full border-collapse table-fixed">
+          <table className="w-full border-collapse" style={{ minWidth: '1100px' }}>
             <thead>
               <tr>
-                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50 w-[40px]"></th>
-                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50 w-[80px]">업체번호</th>
-                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50 w-[120px]">업체명</th>
-                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50 w-[130px]">사업자등록번호</th>
-                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50 w-[80px]">대표자</th>
-                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50 w-[120px]">대표번호</th>
-                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50 w-[100px]">등록일</th>
-                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50 w-[130px]">최근로그인</th>
-                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50 w-[60px]">직원수</th>
-                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50 w-[50px]">수정</th>
-                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50 w-[80px]">상태</th>
+                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50" style={{ width: 40 }}></th>
+                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50" style={{ minWidth: 80 }}>업체번호</th>
+                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50" style={{ minWidth: 120 }}>업체명</th>
+                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50" style={{ minWidth: 130 }}>사업자등록번호</th>
+                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50" style={{ minWidth: 80 }}>대표자</th>
+                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50" style={{ minWidth: 130 }}>대표번호</th>
+                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50" style={{ minWidth: 100 }}>등록일</th>
+                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50" style={{ minWidth: 140 }}>최근로그인</th>
+                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50" style={{ minWidth: 60 }}>직원수</th>
+                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50" style={{ minWidth: 50 }}>수정</th>
+                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50" style={{ minWidth: 80 }}>상태</th>
               </tr>
             </thead>
             <tbody>
@@ -546,9 +546,9 @@ export default function CompaniesPage() {
                             className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
                           />
                         </td>
-                        <td className="px-2 py-2 border border-gray-200 text-sm text-gray-500 text-center">{formatDate(company.createdAt)}</td>
-                        <td className="px-2 py-2 border border-gray-200 text-sm text-gray-500 text-center">{formatDateTime(company.lastLoginAt)}</td>
-                        <td className="px-2 py-2 border border-gray-200 text-sm text-gray-900 text-center font-medium">{company.employees.length}명</td>
+                        <td className="px-2 py-2 border border-gray-200 text-sm text-gray-500 text-center whitespace-nowrap">{formatDate(company.createdAt)}</td>
+                        <td className="px-2 py-2 border border-gray-200 text-sm text-gray-500 text-center whitespace-nowrap">{formatDateTime(company.lastLoginAt)}</td>
+                        <td className="px-2 py-2 border border-gray-200 text-sm text-gray-900 text-center font-medium whitespace-nowrap">{company.employees.length}명</td>
                         <td className="px-2 py-2 border border-gray-200">
                           <div className="flex items-center justify-center">
                             <button
@@ -591,14 +591,14 @@ export default function CompaniesPage() {
                           <ChevronDown className="w-4 h-4 text-gray-400 mx-auto" />
                         )}
                       </td>
-                      <td className="px-2 py-2 border border-gray-200 text-sm font-medium text-gray-900 text-center">{company.companyNo}</td>
-                      <td className="px-2 py-2 border border-gray-200 text-sm font-medium text-gray-900 text-center">{company.name}</td>
-                      <td className="px-2 py-2 border border-gray-200 text-sm text-gray-600 text-center">{company.businessNo}</td>
-                      <td className="px-2 py-2 border border-gray-200 text-sm text-gray-900 text-center">{company.ceo}</td>
-                      <td className="px-2 py-2 border border-gray-200 text-sm text-gray-600 text-center">{company.phone || '-'}</td>
-                      <td className="px-2 py-2 border border-gray-200 text-sm text-gray-500 text-center">{formatDate(company.createdAt)}</td>
-                      <td className="px-2 py-2 border border-gray-200 text-sm text-gray-500 text-center">{formatDateTime(company.lastLoginAt)}</td>
-                      <td className="px-2 py-2 border border-gray-200 text-sm text-gray-900 text-center font-medium">{company.employees.length}명</td>
+                      <td className="px-2 py-2 border border-gray-200 text-sm font-medium text-gray-900 text-center whitespace-nowrap">{company.companyNo}</td>
+                      <td className="px-2 py-2 border border-gray-200 text-sm font-medium text-gray-900 text-center whitespace-nowrap">{company.name}</td>
+                      <td className="px-2 py-2 border border-gray-200 text-sm text-gray-600 text-center whitespace-nowrap">{company.businessNo}</td>
+                      <td className="px-2 py-2 border border-gray-200 text-sm text-gray-900 text-center whitespace-nowrap">{company.ceo}</td>
+                      <td className="px-2 py-2 border border-gray-200 text-sm text-gray-600 text-center whitespace-nowrap">{company.phone || '-'}</td>
+                      <td className="px-2 py-2 border border-gray-200 text-sm text-gray-500 text-center whitespace-nowrap">{formatDate(company.createdAt)}</td>
+                      <td className="px-2 py-2 border border-gray-200 text-sm text-gray-500 text-center whitespace-nowrap">{formatDateTime(company.lastLoginAt)}</td>
+                      <td className="px-2 py-2 border border-gray-200 text-sm text-gray-900 text-center font-medium whitespace-nowrap">{company.employees.length}명</td>
                       <td className="px-2 py-2 border border-gray-200">
                         <div className="flex items-center justify-center">
                           <button 
@@ -643,15 +643,15 @@ export default function CompaniesPage() {
                               <table className="w-full bg-white border border-gray-200 table-fixed border-collapse">
                                 <thead className="bg-gray-50">
                                   <tr>
-                                    <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 w-[80px] border border-gray-200">구분</th>
-                                    <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 w-[80px] border border-gray-200">성함</th>
-                                    <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 w-[130px] border border-gray-200">연락처(ID)</th>
-                                    <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 w-[90px] border border-gray-200">비밀번호</th>
-                                    <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 w-[180px] border border-gray-200">주소</th>
-                                    <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 w-[90px] border border-gray-200">등록일</th>
-                                    <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 w-[120px] border border-gray-200">최근로그인</th>
-                                    <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 w-[50px] border border-gray-200">수정</th>
-                                    <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 w-[70px] border border-gray-200">상태</th>
+                                    <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 w-[80px] border border-gray-200">구분</th>
+                                    <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 w-[80px] border border-gray-200">성함</th>
+                                    <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 w-[130px] border border-gray-200">연락처(ID)</th>
+                                    <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 w-[90px] border border-gray-200">비밀번호</th>
+                                    <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 w-[180px] border border-gray-200">주소</th>
+                                    <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 w-[90px] border border-gray-200">등록일</th>
+                                    <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 w-[120px] border border-gray-200">최근로그인</th>
+                                    <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 w-[50px] border border-gray-200">수정</th>
+                                    <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 w-[70px] border border-gray-200">상태</th>
                                   </tr>
                                 </thead>
                                 <tbody>
@@ -659,7 +659,7 @@ export default function CompaniesPage() {
                                   {addingEmployeeToCompanyId === company.id && (
                                     <>
                                       <tr>
-                                        <td className="px-3 py-2 w-[80px] border border-gray-200">
+                                        <td className="px-2 py-2 w-[80px] border border-gray-200">
                                           <input
                                             type="text"
                                             value={employeeFormData.role}
@@ -668,7 +668,7 @@ export default function CompaniesPage() {
                                             className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
                                           />
                                         </td>
-                                        <td className="px-3 py-2 w-[80px] border border-gray-200">
+                                        <td className="px-2 py-2 w-[80px] border border-gray-200">
                                           <input
                                             type="text"
                                             value={employeeFormData.name}
@@ -677,7 +677,7 @@ export default function CompaniesPage() {
                                             className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
                                           />
                                         </td>
-                                        <td className="px-3 py-2 w-[130px] border border-gray-200">
+                                        <td className="px-2 py-2 w-[130px] border border-gray-200">
                                           <input
                                             type="text"
                                             value={employeeFormData.phone}
@@ -687,7 +687,7 @@ export default function CompaniesPage() {
                                             className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
                                           />
                                         </td>
-                                        <td className="px-3 py-2 w-[90px] border border-gray-200">
+                                        <td className="px-2 py-2 w-[90px] border border-gray-200">
                                           <input
                                             type="text"
                                             value={employeeFormData.password}
@@ -696,7 +696,7 @@ export default function CompaniesPage() {
                                             className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
                                           />
                                         </td>
-                                        <td className="px-3 py-2 w-[180px] border border-gray-200">
+                                        <td className="px-2 py-2 w-[180px] border border-gray-200">
                                           <input
                                             type="text"
                                             value={employeeFormData.address}
@@ -705,9 +705,9 @@ export default function CompaniesPage() {
                                             className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
                                           />
                                         </td>
-                                        <td className="px-3 py-2 text-xs text-gray-400 text-center w-[90px] border border-gray-200">-</td>
-                                        <td className="px-3 py-2 text-xs text-gray-400 text-center w-[120px] border border-gray-200">-</td>
-                                        <td className="px-3 py-2 w-[50px] border border-gray-200">
+                                        <td className="px-2 py-2 text-xs text-gray-400 text-center w-[90px] border border-gray-200">-</td>
+                                        <td className="px-2 py-2 text-xs text-gray-400 text-center w-[120px] border border-gray-200">-</td>
+                                        <td className="px-2 py-2 w-[50px] border border-gray-200">
                                           <div className="flex items-center justify-center">
                                             <button
                                               onClick={() => handleAddEmployeeSave(company)}
@@ -718,7 +718,7 @@ export default function CompaniesPage() {
                                             </button>
                                           </div>
                                         </td>
-                                        <td className="px-3 py-2 w-[70px] border border-gray-200">
+                                        <td className="px-2 py-2 w-[70px] border border-gray-200">
                                           <div className="flex items-center justify-center">
                                             <button
                                               onClick={handleAddEmployeeCancel}
@@ -742,7 +742,7 @@ export default function CompaniesPage() {
                                     editingEmployeeId === employee.id ? (
                                       <React.Fragment key={employee.id}>
                                         <tr className="bg-gray-50">
-                                          <td className="px-3 py-2 w-[80px] border border-gray-200">
+                                          <td className="px-2 py-2 w-[80px] border border-gray-200">
                                             <input
                                               type="text"
                                               value={employeeFormData.role}
@@ -751,7 +751,7 @@ export default function CompaniesPage() {
                                               className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
                                             />
                                           </td>
-                                          <td className="px-3 py-2 w-[80px] border border-gray-200">
+                                          <td className="px-2 py-2 w-[80px] border border-gray-200">
                                             <input
                                               type="text"
                                               value={employeeFormData.name}
@@ -759,7 +759,7 @@ export default function CompaniesPage() {
                                               className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
                                             />
                                           </td>
-                                          <td className="px-3 py-2 w-[130px] border border-gray-200">
+                                          <td className="px-2 py-2 w-[130px] border border-gray-200">
                                             <input
                                               type="text"
                                               value={employeeFormData.phone}
@@ -768,7 +768,7 @@ export default function CompaniesPage() {
                                               className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
                                             />
                                           </td>
-                                          <td className="px-3 py-2 w-[90px] border border-gray-200">
+                                          <td className="px-2 py-2 w-[90px] border border-gray-200">
                                             <input
                                               type="text"
                                               value={employeeFormData.password}
@@ -777,7 +777,7 @@ export default function CompaniesPage() {
                                               className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
                                             />
                                           </td>
-                                          <td className="px-3 py-2 w-[180px] border border-gray-200">
+                                          <td className="px-2 py-2 w-[180px] border border-gray-200">
                                             <input
                                               type="text"
                                               value={employeeFormData.address}
@@ -785,9 +785,9 @@ export default function CompaniesPage() {
                                               className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
                                             />
                                           </td>
-                                          <td className="px-3 py-2 text-xs text-gray-500 text-center w-[90px] border border-gray-200">{formatDate(employee.createdAt)}</td>
-                                          <td className="px-3 py-2 text-xs text-gray-500 text-center w-[120px] border border-gray-200">{formatDateTime(employee.lastLoginAt)}</td>
-                                          <td className="px-3 py-2 w-[50px] border border-gray-200">
+                                          <td className="px-2 py-2 text-xs text-gray-500 text-center w-[90px] border border-gray-200 whitespace-nowrap">{formatDate(employee.createdAt)}</td>
+                                          <td className="px-2 py-2 text-xs text-gray-500 text-center w-[120px] border border-gray-200 whitespace-nowrap">{formatDateTime(employee.lastLoginAt)}</td>
+                                          <td className="px-2 py-2 w-[50px] border border-gray-200">
                                             <div className="flex items-center justify-center">
                                               <button
                                                 onClick={handleEditEmployeeSave}
@@ -798,7 +798,7 @@ export default function CompaniesPage() {
                                               </button>
                                             </div>
                                           </td>
-                                          <td className="px-3 py-2 w-[70px] border border-gray-200">
+                                          <td className="px-2 py-2 w-[70px] border border-gray-200">
                                             <div className="flex items-center justify-center">
                                               <button
                                                 onClick={handleEditEmployeeCancel}
@@ -819,16 +819,16 @@ export default function CompaniesPage() {
                                       </React.Fragment>
                                     ) : (
                                       <tr key={employee.id} className="hover:bg-gray-50">
-                                        <td className="px-3 py-2 text-xs text-gray-900 text-center w-[80px] border border-gray-200">
+                                        <td className="px-2 py-2 text-xs text-gray-900 text-center w-[80px] border border-gray-200 whitespace-nowrap">
                                           {getRoleText(employee.role)}
                                         </td>
-                                        <td className="px-3 py-2 text-xs text-gray-900 text-center w-[80px] border border-gray-200">{employee.name}</td>
-                                        <td className="px-3 py-2 text-xs text-gray-600 text-center w-[130px] border border-gray-200">{employee.phone}</td>
-                                        <td className="px-3 py-2 text-xs text-gray-600 text-center w-[90px] border border-gray-200">****</td>
-                                        <td className="px-3 py-2 text-xs text-gray-600 text-center w-[180px] border border-gray-200">{employee.address || '-'}</td>
-                                        <td className="px-3 py-2 text-xs text-gray-500 text-center w-[90px] border border-gray-200">{formatDate(employee.createdAt)}</td>
-                                        <td className="px-3 py-2 text-xs text-gray-500 text-center w-[120px] border border-gray-200">{formatDateTime(employee.lastLoginAt)}</td>
-                                        <td className="px-3 py-2 w-[50px] border border-gray-200">
+                                        <td className="px-2 py-2 text-xs text-gray-900 text-center w-[80px] border border-gray-200 whitespace-nowrap">{employee.name}</td>
+                                        <td className="px-2 py-2 text-xs text-gray-600 text-center w-[130px] border border-gray-200 whitespace-nowrap">{employee.phone}</td>
+                                        <td className="px-2 py-2 text-xs text-gray-600 text-center w-[90px] border border-gray-200 whitespace-nowrap">****</td>
+                                        <td className="px-2 py-2 text-xs text-gray-600 text-center w-[180px] border border-gray-200 whitespace-nowrap">{employee.address || '-'}</td>
+                                        <td className="px-2 py-2 text-xs text-gray-500 text-center w-[90px] border border-gray-200 whitespace-nowrap">{formatDate(employee.createdAt)}</td>
+                                        <td className="px-2 py-2 text-xs text-gray-500 text-center w-[120px] border border-gray-200 whitespace-nowrap">{formatDateTime(employee.lastLoginAt)}</td>
+                                        <td className="px-2 py-2 w-[50px] border border-gray-200">
                                           <div className="flex items-center justify-center">
                                             <button 
                                               onClick={() => handleEditEmployeeOpen(company, employee)}
@@ -839,7 +839,7 @@ export default function CompaniesPage() {
                                             </button>
                                           </div>
                                         </td>
-                                        <td className="px-3 py-2 w-[70px] border border-gray-200">
+                                        <td className="px-2 py-2 w-[70px] border border-gray-200">
                                           <select
                                             value={employee.status}
                                             onChange={(e) => handleEmployeeStatusChange(employee.id, e.target.value as 'active' | 'inactive')}

@@ -90,6 +90,12 @@ export default function DeliveryOrdersPage() {
   const assignments = assignmentsData?.assignments || {};
 
   const deliveryItems = useMemo(() => {
+    const formatTraceNo = (traceNo: string | undefined | null): string => {
+      if (!traceNo) return '-';
+      const cleaned = traceNo.replace(/^002-/, '');
+      return `002-${cleaned}`;
+    };
+
     const formatGrade = (grade: string, marbling: number) => {
       if (!grade) return '';
       if (grade.includes('(')) return grade;
@@ -109,7 +115,7 @@ export default function DeliveryOrdersPage() {
         dealerNo: part.dealerNo,
         dealerName: part.dealerName,
         listingPartNo: part.listingPartNo || '',
-        traceNo: part.traceNo || '-',
+        traceNo: formatTraceNo(part.traceNo),
         partName: part.partName,
         grade: formatGrade(part.grade, part.marbling),
         weight: part.weight,
@@ -323,7 +329,7 @@ export default function DeliveryOrdersPage() {
               </tr>
               <tr>
                 <th>이력번호</th>
-                <td colspan="3">002-${item.traceNo}</td>
+                <td colspan="3">${item.traceNo}</td>
               </tr>
               <tr>
                 <th>받는분</th>
@@ -437,7 +443,7 @@ export default function DeliveryOrdersPage() {
   };
 
   const thClass = 'px-2 py-1.5 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50';
-  const tdClass = 'px-2 py-1.5 text-xs border border-gray-200';
+  const tdClass = 'px-2 py-1.5 text-xs border border-gray-200 whitespace-nowrap';
 
   const totals = useMemo(() => {
     return filteredItems.reduce((acc, item) => ({
@@ -611,16 +617,16 @@ export default function DeliveryOrdersPage() {
           </div>
         </div>
 
-        <div className="bg-white border border-gray-200">
+        <div className="bg-white border border-gray-200 overflow-x-auto">
           {partsLoading ? (
             <div className="flex items-center justify-center py-16">
               <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
             </div>
           ) : (
-            <table className="w-full border-collapse table-fixed">
+            <table className="w-full border-collapse" style={{ minWidth: '1100px' }}>
               <thead>
                 <tr>
-                  <th className={`${thClass} w-[35px]`}>
+                  <th className={thClass} style={{ width: 35 }}>
                     <input
                       type="checkbox"
                       checked={isAllSelected}
@@ -628,19 +634,19 @@ export default function DeliveryOrdersPage() {
                       className="w-3.5 h-3.5 accent-blue-600 cursor-pointer"
                     />
                   </th>
-                  <th className={`${thClass} w-[55px]`}>거래처번호</th>
-                  <th className={`${thClass} w-[70px]`}>거래처명</th>
-                  <th className={`${thClass} w-[45px]`}>대표자</th>
-                  <th className={`${thClass} w-[160px]`}>배송지</th>
-                  <th className={`${thClass} w-[70px]`}>중도매인번호</th>
-                  <th className={`${thClass} w-[60px]`}>중도매인명</th>
-                  <th className={`${thClass} w-[105px]`}>상장번호</th>
-                  <th className={`${thClass} w-[80px]`}>이력번호</th>
-                  <th className={`${thClass} w-[55px]`}>부위</th>
-                  <th className={`${thClass} w-[45px]`}>등급</th>
-                  <th className={`${thClass} w-[50px]`}>중량</th>
-                  <th className={`${thClass} w-[65px]`}>입찰단가</th>
-                  <th className={`${thClass} w-[85px]`}>낙찰금액</th>
+                  <th className={thClass} style={{ width: 65 }}>거래처번호</th>
+                  <th className={thClass} style={{ width: 75 }}>거래처명</th>
+                  <th className={thClass} style={{ width: 50 }}>대표자</th>
+                  <th className={thClass} style={{ minWidth: 140 }}>배송지</th>
+                  <th className={thClass} style={{ width: 75 }}>중도매인번호</th>
+                  <th className={thClass} style={{ width: 65 }}>중도매인명</th>
+                  <th className={thClass} style={{ width: 110 }}>상장번호</th>
+                  <th className={thClass} style={{ width: 130 }}>이력번호</th>
+                  <th className={thClass} style={{ width: 60 }}>부위</th>
+                  <th className={thClass} style={{ width: 55 }}>등급</th>
+                  <th className={thClass} style={{ width: 55 }}>중량</th>
+                  <th className={thClass} style={{ width: 70 }}>입찰단가</th>
+                  <th className={thClass} style={{ width: 90 }}>낙찰금액</th>
                 </tr>
               </thead>
               <tbody>

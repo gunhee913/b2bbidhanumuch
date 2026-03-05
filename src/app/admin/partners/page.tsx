@@ -196,31 +196,6 @@ export default function PartnersPage() {
     });
   };
 
-  // 연락처 포맷팅
-  const formatPhoneNumber = (value: string) => {
-    if (!value) return '';
-    const numbers = value.replace(/[^0-9]/g, '');
-    if (numbers.length <= 2) return numbers;
-    if (numbers.length <= 6) return `${numbers.slice(0, 2)}-${numbers.slice(2)}`;
-    if (numbers.length <= 10) return `${numbers.slice(0, 2)}-${numbers.slice(2, 6)}-${numbers.slice(6)}`;
-    // 휴대폰 번호 형식
-    if (numbers.startsWith('010')) {
-      if (numbers.length <= 3) return numbers;
-      if (numbers.length <= 7) return `${numbers.slice(0, 3)}-${numbers.slice(3)}`;
-      return `${numbers.slice(0, 3)}-${numbers.slice(3, 7)}-${numbers.slice(7, 11)}`;
-    }
-    // 지역번호 형식 (02, 031 등)
-    if (numbers.startsWith('02')) {
-      if (numbers.length <= 2) return numbers;
-      if (numbers.length <= 6) return `${numbers.slice(0, 2)}-${numbers.slice(2)}`;
-      return `${numbers.slice(0, 2)}-${numbers.slice(2, 6)}-${numbers.slice(6, 10)}`;
-    }
-    // 그 외 3자리 지역번호
-    if (numbers.length <= 3) return numbers;
-    if (numbers.length <= 7) return `${numbers.slice(0, 3)}-${numbers.slice(3)}`;
-    return `${numbers.slice(0, 3)}-${numbers.slice(3, 7)}-${numbers.slice(7, 11)}`;
-  };
-
   // 사업자번호 포맷팅
   const formatBusinessNo = (value: string) => {
     if (!value) return '';
@@ -544,7 +519,7 @@ export default function PartnersPage() {
                     <input
                       type="text"
                       value={formData.phone}
-                      onChange={(e) => setFormData({ ...formData, phone: formatPhoneNumber(e.target.value) })}
+                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                       placeholder="연락처 *"
                       className={inputClass}
                     />
@@ -683,7 +658,7 @@ export default function PartnersPage() {
                       <input
                         type="text"
                         value={formData.phone}
-                        onChange={(e) => setFormData({ ...formData, phone: formatPhoneNumber(e.target.value) })}
+                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                         placeholder="연락처 *"
                         className={inputClass}
                       />

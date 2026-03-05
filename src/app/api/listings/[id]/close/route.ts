@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { createNotificationWithTemplate } from '@/lib/notifications';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -162,41 +161,6 @@ export async function POST(
           .from('auction_close_dates')
           .upsert(datesToClose, { onConflict: 'close_date', ignoreDuplicates: true });
       }
-    }
-
-    // 입찰한 중도매인에게 경매 결과 알림 발송
-    const dealerStats: Record<string, { total: number; success: number; failed: number; amount: number }> = {};
-    for (const part of parts) {
-      const partBids = (bids || []).filter((b: any) => b.part_id === part.id);
-      const highestBid = highestBidByPart[part.id];
-
-      for (const bid of partBids) {
-        const did = bid.dealer_id;
-        if (!dealerStats[did]) {
-          dealerStats[did] = { total: 0, success: 0, failed: 0, amount: 0 };
-        }
-        dealerStats[did].total++;
-        if (highestBid && bid.id === highestBid.id) {
-          dealerStats[did].success++;
-          dealerStats[did].amount += Number(bid.bid_amount || 0);
-        } else {
-          dealerStats[did].failed++;
-        }
-      }
-    }
-    for (const [dealerId, stats] of Object.entries(dealerStats)) {
-      createNotificationWithTemplate(
-        dealerId,
-        'auction_result',
-        {
-          roundNo: '1',
-          totalCount: String(stats.total),
-          successCount: String(stats.success),
-          failedCount: String(stats.failed),
-          bidAmount: stats.amount.toLocaleString(),
-        },
-        '/bids?tab=경매결과'
-      ).catch(() => {});
     }
 
     return NextResponse.json({

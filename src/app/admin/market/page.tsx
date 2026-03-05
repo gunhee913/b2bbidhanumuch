@@ -465,34 +465,34 @@ export default function MarketPage() {
                             )
                           ) : null}
                         </td>
-                        <td className="px-4 py-3 text-xs text-center border border-gray-200 text-gray-900 font-medium">
+                        <td className="px-4 py-3 text-xs text-center border border-gray-200 text-gray-900 font-medium whitespace-nowrap">
                           {item.partName}
                         </td>
-                        <td className="px-4 py-3 text-xs text-center border border-gray-200 text-gray-700">
+                        <td className="px-4 py-3 text-xs text-center border border-gray-200 text-gray-700 whitespace-nowrap">
                           {item.grade}
                         </td>
-<td className={`px-4 py-3 text-xs text-center border border-gray-200 ${hasRecords ? 'text-gray-900' : 'text-gray-400'}`}>
+<td className={`px-4 py-3 text-xs text-center border border-gray-200 whitespace-nowrap ${hasRecords ? 'text-gray-900' : 'text-gray-400'}`}>
                           {item.count}
                         </td>
-                        <td className={`px-4 py-3 text-xs text-center border border-gray-200 ${hasRecords ? 'text-gray-700' : 'text-gray-400'}`}>
+                        <td className={`px-4 py-3 text-xs text-center border border-gray-200 whitespace-nowrap ${hasRecords ? 'text-gray-700' : 'text-gray-400'}`}>
                           {hasRecords ? item.totalWeight.toLocaleString() : '-'}
                         </td>
-                        <td className={`px-4 py-3 text-xs text-center border border-gray-200 ${hasRecords ? 'text-gray-900' : 'text-gray-400'}`}>
+                        <td className={`px-4 py-3 text-xs text-center border border-gray-200 whitespace-nowrap ${hasRecords ? 'text-gray-900' : 'text-gray-400'}`}>
                           {hasRecords ? `${item.avgPrice.toLocaleString()}원` : '-'}
                         </td>
-                        <td className={`px-4 py-3 text-xs text-center border border-gray-200 ${hasRecords ? 'text-gray-700' : 'text-gray-400'}`}>
+                        <td className={`px-4 py-3 text-xs text-center border border-gray-200 whitespace-nowrap ${hasRecords ? 'text-gray-700' : 'text-gray-400'}`}>
                           {hasRecords ? `${item.minPrice.toLocaleString()}원` : '-'}
                         </td>
-                        <td className={`px-4 py-3 text-xs text-center border border-gray-200 ${hasRecords ? 'text-gray-700' : 'text-gray-400'}`}>
+                        <td className={`px-4 py-3 text-xs text-center border border-gray-200 whitespace-nowrap ${hasRecords ? 'text-gray-700' : 'text-gray-400'}`}>
                           {hasRecords ? `${item.maxPrice.toLocaleString()}원` : '-'}
                         </td>
-                        <td className={`px-4 py-3 text-xs text-center border border-gray-200 ${hasRecords ? 'text-gray-900' : 'text-gray-400'}`}>
+                        <td className={`px-4 py-3 text-xs text-center border border-gray-200 whitespace-nowrap ${hasRecords ? 'text-gray-900' : 'text-gray-400'}`}>
                           {hasRecords ? `${item.avgAmount.toLocaleString()}원` : '-'}
                         </td>
-                        <td className={`px-4 py-3 text-xs text-center border border-gray-200 ${hasRecords ? 'text-gray-700' : 'text-gray-400'}`}>
+                        <td className={`px-4 py-3 text-xs text-center border border-gray-200 whitespace-nowrap ${hasRecords ? 'text-gray-700' : 'text-gray-400'}`}>
                           {hasRecords ? `${item.minAmount.toLocaleString()}원` : '-'}
                         </td>
-                        <td className={`px-4 py-3 text-xs text-center border border-gray-200 ${hasRecords ? 'text-gray-700' : 'text-gray-400'}`}>
+                        <td className={`px-4 py-3 text-xs text-center border border-gray-200 whitespace-nowrap ${hasRecords ? 'text-gray-700' : 'text-gray-400'}`}>
                           {hasRecords ? `${item.maxAmount.toLocaleString()}원` : '-'}
                         </td>
                       </tr>
@@ -507,31 +507,31 @@ export default function MarketPage() {
                             <table className="w-full border border-gray-200 bg-white">
                               <thead>
                                 <tr className="bg-gray-100">
-                                  <th className="px-3 py-2 text-xs font-semibold text-gray-600 text-center border-r border-gray-200">상장번호</th>
-                                  <th className="px-3 py-2 text-xs font-semibold text-gray-600 text-center border-r border-gray-200">상장업체</th>
-                                  <th className="px-3 py-2 text-xs font-semibold text-gray-600 text-center border-r border-gray-200">부위</th>
-                                  <th className="px-3 py-2 text-xs font-semibold text-gray-600 text-center border-r border-gray-200">등급</th>
-                                  <th className="px-3 py-2 text-xs font-semibold text-gray-600 text-center border-r border-gray-200">중도매인번호</th>
-                                  <th className="px-3 py-2 text-xs font-semibold text-gray-600 text-center border-r border-gray-200">중도매인명</th>
-                                  <th className="px-3 py-2 text-xs font-semibold text-gray-600 text-center border-r border-gray-200">중량(kg)</th>
-                                  <th className="px-3 py-2 text-xs font-semibold text-gray-600 text-center border-r border-gray-200">낙찰단가</th>
-                                  <th className="px-3 py-2 text-xs font-semibold text-gray-600 text-center">낙찰금액</th>
+                                  <th className="px-2 py-2 text-xs font-semibold text-gray-600 text-center border-r border-gray-200 whitespace-nowrap">상장번호</th>
+                                  <th className="px-2 py-2 text-xs font-semibold text-gray-600 text-center border-r border-gray-200 whitespace-nowrap">상장업체</th>
+                                  <th className="px-2 py-2 text-xs font-semibold text-gray-600 text-center border-r border-gray-200 whitespace-nowrap">부위</th>
+                                  <th className="px-2 py-2 text-xs font-semibold text-gray-600 text-center border-r border-gray-200 whitespace-nowrap">등급</th>
+                                  <th className="px-2 py-2 text-xs font-semibold text-gray-600 text-center border-r border-gray-200 whitespace-nowrap">중도매인번호</th>
+                                  <th className="px-2 py-2 text-xs font-semibold text-gray-600 text-center border-r border-gray-200 whitespace-nowrap">중도매인명</th>
+                                  <th className="px-2 py-2 text-xs font-semibold text-gray-600 text-center border-r border-gray-200 whitespace-nowrap">중량(kg)</th>
+                                  <th className="px-2 py-2 text-xs font-semibold text-gray-600 text-center border-r border-gray-200 whitespace-nowrap">낙찰단가</th>
+                                  <th className="px-2 py-2 text-xs font-semibold text-gray-600 text-center whitespace-nowrap">낙찰금액</th>
                                 </tr>
                               </thead>
                               <tbody>
                                 {item.records.map((record, idx) => (
                                   <tr key={`${record.listingNo}-${idx}`} className="border-t border-gray-200 hover:bg-gray-50">
-                                    <td className="px-3 py-2 text-xs text-center text-gray-700 border-r border-gray-200">{record.listingNo}</td>
-                                    <td className="px-3 py-2 text-xs text-center text-gray-700 border-r border-gray-200">{record.companyName}</td>
-                                    <td className="px-3 py-2 text-xs text-center text-gray-700 border-r border-gray-200">{record.partNameOriginal}</td>
-                                    <td className="px-3 py-2 text-xs text-center text-gray-700 border-r border-gray-200">{record.gradeOriginal}</td>
-                                    <td className="px-3 py-2 text-xs text-center text-gray-700 border-r border-gray-200">{record.dealerNo}</td>
-                                    <td className="px-3 py-2 text-xs text-center text-gray-700 border-r border-gray-200">{record.dealerName}</td>
-                                    <td className="px-3 py-2 text-xs text-center text-gray-700 border-r border-gray-200">{record.weight}</td>
-                                    <td className="px-3 py-2 text-xs text-center text-gray-700 border-r border-gray-200">
+                                    <td className="px-2 py-2 text-xs text-center text-gray-700 border-r border-gray-200 whitespace-nowrap">{record.listingNo}</td>
+                                    <td className="px-2 py-2 text-xs text-center text-gray-700 border-r border-gray-200 whitespace-nowrap">{record.companyName}</td>
+                                    <td className="px-2 py-2 text-xs text-center text-gray-700 border-r border-gray-200 whitespace-nowrap">{record.partNameOriginal}</td>
+                                    <td className="px-2 py-2 text-xs text-center text-gray-700 border-r border-gray-200 whitespace-nowrap">{record.gradeOriginal}</td>
+                                    <td className="px-2 py-2 text-xs text-center text-gray-700 border-r border-gray-200 whitespace-nowrap">{record.dealerNo}</td>
+                                    <td className="px-2 py-2 text-xs text-center text-gray-700 border-r border-gray-200 whitespace-nowrap">{record.dealerName}</td>
+                                    <td className="px-2 py-2 text-xs text-center text-gray-700 border-r border-gray-200 whitespace-nowrap">{record.weight}</td>
+                                    <td className="px-2 py-2 text-xs text-center text-gray-700 border-r border-gray-200 whitespace-nowrap">
                                       {record.price.toLocaleString()}원
                                     </td>
-                                    <td className="px-3 py-2 text-xs text-center text-gray-700">
+                                    <td className="px-2 py-2 text-xs text-center text-gray-700 whitespace-nowrap">
                                       {record.totalPrice.toLocaleString()}원
                                     </td>
                                   </tr>

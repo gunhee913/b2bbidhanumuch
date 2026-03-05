@@ -264,7 +264,7 @@ export default function AdminsPage() {
                 <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50 w-[100px]">등록일</th>
                 <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50 w-[140px]">최근로그인</th>
                 <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50 w-[50px]">수정</th>
-                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50 w-[80px]">상태</th>
+                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50 w-[90px]">상태</th>
               </tr>
             </thead>
             <tbody>
@@ -461,7 +461,7 @@ export default function AdminsPage() {
                         <select
                           value={admin.status}
                           onChange={(e) => handleStatusChange(admin.id, e.target.value as 'active' | 'inactive')}
-                          className="w-full px-3 py-1.5 text-sm border border-gray-100 focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
+                          className="w-full px-2 py-1.5 text-xs border border-gray-100 focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
                         >
                           <option value="active">활성</option>
                           <option value="inactive">비활성</option>

@@ -57,7 +57,7 @@ export default function CompanyAuctionResultsPage() {
   const failedCount = summary.partCount - summary.wonCount;
   const avgRate = summary.partCount > 0 ? Math.round((summary.wonCount / summary.partCount) * 100 * 10) / 10 : 0;
 
-  const thClass = "px-3 py-2 text-center text-xs font-semibold text-gray-500 whitespace-nowrap border border-gray-200";
+  const thClass = "px-2 py-2 text-center text-xs font-semibold text-gray-500 whitespace-nowrap border border-gray-200";
   const tdClass = "px-2 py-1.5 text-xs text-gray-600 text-center whitespace-nowrap border border-gray-200";
 
   const handleExcelDownload = () => {

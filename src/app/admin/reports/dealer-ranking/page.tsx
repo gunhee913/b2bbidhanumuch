@@ -203,25 +203,25 @@ export default function DealerRankingPage() {
                           <table className="w-full border-collapse">
                             <thead>
                               <tr>
-                                <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-white">상장업체</th>
-                                <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-white">낙찰 건수</th>
-                                <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-white">낙찰대금</th>
-                                <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-white">비중</th>
+                                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-white whitespace-nowrap">상장업체</th>
+                                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-white whitespace-nowrap">낙찰 건수</th>
+                                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-white whitespace-nowrap">낙찰대금</th>
+                                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-white whitespace-nowrap">비중</th>
                               </tr>
                             </thead>
                             <tbody>
                               {dealer.companies.map((company) => (
                                 <tr key={company.name} className="hover:bg-gray-100">
-                                  <td className="px-3 py-2 text-xs text-center border border-gray-200 font-medium">
+                                  <td className="px-2 py-2 text-xs text-center border border-gray-200 whitespace-nowrap font-medium">
                                     {company.name}
                                   </td>
-                                  <td className="px-3 py-2 text-xs text-center border border-gray-200">
+                                  <td className="px-2 py-2 text-xs text-center border border-gray-200 whitespace-nowrap">
                                     {company.count}건
                                   </td>
-                                  <td className="px-3 py-2 text-xs text-center border border-gray-200">
+                                  <td className="px-2 py-2 text-xs text-center border border-gray-200 whitespace-nowrap">
                                     {company.amount.toLocaleString()}원
                                   </td>
-                                  <td className="px-3 py-2 text-xs text-center border border-gray-200">
+                                  <td className="px-2 py-2 text-xs text-center border border-gray-200 whitespace-nowrap">
                                     {company.ratio}%
                                   </td>
                                 </tr>

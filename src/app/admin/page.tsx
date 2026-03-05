@@ -210,30 +210,30 @@ export default function AdminDashboardPage() {
       ) : (
         <>
           {/* 요약 카드 */}
-          <div className="grid grid-cols-6 gap-4 mb-6">
-            <div className="bg-white border border-gray-200 p-4">
-              <div className="text-sm text-gray-500 mb-1">경매 두수</div>
-              <div className="text-2xl font-bold text-gray-900">{summary.cattleCount}두</div>
+          <div className="grid grid-cols-6 gap-3 mb-6">
+            <div className="bg-white border border-gray-200 p-3">
+              <div className="text-xs text-gray-500 mb-1">경매 두수</div>
+              <div className="text-xl font-bold text-gray-900">{summary.cattleCount}두</div>
             </div>
-            <div className="bg-white border border-gray-200 p-4">
-              <div className="text-sm text-gray-500 mb-1">경매 건수</div>
-              <div className="text-2xl font-bold text-gray-900">{summary.partCount.toLocaleString()}건</div>
+            <div className="bg-white border border-gray-200 p-3">
+              <div className="text-xs text-gray-500 mb-1">경매 건수</div>
+              <div className="text-xl font-bold text-gray-900">{summary.partCount.toLocaleString()}건</div>
             </div>
-            <div className="bg-white border border-gray-200 p-4">
-              <div className="text-sm text-gray-500 mb-1">낙찰 건수</div>
-              <div className="text-2xl font-bold text-gray-900">{summary.wonCount.toLocaleString()}건</div>
+            <div className="bg-white border border-gray-200 p-3">
+              <div className="text-xs text-gray-500 mb-1">낙찰 건수</div>
+              <div className="text-xl font-bold text-gray-900">{summary.wonCount.toLocaleString()}건</div>
             </div>
-            <div className="bg-white border border-gray-200 p-4">
-              <div className="text-sm text-gray-500 mb-1">낙찰대금</div>
-              <div className="text-2xl font-bold text-gray-900">{summary.wonAmount.toLocaleString()}원</div>
+            <div className="bg-white border border-gray-200 p-3">
+              <div className="text-xs text-gray-500 mb-1">낙찰대금</div>
+              <div className="text-lg font-bold text-gray-900 whitespace-nowrap">{summary.wonAmount.toLocaleString()}원</div>
             </div>
-            <div className="bg-white border border-gray-200 p-4">
-              <div className="text-sm text-gray-500 mb-1">상장수수료 ({summary.feeRate}%)</div>
-              <div className="text-2xl font-bold text-gray-900">{summary.feeAmount.toLocaleString()}원</div>
+            <div className="bg-white border border-gray-200 p-3">
+              <div className="text-xs text-gray-500 mb-1 whitespace-nowrap">상장수수료 ({summary.feeRate}%)</div>
+              <div className="text-lg font-bold text-gray-900 whitespace-nowrap">{summary.feeAmount.toLocaleString()}원</div>
             </div>
-            <div className="bg-white border border-gray-200 p-4">
-              <div className="text-sm text-gray-500 mb-1">배송수수료 ({summary.deliveryFeeRate}%)</div>
-              <div className="text-2xl font-bold text-gray-900">{summary.deliveryFeeAmount.toLocaleString()}원</div>
+            <div className="bg-white border border-gray-200 p-3">
+              <div className="text-xs text-gray-500 mb-1 whitespace-nowrap">배송수수료 ({summary.deliveryFeeRate}%)</div>
+              <div className="text-lg font-bold text-gray-900 whitespace-nowrap">{summary.deliveryFeeAmount.toLocaleString()}원</div>
             </div>
           </div>
 
@@ -244,13 +244,13 @@ export default function AdminDashboardPage() {
               <table className="w-full border-collapse">
                 <thead>
                   <tr>
-                    <th className="px-4 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">일자</th>
-                    <th className="px-4 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">경매 두수</th>
-                    <th className="px-4 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">경매 건수</th>
-                    <th className="px-4 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">낙찰 건수</th>
-                    <th className="px-4 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">낙찰대금</th>
-                    <th className="px-4 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">상장수수료</th>
-                    <th className="px-4 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">배송수수료</th>
+                    <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50 whitespace-nowrap">일자</th>
+                    <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50 whitespace-nowrap">경매 두수</th>
+                    <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50 whitespace-nowrap">경매 건수</th>
+                    <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50 whitespace-nowrap">낙찰 건수</th>
+                    <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50 whitespace-nowrap">낙찰대금</th>
+                    <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50 whitespace-nowrap">상장수수료</th>
+                    <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50 whitespace-nowrap">배송수수료</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -264,23 +264,23 @@ export default function AdminDashboardPage() {
                     <>
                       {daily.map((day) => (
                         <tr key={day.date} className="hover:bg-gray-50">
-                          <td className="px-4 py-2 text-xs text-center border border-gray-200">{day.date}</td>
-                          <td className="px-4 py-2 text-xs text-center border border-gray-200">{day.cattleCount}두</td>
-                          <td className="px-4 py-2 text-xs text-center border border-gray-200">{day.partCount}건</td>
-                          <td className="px-4 py-2 text-xs text-center border border-gray-200">{day.wonCount}건</td>
-                          <td className="px-4 py-2 text-xs text-center border border-gray-200 font-medium">{day.wonAmount.toLocaleString()}원</td>
-                          <td className="px-4 py-2 text-xs text-center border border-gray-200">{day.feeAmount.toLocaleString()}원</td>
-                          <td className="px-4 py-2 text-xs text-center border border-gray-200">{day.deliveryFeeAmount.toLocaleString()}원</td>
+                          <td className="px-2 py-2 text-xs text-center border border-gray-200 whitespace-nowrap">{day.date}</td>
+                          <td className="px-2 py-2 text-xs text-center border border-gray-200 whitespace-nowrap">{day.cattleCount}두</td>
+                          <td className="px-2 py-2 text-xs text-center border border-gray-200 whitespace-nowrap">{day.partCount}건</td>
+                          <td className="px-2 py-2 text-xs text-center border border-gray-200 whitespace-nowrap">{day.wonCount}건</td>
+                          <td className="px-2 py-2 text-xs text-center border border-gray-200 whitespace-nowrap font-medium">{day.wonAmount.toLocaleString()}원</td>
+                          <td className="px-2 py-2 text-xs text-center border border-gray-200 whitespace-nowrap">{day.feeAmount.toLocaleString()}원</td>
+                          <td className="px-2 py-2 text-xs text-center border border-gray-200 whitespace-nowrap">{day.deliveryFeeAmount.toLocaleString()}원</td>
                         </tr>
                       ))}
                       <tr className="bg-gray-50 font-bold">
-                        <td className="px-4 py-2 text-xs text-center border border-gray-200">합계</td>
-                        <td className="px-4 py-2 text-xs text-center border border-gray-200">{summary.cattleCount}두</td>
-                        <td className="px-4 py-2 text-xs text-center border border-gray-200">{summary.partCount.toLocaleString()}건</td>
-                        <td className="px-4 py-2 text-xs text-center border border-gray-200">{summary.wonCount.toLocaleString()}건</td>
-                        <td className="px-4 py-2 text-xs text-center border border-gray-200">{summary.wonAmount.toLocaleString()}원</td>
-                        <td className="px-4 py-2 text-xs text-center border border-gray-200">{summary.feeAmount.toLocaleString()}원</td>
-                        <td className="px-4 py-2 text-xs text-center border border-gray-200">{summary.deliveryFeeAmount.toLocaleString()}원</td>
+                        <td className="px-2 py-2 text-xs text-center border border-gray-200 whitespace-nowrap">합계</td>
+                        <td className="px-2 py-2 text-xs text-center border border-gray-200 whitespace-nowrap">{summary.cattleCount}두</td>
+                        <td className="px-2 py-2 text-xs text-center border border-gray-200 whitespace-nowrap">{summary.partCount.toLocaleString()}건</td>
+                        <td className="px-2 py-2 text-xs text-center border border-gray-200 whitespace-nowrap">{summary.wonCount.toLocaleString()}건</td>
+                        <td className="px-2 py-2 text-xs text-center border border-gray-200 whitespace-nowrap">{summary.wonAmount.toLocaleString()}원</td>
+                        <td className="px-2 py-2 text-xs text-center border border-gray-200 whitespace-nowrap">{summary.feeAmount.toLocaleString()}원</td>
+                        <td className="px-2 py-2 text-xs text-center border border-gray-200 whitespace-nowrap">{summary.deliveryFeeAmount.toLocaleString()}원</td>
                       </tr>
                     </>
                   )}
@@ -297,42 +297,42 @@ export default function AdminDashboardPage() {
                 <table className="w-full border-collapse">
                   <thead>
                     <tr>
-                      <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">순위</th>
-                      <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">부위</th>
-                      <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">경매 건수</th>
-                      <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">낙찰 건수</th>
-                      <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">낙찰대금</th>
-                      <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">낙찰률</th>
-                      <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">비중</th>
+                      <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50 whitespace-nowrap">순위</th>
+                      <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50 whitespace-nowrap">부위</th>
+                      <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50 whitespace-nowrap">경매건수</th>
+                      <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50 whitespace-nowrap">낙찰건수</th>
+                      <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50 whitespace-nowrap">낙찰대금</th>
+                      <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50 whitespace-nowrap">낙찰률</th>
+                      <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50 whitespace-nowrap">비중</th>
                     </tr>
                   </thead>
                   <tbody>
                     {byPart.length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="px-3 py-8 text-center text-xs text-gray-400 border border-gray-200">데이터 없음</td>
+                        <td colSpan={7} className="px-2 py-8 text-center text-xs text-gray-400 border border-gray-200">데이터 없음</td>
                       </tr>
                     ) : (
                       <>
                         {byPart.map((part, idx) => (
                           <tr key={part.name} className="hover:bg-gray-50">
-                            <td className="px-3 py-2 text-xs text-center border border-gray-200">{idx + 1}</td>
-                            <td className="px-3 py-2 text-xs text-center border border-gray-200 font-medium">{part.name}</td>
-                            <td className="px-3 py-2 text-xs text-center border border-gray-200">{part.partCount}건</td>
-                            <td className="px-3 py-2 text-xs text-center border border-gray-200">{part.count}건</td>
-                            <td className="px-3 py-2 text-xs text-center border border-gray-200">{part.amount.toLocaleString()}원</td>
-                            <td className="px-3 py-2 text-xs text-center border border-gray-200">{part.bidRate}%</td>
-                            <td className="px-3 py-2 text-xs text-center border border-gray-200">{part.ratio}%</td>
+                            <td className="px-2 py-2 text-xs text-center border border-gray-200 whitespace-nowrap">{idx + 1}</td>
+                            <td className="px-2 py-2 text-xs text-center border border-gray-200 whitespace-nowrap font-medium">{part.name}</td>
+                            <td className="px-2 py-2 text-xs text-center border border-gray-200 whitespace-nowrap">{part.partCount}건</td>
+                            <td className="px-2 py-2 text-xs text-center border border-gray-200 whitespace-nowrap">{part.count}건</td>
+                            <td className="px-2 py-2 text-xs text-center border border-gray-200 whitespace-nowrap">{part.amount.toLocaleString()}원</td>
+                            <td className="px-2 py-2 text-xs text-center border border-gray-200 whitespace-nowrap">{part.bidRate}%</td>
+                            <td className="px-2 py-2 text-xs text-center border border-gray-200 whitespace-nowrap">{part.ratio}%</td>
                           </tr>
                         ))}
                         <tr className="bg-gray-50 font-bold">
-                          <td colSpan={2} className="px-3 py-2 text-xs text-center border border-gray-200">합계</td>
-                          <td className="px-3 py-2 text-xs text-center border border-gray-200">{summary.partCount.toLocaleString()}건</td>
-                          <td className="px-3 py-2 text-xs text-center border border-gray-200">{summary.wonCount}건</td>
-                          <td className="px-3 py-2 text-xs text-center border border-gray-200">{summary.wonAmount.toLocaleString()}원</td>
-                          <td className="px-3 py-2 text-xs text-center border border-gray-200">
+                          <td colSpan={2} className="px-2 py-2 text-xs text-center border border-gray-200 whitespace-nowrap">합계</td>
+                          <td className="px-2 py-2 text-xs text-center border border-gray-200 whitespace-nowrap">{summary.partCount.toLocaleString()}건</td>
+                          <td className="px-2 py-2 text-xs text-center border border-gray-200 whitespace-nowrap">{summary.wonCount}건</td>
+                          <td className="px-2 py-2 text-xs text-center border border-gray-200 whitespace-nowrap">{summary.wonAmount.toLocaleString()}원</td>
+                          <td className="px-2 py-2 text-xs text-center border border-gray-200 whitespace-nowrap">
                             {summary.partCount > 0 ? (summary.wonCount / summary.partCount * 100).toFixed(1) : 0}%
                           </td>
-                          <td className="px-3 py-2 text-xs text-center border border-gray-200">100%</td>
+                          <td className="px-2 py-2 text-xs text-center border border-gray-200 whitespace-nowrap">100%</td>
                         </tr>
                       </>
                     )}
@@ -350,43 +350,43 @@ export default function AdminDashboardPage() {
                   <table className="w-full border-collapse">
                     <thead>
                       <tr>
-                        <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">등급</th>
-                        <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">경매 두수</th>
-                        <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">경매 건수</th>
-                        <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">낙찰 건수</th>
-                        <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">낙찰대금</th>
-                        <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">낙찰률</th>
-                        <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">비중</th>
+                        <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50 whitespace-nowrap">등급</th>
+                        <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50 whitespace-nowrap">경매두수</th>
+                        <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50 whitespace-nowrap">경매건수</th>
+                        <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50 whitespace-nowrap">낙찰건수</th>
+                        <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50 whitespace-nowrap">낙찰대금</th>
+                        <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50 whitespace-nowrap">낙찰률</th>
+                        <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50 whitespace-nowrap">비중</th>
                       </tr>
                     </thead>
                     <tbody>
                       {byGrade.length === 0 ? (
                         <tr>
-                          <td colSpan={7} className="px-3 py-8 text-center text-xs text-gray-400 border border-gray-200">데이터 없음</td>
+                          <td colSpan={7} className="px-2 py-8 text-center text-xs text-gray-400 border border-gray-200">데이터 없음</td>
                         </tr>
                       ) : (
                         <>
                           {byGrade.map((grade) => (
                             <tr key={grade.name} className="hover:bg-gray-50">
-                              <td className="px-3 py-2 text-xs text-center border border-gray-200 font-medium">{grade.name}</td>
-                              <td className="px-3 py-2 text-xs text-center border border-gray-200">{grade.cattleCount}두</td>
-                              <td className="px-3 py-2 text-xs text-center border border-gray-200">{grade.partCount}건</td>
-                              <td className="px-3 py-2 text-xs text-center border border-gray-200">{grade.wonCount}건</td>
-                              <td className="px-3 py-2 text-xs text-center border border-gray-200">{grade.wonAmount.toLocaleString()}원</td>
-                              <td className="px-3 py-2 text-xs text-center border border-gray-200">{grade.bidRate}%</td>
-                              <td className="px-3 py-2 text-xs text-center border border-gray-200">{grade.ratio}%</td>
+                              <td className="px-2 py-2 text-xs text-center border border-gray-200 whitespace-nowrap font-medium">{grade.name}</td>
+                              <td className="px-2 py-2 text-xs text-center border border-gray-200 whitespace-nowrap">{grade.cattleCount}두</td>
+                              <td className="px-2 py-2 text-xs text-center border border-gray-200 whitespace-nowrap">{grade.partCount}건</td>
+                              <td className="px-2 py-2 text-xs text-center border border-gray-200 whitespace-nowrap">{grade.wonCount}건</td>
+                              <td className="px-2 py-2 text-xs text-center border border-gray-200 whitespace-nowrap">{grade.wonAmount.toLocaleString()}원</td>
+                              <td className="px-2 py-2 text-xs text-center border border-gray-200 whitespace-nowrap">{grade.bidRate}%</td>
+                              <td className="px-2 py-2 text-xs text-center border border-gray-200 whitespace-nowrap">{grade.ratio}%</td>
                             </tr>
                           ))}
                           <tr className="bg-gray-50 font-bold">
-                            <td className="px-3 py-2 text-xs text-center border border-gray-200">합계</td>
-                            <td className="px-3 py-2 text-xs text-center border border-gray-200">{summary.cattleCount}두</td>
-                            <td className="px-3 py-2 text-xs text-center border border-gray-200">{summary.partCount.toLocaleString()}건</td>
-                            <td className="px-3 py-2 text-xs text-center border border-gray-200">{summary.wonCount.toLocaleString()}건</td>
-                            <td className="px-3 py-2 text-xs text-center border border-gray-200">{summary.wonAmount.toLocaleString()}원</td>
-                            <td className="px-3 py-2 text-xs text-center border border-gray-200">
+                            <td className="px-2 py-2 text-xs text-center border border-gray-200 whitespace-nowrap">합계</td>
+                            <td className="px-2 py-2 text-xs text-center border border-gray-200 whitespace-nowrap">{summary.cattleCount}두</td>
+                            <td className="px-2 py-2 text-xs text-center border border-gray-200 whitespace-nowrap">{summary.partCount.toLocaleString()}건</td>
+                            <td className="px-2 py-2 text-xs text-center border border-gray-200 whitespace-nowrap">{summary.wonCount.toLocaleString()}건</td>
+                            <td className="px-2 py-2 text-xs text-center border border-gray-200 whitespace-nowrap">{summary.wonAmount.toLocaleString()}원</td>
+                            <td className="px-2 py-2 text-xs text-center border border-gray-200 whitespace-nowrap">
                               {summary.partCount > 0 ? (summary.wonCount / summary.partCount * 100).toFixed(1) : 0}%
                             </td>
-                            <td className="px-3 py-2 text-xs text-center border border-gray-200">100%</td>
+                            <td className="px-2 py-2 text-xs text-center border border-gray-200 whitespace-nowrap">100%</td>
                           </tr>
                         </>
                       )}
@@ -402,45 +402,45 @@ export default function AdminDashboardPage() {
                   <table className="w-full border-collapse">
                     <thead>
                       <tr>
-                        <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">순위</th>
-                        <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">상장업체</th>
-                        <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">경매 두수</th>
-                        <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">경매 건수</th>
-                        <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">낙찰 건수</th>
-                        <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">낙찰대금</th>
-                        <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">낙찰률</th>
-                        <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">비중</th>
+                        <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50 whitespace-nowrap">순위</th>
+                        <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50 whitespace-nowrap">상장업체</th>
+                        <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50 whitespace-nowrap">경매두수</th>
+                        <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50 whitespace-nowrap">경매건수</th>
+                        <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50 whitespace-nowrap">낙찰건수</th>
+                        <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50 whitespace-nowrap">낙찰대금</th>
+                        <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50 whitespace-nowrap">낙찰률</th>
+                        <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50 whitespace-nowrap">비중</th>
                       </tr>
                     </thead>
                     <tbody>
                       {byCompany.length === 0 ? (
                         <tr>
-                          <td colSpan={8} className="px-3 py-8 text-center text-xs text-gray-400 border border-gray-200">데이터 없음</td>
+                          <td colSpan={8} className="px-2 py-8 text-center text-xs text-gray-400 border border-gray-200">데이터 없음</td>
                         </tr>
                       ) : (
                         <>
                           {byCompany.map((company, idx) => (
                             <tr key={company.name} className="hover:bg-gray-50">
-                              <td className="px-3 py-2 text-xs text-center border border-gray-200">{idx + 1}</td>
-                              <td className="px-3 py-2 text-xs text-center border border-gray-200 font-medium">{company.name}</td>
-                              <td className="px-3 py-2 text-xs text-center border border-gray-200">{company.cattleCount}두</td>
-                              <td className="px-3 py-2 text-xs text-center border border-gray-200">{company.partCount}건</td>
-                              <td className="px-3 py-2 text-xs text-center border border-gray-200">{company.wonCount}건</td>
-                              <td className="px-3 py-2 text-xs text-center border border-gray-200">{company.wonAmount.toLocaleString()}원</td>
-                              <td className="px-3 py-2 text-xs text-center border border-gray-200">{company.bidRate}%</td>
-                              <td className="px-3 py-2 text-xs text-center border border-gray-200">{company.ratio}%</td>
+                              <td className="px-2 py-2 text-xs text-center border border-gray-200 whitespace-nowrap">{idx + 1}</td>
+                              <td className="px-2 py-2 text-xs text-center border border-gray-200 whitespace-nowrap font-medium">{company.name}</td>
+                              <td className="px-2 py-2 text-xs text-center border border-gray-200 whitespace-nowrap">{company.cattleCount}두</td>
+                              <td className="px-2 py-2 text-xs text-center border border-gray-200 whitespace-nowrap">{company.partCount}건</td>
+                              <td className="px-2 py-2 text-xs text-center border border-gray-200 whitespace-nowrap">{company.wonCount}건</td>
+                              <td className="px-2 py-2 text-xs text-center border border-gray-200 whitespace-nowrap">{company.wonAmount.toLocaleString()}원</td>
+                              <td className="px-2 py-2 text-xs text-center border border-gray-200 whitespace-nowrap">{company.bidRate}%</td>
+                              <td className="px-2 py-2 text-xs text-center border border-gray-200 whitespace-nowrap">{company.ratio}%</td>
                             </tr>
                           ))}
                           <tr className="bg-gray-50 font-bold">
-                            <td colSpan={2} className="px-3 py-2 text-xs text-center border border-gray-200">합계</td>
-                            <td className="px-3 py-2 text-xs text-center border border-gray-200">{summary.cattleCount}두</td>
-                            <td className="px-3 py-2 text-xs text-center border border-gray-200">{summary.partCount.toLocaleString()}건</td>
-                            <td className="px-3 py-2 text-xs text-center border border-gray-200">{summary.wonCount.toLocaleString()}건</td>
-                            <td className="px-3 py-2 text-xs text-center border border-gray-200">{summary.wonAmount.toLocaleString()}원</td>
-                            <td className="px-3 py-2 text-xs text-center border border-gray-200">
+                            <td colSpan={2} className="px-2 py-2 text-xs text-center border border-gray-200 whitespace-nowrap">합계</td>
+                            <td className="px-2 py-2 text-xs text-center border border-gray-200 whitespace-nowrap">{summary.cattleCount}두</td>
+                            <td className="px-2 py-2 text-xs text-center border border-gray-200 whitespace-nowrap">{summary.partCount.toLocaleString()}건</td>
+                            <td className="px-2 py-2 text-xs text-center border border-gray-200 whitespace-nowrap">{summary.wonCount.toLocaleString()}건</td>
+                            <td className="px-2 py-2 text-xs text-center border border-gray-200 whitespace-nowrap">{summary.wonAmount.toLocaleString()}원</td>
+                            <td className="px-2 py-2 text-xs text-center border border-gray-200 whitespace-nowrap">
                               {summary.partCount > 0 ? (summary.wonCount / summary.partCount * 100).toFixed(1) : 0}%
                             </td>
-                            <td className="px-3 py-2 text-xs text-center border border-gray-200">100%</td>
+                            <td className="px-2 py-2 text-xs text-center border border-gray-200 whitespace-nowrap">100%</td>
                           </tr>
                         </>
                       )}
@@ -456,46 +456,46 @@ export default function AdminDashboardPage() {
                   <table className="w-full border-collapse">
                     <thead>
                       <tr>
-                        <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">순위</th>
-                        <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">중도매인</th>
-                        <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">입찰 수</th>
-                        <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">낙찰 수</th>
-                        <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">낙찰대금</th>
-                        <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">낙찰률</th>
-                        <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">비중</th>
+                        <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50 whitespace-nowrap">순위</th>
+                        <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50 whitespace-nowrap">중도매인</th>
+                        <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50 whitespace-nowrap">입찰수</th>
+                        <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50 whitespace-nowrap">낙찰수</th>
+                        <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50 whitespace-nowrap">낙찰대금</th>
+                        <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50 whitespace-nowrap">낙찰률</th>
+                        <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50 whitespace-nowrap">비중</th>
                       </tr>
                     </thead>
                     <tbody>
                       {byDealer.length === 0 ? (
                         <tr>
-                          <td colSpan={7} className="px-3 py-8 text-center text-xs text-gray-400 border border-gray-200">데이터 없음</td>
+                          <td colSpan={7} className="px-2 py-8 text-center text-xs text-gray-400 border border-gray-200">데이터 없음</td>
                         </tr>
                       ) : (
                         <>
                           {byDealer.map((dealer, idx) => (
                             <tr key={dealer.name} className="hover:bg-gray-50">
-                              <td className="px-3 py-2 text-xs text-center border border-gray-200">{idx + 1}</td>
-                              <td className="px-3 py-2 text-xs text-center border border-gray-200 font-medium">{dealer.name}</td>
-                              <td className="px-3 py-2 text-xs text-center border border-gray-200">{dealer.bidCount}건</td>
-                              <td className="px-3 py-2 text-xs text-center border border-gray-200">{dealer.wonCount}건</td>
-                              <td className="px-3 py-2 text-xs text-center border border-gray-200">{dealer.wonAmount.toLocaleString()}원</td>
-                              <td className="px-3 py-2 text-xs text-center border border-gray-200">{dealer.bidRate}%</td>
-                              <td className="px-3 py-2 text-xs text-center border border-gray-200">{dealer.ratio}%</td>
+                              <td className="px-2 py-2 text-xs text-center border border-gray-200 whitespace-nowrap">{idx + 1}</td>
+                              <td className="px-2 py-2 text-xs text-center border border-gray-200 whitespace-nowrap font-medium">{dealer.name}</td>
+                              <td className="px-2 py-2 text-xs text-center border border-gray-200 whitespace-nowrap">{dealer.bidCount}건</td>
+                              <td className="px-2 py-2 text-xs text-center border border-gray-200 whitespace-nowrap">{dealer.wonCount}건</td>
+                              <td className="px-2 py-2 text-xs text-center border border-gray-200 whitespace-nowrap">{dealer.wonAmount.toLocaleString()}원</td>
+                              <td className="px-2 py-2 text-xs text-center border border-gray-200 whitespace-nowrap">{dealer.bidRate}%</td>
+                              <td className="px-2 py-2 text-xs text-center border border-gray-200 whitespace-nowrap">{dealer.ratio}%</td>
                             </tr>
                           ))}
                           <tr className="bg-gray-50 font-bold">
-                            <td colSpan={2} className="px-3 py-2 text-xs text-center border border-gray-200">합계</td>
-                            <td className="px-3 py-2 text-xs text-center border border-gray-200">
+                            <td colSpan={2} className="px-2 py-2 text-xs text-center border border-gray-200 whitespace-nowrap">합계</td>
+                            <td className="px-2 py-2 text-xs text-center border border-gray-200 whitespace-nowrap">
                               {byDealer.reduce((s, d) => s + d.bidCount, 0)}건
                             </td>
-                            <td className="px-3 py-2 text-xs text-center border border-gray-200">
+                            <td className="px-2 py-2 text-xs text-center border border-gray-200 whitespace-nowrap">
                               {byDealer.reduce((s, d) => s + d.wonCount, 0)}건
                             </td>
-                            <td className="px-3 py-2 text-xs text-center border border-gray-200">{summary.wonAmount.toLocaleString()}원</td>
-                            <td className="px-3 py-2 text-xs text-center border border-gray-200">
+                            <td className="px-2 py-2 text-xs text-center border border-gray-200 whitespace-nowrap">{summary.wonAmount.toLocaleString()}원</td>
+                            <td className="px-2 py-2 text-xs text-center border border-gray-200 whitespace-nowrap">
                               {(() => { const totalBid = byDealer.reduce((s, d) => s + d.bidCount, 0); const totalWon = byDealer.reduce((s, d) => s + d.wonCount, 0); return totalBid > 0 ? (totalWon / totalBid * 100).toFixed(1) : 0; })()}%
                             </td>
-                            <td className="px-3 py-2 text-xs text-center border border-gray-200">100%</td>
+                            <td className="px-2 py-2 text-xs text-center border border-gray-200 whitespace-nowrap">100%</td>
                           </tr>
                         </>
                       )}

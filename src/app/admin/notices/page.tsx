@@ -626,14 +626,14 @@ export default function AdminNoticesPage() {
         <table className="w-full text-xs">
           <thead>
             <tr className="bg-gray-50 border-b border-gray-200">
-              <th className="px-3 py-2 text-left font-medium text-gray-600" style={{ width: 50 }}>고정</th>
-              <th className="px-3 py-2 text-left font-medium text-gray-600 whitespace-nowrap" style={{ width: 80 }}>분류</th>
-              <th className="px-3 py-2 text-left font-medium text-gray-600">제목</th>
-              <th className="px-3 py-2 text-center font-medium text-gray-600" style={{ width: 60 }}>대상</th>
-              <th className="px-3 py-2 text-center font-medium text-gray-600" style={{ width: 50 }}>상태</th>
-              <th className="px-3 py-2 text-center font-medium text-gray-600" style={{ width: 70 }}>작성자</th>
-              <th className="px-3 py-2 text-center font-medium text-gray-600" style={{ width: 120 }}>등록일</th>
-              <th className="px-3 py-2 text-center font-medium text-gray-600" style={{ width: 80 }}>관리</th>
+              <th className="px-2 py-2 text-left font-medium text-gray-600 whitespace-nowrap" style={{ width: 50 }}>고정</th>
+              <th className="px-2 py-2 text-left font-medium text-gray-600 whitespace-nowrap whitespace-nowrap" style={{ width: 80 }}>분류</th>
+              <th className="px-2 py-2 text-left font-medium text-gray-600 whitespace-nowrap">제목</th>
+              <th className="px-2 py-2 text-center font-medium text-gray-600 whitespace-nowrap" style={{ width: 60 }}>대상</th>
+              <th className="px-2 py-2 text-center font-medium text-gray-600 whitespace-nowrap" style={{ width: 50 }}>상태</th>
+              <th className="px-2 py-2 text-center font-medium text-gray-600 whitespace-nowrap" style={{ width: 70 }}>작성자</th>
+              <th className="px-2 py-2 text-center font-medium text-gray-600 whitespace-nowrap" style={{ width: 120 }}>등록일</th>
+              <th className="px-2 py-2 text-center font-medium text-gray-600 whitespace-nowrap" style={{ width: 80 }}>관리</th>
             </tr>
           </thead>
           <tbody>
@@ -657,7 +657,7 @@ export default function AdminNoticesPage() {
                       className={`border-b border-gray-200 cursor-pointer transition-colors ${isExpanded ? 'bg-gray-50' : 'hover:bg-gray-50'}`}
                       onClick={() => handleRowClick(notice)}
                     >
-                      <td className="px-3 py-2" onClick={e => e.stopPropagation()}>
+                      <td className="px-2 py-2 whitespace-nowrap" onClick={e => e.stopPropagation()}>
                         <button
                           onClick={() => togglePinMutation.mutate({ id: notice.id, isPinned: !notice.isPinned })}
                           className={notice.isPinned ? 'text-amber-500' : 'text-gray-300 hover:text-gray-500'}
@@ -665,7 +665,7 @@ export default function AdminNoticesPage() {
                           {notice.isPinned ? <Pin className="w-3.5 h-3.5" /> : <PinOff className="w-3.5 h-3.5" />}
                         </button>
                       </td>
-                      <td className="px-3 py-2 whitespace-nowrap">
+                      <td className="px-2 py-2 whitespace-nowrap">
                         <span className={`text-[10px] px-1.5 py-0.5 ${
                           notice.category === '경매일정' ? 'bg-blue-50 text-blue-600' :
                           notice.category === '휴무' ? 'bg-red-50 text-red-600' :
@@ -675,14 +675,14 @@ export default function AdminNoticesPage() {
                           {notice.category}
                         </span>
                       </td>
-                      <td className="px-3 py-2">
+                      <td className="px-2 py-2 whitespace-nowrap">
                         {notice.isPinned && <span className="text-amber-500 mr-1">[고정]</span>}
                         {notice.title}
                       </td>
-                      <td className="px-3 py-2 text-center text-gray-500">
+                      <td className="px-2 py-2 text-center text-gray-500 whitespace-nowrap">
                         {TARGETS.find(t => t.value === notice.target)?.label || notice.target}
                       </td>
-                      <td className="px-3 py-2 text-center" onClick={e => e.stopPropagation()}>
+                      <td className="px-2 py-2 text-center whitespace-nowrap" onClick={e => e.stopPropagation()}>
                         <button
                           onClick={() => togglePublishMutation.mutate({ id: notice.id, isPublished: !notice.isPublished })}
                           className={notice.isPublished ? 'text-green-500' : 'text-gray-300 hover:text-gray-500'}
@@ -691,13 +691,13 @@ export default function AdminNoticesPage() {
                           {notice.isPublished ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
                         </button>
                       </td>
-                      <td className="px-3 py-2 text-center text-gray-500">
+                      <td className="px-2 py-2 text-center text-gray-500 whitespace-nowrap">
                         {notice.authorName || '-'}
                       </td>
-                      <td className="px-3 py-2 text-center text-gray-500 whitespace-nowrap">
+                      <td className="px-2 py-2 text-center text-gray-500 whitespace-nowrap whitespace-nowrap">
                         {formatDateTime(notice.createdAt)}
                       </td>
-                      <td className="px-3 py-2 text-center" onClick={e => e.stopPropagation()}>
+                      <td className="px-2 py-2 text-center whitespace-nowrap" onClick={e => e.stopPropagation()}>
                         <div className="flex items-center justify-center gap-1">
                           <button
                             onClick={() => handleStartEdit(notice)}

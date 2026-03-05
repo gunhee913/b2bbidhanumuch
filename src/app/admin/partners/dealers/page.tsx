@@ -168,8 +168,8 @@ export default function PartnersDealersPage() {
   };
 
   // 스타일
-  const thClass = "px-3 py-2 text-xs font-medium text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50 text-center";
-  const tdClass = "px-3 py-2 text-xs border border-gray-200 text-center whitespace-nowrap";
+  const thClass = "px-2 py-2 text-xs font-medium text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50 text-center";
+  const tdClass = "px-2 py-2 text-xs border border-gray-200 text-center whitespace-nowrap";
 
   return (
     <AdminLayout>
@@ -278,7 +278,7 @@ export default function PartnersDealersPage() {
             <thead>
               <tr>
                 <th className={thClass} style={{ width: '100px' }}>중도매인번호</th>
-                <th className={thClass} style={{ width: '80px' }}>중도매인명</th>
+                <th className={thClass} style={{ width: '110px' }}>중도매인명</th>
                 <th className={thClass} style={{ width: '70px' }}>거래처 수</th>
                 <th className={thClass} style={{ width: '80px' }}>거래처번호</th>
                 <th className={thClass} style={{ width: '100px' }}>거래처명</th>
@@ -327,7 +327,7 @@ export default function PartnersDealersPage() {
                               {dealer.dealerNo}
                             </div>
                           </td>
-                          <td className={`${tdClass} bg-gray-50 font-medium`} rowSpan={expandedDealers.includes(dealer.id) ? dealer.partners.length : 1}>
+                          <td className={`${tdClass} bg-gray-50 font-medium whitespace-normal`} rowSpan={expandedDealers.includes(dealer.id) ? dealer.partners.length : 1}>
                             {dealer.name}
                           </td>
                           <td className={`${tdClass} bg-gray-50`} rowSpan={expandedDealers.includes(dealer.id) ? dealer.partners.length : 1}>
@@ -369,7 +369,7 @@ export default function PartnersDealersPage() {
                     ) : (
                       <tr className="hover:bg-gray-50">
                         <td className={`${tdClass} bg-gray-50 font-medium`}>{dealer.dealerNo}</td>
-                        <td className={`${tdClass} bg-gray-50 font-medium`}>{dealer.name}</td>
+                        <td className={`${tdClass} bg-gray-50 font-medium whitespace-normal`}>{dealer.name}</td>
                         <td className={`${tdClass} bg-gray-50`}>0개</td>
                         <td className={tdClass} colSpan={9}>
                           <span className="text-gray-400">등록된 거래처가 없습니다.</span>

@@ -146,13 +146,13 @@ export default function SettlementSettingsPage() {
             <table className="w-full border-collapse">
               <thead>
                 <tr>
-                  <th className="w-16 px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">사용</th>
-                  <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">항목명</th>
-                  <th className="w-28 px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">유형</th>
-                  <th className="w-36 px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">값</th>
-                  <th className="w-40 px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">수정일시</th>
-                  <th className="w-20 px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">수정자</th>
-                  <th className="w-16 px-3 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50">삭제</th>
+                  <th className="w-16 px-2 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50 whitespace-nowrap">사용</th>
+                  <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50 whitespace-nowrap">항목명</th>
+                  <th className="w-28 px-2 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50 whitespace-nowrap">유형</th>
+                  <th className="w-36 px-2 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50 whitespace-nowrap">값</th>
+                  <th className="w-40 px-2 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50 whitespace-nowrap">수정일시</th>
+                  <th className="w-20 px-2 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50 whitespace-nowrap">수정자</th>
+                  <th className="w-16 px-2 py-2 text-center text-xs font-semibold text-gray-600 border border-gray-200 bg-gray-50 whitespace-nowrap">삭제</th>
                 </tr>
               </thead>
               <tbody>
@@ -174,7 +174,7 @@ export default function SettlementSettingsPage() {
                 ) : (
                   settingItems.map((item) => (
                     <tr key={item.id} className="hover:bg-gray-50">
-                      <td className="px-3 py-2 border border-gray-200 text-center">
+                      <td className="px-2 py-2 border border-gray-200 text-center whitespace-nowrap">
                         <div className="relative inline-flex items-center justify-center w-4 h-4 overflow-hidden">
                           <input
                             type="checkbox"
@@ -187,7 +187,7 @@ export default function SettlementSettingsPage() {
                           )}
                         </div>
                       </td>
-                      <td className="px-3 py-2 border border-gray-200">
+                      <td className="px-2 py-2 border border-gray-200 whitespace-nowrap">
                         <input
                           type="text"
                           value={item.name}
@@ -196,7 +196,7 @@ export default function SettlementSettingsPage() {
                           className="w-full px-2 py-1 bg-gray-50 border-0 text-xs outline-none focus:bg-white focus:ring-1 focus:ring-gray-300 placeholder:text-gray-400"
                         />
                       </td>
-                      <td className="px-3 py-2 border border-gray-200 text-center">
+                      <td className="px-2 py-2 border border-gray-200 text-center whitespace-nowrap">
                         <select
                           value={item.type}
                           onChange={(e) => handleUpdateItem(item.id, 'type', e.target.value as 'percentage' | 'fixed')}
@@ -206,7 +206,7 @@ export default function SettlementSettingsPage() {
                           <option value="percentage">비율</option>
                         </select>
                       </td>
-                      <td className="px-3 py-2 border border-gray-200">
+                      <td className="px-2 py-2 border border-gray-200 whitespace-nowrap">
                         <div className="flex items-center gap-1 justify-center">
                           <input
                             type="text"
@@ -253,13 +253,13 @@ export default function SettlementSettingsPage() {
                           </span>
                         </div>
                       </td>
-                      <td className="px-3 py-2 border border-gray-200 text-center">
+                      <td className="px-2 py-2 border border-gray-200 text-center whitespace-nowrap">
                         <span className="text-xs text-gray-500">{formatDateTime(item.updatedAt)}</span>
                       </td>
-                      <td className="px-3 py-2 border border-gray-200 text-center">
+                      <td className="px-2 py-2 border border-gray-200 text-center whitespace-nowrap">
                         <span className="text-xs text-gray-700">{item.updatedBy}</span>
                       </td>
-                      <td className="px-3 py-2 border border-gray-200 text-center">
+                      <td className="px-2 py-2 border border-gray-200 text-center whitespace-nowrap">
                         <button
                           onClick={() => handleDeleteItem(item.id)}
                           className="p-1 text-gray-400 hover:text-red-600"

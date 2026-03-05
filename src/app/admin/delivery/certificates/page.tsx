@@ -156,8 +156,8 @@ export default function CertificatesPage() {
   };
   
   // 테이블 스타일
-  const thClass = 'px-3 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50';
-  const tdClass = 'px-3 py-2 text-xs border border-gray-200';
+  const thClass = 'px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50';
+  const tdClass = 'px-2 py-2 text-xs border border-gray-200 whitespace-nowrap';
   
   return (
     <AdminLayout>
