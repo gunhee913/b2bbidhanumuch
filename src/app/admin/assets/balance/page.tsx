@@ -601,7 +601,7 @@ export default function DealerBalancePage() {
                                             )}
                                           </td>
                                           <td className={tdClass}>
-                                            {record.status === 'active' ? (
+                                            {record.status === 'active' && record.type !== 'auction_deduct' ? (
                                               <div className="flex items-center justify-center gap-1">
                                                 <button type="button" onClick={() => handleEditDeposit(record)} className="px-2 py-0.5 text-xs border border-gray-300 text-gray-600 hover:bg-gray-50" disabled={editingDepositId !== null}>수정</button>
                                                 <button type="button" onClick={() => openCancelModal(record.id)} className="px-2 py-0.5 text-xs border border-gray-300 text-gray-600 hover:bg-gray-50" disabled={editingDepositId !== null}>취소</button>

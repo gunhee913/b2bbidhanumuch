@@ -63,25 +63,17 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    // 모든 부위 ID 수집
-    const partIds: string[] = [];
-    (listings || []).forEach((listing: any) => {
-      (listing.cattle_parts || []).forEach((part: any) => {
-        if (part.is_included) {
-          partIds.push(part.id);
-        }
-      });
-    });
-    
-    // 입찰 정보 조회 (part_id로 직접 조회)
+    // listing_id로 입찰 조회 (part_id는 수백 개가 될 수 있어 URL 길이 초과 발생)
+    const listingIds = (listings || []).map((l: any) => l.id);
     let allBids: any[] = [];
     
-    if (partIds.length > 0) {
+    if (listingIds.length > 0) {
       const { data: bidsData, error: bidsError } = await supabase
         .from('bids')
         .select(`
           id,
           part_id,
+          listing_id,
           dealer_id,
           bid_price,
           bid_amount,
@@ -96,7 +88,7 @@ export async function GET(request: NextRequest) {
             dealer_no
           )
         `)
-        .in('part_id', partIds)
+        .in('listing_id', listingIds)
         .order('bid_price', { ascending: false });
 
       if (bidsError) {
