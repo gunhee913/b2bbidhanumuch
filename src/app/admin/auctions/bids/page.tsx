@@ -131,6 +131,12 @@ export default function AuctionBidsPage() {
   const thClass = "px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50";
   const tdClass = "px-2 py-2 text-xs text-gray-600 text-center whitespace-nowrap border border-gray-200";
 
+  const formatTraceNo = (traceNo: string | undefined | null): string => {
+    if (!traceNo) return '-';
+    const cleaned = traceNo.replace(/^002-/, '');
+    return `002-${cleaned}`;
+  };
+
   // 날짜 포맷
   const formatDate = (dateStr: string) => {
     if (!dateStr) return '-';
@@ -159,7 +165,7 @@ export default function AuctionBidsPage() {
       '중도매인번호': record.dealerNo || '-',
       '중도매인명': record.dealerName || '-',
       '상장업체명': record.companyName,
-      '이력번호': record.traceNo || '-',
+      '이력번호': formatTraceNo(record.traceNo),
       '거래처번호': record.partnerNo || '-',
       '거래처명': record.partnerName || '-',
     }));
@@ -396,7 +402,7 @@ export default function AuctionBidsPage() {
                     <td className={tdClass}>{record.dealerNo || '-'}</td>
                     <td className={tdClass}>{record.dealerName || '-'}</td>
                     <td className={tdClass}>{record.companyName}</td>
-                    <td className={tdClass}>{record.traceNo || '-'}</td>
+                    <td className={tdClass}>{formatTraceNo(record.traceNo)}</td>
                     <td className={tdClass}>{record.partnerNo || '-'}</td>
                     <td className={tdClass}>{record.partnerName || '-'}</td>
                   </tr>

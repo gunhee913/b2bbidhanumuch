@@ -125,6 +125,12 @@ export default function DealerAuctionBidsPage() {
 
   const successRecords = records.filter((r: BidRecord) => !r.isFailed);
   const totalWeight = successRecords.reduce((sum: number, r: BidRecord) => sum + r.weight, 0);
+
+  const formatTraceNo = (traceNo: string | undefined | null): string => {
+    if (!traceNo) return '-';
+    const cleaned = traceNo.replace(/^002-/, '');
+    return `002-${cleaned}`;
+  };
   const totalAmount = successRecords.reduce((sum: number, r: BidRecord) => sum + (r.bidAmount || 0), 0);
 
   const thClass = "px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50";
@@ -158,7 +164,7 @@ export default function DealerAuctionBidsPage() {
         '축종': record.breed,
         '성별': record.gender,
         '상장업체명': record.companyName || '-',
-        '이력번호': record.traceNo,
+        '이력번호': formatTraceNo(record.traceNo),
         '거래처코드': partner?.partnerNo || '-',
         '거래처명': partner?.partnerName || '-',
       };
@@ -295,7 +301,7 @@ export default function DealerAuctionBidsPage() {
                       <td className={tdClass}>{record.breed}</td>
                       <td className={tdClass}>{record.gender}</td>
                       <td className={tdClass}>{record.companyName || '-'}</td>
-                      <td className={tdClass}>{record.traceNo || '-'}</td>
+                      <td className={tdClass}>{formatTraceNo(record.traceNo)}</td>
                       <td className={tdClass}>{partner?.partnerNo || '-'}</td>
                       <td className={tdClass}>{partner?.partnerName || '-'}</td>
                     </tr>
