@@ -269,6 +269,7 @@ export default function DeliveryOrdersPage() {
 
     printWindow.document.write(printContent);
     printWindow.document.close();
+    printWindow.onafterprint = () => printWindow.close();
     printWindow.print();
   };
 
@@ -416,6 +417,7 @@ export default function DeliveryOrdersPage() {
     `);
 
     printWindow.document.close();
+    printWindow.onafterprint = () => printWindow.close();
     setTimeout(() => printWindow.print(), 300);
   };
 

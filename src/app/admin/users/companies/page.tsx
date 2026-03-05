@@ -59,6 +59,7 @@ export default function CompaniesPage() {
     businessNo: '',
     ceo: '',
     phone: '',
+    bankAccount: '',
     status: 'active' as 'active' | 'inactive',
   });
 
@@ -72,19 +73,25 @@ export default function CompaniesPage() {
     status: 'active' as 'active' | 'inactive',
   });
 
-  const filteredCompanies = companies.filter(company => {
-    const matchesSearch = 
-      company.name.includes(searchQuery) ||
-      company.companyNo.includes(searchQuery) ||
-      company.businessNo.includes(searchQuery) ||
-      company.ceo.includes(searchQuery) ||
-      (company.phone?.includes(searchQuery) ?? false) ||
-      company.employees.some(emp => 
-        emp.name.includes(searchQuery) || 
-        emp.phone.includes(searchQuery)
-      );
-    return matchesSearch;
-  });
+  const filteredCompanies = companies
+    .filter(company => {
+      const matchesSearch = 
+        company.name.includes(searchQuery) ||
+        company.companyNo.includes(searchQuery) ||
+        company.businessNo.includes(searchQuery) ||
+        company.ceo.includes(searchQuery) ||
+        (company.phone?.includes(searchQuery) ?? false) ||
+        company.employees.some(emp => 
+          emp.name.includes(searchQuery) || 
+          emp.phone.includes(searchQuery)
+        );
+      return matchesSearch;
+    })
+    .sort((a, b) => {
+      const aNo = parseInt(a.companyNo) || 0;
+      const bNo = parseInt(b.companyNo) || 0;
+      return aNo - bNo;
+    });
 
   const totalPages = Math.ceil(filteredCompanies.length / itemsPerPage);
   const paginatedCompanies = filteredCompanies.slice(
@@ -123,9 +130,10 @@ export default function CompaniesPage() {
     setFormData({
       companyNo: company.companyNo,
       name: company.name,
-      businessNo: company.businessNo,
+      businessNo: formatBusinessNo(company.businessNo),
       ceo: company.ceo,
       phone: company.phone || '',
+      bankAccount: company.bankAccount || '',
       status: company.status,
     });
     setEditingCompanyId(company.id);
@@ -136,7 +144,7 @@ export default function CompaniesPage() {
   const handleEditCancel = () => {
     setEditingCompanyId(null);
     setSelectedCompany(null);
-    setFormData({ companyNo: '', name: '', businessNo: '', ceo: '', phone: '', status: 'active' });
+    setFormData({ companyNo: '', name: '', businessNo: '', ceo: '', phone: '', bankAccount: '', status: 'active' });
     setFormError(null);
   };
 
@@ -153,12 +161,13 @@ export default function CompaniesPage() {
           businessNo: formData.businessNo,
           ceo: formData.ceo,
           phone: formData.phone,
+          bankAccount: formData.bankAccount,
           status: formData.status,
         },
       });
       setEditingCompanyId(null);
       setSelectedCompany(null);
-      setFormData({ companyNo: '', name: '', businessNo: '', ceo: '', phone: '', status: 'active' });
+      setFormData({ companyNo: '', name: '', businessNo: '', ceo: '', phone: '', bankAccount: '', status: 'active' });
     } catch (err) {
       setFormError(err instanceof Error ? err.message : '수정에 실패했습니다.');
     }
@@ -172,6 +181,7 @@ export default function CompaniesPage() {
       businessNo: '',
       ceo: '',
       phone: '',
+      bankAccount: '',
       status: 'active',
     });
     setIsAddingCompany(true);
@@ -181,7 +191,7 @@ export default function CompaniesPage() {
   // 등록 취소
   const handleAddCancel = () => {
     setIsAddingCompany(false);
-    setFormData({ companyNo: '', name: '', businessNo: '', ceo: '', phone: '', status: 'active' });
+    setFormData({ companyNo: '', name: '', businessNo: '', ceo: '', phone: '', bankAccount: '', status: 'active' });
     setFormError(null);
   };
 
@@ -196,10 +206,11 @@ export default function CompaniesPage() {
         businessNo: formData.businessNo,
         ceo: formData.ceo,
         phone: formData.phone,
+        bankAccount: formData.bankAccount,
         status: formData.status,
       });
       setIsAddingCompany(false);
-      setFormData({ companyNo: '', name: '', businessNo: '', ceo: '', phone: '', status: 'active' });
+      setFormData({ companyNo: '', name: '', businessNo: '', ceo: '', phone: '', bankAccount: '', status: 'active' });
     } catch (err) {
       setFormError(err instanceof Error ? err.message : '등록에 실패했습니다.');
     }
@@ -312,6 +323,18 @@ export default function CompaniesPage() {
     updateEmployeeStatusMutation.mutate({ id: employeeId, status });
   };
 
+  // 사업자등록번호 포맷팅 (000-00-00000)
+  const formatBusinessNo = (value: string) => {
+    const numbers = value.replace(/[^0-9]/g, '');
+    if (numbers.length <= 3) return numbers;
+    if (numbers.length <= 5) return `${numbers.slice(0, 3)}-${numbers.slice(3)}`;
+    return `${numbers.slice(0, 3)}-${numbers.slice(3, 5)}-${numbers.slice(5, 10)}`;
+  };
+
+  const handleBusinessNoChange = (value: string) => {
+    setFormData({ ...formData, businessNo: formatBusinessNo(value) });
+  };
+
   // 전화번호 포맷팅
   const formatPhoneNumber = (value: string) => {
     const numbers = value.replace(/[^0-9]/g, '');
@@ -391,20 +414,21 @@ export default function CompaniesPage() {
 
       <div className="bg-white border border-gray-200 overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full border-collapse" style={{ minWidth: '1100px' }}>
+          <table className="w-full border-collapse" style={{ minWidth: '1400px' }}>
             <thead>
               <tr>
-                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50" style={{ width: 40 }}></th>
-                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50" style={{ minWidth: 80 }}>업체번호</th>
-                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50" style={{ minWidth: 120 }}>업체명</th>
-                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50" style={{ minWidth: 130 }}>사업자등록번호</th>
-                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50" style={{ minWidth: 80 }}>대표자</th>
-                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50" style={{ minWidth: 130 }}>대표번호</th>
-                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50" style={{ minWidth: 100 }}>등록일</th>
-                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50" style={{ minWidth: 140 }}>최근로그인</th>
-                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50" style={{ minWidth: 60 }}>직원수</th>
-                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50" style={{ minWidth: 50 }}>수정</th>
-                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50" style={{ minWidth: 80 }}>상태</th>
+                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50" style={{ width: 35 }}></th>
+                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50" style={{ width: 70 }}>업체번호</th>
+                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50" style={{ width: 100 }}>업체명</th>
+                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50" style={{ width: 120 }}>사업자등록번호</th>
+                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50" style={{ width: 70 }}>대표자</th>
+                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50" style={{ width: 120 }}>대표번호</th>
+                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50" style={{ width: 160 }}>정산계좌</th>
+                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50" style={{ width: 95 }}>등록일</th>
+                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50" style={{ width: 130 }}>최근로그인</th>
+                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50" style={{ width: 50 }}>직원수</th>
+                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50" style={{ width: 50 }}>수정</th>
+                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50" style={{ width: 90 }}>상태</th>
               </tr>
             </thead>
             <tbody>
@@ -435,8 +459,9 @@ export default function CompaniesPage() {
                       <input
                         type="text"
                         value={formData.businessNo}
-                        onChange={(e) => setFormData({ ...formData, businessNo: e.target.value })}
-                        placeholder="123-45-67890"
+                        onChange={(e) => handleBusinessNoChange(e.target.value)}
+                        placeholder="000-00-00000"
+                        maxLength={12}
                         className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
                       />
                     </td>
@@ -456,6 +481,15 @@ export default function CompaniesPage() {
                         onChange={(e) => handleCompanyPhoneChange(e.target.value)}
                         placeholder="02-0000-0000"
                         maxLength={13}
+                        className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
+                      />
+                    </td>
+                    <td className="px-2 py-2 border border-gray-200">
+                      <input
+                        type="text"
+                        value={formData.bankAccount}
+                        onChange={(e) => setFormData({ ...formData, bankAccount: e.target.value })}
+                        placeholder="농협 000-0000-0000-00"
                         className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
                       />
                     </td>
@@ -486,7 +520,7 @@ export default function CompaniesPage() {
                   </tr>
                   {formError && (
                     <tr>
-                      <td colSpan={11} className="px-4 py-2 text-sm text-red-500 bg-red-50 border border-gray-200">
+                      <td colSpan={12} className="px-4 py-2 text-sm text-red-500 bg-red-50 border border-gray-200">
                         {formError}
                       </td>
                     </tr>
@@ -525,7 +559,8 @@ export default function CompaniesPage() {
                           <input
                             type="text"
                             value={formData.businessNo}
-                            onChange={(e) => setFormData({ ...formData, businessNo: e.target.value })}
+                            onChange={(e) => handleBusinessNoChange(e.target.value)}
+                            maxLength={12}
                             className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
                           />
                         </td>
@@ -543,6 +578,15 @@ export default function CompaniesPage() {
                             value={formData.phone}
                             onChange={(e) => handleCompanyPhoneChange(e.target.value)}
                             maxLength={13}
+                            className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
+                          />
+                        </td>
+                        <td className="px-2 py-2 border border-gray-200">
+                          <input
+                            type="text"
+                            value={formData.bankAccount}
+                            onChange={(e) => setFormData({ ...formData, bankAccount: e.target.value })}
+                            placeholder="농협 000-0000-0000-00"
                             className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
                           />
                         </td>
@@ -573,7 +617,7 @@ export default function CompaniesPage() {
                       </tr>
                       {formError && (
                         <tr>
-                          <td colSpan={11} className="px-4 py-2 text-sm text-red-500 bg-red-50 border border-gray-200">
+                          <td colSpan={12} className="px-4 py-2 text-sm text-red-500 bg-red-50 border border-gray-200">
                             {formError}
                           </td>
                         </tr>
@@ -593,9 +637,10 @@ export default function CompaniesPage() {
                       </td>
                       <td className="px-2 py-2 border border-gray-200 text-sm font-medium text-gray-900 text-center whitespace-nowrap">{company.companyNo}</td>
                       <td className="px-2 py-2 border border-gray-200 text-sm font-medium text-gray-900 text-center whitespace-nowrap">{company.name}</td>
-                      <td className="px-2 py-2 border border-gray-200 text-sm text-gray-600 text-center whitespace-nowrap">{company.businessNo}</td>
+                      <td className="px-2 py-2 border border-gray-200 text-sm text-gray-600 text-center whitespace-nowrap">{formatBusinessNo(company.businessNo)}</td>
                       <td className="px-2 py-2 border border-gray-200 text-sm text-gray-900 text-center whitespace-nowrap">{company.ceo}</td>
                       <td className="px-2 py-2 border border-gray-200 text-sm text-gray-600 text-center whitespace-nowrap">{company.phone || '-'}</td>
+                      <td className="px-2 py-2 border border-gray-200 text-sm text-gray-600 text-center whitespace-nowrap">{company.bankAccount || '-'}</td>
                       <td className="px-2 py-2 border border-gray-200 text-sm text-gray-500 text-center whitespace-nowrap">{formatDate(company.createdAt)}</td>
                       <td className="px-2 py-2 border border-gray-200 text-sm text-gray-500 text-center whitespace-nowrap">{formatDateTime(company.lastLoginAt)}</td>
                       <td className="px-2 py-2 border border-gray-200 text-sm text-gray-900 text-center font-medium whitespace-nowrap">{company.employees.length}명</td>
@@ -626,7 +671,7 @@ export default function CompaniesPage() {
                   {/* 확장된 직원 테이블 */}
                   {expandedCompany === company.id && (
                     <tr>
-                      <td colSpan={11} className="px-2 py-2 border border-gray-200">
+                      <td colSpan={12} className="px-2 py-2 border border-gray-200">
                         <div className="ml-8">
                           <div className="flex items-center justify-between mb-3">
                             <h4 className="text-sm font-semibold text-gray-700">대표/직원 목록</h4>

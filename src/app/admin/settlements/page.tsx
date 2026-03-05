@@ -49,6 +49,7 @@ interface SettlementData {
   companyNo: string;
   companyName: string;
   representative: string;
+  bankAccount: string;
   address: string;
   cattleList: CattleDetail[];
   totalSaleAmount: number;
@@ -76,6 +77,7 @@ export default function SettlementsPage() {
   const today = new Date();
   const todayStr = format(today, 'yyyy-MM-dd');
   
+  const [viewMode, setViewMode] = useState<'detail' | 'summary'>('detail');
   const [expandedCattle, setExpandedCattle] = useState<string[]>([]);
   const [companyFilter, setCompanyFilter] = useState('all');
   const [startDate, setStartDate] = useState(todayStr);
@@ -116,7 +118,11 @@ export default function SettlementsPage() {
     },
   });
 
-  const settlements = data?.settlements || [];
+  const settlements = (data?.settlements || []).sort((a: SettlementData, b: SettlementData) => {
+    const aNo = parseInt(a.companyNo) || 0;
+    const bNo = parseInt(b.companyNo) || 0;
+    return aNo - bNo;
+  });
   const feeNames = data?.feeNames || [];
   const summary = data?.summary || {
     totalCompanies: 0,
@@ -141,6 +147,51 @@ export default function SettlementsPage() {
   const handleExcelDownload = () => {
     if (filteredSettlements.length === 0) {
       alert('다운로드할 데이터가 없습니다.');
+      return;
+    }
+
+    const dateRange = startDate && endDate ? `_${startDate.replace(/-/g, '')}~${endDate.replace(/-/g, '')}` : '';
+
+    if (viewMode === 'summary') {
+      const excelData: Record<string, string | number>[] = [];
+      filteredSettlements.forEach(settlement => {
+        const row: Record<string, string | number> = {
+          '업체번호': settlement.companyNo,
+          '업체명': settlement.companyName,
+          '대표자': settlement.representative,
+          '정산계좌': settlement.bankAccount || '',
+          '두수': settlement.cattleList.length,
+          '총중량': settlement.cattleList.reduce((sum, c) => sum + c.weight, 0),
+          '판매금액': settlement.totalSaleAmount,
+        };
+        feeNames.forEach(name => {
+          row[name] = settlement.cattleList.reduce((sum, c) => sum + getFeeAmount(c.fees, name), 0);
+        });
+        row['공제금액계'] = settlement.totalDeduction;
+        row['차인지급액'] = settlement.totalNetPayment;
+        excelData.push(row);
+      });
+
+      const totalRow: Record<string, string | number> = {
+        '업체번호': '',
+        '업체명': '합계',
+        '대표자': '',
+        '정산계좌': '',
+        '두수': filteredSettlements.reduce((sum, s) => sum + s.cattleList.length, 0),
+        '총중량': filteredSettlements.reduce((sum, s) => sum + s.cattleList.reduce((cs, c) => cs + c.weight, 0), 0),
+        '판매금액': summary.totalSaleAmount,
+      };
+      feeNames.forEach(name => {
+        totalRow[name] = filteredSettlements.reduce((sum, s) => sum + s.cattleList.reduce((cs, c) => cs + getFeeAmount(c.fees, name), 0), 0);
+      });
+      totalRow['공제금액계'] = summary.totalDeduction;
+      totalRow['차인지급액'] = summary.totalNetPayment;
+      excelData.push(totalRow);
+
+      const worksheet = XLSX.utils.json_to_sheet(excelData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, '업체별요약');
+      XLSX.writeFile(workbook, `정산서_업체별요약${dateRange}.xlsx`);
       return;
     }
 
@@ -196,7 +247,6 @@ export default function SettlementsPage() {
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, '정산서');
     
-    const dateRange = startDate && endDate ? `_${startDate.replace(/-/g, '')}~${endDate.replace(/-/g, '')}` : '';
     const fileName = `정산서${dateRange}.xlsx`;
     XLSX.writeFile(workbook, fileName);
   };
@@ -216,6 +266,99 @@ export default function SettlementsPage() {
     const totalCattleCount = summary.totalCattle;
 
     const feeHeaders = feeNames.map(n => `<th>${n}</th>`).join('');
+
+    if (viewMode === 'summary') {
+      const summaryContent = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>정산서 (업체별 요약)</title>
+          <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body { font-family: 'Malgun Gothic', sans-serif; padding: 10px 15px; font-size: 10px; }
+            h1 { text-align: center; margin-bottom: 10px; font-size: 16px; }
+            .main-header { display: flex; justify-content: space-between; margin-bottom: 10px; padding-bottom: 5px; border-bottom: 1px solid #333; font-size: 10px; }
+            .summary { text-align: right; }
+            .summary p { margin: 1px 0; }
+            table { width: 100%; border-collapse: collapse; }
+            th, td { border: 1px solid #ccc; padding: 4px 6px; text-align: center; font-size: 9px; }
+            th { background: #f5f5f5; font-weight: 600; }
+            .text-right { text-align: right; }
+            .text-left { text-align: left; }
+            .font-bold { font-weight: bold; }
+            .total-row { border-top: 2px solid #333; }
+            .total-row td { font-weight: bold; }
+            @media print {
+              @page { size: A4; margin: 10mm; }
+              body { padding: 0; }
+            }
+          </style>
+        </head>
+        <body>
+          <h1>정산서 (업체별 요약)</h1>
+          <div class="main-header">
+            <div>
+              <p>정산일: ${new Date().toLocaleDateString('ko-KR')}</p>
+              <p>기간: ${searchStartDate} ~ ${searchEndDate}</p>
+            </div>
+            <div class="summary">
+              <p>총 ${filteredSettlements.length}개 업체 / ${totalCattleCount}두</p>
+              <p>판매금액: ${totalSaleAmount.toLocaleString()}원</p>
+              <p>공제금액: ${totalDeduction.toLocaleString()}원</p>
+              <p class="font-bold">차인지급액: ${totalNetPayment.toLocaleString()}원</p>
+            </div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>업체번호</th>
+                <th>업체명</th>
+                <th>대표자</th>
+                <th>정산계좌</th>
+                <th>두수</th>
+                <th>총중량</th>
+                <th>판매금액</th>
+                ${feeHeaders}
+                <th>공제금액계</th>
+                <th>차인지급액</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${filteredSettlements.map(s => `
+                <tr>
+                  <td>${s.companyNo}</td>
+                  <td>${s.companyName}</td>
+                  <td>${s.representative}</td>
+                  <td>${s.bankAccount || '-'}</td>
+                  <td class="text-right">${s.cattleList.length}</td>
+                  <td class="text-right">${s.cattleList.reduce((sum: number, c: any) => sum + c.weight, 0).toLocaleString()}</td>
+                  <td class="text-right">${s.totalSaleAmount.toLocaleString()}</td>
+                  ${feeNames.map(name => `<td class="text-right">${s.cattleList.reduce((sum: number, c: any) => sum + getFeeAmount(c.fees, name), 0).toLocaleString()}</td>`).join('')}
+                  <td class="text-right">${s.totalDeduction.toLocaleString()}</td>
+                  <td class="text-right font-bold">${s.totalNetPayment.toLocaleString()}</td>
+                </tr>
+              `).join('')}
+              <tr class="total-row">
+                <td class="text-left" colspan="4">합계</td>
+                <td class="text-right">${totalCattleCount}</td>
+                <td class="text-right">${filteredSettlements.reduce((sum, s) => sum + s.cattleList.reduce((cs: number, c: any) => cs + c.weight, 0), 0).toLocaleString()}</td>
+                <td class="text-right">${totalSaleAmount.toLocaleString()}</td>
+                ${feeNames.map(name => `<td class="text-right">${filteredSettlements.reduce((sum, s) => sum + s.cattleList.reduce((cs: number, c: any) => cs + getFeeAmount(c.fees, name), 0), 0).toLocaleString()}</td>`).join('')}
+                <td class="text-right">${totalDeduction.toLocaleString()}</td>
+                <td class="text-right">${totalNetPayment.toLocaleString()}</td>
+              </tr>
+            </tbody>
+          </table>
+          <script>
+            window.onload = function() { window.print(); window.close(); }
+          </script>
+        </body>
+        </html>
+      `;
+      printWindow.document.write(summaryContent);
+      printWindow.document.close();
+      return;
+    }
 
     const printContent = `
       <!DOCTYPE html>
@@ -365,7 +508,7 @@ export default function SettlementsPage() {
         `).join('')}
         
         <script>
-          window.onload = function() { window.print(); }
+          window.onload = function() { window.print(); window.close(); }
         </script>
       </body>
       </html>
@@ -426,6 +569,16 @@ export default function SettlementsPage() {
             조회
           </button>
 
+          <label className="flex items-center gap-1.5 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={viewMode === 'summary'}
+              onChange={(e) => setViewMode(e.target.checked ? 'summary' : 'detail')}
+              className="w-3.5 h-3.5 accent-gray-700"
+            />
+            <span className="text-xs text-gray-600">업체별 요약</span>
+          </label>
+
           <div className="flex items-center gap-2 ml-auto">
             <button
               type="button"
@@ -462,6 +615,80 @@ export default function SettlementsPage() {
       </div>
 
       {/* 정산서 테이블 */}
+      {viewMode === 'summary' ? (
+        <div className="bg-white shadow-sm border border-gray-200 overflow-hidden">
+          <table className="w-full border-collapse">
+            <thead className="sticky top-0">
+              <tr>
+                <th className={`${thClass} w-[80px]`}>업체번호</th>
+                <th className={`${thClass} w-[100px]`}>업체명</th>
+                <th className={`${thClass} w-[70px]`}>대표자</th>
+                <th className={`${thClass} w-[160px]`}>정산계좌</th>
+                <th className={`${thClass} w-[50px]`}>두수</th>
+                <th className={`${thClass} w-[70px]`}>총중량</th>
+                <th className={`${thClass} w-[100px]`}>판매금액</th>
+                {feeNames.map(name => (
+                  <th key={name} className={`${thClass} w-[80px]`}>{name}</th>
+                ))}
+                <th className={`${thClass} w-[90px]`}>공제금액계</th>
+                <th className={`${thClass} w-[100px]`}>차인지급액</th>
+              </tr>
+            </thead>
+            <tbody>
+              {isLoading ? (
+                <tr>
+                  <td colSpan={8 + feeNames.length + 1} className="px-4 py-8 text-center text-gray-500">
+                    <div className="flex items-center justify-center gap-2">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      데이터 조회 중...
+                    </div>
+                  </td>
+                </tr>
+              ) : filteredSettlements.length === 0 ? (
+                <tr>
+                  <td colSpan={8 + feeNames.length + 1} className="px-4 py-8 text-center text-gray-500">
+                    해당 기간에 마감된 정산 데이터가 없습니다.
+                  </td>
+                </tr>
+              ) : (
+                <>
+                  {filteredSettlements.map(settlement => (
+                    <tr key={settlement.id} className="hover:bg-gray-50">
+                      <td className={tdClass}>{settlement.companyNo}</td>
+                      <td className={tdClass}>{settlement.companyName}</td>
+                      <td className={tdClass}>{settlement.representative}</td>
+                      <td className={tdClass}>{settlement.bankAccount || '-'}</td>
+                      <td className={`${tdClass} text-right`}>{settlement.cattleList.length}</td>
+                      <td className={`${tdClass} text-right`}>{settlement.cattleList.reduce((sum, c) => sum + c.weight, 0).toLocaleString()}</td>
+                      <td className={`${tdClass} text-right`}>{settlement.totalSaleAmount.toLocaleString()}</td>
+                      {feeNames.map(name => (
+                        <td key={name} className={`${tdClass} text-right`}>
+                          {settlement.cattleList.reduce((sum, c) => sum + getFeeAmount(c.fees, name), 0).toLocaleString()}
+                        </td>
+                      ))}
+                      <td className={`${tdClass} text-right`}>{settlement.totalDeduction.toLocaleString()}</td>
+                      <td className={`${tdClass} text-right font-semibold`}>{settlement.totalNetPayment.toLocaleString()}</td>
+                    </tr>
+                  ))}
+                  <tr className="font-bold border-t-2 border-gray-400">
+                    <td className={`${tdClass} text-left`} colSpan={4}>합계</td>
+                    <td className={`${tdClass} text-right`}>{summary.totalCattle}</td>
+                    <td className={`${tdClass} text-right`}>{filteredSettlements.reduce((sum, s) => sum + s.cattleList.reduce((cs, c) => cs + c.weight, 0), 0).toLocaleString()}</td>
+                    <td className={`${tdClass} text-right`}>{summary.totalSaleAmount.toLocaleString()}</td>
+                    {feeNames.map(name => (
+                      <td key={name} className={`${tdClass} text-right`}>
+                        {filteredSettlements.reduce((sum, s) => sum + s.cattleList.reduce((cs, c) => cs + getFeeAmount(c.fees, name), 0), 0).toLocaleString()}
+                      </td>
+                    ))}
+                    <td className={`${tdClass} text-right`}>{summary.totalDeduction.toLocaleString()}</td>
+                    <td className={`${tdClass} text-right`}>{summary.totalNetPayment.toLocaleString()}</td>
+                  </tr>
+                </>
+              )}
+            </tbody>
+          </table>
+        </div>
+      ) : (
       <div className="bg-white shadow-sm border border-gray-200 overflow-hidden">
         <table className="w-full border-collapse table-fixed">
           <thead className="sticky top-0">
@@ -637,6 +864,7 @@ export default function SettlementsPage() {
           </tbody>
         </table>
       </div>
+      )}
     </AdminLayout>
   );
 }

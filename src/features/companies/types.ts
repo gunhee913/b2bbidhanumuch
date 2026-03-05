@@ -6,6 +6,7 @@ export interface CompanyRow {
   business_no: string;
   ceo: string;
   phone: string | null;
+  bank_account: string | null;
   status: 'active' | 'inactive';
   created_at: string;
   last_login_at: string | null;
@@ -33,6 +34,7 @@ export interface Company {
   businessNo: string;
   ceo: string;
   phone: string | null;
+  bankAccount: string | null;
   status: 'active' | 'inactive';
   createdAt: string;
   lastLoginAt: string | null;
@@ -63,6 +65,7 @@ export interface CreateCompanyInput {
   businessNo: string;
   ceo: string;
   phone?: string;
+  bankAccount?: string;
   status?: 'active' | 'inactive';
 }
 
@@ -73,6 +76,7 @@ export interface UpdateCompanyInput {
   businessNo?: string;
   ceo?: string;
   phone?: string;
+  bankAccount?: string;
   status?: 'active' | 'inactive';
 }
 
@@ -106,6 +110,7 @@ export function toCompanyFromRow(row: CompanyRow): Company {
     businessNo: row.business_no,
     ceo: row.ceo,
     phone: row.phone,
+    bankAccount: row.bank_account,
     status: row.status,
     createdAt: row.created_at,
     lastLoginAt: row.last_login_at,

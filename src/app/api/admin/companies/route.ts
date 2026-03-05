@@ -53,7 +53,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { companyNo, name, businessNo, ceo, phone, status = 'active' } = body;
+    const { companyNo, name, businessNo, ceo, phone, bankAccount, status = 'active' } = body;
 
     if (!companyNo || !name || !businessNo || !ceo) {
       return NextResponse.json(
@@ -72,6 +72,7 @@ export async function POST(request: NextRequest) {
         business_no: businessNo,
         ceo,
         phone: phone || null,
+        bank_account: bankAccount || null,
         status,
       })
       .select()

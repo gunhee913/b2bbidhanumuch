@@ -190,7 +190,7 @@ export default function DealerSettlementsPage() {
         </div>
 
         <script>
-          window.onload = function() { window.print(); }
+            window.onload = function() { window.print(); window.close(); }
         </script>
       </body>
       </html>

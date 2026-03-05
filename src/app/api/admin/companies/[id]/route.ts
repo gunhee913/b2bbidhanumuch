@@ -11,7 +11,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params;
     const body = await request.json();
-    const { companyNo, name, businessNo, ceo, phone, status } = body;
+    const { companyNo, name, businessNo, ceo, phone, bankAccount, status } = body;
 
     const supabase = await createPureClient();
 
@@ -22,6 +22,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     if (businessNo !== undefined) updateData.business_no = businessNo;
     if (ceo !== undefined) updateData.ceo = ceo;
     if (phone !== undefined) updateData.phone = phone;
+    if (bankAccount !== undefined) updateData.bank_account = bankAccount;
     if (status !== undefined) updateData.status = status;
 
     const { data, error } = await supabase

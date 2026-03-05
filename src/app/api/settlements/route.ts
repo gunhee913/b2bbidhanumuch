@@ -45,7 +45,9 @@ export async function GET(request: NextRequest) {
         companies (
           id,
           name,
-          company_no
+          company_no,
+          ceo,
+          bank_account
         ),
         cattle_parts (
           id,
@@ -147,7 +149,8 @@ export async function GET(request: NextRequest) {
           id: company.id,
           companyNo: company.company_no || '',
           companyName: company.name || '',
-          representative: '',
+          representative: company.ceo || '',
+          bankAccount: company.bank_account || '',
           address: '',
           cattleList: [],
           totalSaleAmount: 0,

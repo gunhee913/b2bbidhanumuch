@@ -119,6 +119,7 @@ const DEFAULT_TEMPLATES: MessageTemplate[] = [
 export default function DealerSettlementsPage() {
   const todayStr = format(new Date(), 'yyyy-MM-dd');
   
+  const [viewMode, setViewMode] = useState<'detail' | 'summary'>('detail');
   const [dealerSearch, setDealerSearch] = useState('');
   const [startDate, setStartDate] = useState(todayStr);
   const [endDate, setEndDate] = useState(todayStr);
@@ -375,6 +376,38 @@ export default function DealerSettlementsPage() {
       alert('다운로드할 데이터가 없습니다.');
       return;
     }
+
+    const dateRange = startDate && endDate ? `_${startDate.replace(/-/g, '')}~${endDate.replace(/-/g, '')}` : '';
+
+    if (viewMode === 'summary') {
+      const excelData: Record<string, string | number>[] = [];
+      filteredSettlements.forEach(settlement => {
+        excelData.push({
+          '중도매인번호': settlement.dealerNo,
+          '중도매인명': settlement.dealerName,
+          '연락처': settlement.phone,
+          '낙찰건수': settlement.bidParts.length,
+          '총중량': settlement.totalWeight,
+          '총낙찰금액': settlement.totalAmount,
+        });
+      });
+
+      const totalRow: Record<string, string | number> = {
+        '중도매인번호': '',
+        '중도매인명': '합계',
+        '연락처': '',
+        '낙찰건수': summary.totalParts,
+        '총중량': summary.totalWeight,
+        '총낙찰금액': summary.totalAmount,
+      };
+      excelData.push(totalRow);
+
+      const worksheet = XLSX.utils.json_to_sheet(excelData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, '중도매인별요약');
+      XLSX.writeFile(workbook, `낙찰서_중도매인별요약${dateRange}.xlsx`);
+      return;
+    }
     
     const excelData: Record<string, string | number>[] = [];
     
@@ -415,6 +448,86 @@ export default function DealerSettlementsPage() {
 
     const totalAmount = summary.totalAmount;
     const totalParts = summary.totalParts;
+
+    if (viewMode === 'summary') {
+      const summaryContent = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>낙찰서 (중도매인별 요약)</title>
+          <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body { font-family: 'Malgun Gothic', sans-serif; padding: 10px 15px; font-size: 10px; }
+            h1 { text-align: center; margin-bottom: 10px; font-size: 16px; }
+            .main-header { display: flex; justify-content: space-between; margin-bottom: 10px; padding-bottom: 5px; border-bottom: 1px solid #333; font-size: 10px; }
+            .summary { text-align: right; }
+            .summary p { margin: 1px 0; }
+            table { width: 100%; border-collapse: collapse; }
+            th, td { border: 1px solid #ccc; padding: 4px 6px; text-align: center; font-size: 9px; }
+            th { background: #f5f5f5; font-weight: 600; }
+            .text-right { text-align: right; }
+            .text-left { text-align: left; }
+            .font-bold { font-weight: bold; }
+            .total-row { border-top: 2px solid #333; }
+            .total-row td { font-weight: bold; }
+            @media print {
+              @page { size: A4; margin: 10mm; }
+              body { padding: 0; }
+            }
+          </style>
+        </head>
+        <body>
+          <h1>낙찰서 (중도매인별 요약)</h1>
+          <div class="main-header">
+            <div>
+              <p>정산일: ${new Date().toLocaleDateString('ko-KR')}</p>
+              <p>기간: ${sStartDate} ~ ${sEndDate}</p>
+            </div>
+            <div class="summary">
+              <p>총 ${filteredSettlements.length}명 / ${totalParts}건</p>
+              <p class="font-bold">낙찰금액: ${totalAmount.toLocaleString()}원</p>
+            </div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>중도매인번호</th>
+                <th>중도매인명</th>
+                <th>연락처</th>
+                <th>낙찰건수</th>
+                <th>총중량</th>
+                <th>총낙찰금액</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${filteredSettlements.map(s => `
+                <tr>
+                  <td>${s.dealerNo}</td>
+                  <td>${s.dealerName}</td>
+                  <td>${s.phone}</td>
+                  <td class="text-right">${s.bidParts.length}</td>
+                  <td class="text-right">${s.totalWeight.toFixed(1)}</td>
+                  <td class="text-right font-bold">${s.totalAmount.toLocaleString()}</td>
+                </tr>
+              `).join('')}
+              <tr class="total-row">
+                <td class="text-left" colspan="3">합계</td>
+                <td class="text-right">${totalParts}</td>
+                <td class="text-right">${summary.totalWeight.toFixed(1)}</td>
+                <td class="text-right">${totalAmount.toLocaleString()}</td>
+              </tr>
+            </tbody>
+          </table>
+          <script>
+            window.onload = function() { window.print(); window.close(); }
+          </script>
+        </body>
+        </html>
+      `;
+      printWindow.document.write(summaryContent);
+      printWindow.document.close();
+      return;
+    }
 
     const printContent = `
       <!DOCTYPE html>
@@ -495,7 +608,7 @@ export default function DealerSettlementsPage() {
         `).join('')}
         
         <script>
-          window.onload = function() { window.print(); }
+          window.onload = function() { window.print(); window.close(); }
         </script>
       </body>
       </html>
@@ -553,6 +666,16 @@ export default function DealerSettlementsPage() {
             조회
           </button>
 
+          <label className="flex items-center gap-1.5 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={viewMode === 'summary'}
+              onChange={(e) => setViewMode(e.target.checked ? 'summary' : 'detail')}
+              className="w-3.5 h-3.5 accent-gray-700"
+            />
+            <span className="text-xs text-gray-600">중도매인별 요약</span>
+          </label>
+
           <div className="flex items-center gap-2 ml-auto">
             <button
               type="button"
@@ -597,6 +720,57 @@ export default function DealerSettlementsPage() {
       </div>
 
       {/* 낙찰서 테이블 */}
+      {viewMode === 'summary' ? (
+        <div className="bg-white shadow-sm border border-gray-200 overflow-hidden">
+          <table className="w-full border-collapse">
+            <thead className="sticky top-0">
+              <tr>
+                <th className={`${thClass} w-[80px]`}>중도매인번호</th>
+                <th className={`${thClass} w-[90px]`}>중도매인명</th>
+                <th className={`${thClass} w-[100px]`}>연락처</th>
+                <th className={`${thClass} w-[60px]`}>낙찰건수</th>
+                <th className={`${thClass} w-[70px]`}>총중량</th>
+                <th className={`${thClass} w-[110px]`}>총낙찰금액</th>
+              </tr>
+            </thead>
+            <tbody>
+              {isLoading ? (
+                <tr>
+                  <td colSpan={6} className="py-12 text-center text-gray-500">
+                    <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2" />
+                    데이터를 불러오는 중...
+                  </td>
+                </tr>
+              ) : filteredSettlements.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="py-12 text-center text-gray-500">
+                    낙찰 내역이 없습니다.
+                  </td>
+                </tr>
+              ) : (
+                <>
+                  {filteredSettlements.map(settlement => (
+                    <tr key={settlement.id} className="hover:bg-gray-50">
+                      <td className={tdClass}>{settlement.dealerNo}</td>
+                      <td className={tdClass}>{settlement.dealerName}</td>
+                      <td className={tdClass}>{settlement.phone}</td>
+                      <td className={`${tdClass} text-right`}>{settlement.bidParts.length}</td>
+                      <td className={`${tdClass} text-right`}>{settlement.totalWeight.toFixed(1)}</td>
+                      <td className={`${tdClass} text-right font-semibold`}>{settlement.totalAmount.toLocaleString()}</td>
+                    </tr>
+                  ))}
+                  <tr className="font-bold border-t-2 border-gray-400">
+                    <td className={`${tdClass} text-left`} colSpan={3}>합계</td>
+                    <td className={`${tdClass} text-right`}>{summary.totalParts}</td>
+                    <td className={`${tdClass} text-right`}>{summary.totalWeight.toFixed(1)}</td>
+                    <td className={`${tdClass} text-right`}>{summary.totalAmount.toLocaleString()}</td>
+                  </tr>
+                </>
+              )}
+            </tbody>
+          </table>
+        </div>
+      ) : (
       <div className="bg-white shadow-sm border border-gray-200 overflow-hidden">
         <table className="w-full border-collapse table-fixed">
           <thead className="sticky top-0">
@@ -679,6 +853,7 @@ export default function DealerSettlementsPage() {
           </tbody>
         </table>
       </div>
+      )}
 
       {/* 문자 전송 모달 */}
       {showSmsModal && (
