@@ -649,9 +649,9 @@ function AuctionPageContent() {
     return allForPart.filter((p: any) => p.hasWinner);
   }, [selectedPartId, partProducts]);
 
-  // 부위별: 입찰 가능 여부 (roundInfo 로드 전에는 true로 시작, 서버에서 최종 검증)
+  const isRoundLoading = roundInfo === null;
   const canBidPart = useMemo(() => {
-    if (!roundInfo) return true;
+    if (!roundInfo) return false;
     if (!roundInfo.currentRound) return false;
     return roundInfo.currentRound.status === 'open';
   }, [roundInfo]);
@@ -1129,7 +1129,7 @@ function AuctionPageContent() {
                                         : 'text-gray-400 bg-gray-200 dark:bg-gray-700 cursor-not-allowed'
                                     }`}
                                   >
-                                    입찰하기
+                                    {isRoundLoading ? '확인중...' : '입찰하기'}
                                   </button>
                                 )}
                               </div>
@@ -1471,7 +1471,7 @@ function AuctionPageContent() {
                                           : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                                       }`}
                                     >
-                                      입찰하기
+                                      {isRoundLoading ? '확인중...' : '입찰하기'}
                                     </button>
                                     <button
                                       onClick={(e) => {
