@@ -135,16 +135,9 @@ function MainPageContent() {
     includeParts: true,
   }, { enabled: activeDateLoaded });
   
-  // 실시간 입찰 변경 구독 (Optimistic Update)
-  // payload가 있으면 캐시에서 이미 업데이트됨, 없으면(DELETE) refetch
+  // 실시간 입찰 변경 구독
   const handleBidChange = useCallback((payload?: { partId: string; bidPrice: number; dealerId: string }) => {
-    if (!payload) {
-      // DELETE 이벤트 - 정확한 값을 위해 refetch
-      console.log('[Main] 입찰 삭제 감지 - 데이터 새로고침');
-      refetchListings();
-    } else {
-      console.log('[Main] 입찰 변경 감지 - 캐시 업데이트 완료:', payload.bidPrice);
-    }
+    refetchListings();
   }, [refetchListings]);
   
   useRealtimeBids({

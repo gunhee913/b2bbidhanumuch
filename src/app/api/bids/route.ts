@@ -102,15 +102,55 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { auctionId, partId, dealerId, bidPrice, weight } = body;
+    const { auctionId, partId, bidPrice, weight } = body;
+    const clientDealerId = body.dealerId;
 
     // 필수 값 검증 (auctionId는 이제 optional)
-    if (!partId || !dealerId || !bidPrice) {
+    if (!partId || !clientDealerId || !bidPrice) {
       return NextResponse.json(
         { error: '필수 정보가 누락되었습니다.' },
         { status: 400 }
       );
     }
+
+    // 서버 세션에서 dealerId를 결정 (클라이언트 값보다 신뢰도 높음)
+    const { getToken } = await import('next-auth/jwt');
+    const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
+    const resolvedDealerId = (token?.employee as any)?.dealerId
+      || (token?.dealer as any)?.id
+      || null;
+
+    if (!resolvedDealerId) {
+      // 세션에서 못 찾으면 클라이언트 값으로 fallback + DB 검증
+      const { data: dealerCheck } = await supabase
+        .from('dealers')
+        .select('id')
+        .eq('id', clientDealerId)
+        .single();
+
+      if (dealerCheck) {
+        // 클라이언트 dealerId가 유효
+      } else {
+        const { data: empCheck } = await supabase
+          .from('dealer_employees')
+          .select('id, dealer_id')
+          .eq('id', clientDealerId)
+          .single();
+
+        if (empCheck) {
+          body.dealerId = empCheck.dealer_id;
+        } else {
+          return NextResponse.json(
+            { error: '중도매인 정보를 찾을 수 없습니다.' },
+            { status: 400 }
+          );
+        }
+      }
+    }
+
+    const finalDealerId = resolvedDealerId || body.dealerId || clientDealerId;
+
+    console.log('[Bids API] partId from client:', partId, '| finalDealerId:', finalDealerId);
 
     // 부위 정보 조회 (최저가, 중량, 상장 정보 포함)
     const { data: part, error: partError } = await supabase
@@ -219,7 +259,7 @@ export async function POST(request: NextRequest) {
       .from('bids')
       .select('id, bid_price, bid_amount, auction_id')
       .eq('part_id', partId)
-      .eq('dealer_id', dealerId)
+      .eq('dealer_id', finalDealerId)
       .single();
 
     if (existingBid) {
@@ -243,7 +283,7 @@ export async function POST(request: NextRequest) {
         bid_id: existingBid.id,
         auction_id: auctionId || existingBid.auction_id || null,
         part_id: partId,
-        dealer_id: dealerId,
+        dealer_id: finalDealerId,
         action_type: 'dealer_update',
         old_bid_price: existingBid.bid_price,
         new_bid_price: bidPrice,
@@ -266,7 +306,7 @@ export async function POST(request: NextRequest) {
         auction_id: auctionId || null,
         listing_id: part.listing_id,
         part_id: partId,
-        dealer_id: dealerId,
+        dealer_id: finalDealerId,
         bid_price: bidPrice,
         bid_amount: bidAmount,
       })

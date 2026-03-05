@@ -86,18 +86,20 @@ export async function GET(request: NextRequest) {
       } else {
         const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
         const userType = token?.userType as string | undefined;
-        const tokenDealerId = (token?.dealer as any)?.id || null;
+        const candidateDealerIds = new Set<string>();
+        if ((token?.employee as any)?.dealerId) candidateDealerIds.add((token.employee as any).dealerId);
+        if ((token?.dealer as any)?.id) candidateDealerIds.add((token.dealer as any).id);
 
-        const partIds = (parts || []).map((p: CattlePartRow) => p.id);
+        const listingIds = listings.map((l: unknown) => (l as CattleListingRow).id);
         let bidsByPart: Record<string, any[]> = {};
         
-        if (partIds.length > 0) {
+        if (listingIds.length > 0) {
           const { data: bidsData } = await supabase
             .from('bids')
             .select('id, part_id, dealer_id, bid_price, bid_amount, is_winning')
-            .in('part_id', partIds)
+            .in('listing_id', listingIds)
             .order('bid_price', { ascending: false });
-          
+
           (bidsData || []).forEach((bid: any) => {
             if (!bidsByPart[bid.part_id]) {
               bidsByPart[bid.part_id] = [];
@@ -134,8 +136,8 @@ export async function GET(request: NextRequest) {
               };
             }
 
-            const myBid = tokenDealerId
-              ? partBids.find((b: any) => b.dealer_id === tokenDealerId)
+            const myBid = candidateDealerIds.size > 0
+              ? partBids.find((b: any) => candidateDealerIds.has(b.dealer_id))
               : null;
             const hasWinner = partBids.some((b: any) => b.is_winning);
             const highestBid = partBids.length > 0 ? partBids[0] : null;

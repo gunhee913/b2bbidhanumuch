@@ -43,15 +43,9 @@ function AuctionDetailContent({ params }: PageProps) {
   // DB에서 상장 정보 조회
   const { data: listingData, isLoading: listingLoading, error: listingError, refetch: refetchListing } = useListingByNo(resolvedParams.id);
 
-  // 실시간 입찰 변경 구독 (Optimistic Update)
-  // payload가 있으면 캐시에서 이미 업데이트됨, 없으면(DELETE) refetch
+  // 실시간 입찰 변경 구독
   const handleBidChange = useCallback((payload?: { partId: string; bidPrice: number; dealerId: string }) => {
-    if (!payload) {
-      console.log('[Auction Detail] 입찰 삭제 감지 - 데이터 새로고침');
-      refetchListing();
-    } else {
-      console.log('[Auction Detail] 입찰 변경 감지 - 캐시 업데이트 완료:', payload.bidPrice);
-    }
+    refetchListing();
   }, [refetchListing]);
   
   useRealtimeBids({

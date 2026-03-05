@@ -71,7 +71,13 @@ export async function GET(
     const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
     const userType = token?.userType as string | undefined;
     const isAdmin = userType === 'admin_user';
-    const tokenDealerId = (token?.dealer as any)?.id || null;
+    // 가능한 dealerId 후보를 모두 수집
+    const candidateDealerIds = new Set<string>();
+    if ((token?.employee as any)?.dealerId) candidateDealerIds.add((token.employee as any).dealerId);
+    if ((token?.dealer as any)?.id) candidateDealerIds.add((token.dealer as any).id);
+    const tokenDealerId = (token?.employee as any)?.dealerId
+      || (token?.dealer as any)?.id
+      || null;
 
     // 각 부위의 입찰 현황 조회
     const partIds = (listing.cattle_parts || []).map((p: any) => p.id);
@@ -180,8 +186,8 @@ export async function GET(
           };
         }
 
-        const myBid = tokenDealerId
-          ? partBids.find((b: any) => b.dealerId === tokenDealerId)
+        const myBid = candidateDealerIds.size > 0
+          ? partBids.find((b: any) => candidateDealerIds.has(b.dealerId))
           : null;
 
         const isSettled = ['completed', 'closed'].includes(listing.status);
