@@ -35,6 +35,8 @@ interface BidRecord {
   companyName: string;
   traceNo: string;
   isFailed: boolean;
+  isMyWin?: boolean;
+  myBidPrice?: number | null;
 }
 
 interface SettledResponse {
@@ -61,6 +63,7 @@ export default function DealerAuctionBidsPage() {
   const [endDate, setEndDate] = useState(todayDateValue);
   const [sStartDate, setSStartDate] = useState(todayDateValue);
   const [sEndDate, setSEndDate] = useState(todayDateValue);
+  const [includeMyBids, setIncludeMyBids] = useState(false);
 
   const handleSearch = () => {
     setSStartDate(startDate);
@@ -68,12 +71,13 @@ export default function DealerAuctionBidsPage() {
   };
 
   const { data: settledData, isLoading } = useQuery<SettledResponse>({
-    queryKey: ['dealerSettledBids', dealerId, sStartDate, sEndDate],
+    queryKey: ['dealerSettledBids', dealerId, sStartDate, sEndDate, includeMyBids],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (dealerId) params.set('dealerId', dealerId);
       if (sStartDate) params.set('closedDateFrom', sStartDate);
       if (sEndDate) params.set('closedDateTo', sEndDate);
+      if (includeMyBids) params.set('includeMyBids', 'true');
 
       const response = await fetch(`/api/bids/settled?${params.toString()}`);
       if (!response.ok) throw new Error('데이터 조회 실패');
@@ -123,15 +127,17 @@ export default function DealerAuctionBidsPage() {
     });
   }, [settledData]);
 
-  const successRecords = records.filter((r: BidRecord) => !r.isFailed);
-  const totalWeight = successRecords.reduce((sum: number, r: BidRecord) => sum + r.weight, 0);
+  const successRecords = records.filter((r: BidRecord) => r.isMyWin !== false || !includeMyBids);
+  const wonRecords = records.filter((r: BidRecord) => r.isMyWin === true || (!includeMyBids && !r.isFailed));
+  const lostRecords = records.filter((r: BidRecord) => r.isMyWin === false);
+  const totalWeight = wonRecords.reduce((sum: number, r: BidRecord) => sum + r.weight, 0);
 
   const formatTraceNo = (traceNo: string | undefined | null): string => {
     if (!traceNo) return '-';
     const cleaned = traceNo.replace(/^002-/, '');
     return `002-${cleaned}`;
   };
-  const totalAmount = successRecords.reduce((sum: number, r: BidRecord) => sum + (r.bidAmount || 0), 0);
+  const totalAmount = wonRecords.reduce((sum: number, r: BidRecord) => sum + (r.bidAmount || 0), 0);
 
   const thClass = "px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50";
   const tdClass = "px-2 py-2 text-xs text-gray-600 text-center whitespace-nowrap border border-gray-200";
@@ -153,21 +159,24 @@ export default function DealerAuctionBidsPage() {
 
     const excelData = records.map((record: BidRecord) => {
       const partner = assignmentsMap[record.partId];
-      return {
-        '상장일자': formatDate(record.listingDate),
-        '상장번호': record.listingPartNo,
-        '부위': record.partName,
-        '등급': record.grade,
-        '중량(kg)': record.weight,
-        '낙찰단가': record.bidPrice || '-',
-        '낙찰금액': record.bidAmount || '-',
-        '축종': record.breed,
-        '성별': record.gender,
-        '상장업체명': record.companyName || '-',
-        '이력번호': formatTraceNo(record.traceNo),
-        '거래처코드': partner?.partnerNo || '-',
-        '거래처명': partner?.partnerName || '-',
-      };
+      const isWon = record.isMyWin === true || (!includeMyBids && !record.isFailed);
+      const base: Record<string, any> = {};
+      if (includeMyBids) base['상태'] = isWon ? '낙찰' : '미낙찰';
+      base['상장일자'] = formatDate(record.listingDate);
+      base['상장번호'] = record.listingPartNo;
+      base['부위'] = record.partName;
+      base['등급'] = record.grade;
+      base['중량(kg)'] = record.weight;
+      if (includeMyBids) base['내 입찰가'] = record.myBidPrice || '-';
+      base['낙찰단가'] = record.bidPrice || '-';
+      base['낙찰금액'] = record.bidAmount || '-';
+      base['축종'] = record.breed;
+      base['성별'] = record.gender;
+      base['상장업체명'] = record.companyName || '-';
+      base['이력번호'] = formatTraceNo(record.traceNo);
+      base['거래처코드'] = isWon ? (partner?.partnerNo || '-') : '-';
+      base['거래처명'] = isWon ? (partner?.partnerName || '-') : '-';
+      return base;
     });
 
     const worksheet = XLSX.utils.json_to_sheet(excelData);
@@ -209,6 +218,15 @@ export default function DealerAuctionBidsPage() {
             >
               조회
             </button>
+            <label className="flex items-center gap-1.5 cursor-pointer ml-2">
+              <input
+                type="checkbox"
+                checked={includeMyBids}
+                onChange={(e) => setIncludeMyBids(e.target.checked)}
+                className="w-3.5 h-3.5 accent-gray-700"
+              />
+              <span className="text-xs text-gray-600">입찰내역 전체보기</span>
+            </label>
           </div>
 
           <div className="flex items-center gap-2 ml-auto">
@@ -242,6 +260,18 @@ export default function DealerAuctionBidsPage() {
             <span className="text-sm text-gray-500">총 건수</span>
             <span className="text-sm font-semibold text-gray-900">{records.length}건</span>
           </div>
+          {includeMyBids && (
+            <>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-500">낙찰</span>
+                <span className="text-sm font-semibold text-gray-900">{wonRecords.length}건</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-500">미낙찰</span>
+                <span className="text-sm font-semibold text-gray-500">{lostRecords.length}건</span>
+              </div>
+            </>
+          )}
           <div className="flex items-center gap-2">
             <span className="text-sm text-gray-500">총 중량</span>
             <span className="text-sm font-semibold text-gray-900">{totalWeight.toFixed(1)}kg</span>
@@ -269,11 +299,13 @@ export default function DealerAuctionBidsPage() {
               <table className="w-full border-collapse">
                 <thead>
                   <tr>
+                    {includeMyBids && <th className={thClass}>상태</th>}
                     <th className={thClass}>상장일자</th>
                     <th className={thClass}>상장번호</th>
                     <th className={thClass}>부위</th>
                     <th className={thClass}>등급</th>
                     <th className={thClass}>중량</th>
+                    {includeMyBids && <th className={thClass}>내 입찰가</th>}
                     <th className={thClass}>낙찰단가</th>
                     <th className={thClass}>낙찰금액</th>
                     <th className={thClass}>축종</th>
@@ -287,13 +319,28 @@ export default function DealerAuctionBidsPage() {
                 <tbody>
                   {records.map((record: BidRecord) => {
                     const partner = assignmentsMap[record.partId];
+                    const isWon = record.isMyWin === true || (!includeMyBids && !record.isFailed);
                     return (
-                    <tr key={record.id} className="hover:bg-gray-50">
+                    <tr key={record.id} className={`hover:bg-gray-50 ${!isWon && includeMyBids ? 'bg-gray-50/70' : ''}`}>
+                      {includeMyBids && (
+                        <td className={tdClass}>
+                          {isWon ? (
+                            <span className="inline-block px-1.5 py-0.5 text-[10px] font-medium bg-gray-800 text-white rounded">낙찰</span>
+                          ) : (
+                            <span className="inline-block px-1.5 py-0.5 text-[10px] font-medium bg-gray-200 text-gray-500 rounded">미낙찰</span>
+                          )}
+                        </td>
+                      )}
                       <td className={tdClass}>{formatDate(record.listingDate)}</td>
                       <td className={`${tdClass} font-medium text-gray-900`}>{record.listingPartNo}</td>
                       <td className={tdClass}>{record.partName}</td>
                       <td className={`${tdClass} font-medium`}>{record.grade}</td>
                       <td className={tdClass}>{record.weight.toFixed(1)}kg</td>
+                      {includeMyBids && (
+                        <td className={`${tdClass} font-medium text-gray-700`}>
+                          {record.myBidPrice ? record.myBidPrice.toLocaleString() : '-'}
+                        </td>
+                      )}
                       <td className={tdClass}>{record.bidPrice ? record.bidPrice.toLocaleString() : '-'}</td>
                       <td className={`${tdClass} font-medium text-gray-900`}>
                         {record.bidAmount ? record.bidAmount.toLocaleString() : '-'}
@@ -302,8 +349,8 @@ export default function DealerAuctionBidsPage() {
                       <td className={tdClass}>{record.gender}</td>
                       <td className={tdClass}>{record.companyName || '-'}</td>
                       <td className={tdClass}>{formatTraceNo(record.traceNo)}</td>
-                      <td className={tdClass}>{partner?.partnerNo || '-'}</td>
-                      <td className={tdClass}>{partner?.partnerName || '-'}</td>
+                      <td className={tdClass}>{isWon ? (partner?.partnerNo || '-') : '-'}</td>
+                      <td className={tdClass}>{isWon ? (partner?.partnerName || '-') : '-'}</td>
                     </tr>
                     );
                   })}

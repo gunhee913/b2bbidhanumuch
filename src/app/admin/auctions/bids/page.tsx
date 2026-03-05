@@ -306,34 +306,34 @@ export default function AuctionBidsPage() {
       </div>
 
       {/* 합계 정보 */}
-      <div className="grid grid-cols-7 gap-4 mb-4">
-        <div className="bg-white border border-gray-200 p-4">
-          <div className="text-xs text-gray-500">총 건수</div>
-          <div className="text-xl font-bold text-gray-900">{filteredRecords.length}건</div>
+      <div className="grid grid-cols-7 gap-2 mb-4">
+        <div className="bg-white border border-gray-200 p-2.5">
+          <div className="text-[11px] text-gray-500 mb-0.5">총 건수</div>
+          <div className="text-lg font-bold text-gray-900 whitespace-nowrap">{filteredRecords.length}건</div>
         </div>
-        <div className="bg-white border border-gray-200 p-4">
-          <div className="text-xs text-gray-500">낙찰</div>
-          <div className="text-xl font-bold text-green-600">{successRecords.length}건</div>
+        <div className="bg-white border border-gray-200 p-2.5">
+          <div className="text-[11px] text-gray-500 mb-0.5">낙찰</div>
+          <div className="text-lg font-bold text-green-600 whitespace-nowrap">{successRecords.length}건</div>
         </div>
-        <div className="bg-white border border-gray-200 p-4">
-          <div className="text-xs text-gray-500">유찰</div>
-          <div className="text-xl font-bold text-gray-400">{failedCount}건</div>
+        <div className="bg-white border border-gray-200 p-2.5">
+          <div className="text-[11px] text-gray-500 mb-0.5">유찰</div>
+          <div className="text-lg font-bold text-gray-400 whitespace-nowrap">{failedCount}건</div>
         </div>
-        <div className="bg-white border border-gray-200 p-4">
-          <div className="text-xs text-gray-500">총 낙찰중량</div>
-          <div className="text-xl font-bold text-gray-900">{totalWeight.toFixed(1)}kg</div>
+        <div className="bg-white border border-gray-200 p-2.5">
+          <div className="text-[11px] text-gray-500 mb-0.5">낙찰중량</div>
+          <div className="text-base font-bold text-gray-900 whitespace-nowrap">{totalWeight.toFixed(1)}kg</div>
         </div>
-        <div className="bg-white border border-gray-200 p-4">
-          <div className="text-xs text-gray-500">총 낙찰금액</div>
-          <div className="text-xl font-bold text-gray-900">{totalAmount.toLocaleString()}원</div>
+        <div className="bg-white border border-gray-200 p-2.5">
+          <div className="text-[11px] text-gray-500 mb-0.5">낙찰금액</div>
+          <div className="text-base font-bold text-gray-900 whitespace-nowrap">{totalAmount.toLocaleString()}원</div>
         </div>
-        <div className="bg-white border border-gray-200 p-4">
-          <div className="text-xs text-gray-500">총 상장수수료</div>
-          <div className="text-xl font-bold text-gray-900">{totalCommission.toLocaleString()}원</div>
+        <div className="bg-white border border-gray-200 p-2.5">
+          <div className="text-[11px] text-gray-500 mb-0.5">상장수수료</div>
+          <div className="text-base font-bold text-gray-900 whitespace-nowrap">{totalCommission.toLocaleString()}원</div>
         </div>
-        <div className="bg-white border border-gray-200 p-4">
-          <div className="text-xs text-gray-500">총 배송수수료</div>
-          <div className="text-xl font-bold text-gray-900">{totalDeliveryFee.toLocaleString()}원</div>
+        <div className="bg-white border border-gray-200 p-2.5">
+          <div className="text-[11px] text-gray-500 mb-0.5">배송수수료</div>
+          <div className="text-base font-bold text-gray-900 whitespace-nowrap">{totalDeliveryFee.toLocaleString()}원</div>
         </div>
       </div>
 

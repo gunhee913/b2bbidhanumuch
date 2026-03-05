@@ -14,6 +14,7 @@ export async function GET(request: NextRequest) {
     const closedDateTo = searchParams.get('closedDateTo');
     const companyId = searchParams.get('companyId');
     const dealerId = searchParams.get('dealerId');
+    const includeMyBids = searchParams.get('includeMyBids') === 'true';
 
     // 수수료 설정 조회
     const { data: feeSettings } = await supabase
@@ -122,6 +123,26 @@ export async function GET(request: NextRequest) {
       });
     });
 
+    // 3-1. 딜러의 입찰 내역 조회 (includeMyBids용)
+    let myBidPartIds = new Set<string>();
+    let myBidPriceMap: Record<string, number> = {};
+    if (dealerId && includeMyBids && allPartIds.size > 0) {
+      const partIdArr = Array.from(allPartIds);
+      const batchSize = 50;
+      for (let i = 0; i < partIdArr.length; i += batchSize) {
+        const batch = partIdArr.slice(i, i + batchSize);
+        const { data: myBids } = await supabase
+          .from('bids')
+          .select('part_id, bid_price')
+          .eq('dealer_id', dealerId)
+          .in('part_id', batch);
+        (myBids || []).forEach((bid: any) => {
+          myBidPartIds.add(bid.part_id);
+          myBidPriceMap[bid.part_id] = bid.bid_price;
+        });
+      }
+    }
+
     let partnerMap: Record<string, { partnerNo: string; partnerName: string }> = {};
     if (allPartIds.size > 0) {
       const partIdArr = Array.from(allPartIds);
@@ -169,11 +190,18 @@ export async function GET(request: NextRequest) {
 
       (listing.cattle_parts || [])
         .filter((part: any) => part.is_included)
-        .filter((part: any) => !dealerId || part.winning_dealer_id === dealerId)
+        .filter((part: any) => {
+          if (!dealerId) return true;
+          if (part.winning_dealer_id === dealerId) return true;
+          if (includeMyBids && myBidPartIds.has(part.id)) return true;
+          return false;
+        })
         .sort((a: any, b: any) => a.part_no - b.part_no)
         .forEach((part: any) => {
           const dealer = part.winning_dealer_id ? dealersMap[part.winning_dealer_id] : null;
           const isFailed = !part.winning_dealer_id || !part.bid_price;
+          const isMyWin = dealerId ? part.winning_dealer_id === dealerId : false;
+          const myBidPrice = dealerId ? (myBidPriceMap[part.id] || null) : null;
           
           if (isFailed) {
             failedCount++;
@@ -214,6 +242,8 @@ export async function GET(request: NextRequest) {
             partnerNo: partnerMap[part.id]?.partnerNo || null,
             partnerName: partnerMap[part.id]?.partnerName || null,
             isFailed,
+            isMyWin,
+            myBidPrice,
           });
         });
     });
