@@ -373,7 +373,7 @@ export default function CompanyAuctionLivePage() {
         <div className="bg-white border border-gray-200 p-4">
           <div className="text-xs text-gray-500">현재 총 입찰금액</div>
           <div className="text-xl font-bold text-gray-900">
-            {filteredItems.reduce((sum, item) => sum + (item.currentHighestBid * item.weight), 0).toLocaleString()}원
+            {filteredItems.reduce((sum, item) => sum + Math.round(item.currentHighestBid * item.weight), 0).toLocaleString()}원
           </div>
         </div>
       </div>
@@ -488,7 +488,7 @@ export default function CompanyAuctionLivePage() {
                     <td className={tdClass}></td>
                     <td className={tdClass}></td>
                     <td className={`${tdClass} text-right text-gray-900`}>
-                      {filteredItems.reduce((sum, item) => sum + (item.currentHighestBid * item.weight), 0).toLocaleString()}
+                      {filteredItems.reduce((sum, item) => sum + Math.round(item.currentHighestBid * item.weight), 0).toLocaleString()}
                     </td>
                     <td className={tdClass}></td>
                     <td className={tdClass}></td>

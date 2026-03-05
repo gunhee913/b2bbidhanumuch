@@ -45,6 +45,8 @@ interface SettledRecord {
   dealerId: string | null;
   dealerNo: string | null;
   dealerName: string | null;
+  partnerNo: string | null;
+  partnerName: string | null;
   isFailed: boolean;
 }
 
@@ -158,8 +160,8 @@ export default function AuctionBidsPage() {
       '중도매인명': record.dealerName || '-',
       '상장업체명': record.companyName,
       '이력번호': record.traceNo || '-',
-      '거래처번호': '-',
-      '거래처명': '-',
+      '거래처번호': record.partnerNo || '-',
+      '거래처명': record.partnerName || '-',
     }));
 
     const worksheet = XLSX.utils.json_to_sheet(excelData);
@@ -395,8 +397,8 @@ export default function AuctionBidsPage() {
                     <td className={tdClass}>{record.dealerName || '-'}</td>
                     <td className={tdClass}>{record.companyName}</td>
                     <td className={tdClass}>{record.traceNo || '-'}</td>
-                    <td className={tdClass}>-</td>
-                    <td className={tdClass}>-</td>
+                    <td className={tdClass}>{record.partnerNo || '-'}</td>
+                    <td className={tdClass}>{record.partnerName || '-'}</td>
                   </tr>
                 ))
               )}

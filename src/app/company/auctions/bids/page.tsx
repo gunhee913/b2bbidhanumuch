@@ -84,7 +84,16 @@ export default function CompanyAuctionBidsPage() {
     enabled: !!companyId,
   });
 
-  const records = settledData?.records || [];
+  const records = (settledData?.records || []).sort((a: BidRecord, b: BidRecord) => {
+    const aParts = (a.listingPartNo || '').split('-');
+    const bParts = (b.listingPartNo || '').split('-');
+    const aMain = parseInt(aParts[0]) || 0;
+    const bMain = parseInt(bParts[0]) || 0;
+    if (aMain !== bMain) return aMain - bMain;
+    const aSub = parseInt(aParts[1]) || 0;
+    const bSub = parseInt(bParts[1]) || 0;
+    return aSub - bSub;
+  });
 
   // 필터링
   const filteredRecords = useMemo(() => {

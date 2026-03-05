@@ -112,9 +112,14 @@ export default function DealerAuctionBidsPage() {
   const records = useMemo(() => {
     const raw = settledData?.records || [];
     return [...raw].sort((a, b) => {
-      const noA = a.listingPartNo || '';
-      const noB = b.listingPartNo || '';
-      return noA.localeCompare(noB, undefined, { numeric: true });
+      const aParts = (a.listingPartNo || '').split('-');
+      const bParts = (b.listingPartNo || '').split('-');
+      const aMain = parseInt(aParts[0]) || 0;
+      const bMain = parseInt(bParts[0]) || 0;
+      if (aMain !== bMain) return aMain - bMain;
+      const aSub = parseInt(aParts[1]) || 0;
+      const bSub = parseInt(bParts[1]) || 0;
+      return aSub - bSub;
     });
   }, [settledData]);
 

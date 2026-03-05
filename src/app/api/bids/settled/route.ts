@@ -114,7 +114,40 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // 3. 경락 내역 데이터 구성
+    // 3. 배송 거래처 지정 정보 조회
+    const allPartIds = new Set<string>();
+    listings.forEach((listing: any) => {
+      (listing.cattle_parts || []).forEach((part: any) => {
+        if (part.is_included) allPartIds.add(part.id);
+      });
+    });
+
+    let partnerMap: Record<string, { partnerNo: string; partnerName: string }> = {};
+    if (allPartIds.size > 0) {
+      const partIdArr = Array.from(allPartIds);
+      const batchSize = 50;
+      const assignmentRows: any[] = [];
+      for (let i = 0; i < partIdArr.length; i += batchSize) {
+        const batch = partIdArr.slice(i, i + batchSize);
+        const { data: assignments } = await supabase
+          .from('delivery_assignments')
+          .select('part_id, partner_id, partners ( partner_no, name )')
+          .in('part_id', batch);
+        if (assignments) assignmentRows.push(...assignments);
+      }
+
+      assignmentRows.forEach((a: any) => {
+        const p = a.partners as any;
+        if (p) {
+          partnerMap[a.part_id] = {
+            partnerNo: p.partner_no || '',
+            partnerName: p.name || '',
+          };
+        }
+      });
+    }
+
+    // 4. 경락 내역 데이터 구성
     const records: any[] = [];
     let totalAmount = 0;
     let successCount = 0;
@@ -178,9 +211,23 @@ export async function GET(request: NextRequest) {
             dealerId: part.winning_dealer_id,
             dealerNo: dealer?.dealer_no || null,
             dealerName: dealer?.name || null,
+            partnerNo: partnerMap[part.id]?.partnerNo || null,
+            partnerName: partnerMap[part.id]?.partnerName || null,
             isFailed,
           });
         });
+    });
+
+    // 상장번호 오름차순 정렬 (101, 102, 103, 201, 202, ...)
+    records.sort((a: any, b: any) => {
+      const aParts = (a.listingPartNo || '').split('-');
+      const bParts = (b.listingPartNo || '').split('-');
+      const aMain = parseInt(aParts[0]) || 0;
+      const bMain = parseInt(bParts[0]) || 0;
+      if (aMain !== bMain) return aMain - bMain;
+      const aSub = parseInt(aParts[1]) || 0;
+      const bSub = parseInt(bParts[1]) || 0;
+      return aSub - bSub;
     });
 
     return NextResponse.json({
