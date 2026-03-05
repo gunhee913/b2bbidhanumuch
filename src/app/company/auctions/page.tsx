@@ -101,17 +101,16 @@ interface Auction {
   gradeCert: CertificateData | null;
 }
 
-// 내일 날짜 문자열 (YYYY-MM-DD) - input date용
-const getTomorrowDateString = () => {
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const year = tomorrow.getFullYear();
-  const month = String(tomorrow.getMonth() + 1).padStart(2, '0');
-  const day = String(tomorrow.getDate()).padStart(2, '0');
+// 오늘 날짜 문자열 (YYYY-MM-DD) - input date용
+const getTodayDateString = () => {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
 };
 
-const tomorrowDateString = getTomorrowDateString();
+const todayDateString = getTodayDateString();
 
 // 등급 포맷팅 함수 (1++등급에 근내지방 점수 추가)
 const formatGrade = (grade: string, marblingScore: number | null): string => {
@@ -198,10 +197,10 @@ export default function CompanyAuctionsListPage() {
   
   const [currentPage, setCurrentPage] = useState(1);
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [startDate, setStartDate] = useState<string>(tomorrowDateString);
-  const [endDate, setEndDate] = useState<string>(tomorrowDateString);
-  const [sStartDate, setSStartDate] = useState<string>(tomorrowDateString);
-  const [sEndDate, setSEndDate] = useState<string>(tomorrowDateString);
+  const [startDate, setStartDate] = useState<string>(todayDateString);
+  const [endDate, setEndDate] = useState<string>(todayDateString);
+  const [sStartDate, setSStartDate] = useState<string>(todayDateString);
+  const [sEndDate, setSEndDate] = useState<string>(todayDateString);
   const itemsPerPage = 10;
 
   const handleSearch = () => {
@@ -221,7 +220,11 @@ export default function CompanyAuctionsListPage() {
   // CattleListing -> Auction 변환
   const auctions = useMemo(() => {
     if (!listingsData) return [];
-    return listingsData.map(convertToAuction);
+    return listingsData.map(convertToAuction).sort((a, b) => {
+      const aNo = a.auctionNo || '';
+      const bNo = b.auctionNo || '';
+      return aNo.localeCompare(bNo, undefined, { numeric: true });
+    });
   }, [listingsData]);
 
   // 날짜 입력 refs
@@ -346,13 +349,13 @@ export default function CompanyAuctionsListPage() {
             <button
               type="button"
               onClick={() => {
-                setStartDate(tomorrowDateString);
-                setEndDate(tomorrowDateString);
-                setSStartDate(tomorrowDateString);
-                setSEndDate(tomorrowDateString);
+                setStartDate(todayDateString);
+                setEndDate(todayDateString);
+                setSStartDate(todayDateString);
+                setSEndDate(todayDateString);
                 setCurrentPage(1);
-                if (startDateRef.current) startDateRef.current.value = tomorrowDateString;
-                if (endDateRef.current) endDateRef.current.value = tomorrowDateString;
+                if (startDateRef.current) startDateRef.current.value = todayDateString;
+                if (endDateRef.current) endDateRef.current.value = todayDateString;
               }}
               className="px-4 py-1.5 border border-gray-300 text-gray-600 text-xs hover:bg-gray-50"
             >
@@ -457,10 +460,10 @@ export default function CompanyAuctionsListPage() {
                       </button>
                     </td>
                     <td className="px-2 py-3 text-center whitespace-nowrap border border-gray-200">
-                      <span className={`px-2 py-0.5 text-xs font-medium ${
-                        auction.status === '승인' ? 'bg-green-100 text-green-700' : 
-                        auction.status === '마감' ? 'bg-gray-200 text-gray-600' : 
-                        'bg-yellow-100 text-yellow-700'
+                      <span className={`px-2 py-0.5 text-xs font-medium rounded ${
+                        auction.status === '승인' ? 'bg-blue-50 text-blue-700 border border-blue-200' :
+                        auction.status === '마감' ? 'bg-gray-100 text-gray-500' :
+                        'bg-gray-50 text-gray-600 border border-gray-200'
                       }`}>
                         {auction.status}
                       </span>

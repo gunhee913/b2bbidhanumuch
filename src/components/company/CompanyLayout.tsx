@@ -163,9 +163,12 @@ export default function CompanyLayout({ children }: CompanyLayoutProps) {
         sidebarOpen ? 'translate-x-0' : '-translate-x-full'
       }`}>
         {/* 로고 영역 */}
-        <div className="flex items-center h-14 px-4 border-b border-gray-800">
+        <div className="flex items-center h-16 px-4 border-b border-gray-800">
           <Link href="/company" className="flex items-center">
-            <span className="text-white font-bold text-lg">HanuMuch</span>
+            <span className="flex flex-col gap-1">
+              <span className="text-white font-bold text-[15px] tracking-tight">부분육 온라인경매 플랫폼</span>
+              <span className="inline-flex self-start px-1.5 py-0.5 rounded bg-white/10 text-[10px] text-gray-300 font-medium">상장사 센터</span>
+            </span>
           </Link>
           <button
             onClick={() => setSidebarOpen(false)}

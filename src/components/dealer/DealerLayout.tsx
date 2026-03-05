@@ -168,9 +168,12 @@ export default function DealerLayout({ children }: DealerLayoutProps) {
       <aside className={`fixed left-0 top-0 z-40 h-screen bg-gray-900 w-64 transition-transform duration-200 ease-in-out lg:translate-x-0 ${
         sidebarOpen ? 'translate-x-0' : '-translate-x-full'
       }`}>
-        <div className="flex items-center h-14 px-4 border-b border-gray-800">
+        <div className="flex items-center h-16 px-4 border-b border-gray-800">
           <Link href="/dealer" className="flex items-center">
-            <span className="text-white font-bold text-lg">HanuMuch</span>
+            <span className="flex flex-col gap-1">
+              <span className="text-white font-bold text-[15px] tracking-tight">부분육 온라인경매 플랫폼</span>
+              <span className="inline-flex self-start px-1.5 py-0.5 rounded bg-white/10 text-[10px] text-gray-300 font-medium">중도매인 센터</span>
+            </span>
           </Link>
           <button
             onClick={() => setSidebarOpen(false)}

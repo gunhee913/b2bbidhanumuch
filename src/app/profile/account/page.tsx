@@ -8,7 +8,6 @@ import {
   User,
   Phone,
   Lock,
-  Settings,
   Gavel,
   Loader2,
 } from 'lucide-react';
@@ -104,12 +103,6 @@ export default function AccountPage() {
                 <h1 className="text-[17px] font-bold text-gray-900">회원 정보</h1>
                 {/* 오른쪽 아이콘 */}
                 <div className="w-[80px] flex items-center justify-end gap-1">
-                  <Link 
-                    href="/settings"
-                    className="p-2 text-gray-600 hover:text-gray-900 transition-colors flex items-center justify-center"
-                  >
-                    <Settings className="w-[22px] h-[22px]" />
-                  </Link>
                   <NotificationBell />
                 </div>
               </div>
