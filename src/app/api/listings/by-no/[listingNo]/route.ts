@@ -137,6 +137,7 @@ export async function GET(
       slaughterDate: listing.slaughter_date,
       slaughterNo: listing.slaughter_no,
       carcassWeight: listing.carcass_weight,
+      unitPrice: listing.unit_price,
       backFat: listing.back_fat,
       eyeMuscle: listing.eye_muscle,
       meatColor: listing.meat_color,

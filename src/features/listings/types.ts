@@ -16,6 +16,7 @@ export interface CattleListingRow {
   slaughter_date: string | null;
   slaughter_no: string | null;
   carcass_weight: number | null;
+  unit_price: number | null;
   back_fat: number | null;
   eye_muscle: number | null;
   meat_color: number | null;
@@ -80,6 +81,7 @@ export interface CattleListing {
   slaughterDate: string | null;
   slaughterNo: string | null;
   carcassWeight: number | null;
+  unitPrice: number | null;
   backFat: number | null;
   eyeMuscle: number | null;
   meatColor: number | null;
@@ -133,6 +135,7 @@ export interface CreateListingInput {
   slaughterDate?: string;
   slaughterNo?: string;
   carcassWeight?: number;
+  unitPrice?: number;
   backFat?: number;
   eyeMuscle?: number;
   meatColor?: number;
@@ -169,6 +172,7 @@ export interface UpdateListingInput {
   slaughterDate?: string;
   slaughterNo?: string;
   carcassWeight?: number;
+  unitPrice?: number;
   backFat?: number;
   eyeMuscle?: number;
   meatColor?: number;
@@ -216,6 +220,7 @@ export function toFrontendListing(row: CattleListingRow): CattleListing {
     slaughterDate: row.slaughter_date,
     slaughterNo: row.slaughter_no,
     carcassWeight: row.carcass_weight,
+    unitPrice: row.unit_price,
     backFat: row.back_fat,
     eyeMuscle: row.eye_muscle,
     meatColor: row.meat_color,

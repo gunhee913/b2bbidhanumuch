@@ -74,8 +74,8 @@ export default function BidsHistoryPage() {
                   </Link>
                   <div className="flex items-center">
                     <img 
-                      src="/음성축산물공판장.png" 
-                      alt="음성축산물공판장" 
+                      src="/농협 음성.png" 
+                      alt="농협 음성" 
                       className="h-5 w-auto border border-gray-300 rounded px-1.5 py-0.5 bg-gradient-to-br from-white to-gray-50 shadow-sm"
                     />
                   </div>

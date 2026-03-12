@@ -442,7 +442,7 @@ export default function CompanyAuctionsListPage() {
                     <td className="px-2 py-3 text-xs border border-gray-200 text-gray-600 text-center whitespace-nowrap">{auction.texture}</td>
                     <td className="px-2 py-3 text-xs border border-gray-200 text-gray-600 text-center whitespace-nowrap">{auction.maturity}</td>
                     <td className="px-2 py-3 text-[10px] border border-gray-200 text-gray-600 text-center whitespace-nowrap">002-{auction.traceNo}</td>
-                    <td className="px-2 py-3 text-xs border border-gray-200 text-gray-600 text-center whitespace-nowrap cursor-default" title="음성축산물공판장">{auction.slaughterHouse}</td>
+                    <td className="px-2 py-3 text-xs border border-gray-200 text-gray-600 text-center whitespace-nowrap cursor-default" title="농협 음성">{auction.slaughterHouse}</td>
                     <td className="px-2 py-3 text-xs border border-gray-200 text-gray-600 text-center whitespace-nowrap">{auction.slaughterDate}</td>
                     <td className="px-2 py-3 text-xs border border-gray-200 text-gray-600 text-center whitespace-nowrap">{auction.slaughterNo}</td>
                     <td className="px-2 py-3 text-xs border border-gray-200 text-gray-600 text-center whitespace-nowrap">{auction.carcassWeight}</td>

@@ -237,7 +237,7 @@ function TradeDetailContent() {
                           <div className="flex-1 space-y-1.5">
                             <div className="flex"><span className="w-16 text-gray-500">접수번호:</span><span className="font-medium">{listingNo}</span></div>
                             <div className="flex"><span className="w-16 text-gray-500">도축일:</span><span>2026.01.16</span></div>
-                            <div className="flex"><span className="w-16 text-gray-500">도축장:</span><span>음성축산물공판장</span></div>
+                            <div className="flex"><span className="w-16 text-gray-500">도축장:</span><span>농협 음성</span></div>
                             <div className="flex"><span className="w-16 text-gray-500">도축번호:</span><span>{detailData.slaughterNo}</span></div>
                             <div className="flex"><span className="w-16 text-gray-500">이력번호:</span><span>{detailData.traceNo}</span></div>
                             <div className="flex"><span className="w-16 text-gray-500">출하농가:</span><span>{detailData.company}</span></div>

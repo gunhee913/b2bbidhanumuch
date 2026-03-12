@@ -94,6 +94,7 @@ export async function PATCH(
     if (body.slaughterDate !== undefined) updateData.slaughter_date = body.slaughterDate;
     if (body.slaughterNo !== undefined) updateData.slaughter_no = body.slaughterNo;
     if (body.carcassWeight !== undefined) updateData.carcass_weight = body.carcassWeight;
+    if (body.unitPrice !== undefined) updateData.unit_price = body.unitPrice;
     if (body.backFat !== undefined) updateData.back_fat = body.backFat;
     if (body.eyeMuscle !== undefined) updateData.eye_muscle = body.eyeMuscle;
     if (body.meatColor !== undefined) updateData.meat_color = body.meatColor;

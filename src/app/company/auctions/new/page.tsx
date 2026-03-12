@@ -48,6 +48,7 @@ interface CattleData {
   marbling: string;
   monthAge: string;
   carcassWeight: string;
+  unitPrice: string;
   traceNo: string;
   backFat: string;
   eyeMuscle: string;
@@ -102,6 +103,7 @@ const createNewCattle = (id: number, seqNo: string): CattleData => ({
   marbling: '',
   monthAge: '',
   carcassWeight: '',
+  unitPrice: '',
   traceNo: '',
   backFat: '',
   eyeMuscle: '',
@@ -110,7 +112,7 @@ const createNewCattle = (id: number, seqNo: string): CattleData => ({
   fatColor: '',
   texture: '',
   maturity: '',
-  slaughterHouse: '음성축산물공판장',
+  slaughterHouse: '농협 음성',
   slaughterDate: '',
   slaughterNo: '',
   processDate: '',
@@ -500,10 +502,11 @@ export default function CompanyNewAuctionPage() {
           marblingScore: cattle.marbling ? parseInt(cattle.marbling) : undefined,
           monthAge: cattle.monthAge ? parseInt(cattle.monthAge) : undefined,
           traceNo: cattle.traceNo ? `002-${cattle.traceNo}` : undefined,
-          slaughterHouse: cattle.slaughterHouse || '음성축산물공판장',
+          slaughterHouse: cattle.slaughterHouse || '농협 음성',
           slaughterDate: cattle.slaughterDate || undefined,
           slaughterNo: cattle.slaughterNo || undefined,
           carcassWeight: cattle.carcassWeight ? parseFloat(cattle.carcassWeight) : undefined,
+          unitPrice: cattle.unitPrice ? parseInt(cattle.unitPrice) : undefined,
           backFat: cattle.backFat ? parseInt(cattle.backFat) : undefined,
           eyeMuscle: cattle.eyeMuscle ? parseInt(cattle.eyeMuscle) : undefined,
           meatColor: cattle.meatColor ? parseInt(cattle.meatColor) : undefined,
@@ -546,17 +549,17 @@ export default function CompanyNewAuctionPage() {
   // 엑셀 템플릿 다운로드
   const downloadExcelTemplate = () => {
     const cattleHeaders = [
-      '순번', '축종', '성별', '등급', '근내지방등급', '개월령', '도체중', '이력번호',
+      '순번', '축종', '성별', '등급', '근내지방등급', '개월령', '도체중', '경락단가(원/kg)', '이력번호',
       '등지방', '등심면적', '근내지방', '육색', '지방색', '조직감', '성숙도',
       '도축장', '도축일', '도축번호', '가공일', '가공중량'
     ];
 
     const sampleCattleData = [
-      ['1', '한우', '거세', '1++A', '9', '32', '520', '0023-4567-8', '15', '98', '9', '5', '3', '1', '2', '음성', '2026-01-15', '201', '2026-01-16', '312'],
-      ['2', '한우', '거세', '1+A',  '7', '30', '490', '0023-4567-9', '13', '94', '7', '5', '3', '1', '2', '음성', '2026-01-15', '202', '2026-01-16', '295'],
-      ['3', '한우', '암',   '1A',   '5', '28', '440', '0023-4568-0', '11', '88', '5', '4', '3', '1', '2', '음성', '2026-01-15', '203', '2026-01-16', '264'],
-      ['4', '한우', '거세', '1++B', '8', '34', '530', '0023-4568-1', '14', '96', '8', '5', '3', '1', '2', '음성', '2026-01-15', '204', '2026-01-16', '318'],
-      ['5', '한우', '거세', '2A',   '3', '26', '410', '0023-4568-2', '10', '82', '3', '4', '3', '1', '2', '음성', '2026-01-15', '205', '2026-01-16', '246'],
+      ['1', '한우', '거세', '1++A', '9', '32', '520', '28000', '0023-4567-8', '15', '98', '9', '5', '3', '1', '2', '음성', '2026-01-15', '201', '2026-01-16', '312'],
+      ['2', '한우', '거세', '1+A',  '7', '30', '490', '25000', '0023-4567-9', '13', '94', '7', '5', '3', '1', '2', '음성', '2026-01-15', '202', '2026-01-16', '295'],
+      ['3', '한우', '암',   '1A',   '5', '28', '440', '20000', '0023-4568-0', '11', '88', '5', '4', '3', '1', '2', '음성', '2026-01-15', '203', '2026-01-16', '264'],
+      ['4', '한우', '거세', '1++B', '8', '34', '530', '27000', '0023-4568-1', '14', '96', '8', '5', '3', '1', '2', '음성', '2026-01-15', '204', '2026-01-16', '318'],
+      ['5', '한우', '거세', '2A',   '3', '26', '410', '18000', '0023-4568-2', '10', '82', '3', '4', '3', '1', '2', '음성', '2026-01-15', '205', '2026-01-16', '246'],
     ];
 
     const cattleSheet = XLSX.utils.aoa_to_sheet([cattleHeaders, ...sampleCattleData]);
@@ -671,6 +674,7 @@ export default function CompanyNewAuctionPage() {
           cattle.marbling = row['근내지방등급'] || '';
           cattle.monthAge = row['개월령'] || '';
           cattle.carcassWeight = row['도체중'] || '';
+          cattle.unitPrice = String(row['경락단가(원/kg)'] || '').replace(/,/g, '');
           cattle.traceNo = formatTraceNo(row['이력번호'] || '');
           cattle.backFat = row['등지방'] || '';
           cattle.eyeMuscle = row['등심면적'] || '';
@@ -679,7 +683,7 @@ export default function CompanyNewAuctionPage() {
           cattle.fatColor = row['지방색'] || '';
           cattle.texture = row['조직감'] || '';
           cattle.maturity = row['성숙도'] || '';
-          cattle.slaughterHouse = '음성축산물공판장';
+          cattle.slaughterHouse = '농협 음성';
           cattle.slaughterDate = row['도축일'] || '';
           cattle.slaughterNo = row['도축번호'] || '';
           cattle.processDate = row['가공일'] || '';
@@ -878,6 +882,7 @@ export default function CompanyNewAuctionPage() {
                         <th className={`${thClass} w-20`}>근내지방</th>
                         <th className={`${thClass} w-20`}>개월령</th>
                         <th className={`${thClass} w-20`}>도체중</th>
+                        <th className={`${thClass} w-28`}>경락단가</th>
                         <th className={`${thClass} w-36`}>이력번호</th>
                       </tr>
                     </thead>
@@ -927,6 +932,12 @@ export default function CompanyNewAuctionPage() {
                         </td>
                         <td className={tdClass}>
                           <input type="number" value={cattle.carcassWeight} onChange={(e) => updateCattle(cattle.id, 'carcassWeight', e.target.value)} placeholder="520" required className={`w-14 ${inputClass}`} />
+                        </td>
+                        <td className={tdClass}>
+                          <div className="flex items-center justify-center gap-1">
+                            <input type="text" value={displayPrice(cattle.unitPrice)} onChange={(e) => updateCattle(cattle.id, 'unitPrice', e.target.value.replace(/,/g, '').replace(/[^0-9]/g, ''))} placeholder="0" className={`w-20 ${inputClass}`} />
+                            <span className="text-[10px] text-gray-400 whitespace-nowrap">원/kg</span>
+                          </div>
                         </td>
                         <td className={tdClass}>
                           <div className="flex items-center justify-center gap-1">
@@ -982,7 +993,7 @@ export default function CompanyNewAuctionPage() {
                           <input type="number" value={cattle.maturity} onChange={(e) => updateCattle(cattle.id, 'maturity', e.target.value)} placeholder="2" required className={`w-12 ${inputClass}`} />
                         </td>
                         <td className={tdClass}>
-                          <span className="text-[10px] text-gray-700">음성축산물공판장</span>
+                          <span className="text-[10px] text-gray-700">농협 음성</span>
                         </td>
                         <td className={tdClass}>
                           <input 

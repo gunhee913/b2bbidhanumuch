@@ -938,7 +938,7 @@ export default function AuctionsListPage() {
                         <td className="px-1 py-1 text-center whitespace-nowrap border border-gray-200">
                           <div className="flex items-center justify-center gap-0.5"><span className="text-[10px] text-gray-500">002-</span><input type="text" value={editFormData.traceNo} onClick={(e) => e.stopPropagation()} onChange={(e) => setEditFormData({ ...editFormData, traceNo: e.target.value })} className="w-20 px-1 py-1 text-[10px] border border-gray-300 outline-none bg-white text-center" /></div>
                         </td>
-                        <td className="px-2 py-3 text-xs border border-gray-200 text-gray-600 text-center whitespace-nowrap cursor-default" title="음성축산물공판장">{auction.slaughterHouse}</td>
+                        <td className="px-2 py-3 text-xs border border-gray-200 text-gray-600 text-center whitespace-nowrap cursor-default" title="농협 음성">{auction.slaughterHouse}</td>
                         <td className="px-1 py-1 text-center whitespace-nowrap border border-gray-200">
                           <input type="text" value={editFormData.slaughterDate} onClick={(e) => e.stopPropagation()} onChange={(e) => setEditFormData({ ...editFormData, slaughterDate: e.target.value })} className="w-20 px-1 py-1 text-xs border border-gray-300 outline-none bg-white text-center" />
                         </td>
@@ -969,7 +969,7 @@ export default function AuctionsListPage() {
                         <td className="px-2 py-3 text-xs border border-gray-200 text-gray-600 text-center whitespace-nowrap">{auction.texture}</td>
                         <td className="px-2 py-3 text-xs border border-gray-200 text-gray-600 text-center whitespace-nowrap">{auction.maturity}</td>
                         <td className="px-2 py-3 text-[10px] border border-gray-200 text-gray-600 text-center whitespace-nowrap">002-{auction.traceNo}</td>
-                        <td className="px-2 py-3 text-xs border border-gray-200 text-gray-600 text-center whitespace-nowrap cursor-default" title="음성축산물공판장">{auction.slaughterHouse}</td>
+                        <td className="px-2 py-3 text-xs border border-gray-200 text-gray-600 text-center whitespace-nowrap cursor-default" title="농협 음성">{auction.slaughterHouse}</td>
                         <td className="px-2 py-3 text-xs border border-gray-200 text-gray-600 text-center whitespace-nowrap">{auction.slaughterDate}</td>
                         <td className="px-2 py-3 text-xs border border-gray-200 text-gray-600 text-center whitespace-nowrap">{auction.slaughterNo}</td>
                         <td className="px-2 py-3 text-xs border border-gray-200 text-gray-600 text-center whitespace-nowrap">{auction.carcassWeight}</td>

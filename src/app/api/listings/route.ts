@@ -233,6 +233,7 @@ export async function POST(request: NextRequest) {
         slaughter_date: listingData.slaughterDate,
         slaughter_no: listingData.slaughterNo,
         carcass_weight: listingData.carcassWeight,
+        unit_price: listingData.unitPrice,
         back_fat: listingData.backFat,
         eye_muscle: listingData.eyeMuscle,
         meat_color: listingData.meatColor,
