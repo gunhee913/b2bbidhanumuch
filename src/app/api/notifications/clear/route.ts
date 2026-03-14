@@ -1,12 +1,11 @@
-import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { NextRequest, NextResponse } from 'next/server';
+import { resolveAuth } from '@/lib/resolve-auth';
 import { createPureClient } from '@/lib/supabase/server';
 
-export async function DELETE() {
+export async function DELETE(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.dealer?.id) {
+    const auth = await resolveAuth(request);
+    if (!auth?.dealerId) {
       return NextResponse.json({ error: '로그인이 필요합니다.' }, { status: 401 });
     }
 
@@ -15,7 +14,7 @@ export async function DELETE() {
     const { error } = await supabase
       .from('notifications')
       .delete()
-      .eq('dealer_id', session.dealer.id);
+      .eq('dealer_id', auth.dealerId);
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });

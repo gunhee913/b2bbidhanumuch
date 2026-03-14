@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { resolveAuth } from "@/lib/resolve-auth";
 import { verifyAuctionPassword } from "@/features/dealers/auth";
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const auth = await resolveAuth(request);
 
-    if (!session) {
+    if (!auth?.dealerId) {
       return NextResponse.json(
         { error: "로그인이 필요합니다." },
         { status: 401 }
@@ -24,7 +23,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 소속 중도매인의 경매 비밀번호로 검증
-    const dealerId = session.dealer.id;
+    const dealerId = auth.dealerId;
     const isValid = await verifyAuctionPassword(dealerId, auctionPassword);
 
     if (!isValid) {

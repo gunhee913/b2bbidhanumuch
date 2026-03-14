@@ -1,15 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { resolveAuth } from '@/lib/resolve-auth';
 import { createPureClient } from '@/lib/supabase/server';
 
 export async function PATCH(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.dealer?.id) {
+    const auth = await resolveAuth(request);
+    if (!auth?.dealerId) {
       return NextResponse.json({ error: '로그인이 필요합니다.' }, { status: 401 });
     }
 
@@ -20,7 +19,7 @@ export async function PATCH(
       .from('notifications')
       .update({ is_read: true })
       .eq('id', id)
-      .eq('dealer_id', session.dealer.id);
+      .eq('dealer_id', auth.dealerId);
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
@@ -33,12 +32,12 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.dealer?.id) {
+    const auth = await resolveAuth(request);
+    if (!auth?.dealerId) {
       return NextResponse.json({ error: '로그인이 필요합니다.' }, { status: 401 });
     }
 
@@ -49,7 +48,7 @@ export async function DELETE(
       .from('notifications')
       .delete()
       .eq('id', id)
-      .eq('dealer_id', session.dealer.id);
+      .eq('dealer_id', auth.dealerId);
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
