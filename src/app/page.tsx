@@ -33,6 +33,7 @@ import { formatGrade } from '@/lib/utils';
 import { format } from 'date-fns';
 import { useSession } from 'next-auth/react';
 import { useRealtimeBids } from '@/hooks/useRealtimeBids';
+import { useRealtimeFavorites } from '@/hooks/useRealtimeFavorites';
 import { useQuery } from '@tanstack/react-query';
 
 // 한국어 로케일 등록
@@ -144,6 +145,16 @@ function MainPageContent() {
   
   useRealtimeBids({
     onBidChange: handleBidChange,
+    enabled: true,
+  });
+
+  const handleFavChange = useCallback(() => {
+    const date = useBidStore.getState().favActiveDate;
+    if (date) loadFavoritesFromServer(date);
+  }, [loadFavoritesFromServer]);
+
+  useRealtimeFavorites({
+    onFavChange: handleFavChange,
     enabled: true,
   });
 

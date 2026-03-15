@@ -28,6 +28,7 @@ import { format } from 'date-fns';
 import { formatGrade } from '@/lib/utils';
 import { useSession } from 'next-auth/react';
 import { useRealtimeBids } from '@/hooks/useRealtimeBids';
+import { useRealtimeFavorites } from '@/hooks/useRealtimeFavorites';
 
 function AuctionPageContent() {
   const router = useRouter();
@@ -413,6 +414,16 @@ function AuctionPageContent() {
   
   useRealtimeBids({
     onBidChange: handleBidChange,
+    enabled: true,
+  });
+
+  const handleFavChange = useCallback(() => {
+    const date = useBidStore.getState().favActiveDate;
+    if (date) loadFavoritesFromServer(date);
+  }, [loadFavoritesFromServer]);
+
+  useRealtimeFavorites({
+    onFavChange: handleFavChange,
     enabled: true,
   });
   
