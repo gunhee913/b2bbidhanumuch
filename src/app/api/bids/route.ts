@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { resolveAuth } from '@/lib/resolve-auth';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -114,11 +115,8 @@ export async function POST(request: NextRequest) {
     }
 
     // 서버 세션에서 dealerId를 결정 (클라이언트 값보다 신뢰도 높음)
-    const { getToken } = await import('next-auth/jwt');
-    const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
-    const resolvedDealerId = (token?.employee as any)?.dealerId
-      || (token?.dealer as any)?.id
-      || null;
+    const auth = await resolveAuth(request);
+    const resolvedDealerId = auth?.dealerId || null;
 
     if (!resolvedDealerId) {
       // 세션에서 못 찾으면 클라이언트 값으로 fallback + DB 검증
