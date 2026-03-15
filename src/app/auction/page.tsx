@@ -417,13 +417,8 @@ function AuctionPageContent() {
     enabled: true,
   });
 
-  const handleFavChange = useCallback(() => {
-    const date = useBidStore.getState().favActiveDate;
-    if (date) loadFavoritesFromServer(date);
-  }, [loadFavoritesFromServer]);
-
   useRealtimeFavorites({
-    onFavChange: handleFavChange,
+    onFavChange: () => useBidStore.getState().reloadFavoritesDebounced(),
     enabled: true,
   });
   

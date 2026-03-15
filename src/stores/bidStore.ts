@@ -522,9 +522,12 @@ interface BidStore {
   // 관심(찜) 목록
   favorites: string[];
   favActiveDate: string | null;
+  _favSyncInProgress: boolean;
+  _favReloadTimer: ReturnType<typeof setTimeout> | null;
   toggleFavorite: (id: string) => void;
   isFavorite: (id: string) => boolean;
   loadFavoritesFromServer: (activeDate: string) => Promise<void>;
+  reloadFavoritesDebounced: () => void;
   setFavActiveDate: (date: string) => void;
   
   // 알림
@@ -633,43 +636,46 @@ export const useBidStore = create<BidStore>()(
       
       favorites: [],
       favActiveDate: null,
+      _favSyncInProgress: false,
+      _favReloadTimer: null as ReturnType<typeof setTimeout> | null,
       toggleFavorite: (id) => {
         const state = get();
         const isFav = state.favorites.includes(id);
         const newFavorites = isFav
           ? state.favorites.filter(f => f !== id)
           : [...state.favorites, id];
-        set({ favorites: newFavorites });
+        set({ favorites: newFavorites, _favSyncInProgress: true });
 
         const activeDate = state.favActiveDate;
-        if (!activeDate) return;
+        if (!activeDate) { set({ _favSyncInProgress: false }); return; }
 
         const isPartId = id.split('-').length >= 3;
         const targetType = isPartId ? 'part' : 'listing';
+        const method = isFav ? 'DELETE' : 'POST';
 
-        if (isFav) {
-          fetch('/api/dealer-favorites', {
-            method: 'DELETE',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ activeDate, targetType, targetId: id }),
-          }).catch(() => {
-            set((s) => ({ favorites: [...s.favorites, id] }));
+        fetch('/api/dealer-favorites', {
+          method,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ activeDate, targetType, targetId: id }),
+        })
+          .then(res => {
+            if (!res.ok) throw new Error('API error');
+            set({ _favSyncInProgress: false });
+          })
+          .catch(() => {
+            if (isFav) {
+              set((s) => ({ favorites: [...s.favorites, id], _favSyncInProgress: false }));
+            } else {
+              set((s) => ({ favorites: s.favorites.filter(f => f !== id), _favSyncInProgress: false }));
+            }
           });
-        } else {
-          fetch('/api/dealer-favorites', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ activeDate, targetType, targetId: id }),
-          }).catch(() => {
-            set((s) => ({ favorites: s.favorites.filter(f => f !== id) }));
-          });
-        }
       },
       isFavorite: (id) => get().favorites.includes(id),
       setFavActiveDate: (date) => set({ favActiveDate: date }),
       loadFavoritesFromServer: async (activeDate) => {
         try {
           set({ favActiveDate: activeDate });
+          if (get()._favSyncInProgress) return;
           const res = await fetch(`/api/dealer-favorites?activeDate=${activeDate}`);
           if (!res.ok) return;
           const data = await res.json();
@@ -679,6 +685,17 @@ export const useBidStore = create<BidStore>()(
         } catch {
           // keep existing local state on error
         }
+      },
+      reloadFavoritesDebounced: () => {
+        const state = get();
+        if (state._favReloadTimer) clearTimeout(state._favReloadTimer);
+        const timer = setTimeout(() => {
+          const date = get().favActiveDate;
+          if (date && !get()._favSyncInProgress) {
+            get().loadFavoritesFromServer(date);
+          }
+        }, 500);
+        set({ _favReloadTimer: timer });
       },
       
       notifications: [],
