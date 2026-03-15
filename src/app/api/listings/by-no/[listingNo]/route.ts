@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { getToken } from 'next-auth/jwt';
+import { resolveAuth } from '@/lib/resolve-auth';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -68,16 +68,23 @@ export async function GET(
     }
 
     // 세션에서 userType 확인
-    const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
-    const userType = token?.userType as string | undefined;
+    const auth = await resolveAuth(request);
+    console.log('[listings/by-no] auth result:', auth ? { dealerId: auth.dealerId, userType: auth.userType } : 'null');
+    console.log('[listings/by-no] request authorization header:', request.headers.get('authorization')?.substring(0, 30) + '...');
+    const userType = auth?.userType as string | undefined;
     const isAdmin = userType === 'admin_user';
-    // 가능한 dealerId 후보를 모두 수집
     const candidateDealerIds = new Set<string>();
-    if ((token?.employee as any)?.dealerId) candidateDealerIds.add((token.employee as any).dealerId);
-    if ((token?.dealer as any)?.id) candidateDealerIds.add((token.dealer as any).id);
-    const tokenDealerId = (token?.employee as any)?.dealerId
-      || (token?.dealer as any)?.id
-      || null;
+    if (auth?.dealerId) candidateDealerIds.add(auth.dealerId);
+
+    // fallback: 쿼리 파라미터 dealerId (resolveAuth 실패 시 사용)
+    const { searchParams } = new URL(request.url);
+    const queryDealerId = searchParams.get('dealerId');
+    if (!auth?.dealerId && queryDealerId) {
+      candidateDealerIds.add(queryDealerId);
+      console.log('[listings/by-no] using fallback dealerId from query:', queryDealerId);
+    }
+
+    console.log('[listings/by-no] candidateDealerIds:', Array.from(candidateDealerIds), 'isAdmin:', isAdmin);
 
     // 각 부위의 입찰 현황 조회
     const partIds = (listing.cattle_parts || []).map((p: any) => p.id);
@@ -195,6 +202,8 @@ export async function GET(
         const highestBid = partBids.length > 0 ? partBids[0] : null;
         const myBidIsWinning = !!myBid?.isWinning;
         const hasWinner = partBids.some((b: any) => b.isWinning);
+
+        console.log(`[listings/by-no] part ${part.part_name}: bids=${partBids.length}, myBid=${myBid ? JSON.stringify({dealerId: myBid.dealerId, bidPrice: myBid.bidPrice, isWinning: myBid.isWinning}) : 'null'}, hasWinner=${hasWinner}, bidDealerIds=${partBids.map((b: any) => b.dealerId).join(',')}`);
 
         return {
           ...basePartData,

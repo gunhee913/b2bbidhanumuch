@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { getToken } from 'next-auth/jwt';
+import { resolveAuth } from '@/lib/resolve-auth';
 import {
   CattleListingRow,
   CattlePartRow,
@@ -84,11 +84,16 @@ export async function GET(request: NextRequest) {
       if (partsError) {
         console.error('부위 조회 오류:', partsError);
       } else {
-        const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
-        const userType = token?.userType as string | undefined;
+        const auth = await resolveAuth(request);
+        const userType = auth?.userType as string | undefined;
         const candidateDealerIds = new Set<string>();
-        if ((token?.employee as any)?.dealerId) candidateDealerIds.add((token.employee as any).dealerId);
-        if ((token?.dealer as any)?.id) candidateDealerIds.add((token.dealer as any).id);
+        if (auth?.dealerId) candidateDealerIds.add(auth.dealerId);
+
+        // fallback: 쿼리 파라미터 dealerId
+        const queryDealerId = searchParams.get('dealerId');
+        if (!auth?.dealerId && queryDealerId) {
+          candidateDealerIds.add(queryDealerId);
+        }
 
         const listingIds = listings.map((l: unknown) => (l as CattleListingRow).id);
         let bidsByPart: Record<string, any[]> = {};
