@@ -521,8 +521,11 @@ interface BidStore {
   
   // 관심(찜) 목록
   favorites: string[];
+  favActiveDate: string | null;
   toggleFavorite: (id: string) => void;
   isFavorite: (id: string) => boolean;
+  loadFavoritesFromServer: (activeDate: string) => Promise<void>;
+  setFavActiveDate: (date: string) => void;
   
   // 알림
   notifications: Notification[];
@@ -629,17 +632,54 @@ export const useBidStore = create<BidStore>()(
       setIsScreenAwakeOn: (on) => set({ isScreenAwakeOn: on }),
       
       favorites: [],
+      favActiveDate: null,
       toggleFavorite: (id) => {
-        set((state) => {
-          const isFav = state.favorites.includes(id);
-          return {
-            favorites: isFav 
-              ? state.favorites.filter(f => f !== id)
-              : [...state.favorites, id]
-          };
-        });
+        const state = get();
+        const isFav = state.favorites.includes(id);
+        const newFavorites = isFav
+          ? state.favorites.filter(f => f !== id)
+          : [...state.favorites, id];
+        set({ favorites: newFavorites });
+
+        const activeDate = state.favActiveDate;
+        if (!activeDate) return;
+
+        const isPartId = id.split('-').length >= 3;
+        const targetType = isPartId ? 'part' : 'listing';
+
+        if (isFav) {
+          fetch('/api/dealer-favorites', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ activeDate, targetType, targetId: id }),
+          }).catch(() => {
+            set((s) => ({ favorites: [...s.favorites, id] }));
+          });
+        } else {
+          fetch('/api/dealer-favorites', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ activeDate, targetType, targetId: id }),
+          }).catch(() => {
+            set((s) => ({ favorites: s.favorites.filter(f => f !== id) }));
+          });
+        }
       },
       isFavorite: (id) => get().favorites.includes(id),
+      setFavActiveDate: (date) => set({ favActiveDate: date }),
+      loadFavoritesFromServer: async (activeDate) => {
+        try {
+          set({ favActiveDate: activeDate });
+          const res = await fetch(`/api/dealer-favorites?activeDate=${activeDate}`);
+          if (!res.ok) return;
+          const data = await res.json();
+          const listings: string[] = data.listings || [];
+          const parts: string[] = data.parts || [];
+          set({ favorites: [...listings, ...parts] });
+        } catch {
+          // keep existing local state on error
+        }
+      },
       
       notifications: [],
       addNotification: (notification) => {

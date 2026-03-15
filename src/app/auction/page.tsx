@@ -49,7 +49,8 @@ function AuctionPageContent() {
     setIsSecondBidNotificationOn,
     favorites,
     toggleFavorite,
-    isFavorite
+    isFavorite,
+    loadFavoritesFromServer
   } = useBidStore();
   
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -224,11 +225,14 @@ function AuctionPageContent() {
     fetch('/api/active-auction-date')
       .then(res => res.json())
       .then(data => {
-        if (data.date) setActiveDate(data.date);
+        if (data.date) {
+          setActiveDate(data.date);
+          loadFavoritesFromServer(data.date);
+        }
       })
       .catch(() => {})
       .finally(() => setActiveDateReady(true));
-  }, []);
+  }, [loadFavoritesFromServer]);
 
   // 회차별 경매 정보 폴링 (5초 간격, activeDate 기준)
   useEffect(() => {

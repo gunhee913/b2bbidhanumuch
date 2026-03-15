@@ -63,6 +63,7 @@ function MainPageContent() {
     favorites,
     toggleFavorite,
     isFavorite,
+    loadFavoritesFromServer,
     bids
   } = useBidStore();
   
@@ -101,12 +102,13 @@ function MainPageContent() {
           if (data.date) {
             const [y, m, d] = data.date.split('-').map(Number);
             setSelectedDate(new Date(y, m - 1, d));
+            loadFavoritesFromServer(data.date);
           }
         })
         .catch(() => {})
         .finally(() => setActiveDateLoaded(true));
     }
-  }, [activeDateLoaded]);
+  }, [activeDateLoaded, loadFavoritesFromServer]);
   const [toastType, setToastType] = useState<'warning' | 'success'>('success');
   const [selectedGrades, setSelectedGrades] = useState<string[]>([]);
   const [selectedCompanies, setSelectedCompanies] = useState<string[]>([]);
