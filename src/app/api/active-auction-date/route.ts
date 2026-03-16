@@ -33,23 +33,19 @@ export async function GET() {
     const todayClosed = await isDateClosed(today);
 
     if (!todayClosed) {
-      const allRoundsDone = await areAllRoundsClosed(today);
+      const { data: activeToday } = await supabase
+        .from('cattle_listings')
+        .select('id')
+        .eq('listing_date', today)
+        .in('status', ['approved', 'auction'])
+        .limit(1);
 
-      if (!allRoundsDone) {
-        const { data: activeToday } = await supabase
-          .from('cattle_listings')
-          .select('id')
-          .eq('listing_date', today)
-          .in('status', ['approved', 'auction'])
-          .limit(1);
-
-        if (activeToday && activeToday.length > 0) {
-          return NextResponse.json({ date: today });
-        }
+      if (activeToday && activeToday.length > 0) {
+        return NextResponse.json({ date: today });
       }
     }
 
-    // 오늘이 마감되었거나, 모든 회차가 끝났거나, 활성 상장이 없으면 → 다음 경매일 탐색
+    // 전체 마감되었거나 오늘 활성 상장이 없으면 → 다음 경매일 탐색
     const { data: nextApproved } = await supabase
       .from('cattle_listings')
       .select('listing_date')
