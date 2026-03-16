@@ -9,7 +9,7 @@ const supabase = createClient(
 
 async function buildRoundListingMap(allRounds: any[]) {
   const roundIds = allRounds.map((r: any) => r.id);
-  const roundListingMap: Record<string, number> = {};
+  const roundListingMap: Record<string, number[]> = {};
   if (roundIds.length === 0) return roundListingMap;
 
   const { data: allAuctionListings } = await supabase
@@ -22,8 +22,13 @@ async function buildRoundListingMap(allRounds: any[]) {
 
   (allAuctionListings || []).forEach((al: any) => {
     const roundNo = auctionToRound.get(al.auction_id);
-    if (roundNo && (!roundListingMap[al.listing_id] || roundNo > roundListingMap[al.listing_id])) {
-      roundListingMap[al.listing_id] = roundNo;
+    if (roundNo) {
+      if (!roundListingMap[al.listing_id]) {
+        roundListingMap[al.listing_id] = [];
+      }
+      if (!roundListingMap[al.listing_id].includes(roundNo)) {
+        roundListingMap[al.listing_id].push(roundNo);
+      }
     }
   });
 
