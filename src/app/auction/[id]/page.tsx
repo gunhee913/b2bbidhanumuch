@@ -336,19 +336,20 @@ function AuctionDetailContent({ params }: PageProps) {
     const listingId = listingData?.id;
 
     if (allRounds.length > 0 && listingId) {
-      const listingRoundNo = listingMap[listingId];
+      const listingRoundNos = listingMap[listingId];
 
-      if (!listingRoundNo) {
+      if (!listingRoundNos || (Array.isArray(listingRoundNos) && listingRoundNos.length === 0)) {
         return { canBid: false, bidStatusMessage: '경매에 등록되지 않은 개체입니다' };
       }
 
-      const listingRound = allRounds.find((r: any) => r.round_no === listingRoundNo);
+      const roundNosArr = Array.isArray(listingRoundNos) ? listingRoundNos : [listingRoundNos];
+      const listingRounds = allRounds.filter((r: any) => roundNosArr.includes(r.round_no));
 
-      if (listingRound?.status === 'open') {
+      if (listingRounds.some((r: any) => r.status === 'open')) {
         return { canBid: true, bidStatusMessage: '' };
       }
 
-      if (listingRound?.status === 'closed') {
+      if (listingRounds.every((r: any) => r.status === 'closed')) {
         return { canBid: false, bidStatusMessage: '경매가 마감되었습니다' };
       }
 
