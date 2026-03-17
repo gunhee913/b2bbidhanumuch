@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
 
     if (durationMin) {
       insertData.round_duration_min = durationMin;
-      const endMinutes = now.getHours() * 60 + now.getMinutes() + durationMin;
+      const endMinutes = (now.getHours() * 60 + now.getMinutes() + durationMin) % 1440;
       const pad = (n: number) => String(n).padStart(2, '0');
       insertData.end_time = `${pad(Math.floor(endMinutes / 60))}:${pad(endMinutes % 60)}:00`;
     }
