@@ -103,7 +103,8 @@ export async function GET(
           created_at,
           dealers (
             id,
-            name
+            name,
+            dealer_no
           )
         `)
         .in('part_id', partIds)
@@ -120,6 +121,7 @@ export async function GET(
         bidsByPart[bid.part_id].push({
           id: bid.id,
           dealerId: bid.dealer_id,
+          dealerNo: bid.dealers?.dealer_no || '',
           dealerName: bid.dealers?.name || '',
           bidPrice: bid.bid_price,
           bidAmount: bid.bid_amount,
@@ -208,7 +210,7 @@ export async function GET(
         return {
           ...basePartData,
           bidCount: isSettled ? partBids.length : 0,
-          highestBid: (isSettled || hasWinner) ? (highestBid ? { bidPrice: highestBid.bidPrice, bidAmount: highestBid.bidAmount } : null) : null,
+          highestBid: (isSettled || hasWinner) ? (highestBid ? { bidPrice: highestBid.bidPrice, bidAmount: highestBid.bidAmount, dealerNo: highestBid.dealerNo } : null) : null,
           hasWinner,
           allBids: [],
           myBid: myBid ? { bidId: myBid.id, bidPrice: myBid.bidPrice, bidAmount: myBid.bidAmount, isWinning: myBidIsWinning } : null,

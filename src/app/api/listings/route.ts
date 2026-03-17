@@ -101,7 +101,7 @@ export async function GET(request: NextRequest) {
         if (listingIds.length > 0) {
           const { data: bidsData } = await supabase
             .from('bids')
-            .select('id, part_id, dealer_id, bid_price, bid_amount, is_winning')
+            .select('id, part_id, dealer_id, bid_price, bid_amount, is_winning, dealers(dealer_no)')
             .in('listing_id', listingIds)
             .order('bid_price', { ascending: false });
 
@@ -149,7 +149,7 @@ export async function GET(request: NextRequest) {
             return {
               ...toFrontendPart(part),
               bidCount: 0,
-              highestBid: hasWinner && highestBid ? { bidPrice: highestBid.bid_price, bidAmount: highestBid.bid_amount } : null,
+              highestBid: hasWinner && highestBid ? { bidPrice: highestBid.bid_price, bidAmount: highestBid.bid_amount, dealerNo: highestBid.dealers?.dealer_no || '' } : null,
               allBids: [],
               hasWinner,
               myBid: myBid ? { bidId: myBid.id, bidPrice: myBid.bid_price, bidAmount: myBid.bid_amount, isWinning: !!myBid.is_winning } : null,
