@@ -139,6 +139,49 @@ export default function AuctionLivePage() {
   const allRounds = roundData?.allRounds || [];
   const totalRounds = roundData?.totalRounds || 0;
 
+  // API Hooks - 경매 없이 승인된 상장 직접 조회
+  const { data: liveData, isLoading, refetch } = useLiveListings(
+    { listingDate: selectedDate },
+    { refetchInterval: canStartAuction ? 5000 : false }
+  );
+  const { data: companiesData } = useCompanies();
+
+  // Realtime 구독: 입찰 변경 시 즉시 데이터 갱신
+  const lastBidChangeRef = useRef<number>(0);
+  const { isConnected: isBidsConnected } = useRealtimeBids({
+    onBidChange: () => {
+      const now = Date.now();
+      if (now - lastBidChangeRef.current > 500) {
+        lastBidChangeRef.current = now;
+        refetch();
+      }
+    },
+    enabled: canStartAuction,
+  });
+
+  // Realtime 구독: 경매 회차 상태 변경 시 즉시 반영
+  useRealtimeAuctions({
+    onAuctionChange: () => {
+      refetchRound();
+      refetch();
+    },
+    enabled: canStartAuction,
+  });
+
+  // 현재 회차 수동 마감
+  const handleCloseCurrentRound = useCallback(async () => {
+    if (!currentRound?.id || isClosingRound) return;
+    setIsClosingRound(true);
+    try {
+      await fetch(`/api/auctions/${currentRound.id}/close`, { method: 'POST' });
+      await Promise.all([refetchRound(), refetch()]);
+    } catch (err) {
+      console.error('회차 마감 오류:', err);
+    } finally {
+      setIsClosingRound(false);
+    }
+  }, [currentRound?.id, isClosingRound, refetchRound, refetch]);
+
   useEffect(() => {
     if (!currentRound?.started_at) {
       setRemainingSeconds(null);
@@ -168,56 +211,13 @@ export default function AuctionLivePage() {
     calculateRemaining();
     const interval = setInterval(calculateRemaining, 1000);
     return () => clearInterval(interval);
-  }, [currentRound?.started_at, currentRound?.round_duration_min, currentRound?.id]);
+  }, [currentRound?.started_at, currentRound?.round_duration_min, currentRound?.id, handleCloseCurrentRound]);
 
   const formatTimer = (seconds: number) => {
     const m = Math.floor(seconds / 60);
     const s = seconds % 60;
     return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
   };
-
-  // 현재 회차 수동 마감
-  const handleCloseCurrentRound = useCallback(async () => {
-    if (!currentRound?.id || isClosingRound) return;
-    setIsClosingRound(true);
-    try {
-      await fetch(`/api/auctions/${currentRound.id}/close`, { method: 'POST' });
-      await Promise.all([refetchRound(), refetch()]);
-    } catch (err) {
-      console.error('회차 마감 오류:', err);
-    } finally {
-      setIsClosingRound(false);
-    }
-  }, [currentRound?.id, isClosingRound, refetchRound, refetch]);
-
-  // API Hooks - 경매 없이 승인된 상장 직접 조회
-  const { data: liveData, isLoading, refetch } = useLiveListings(
-    { listingDate: selectedDate },
-    { refetchInterval: canStartAuction ? 5000 : false } // 오늘 이후면 5초마다 새로고침
-  );
-  const { data: companiesData } = useCompanies();
-
-  // Realtime 구독: 입찰 변경 시 즉시 데이터 갱신
-  const lastBidChangeRef = useRef<number>(0);
-  const { isConnected: isBidsConnected } = useRealtimeBids({
-    onBidChange: () => {
-      const now = Date.now();
-      if (now - lastBidChangeRef.current > 500) {
-        lastBidChangeRef.current = now;
-        refetch();
-      }
-    },
-    enabled: canStartAuction,
-  });
-
-  // Realtime 구독: 경매 회차 상태 변경 시 즉시 반영
-  useRealtimeAuctions({
-    onAuctionChange: () => {
-      refetchRound();
-      refetch();
-    },
-    enabled: canStartAuction,
-  });
 
   // 날짜별 전체 딜러 변경이력 로드
   useEffect(() => {
