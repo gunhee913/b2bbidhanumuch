@@ -3,7 +3,7 @@
 import React, { useState, useRef, useMemo, useEffect, useCallback } from 'react';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Save, Upload, X, Plus, ChevronDown, ChevronUp, Trash2, Download, FileSpreadsheet, Loader2 } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+
 import * as XLSX from 'xlsx';
 import { useCreateListing } from '@/features/listings/hooks';
 import { useCompanies } from '@/features/companies/hooks';
@@ -125,20 +125,17 @@ const createNewCattle = (id: number, seqNo: string): CattleData => ({
 });
 
 
-// 내일 날짜 (YYYY-MM-DD) - input date용
-const getTomorrowDateString = () => {
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const year = tomorrow.getFullYear();
-  const month = String(tomorrow.getMonth() + 1).padStart(2, '0');
-  const day = String(tomorrow.getDate()).padStart(2, '0');
+const getTodayDateString = () => {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
 };
 
-const tomorrowDateString = getTomorrowDateString();
+const todayDateString = getTodayDateString();
 
 export default function NewAuctionPage() {
-  const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   // 업체 목록 조회
@@ -151,7 +148,7 @@ export default function NewAuctionPage() {
   const createListing = useCreateListing();
   
   // 공통 정보
-  const [listingDate, setListingDate] = useState(tomorrowDateString);
+  const [listingDate, setListingDate] = useState(todayDateString);
   const [companyId, setCompanyId] = useState('');
   
   // 마감 여부 상태
@@ -556,7 +553,8 @@ export default function NewAuctionPage() {
       }
 
       alert(`${cattleList.length}두 상장 등록이 완료되었습니다.`);
-      router.push('/admin/auctions');
+      setCattleList([createNewCattle(1, String(startSeq + cattleList.length))]);
+      fetchNextSeq();
     } catch (error) {
       console.error('상장 등록 실패:', error);
       alert('상장 등록에 실패했습니다. 다시 시도해주세요.');

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 
 interface BidPayload {
@@ -23,9 +23,13 @@ interface UseRealtimeBidsOptions {
 export function useRealtimeBids({ onBidChange, enabled = true }: UseRealtimeBidsOptions) {
   const onBidChangeRef = useRef(onBidChange);
   onBidChangeRef.current = onBidChange;
+  const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled) {
+      setIsConnected(false);
+      return;
+    }
 
     const supabase = createClient();
 
@@ -78,10 +82,15 @@ export function useRealtimeBids({ onBidChange, enabled = true }: UseRealtimeBids
           onBidChangeRef.current?.();
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        setIsConnected(status === 'SUBSCRIBED');
+      });
 
     return () => {
       supabase.removeChannel(channel);
+      setIsConnected(false);
     };
   }, [enabled]);
+
+  return { isConnected };
 }

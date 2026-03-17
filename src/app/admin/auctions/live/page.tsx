@@ -1,13 +1,15 @@
 'use client';
 
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import AdminLayout from '@/components/admin/AdminLayout';
-import { ChevronDown, ChevronUp, RefreshCw, Square, Timer, Play, FileText, Clock, List } from 'lucide-react';
+import { ChevronDown, ChevronUp, RefreshCw, Square, Timer, Play, FileText, Clock, List, Wifi, WifiOff } from 'lucide-react';
 import { useLiveListings } from '@/features/listings/hooks';
 import { useCompanies } from '@/features/companies/hooks';
 import { useSession } from 'next-auth/react';
 import { format } from 'date-fns';
 import { useQuery } from '@tanstack/react-query';
+import { useRealtimeBids } from '@/hooks/useRealtimeBids';
+import { useRealtimeAuctions } from '@/hooks/useRealtimeAuctions';
 
 // 입찰 내역 타입
 interface BidRecord {
@@ -180,13 +182,13 @@ export default function AuctionLivePage() {
     setIsClosingRound(true);
     try {
       await fetch(`/api/auctions/${currentRound.id}/close`, { method: 'POST' });
-      refetchRound();
+      await Promise.all([refetchRound(), refetch()]);
     } catch (err) {
       console.error('회차 마감 오류:', err);
     } finally {
       setIsClosingRound(false);
     }
-  }, [currentRound?.id, isClosingRound, refetchRound]);
+  }, [currentRound?.id, isClosingRound, refetchRound, refetch]);
 
   // API Hooks - 경매 없이 승인된 상장 직접 조회
   const { data: liveData, isLoading, refetch } = useLiveListings(
@@ -194,6 +196,28 @@ export default function AuctionLivePage() {
     { refetchInterval: canStartAuction ? 5000 : false } // 오늘 이후면 5초마다 새로고침
   );
   const { data: companiesData } = useCompanies();
+
+  // Realtime 구독: 입찰 변경 시 즉시 데이터 갱신
+  const lastBidChangeRef = useRef<number>(0);
+  const { isConnected: isBidsConnected } = useRealtimeBids({
+    onBidChange: () => {
+      const now = Date.now();
+      if (now - lastBidChangeRef.current > 500) {
+        lastBidChangeRef.current = now;
+        refetch();
+      }
+    },
+    enabled: canStartAuction,
+  });
+
+  // Realtime 구독: 경매 회차 상태 변경 시 즉시 반영
+  useRealtimeAuctions({
+    onAuctionChange: () => {
+      refetchRound();
+      refetch();
+    },
+    enabled: canStartAuction,
+  });
 
   // 날짜별 전체 딜러 변경이력 로드
   useEffect(() => {
@@ -631,8 +655,30 @@ export default function AuctionLivePage() {
   return (
     <AdminLayout>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">부분육 경매 현황(실시간)</h1>
-        <p className="text-sm text-gray-500 mt-1">승인된 상장의 입찰 현황을 실시간으로 확인합니다.</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">부분육 경매 현황(실시간)</h1>
+            <p className="text-sm text-gray-500 mt-1">승인된 상장의 입찰 현황을 실시간으로 확인합니다.</p>
+          </div>
+          {canStartAuction && (
+            <div className="flex items-center gap-1.5">
+              {isBidsConnected ? (
+                <>
+                  <span className="relative flex h-2.5 w-2.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500"></span>
+                  </span>
+                  <span className="text-xs text-green-600 font-medium">실시간 연결됨</span>
+                </>
+              ) : (
+                <>
+                  <WifiOff className="w-3.5 h-3.5 text-gray-400" />
+                  <span className="text-xs text-gray-400">연결 중...</span>
+                </>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* 필터 */}
