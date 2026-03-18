@@ -151,6 +151,7 @@ export default function TradePage() {
       return res.json();
     },
     enabled: !!dealerId,
+    refetchInterval: 5000,
   });
 
   const winningParts = partsData?.winningParts || [];

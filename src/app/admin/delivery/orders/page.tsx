@@ -92,6 +92,7 @@ export default function DeliveryOrdersPage() {
       if (!res.ok) throw new Error();
       return res.json();
     },
+    refetchInterval: 5000,
   });
 
   const winningParts = partsData?.winningParts || [];

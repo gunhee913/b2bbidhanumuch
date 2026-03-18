@@ -101,6 +101,7 @@ export default function CompanyDeliveryPage() {
       return res.json();
     },
     enabled: !!companyId,
+    refetchInterval: 5000,
   });
 
   const winningParts = partsData?.winningParts || [];
