@@ -212,6 +212,7 @@ export async function POST(request: NextRequest) {
     }
 
     const linkedAuction = (openLink as any).auctions;
+    const resolvedAuctionId = auctionId || openLink.auction_id || null;
     if (linkedAuction?.started_at && linkedAuction?.round_duration_min) {
       const startedAt = new Date(linkedAuction.started_at).getTime();
       const durationMs = linkedAuction.round_duration_min * 60 * 1000;
@@ -266,7 +267,7 @@ export async function POST(request: NextRequest) {
         .update({
           bid_price: bidPrice,
           bid_amount: bidAmount,
-          auction_id: auctionId || null,
+          auction_id: resolvedAuctionId,
         })
         .eq('id', existingBid.id)
         .select()
@@ -279,7 +280,7 @@ export async function POST(request: NextRequest) {
 
       await supabase.from('bid_audit_logs').insert({
         bid_id: existingBid.id,
-        auction_id: auctionId || existingBid.auction_id || null,
+        auction_id: resolvedAuctionId || existingBid.auction_id || null,
         part_id: partId,
         dealer_id: finalDealerId,
         action_type: 'dealer_update',
@@ -301,7 +302,7 @@ export async function POST(request: NextRequest) {
     const { data: newBid, error: insertError } = await supabase
       .from('bids')
       .insert({
-        auction_id: auctionId || null,
+        auction_id: resolvedAuctionId,
         listing_id: part.listing_id,
         part_id: partId,
         dealer_id: finalDealerId,
