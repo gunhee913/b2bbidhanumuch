@@ -12,8 +12,9 @@ import {
 import BottomNav from '@/components/BottomNav';
 import NotificationBell from '@/components/NotificationBell';
 import { useSession } from 'next-auth/react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
+import { useRealtimeDelivery } from '@/hooks/useRealtimeDelivery';
 
 interface WinningPart {
   partId: string;
@@ -67,6 +68,14 @@ export default function TradePage() {
   const dealerId = dealer?.id || employee?.dealerId || null;
 
   const todayStr = format(new Date(), 'yyyy-MM-dd');
+  const queryClient = useQueryClient();
+
+  useRealtimeDelivery({
+    onAssignmentChange: () => {
+      queryClient.invalidateQueries({ queryKey: ['trade-assignments'] });
+    },
+    enabled: !!dealerId,
+  });
 
   const tableScrollRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLDivElement>(null);

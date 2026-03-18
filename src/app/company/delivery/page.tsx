@@ -4,9 +4,10 @@ import React, { useState, useMemo } from 'react';
 import CompanyLayout from '@/components/company/CompanyLayout';
 import { Printer, Download, Loader2, Tag } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSession } from 'next-auth/react';
 import { format } from 'date-fns';
+import { useRealtimeDelivery } from '@/hooks/useRealtimeDelivery';
 
 interface WinningPart {
   partId: string;
@@ -61,6 +62,14 @@ export default function CompanyDeliveryPage() {
   const companyId = session?.company?.id || '';
 
   const todayStr = format(new Date(), 'yyyy-MM-dd');
+  const queryClient = useQueryClient();
+
+  useRealtimeDelivery({
+    onAssignmentChange: () => {
+      queryClient.invalidateQueries({ queryKey: ['company-delivery-assignments'] });
+    },
+    enabled: !!companyId,
+  });
 
   const [selectedDate, setSelectedDate] = useState(todayStr);
   const [partnerSearch, setPartnerSearch] = useState('');

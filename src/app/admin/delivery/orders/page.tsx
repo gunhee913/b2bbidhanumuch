@@ -4,8 +4,9 @@ import React, { useState, useMemo } from 'react';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Printer, Download, Loader2, Tag } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
+import { useRealtimeDelivery } from '@/hooks/useRealtimeDelivery';
 
 interface WinningPart {
   partId: string;
@@ -56,6 +57,13 @@ interface DeliveryItem {
 
 export default function DeliveryOrdersPage() {
   const todayStr = format(new Date(), 'yyyy-MM-dd');
+  const queryClient = useQueryClient();
+
+  useRealtimeDelivery({
+    onAssignmentChange: () => {
+      queryClient.invalidateQueries({ queryKey: ['delivery-assignments'] });
+    },
+  });
 
   const [selectedDate, setSelectedDate] = useState(todayStr);
   const [partnerSearch, setPartnerSearch] = useState('');

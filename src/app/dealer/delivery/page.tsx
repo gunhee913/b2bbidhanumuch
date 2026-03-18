@@ -7,6 +7,7 @@ import * as XLSX from 'xlsx';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSession } from 'next-auth/react';
 import { format } from 'date-fns';
+import { useRealtimeDelivery } from '@/hooks/useRealtimeDelivery';
 
 interface WinningPart {
   partId: string;
@@ -58,6 +59,13 @@ export default function DealerDeliveryPage() {
   const dealerId = session?.dealer?.id || '';
   const dealerName = session?.dealer?.name || session?.employee?.name || '중도매인';
   const queryClient = useQueryClient();
+
+  useRealtimeDelivery({
+    onAssignmentChange: () => {
+      queryClient.invalidateQueries({ queryKey: ['dealer-delivery-assignments'] });
+    },
+    enabled: !!dealerId,
+  });
 
   const [selectedDate, setSelectedDate] = useState(todayStr);
   const [isSaved, setIsSaved] = useState(true);
