@@ -1,11 +1,8 @@
+import { getAdminClient } from '@/lib/supabase-admin';
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import { CreateBidInput, toFrontendBid } from '@/features/auctions/types';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+const supabase = getAdminClient();
 
 // GET: 특정 경매의 입찰 목록 조회
 export async function GET(

@@ -1,11 +1,8 @@
+import { getAdminClient } from '@/lib/supabase-admin';
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import { getToken } from 'next-auth/jwt';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+const supabase = getAdminClient();
 
 // POST: 재경매 취소 (라운드 삭제 + 상장 상태 복원)
 export async function POST(

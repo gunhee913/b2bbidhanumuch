@@ -1,12 +1,9 @@
+import { getAdminClient } from '@/lib/supabase-admin';
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import { getToken } from 'next-auth/jwt';
 import { createNotificationWithTemplate } from '@/lib/notifications';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+const supabase = getAdminClient();
 
 // POST: 경매(회차) 마감 + 다음 회차 자동 시작
 export async function POST(

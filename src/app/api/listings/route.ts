@@ -1,7 +1,9 @@
+import { getAdminClient } from '@/lib/supabase-admin';
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import { resolveAuth } from '@/lib/resolve-auth';
 import {
+
+const supabase = getAdminClient();
   CattleListingRow,
   CattlePartRow,
   CreateListingInput,
@@ -9,11 +11,6 @@ import {
   toFrontendPart,
   ListingFilter,
 } from '@/features/listings/types';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
 
 // GET: 상장 목록 조회
 export async function GET(request: NextRequest) {
