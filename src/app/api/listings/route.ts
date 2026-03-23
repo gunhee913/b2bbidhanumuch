@@ -2,8 +2,6 @@ import { getAdminClient } from '@/lib/supabase-admin';
 import { NextRequest, NextResponse } from 'next/server';
 import { resolveAuth } from '@/lib/resolve-auth';
 import {
-
-const supabase = getAdminClient();
   CattleListingRow,
   CattlePartRow,
   CreateListingInput,
@@ -11,6 +9,8 @@ const supabase = getAdminClient();
   toFrontendPart,
   ListingFilter,
 } from '@/features/listings/types';
+
+const supabase = getAdminClient();
 
 // GET: 상장 목록 조회
 export async function GET(request: NextRequest) {

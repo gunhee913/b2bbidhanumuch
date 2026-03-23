@@ -1,12 +1,12 @@
 import { getAdminClient } from '@/lib/supabase-admin';
 import { NextRequest, NextResponse } from 'next/server';
 import {
-
-const supabase = getAdminClient();
   UpdateListingInput,
   toFrontendListing,
   toFrontendPart,
 } from '@/features/listings/types';
+
+const supabase = getAdminClient();
 
 // GET: 상장 상세 조회
 export async function GET(
