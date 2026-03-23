@@ -1,4 +1,5 @@
 import { createPureClient } from '@/lib/supabase/server';
+import { sendPushToDealer, sendPushToAllDealers } from '@/lib/fcm';
 
 export type NotificationType =
   | 'listing_upload'
@@ -61,6 +62,14 @@ export async function createNotification(
       metadata: metadata || {},
     });
 
+  if (!error) {
+    try {
+      await sendPushToDealer(dealerId, title, message, { type, link: link || '' });
+    } catch (e) {
+      console.error('FCM 발송 실패:', e);
+    }
+  }
+
   return !error;
 }
 
@@ -105,6 +114,13 @@ export async function createNotificationForAll(
 
   if (notifications.length > 0) {
     await supabase.from('notifications').insert(notifications);
+
+    try {
+      const recipientIds = notifications.map((n: any) => n.dealer_id);
+      await sendPushToAllDealers(recipientIds, title, message, { type, link: link || '' });
+    } catch (e) {
+      console.error('FCM 일괄 발송 실패:', e);
+    }
   }
 
   await supabase.from('notification_logs').insert({
