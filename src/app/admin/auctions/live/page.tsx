@@ -124,7 +124,7 @@ export default function AuctionLivePage() {
   const [auctionDurationMin, setAuctionDurationMin] = useState<number | ''>(20);
 
   // 현재 회차 조회 (5초 간격, selectedDate 기준)
-  const { data: roundData, refetch: refetchRound } = useQuery({
+  const { data: roundData, refetch: refetchRound, isLoading: isRoundLoading } = useQuery({
     queryKey: ['rounds', 'current', selectedDate],
     queryFn: async () => {
       const res = await fetch(`/api/auctions/rounds/current?date=${selectedDate}`);
@@ -255,6 +255,9 @@ export default function AuctionLivePage() {
       const data = await res.json();
       if (!res.ok) {
         alert(data.error || '경매 시작 실패');
+        if (res.status === 409) {
+          refetchRound();
+        }
         return;
       }
       refetchRound();
@@ -867,11 +870,11 @@ export default function AuctionLivePage() {
               <button
                 type="button"
                 onClick={handleStartAuction}
-                disabled={isStartingAuction}
+                disabled={isStartingAuction || isRoundLoading}
                 className="px-4 py-1.5 text-xs font-medium bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 flex items-center gap-1"
               >
                 <Play className="w-3 h-3" />
-                {isStartingAuction ? '시작 중...' : `${lastClosedRound.round_no + 1}차 시작`}
+                {isRoundLoading ? '확인 중...' : isStartingAuction ? '시작 중...' : `${lastClosedRound.round_no + 1}차 시작`}
               </button>
             </div>
           </div>
@@ -895,15 +898,15 @@ export default function AuctionLivePage() {
                   />
                   <span className="text-xs text-gray-500">분</span>
                 </div>
-                <button
-                  type="button"
-                  onClick={handleStartAuction}
-                  disabled={isStartingAuction}
-                  className="px-4 py-1.5 text-xs font-medium bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 flex items-center gap-1"
-                >
-                  <Play className="w-3 h-3" />
-                  {isStartingAuction ? '시작 중...' : '경매 시작'}
-                </button>
+                  <button
+                    type="button"
+                    onClick={handleStartAuction}
+                    disabled={isStartingAuction || isRoundLoading}
+                    className="px-4 py-1.5 text-xs font-medium bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 flex items-center gap-1"
+                  >
+                    <Play className="w-3 h-3" />
+                    {isRoundLoading ? '확인 중...' : isStartingAuction ? '시작 중...' : '경매 시작'}
+                  </button>
               </div>
             )}
           </div>

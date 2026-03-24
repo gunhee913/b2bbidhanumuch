@@ -36,6 +36,21 @@ export async function POST(request: NextRequest) {
 
     const listingIds = approvedListings.map((l) => l.id);
 
+    const { data: existingOpen } = await supabase
+      .from('auctions')
+      .select('id, round_no')
+      .eq('auction_date', auctionDate)
+      .eq('status', 'open')
+      .limit(1)
+      .maybeSingle();
+
+    if (existingOpen) {
+      return NextResponse.json(
+        { error: `이미 ${existingOpen.round_no}차 경매가 진행 중입니다.`, existingRound: existingOpen },
+        { status: 409 }
+      );
+    }
+
     const { data: lastRound } = await supabase
       .from('auctions')
       .select('round_no, session_id')
