@@ -121,6 +121,7 @@ export default function AuctionLivePage() {
   const [isClosingRound, setIsClosingRound] = useState(false);
   const [remainingSeconds, setRemainingSeconds] = useState<number | null>(null);
   const [isStartingAuction, setIsStartingAuction] = useState(false);
+  const [isClosingAll, setIsClosingAll] = useState(false);
   const [auctionDurationMin, setAuctionDurationMin] = useState<number | ''>(20);
 
   // 현재 회차 조회 (5초 간격, selectedDate 기준)
@@ -317,6 +318,8 @@ export default function AuctionLivePage() {
     });
   }, [auctionItems, companyFilter, bidFilter]);
 
+  const isAllClosed = filteredItems.length > 0 && filteredItems.every(i => i.status === 'closed' || i.status === 'completed');
+
   // 개체번호 추출 (260205-201-01 -> 201)
   const getCattleNo = (listingNo: string): string => {
     const parts = listingNo.split('-');
@@ -384,7 +387,7 @@ export default function AuctionLivePage() {
 
   // 전체 마감 (유찰 포함 모든 상장)
   const handleCloseAll = async () => {
-    // 모든 상장 마감 (입찰 유무 상관없이)
+    if (isClosingAll) return;
     const listingIds = [...new Set(filteredItems.map(i => i.listingId))];
     
     if (listingIds.length === 0) {
@@ -397,6 +400,7 @@ export default function AuctionLivePage() {
 
     if (!confirm(`${listingIds.length}개 상장을 마감하시겠습니까?\n(낙찰: ${withBids}건, 유찰: ${withoutBids}건)`)) return;
 
+    setIsClosingAll(true);
     try {
       let successCount = 0;
       let failCount = 0;
@@ -456,10 +460,10 @@ export default function AuctionLivePage() {
         .catch(() => {});
     } catch (error: any) {
       alert(error.message || '마감 처리 중 오류 발생');
+    } finally {
+      setIsClosingAll(false);
     }
   };
-
-  // 마감 취소
   const handleReopenAll = async () => {
     const closedListingIds = [...new Set(filteredItems.filter(i => i.status === 'closed' || i.status === 'completed').map(i => i.listingId))];
     
@@ -782,13 +786,14 @@ export default function AuctionLivePage() {
             </button>
 
             {/* 전체 마감 버튼 */}
-            {filteredItems.length > 0 && !filteredItems.every(i => i.status === 'closed' || i.status === 'completed') && (
+            {filteredItems.length > 0 && !isAllClosed && (
               <button
                 onClick={handleCloseAll}
-                className="px-4 py-1.5 bg-gray-700 text-white text-xs hover:bg-gray-800 flex items-center gap-1"
+                disabled={isClosingAll || !!currentRound}
+                className="px-4 py-1.5 bg-gray-700 text-white text-xs hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
               >
                 <Square className="w-3 h-3" />
-                전체 마감
+                {isClosingAll ? '마감 중...' : '전체 마감'}
               </button>
             )}
 
@@ -796,7 +801,8 @@ export default function AuctionLivePage() {
             {filteredItems.some(i => i.status === 'closed' || i.status === 'completed') && (
               <button
                 onClick={handleReopenAll}
-                className="px-4 py-1.5 bg-red-600 text-white text-xs hover:bg-red-700 flex items-center gap-1"
+                disabled={isClosingAll}
+                className="px-4 py-1.5 bg-red-600 text-white text-xs hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
               >
                 마감 취소
               </button>
@@ -848,44 +854,54 @@ export default function AuctionLivePage() {
         ) : lastClosedRound ? (
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <span className="px-2 py-0.5 text-xs font-semibold bg-gray-200 text-gray-700 rounded">
-                {lastClosedRound.round_no}차 종료
+              <span className={`px-2 py-0.5 text-xs font-semibold rounded ${isAllClosed ? 'bg-red-100 text-red-700' : 'bg-gray-200 text-gray-700'}`}>
+                {isAllClosed ? '전체 마감됨' : `${lastClosedRound.round_no}차 종료`}
               </span>
               <span className="text-xs text-gray-500">
-                다음 차수를 시작하거나 전체 마감할 수 있습니다.
+                {isClosingAll
+                  ? '마감 처리 중...'
+                  : isAllClosed
+                    ? '마감 취소 후 경매를 시작할 수 있습니다.'
+                    : '다음 차수를 시작하거나 전체 마감할 수 있습니다.'}
               </span>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1.5">
-                <input
-                  type="number"
-                  value={auctionDurationMin}
-                  onChange={(e) => setAuctionDurationMin(e.target.value ? parseInt(e.target.value) : '')}
-                  min={1}
-                  placeholder="수동"
-                  className="w-16 px-2 py-1.5 border border-gray-200 text-xs outline-none bg-white text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                />
-                <span className="text-xs text-gray-500">분</span>
+            {!isAllClosed && !isClosingAll && (
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5">
+                  <input
+                    type="number"
+                    value={auctionDurationMin}
+                    onChange={(e) => setAuctionDurationMin(e.target.value ? parseInt(e.target.value) : '')}
+                    min={1}
+                    placeholder="수동"
+                    className="w-16 px-2 py-1.5 border border-gray-200 text-xs outline-none bg-white text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
+                  <span className="text-xs text-gray-500">분</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleStartAuction}
+                  disabled={isStartingAuction || isRoundLoading}
+                  className="px-4 py-1.5 text-xs font-medium bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 flex items-center gap-1"
+                >
+                  <Play className="w-3 h-3" />
+                  {isRoundLoading ? '확인 중...' : isStartingAuction ? '시작 중...' : `${lastClosedRound.round_no + 1}차 시작`}
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={handleStartAuction}
-                disabled={isStartingAuction || isRoundLoading}
-                className="px-4 py-1.5 text-xs font-medium bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 flex items-center gap-1"
-              >
-                <Play className="w-3 h-3" />
-                {isRoundLoading ? '확인 중...' : isStartingAuction ? '시작 중...' : `${lastClosedRound.round_no + 1}차 시작`}
-              </button>
-            </div>
+            )}
           </div>
         ) : (
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <span className="text-sm text-gray-600">
-                {canStartAuction ? '경매가 아직 시작되지 않았습니다.' : `${selectedDate} 경매 현황`}
+              <span className={`text-sm ${isAllClosed ? 'text-red-600 font-medium' : 'text-gray-600'}`}>
+                {isAllClosed
+                  ? '전체 마감됨 - 마감 취소 후 경매를 시작할 수 있습니다.'
+                  : isClosingAll
+                    ? '마감 처리 중...'
+                    : canStartAuction ? '경매가 아직 시작되지 않았습니다.' : `${selectedDate} 경매 현황`}
               </span>
             </div>
-            {canStartAuction && (
+            {canStartAuction && !isAllClosed && !isClosingAll && (
               <div className="flex items-center gap-2">
                 <div className="flex items-center gap-1.5">
                   <input

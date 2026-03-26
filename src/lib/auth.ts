@@ -1,7 +1,7 @@
 import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { verifyLoginCredentials } from "@/features/dealers/auth";
-import { verifyAdminCredentials } from "@/features/admins/auth";
+import { verifyAdminCredentials, getAdminById } from "@/features/admins/auth";
 import { verifyCompanyCredentials } from "@/features/companies/auth";
 import { Dealer, DealerEmployee } from "@/features/dealers/types";
 import { Admin } from "@/features/admins/types";
@@ -144,6 +144,25 @@ export const authOptions: NextAuthOptions = {
         token.company = (user as AuthUser).company;
         token.companyEmployee = (user as AuthUser).companyEmployee;
         token.auctionVerifiedDate = null;
+        token.adminRefreshedAt = Date.now();
+      }
+
+      // 관리자 정보 주기적 갱신 (5분마다)
+      if (!user && token.userType === "admin_user" && token.admin) {
+        const lastRefresh = (token.adminRefreshedAt as number) || 0;
+        if (Date.now() - lastRefresh > 5 * 60 * 1000) {
+          try {
+            const freshAdmin = await getAdminById(token.id as string);
+            if (freshAdmin) {
+              token.admin = freshAdmin;
+              token.name = freshAdmin.name;
+              token.role = freshAdmin.role;
+            }
+            token.adminRefreshedAt = Date.now();
+          } catch {
+            // DB 조회 실패 시 기존 데이터 유지
+          }
+        }
       }
 
       // 세션 업데이트 (경매 비밀번호 인증 시)
@@ -225,5 +244,6 @@ declare module "next-auth/jwt" {
     company: Company | null;
     companyEmployee: CompanyEmployee | null;
     auctionVerifiedDate: string | null;
+    adminRefreshedAt: number | null;
   }
 }

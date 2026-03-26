@@ -354,7 +354,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
               <Menu className="w-5 h-5" />
             </button>
             <div className="flex items-center gap-3 text-xs ml-auto">
-              <span className="text-gray-600">중부미트센터</span>
+              <span className="text-gray-600">{session?.admin?.department || '관리자'}</span>
               <span className="text-gray-300">|</span>
               <span className="text-gray-600">[ <span className="font-medium text-gray-700">{session?.admin?.name || '관리자'}</span> ]</span>
               <span className="text-gray-300">|</span>

@@ -271,6 +271,7 @@ export default function AuctionsListPage() {
 
   // 인라인 수정 상태
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [editMode, setEditMode] = useState<'full' | 'minPrice'>('full');
   const [secondaryPassword, setSecondaryPassword] = useState('');
   const [passwordError, setPasswordError] = useState(false);
   const [editPartsData, setEditPartsData] = useState<Record<number, { weight: string; minPrice: string; isIncluded: boolean }>>({});
@@ -296,6 +297,7 @@ export default function AuctionsListPage() {
   // 수정 시작
   const startEditing = (auction: Auction) => {
     setEditingId(auction.id);
+    setEditMode('full');
     setExpandedId(auction.id);
     setEditFormData({
       gender: auction.gender,
@@ -329,9 +331,26 @@ export default function AuctionsListPage() {
   // 수정 취소
   const cancelEditing = () => {
     setEditingId(null);
+    setEditMode('full');
     setSecondaryPassword('');
     setPasswordError(false);
     setEditPartsData({});
+  };
+
+  // 단가수정 시작 (경매중 상태에서 최저가격만 수정)
+  const startMinPriceEditing = (auction: Auction) => {
+    setEditingId(auction.id);
+    setEditMode('minPrice');
+    setExpandedId(auction.id);
+    const partsMap: Record<number, { weight: string; minPrice: string; isIncluded: boolean }> = {};
+    auction.parts.forEach((part) => {
+      partsMap[part.id] = {
+        weight: String(part.weight),
+        minPrice: String(part.minPrice),
+        isIncluded: part.isIncluded,
+      };
+    });
+    setEditPartsData(partsMap);
   };
 
   // 수정 저장
@@ -345,6 +364,28 @@ export default function AuctionsListPage() {
     }
     
     try {
+      if (editMode === 'minPrice') {
+        const currentAuction = auctions.find((a) => a.id === editingId);
+        if (currentAuction) {
+          const partUpdates = currentAuction.parts
+            .filter((part) => {
+              const edited = editPartsData[part.id];
+              if (!edited) return false;
+              return String(part.minPrice) !== edited.minPrice;
+            })
+            .map((part) => {
+              const edited = editPartsData[part.id];
+              return updatePartMutation.mutateAsync({
+                listingId: editingId,
+                partId: part.dbId,
+                input: {
+                  minPrice: parseInt(edited.minPrice) || 0,
+                },
+              });
+            });
+          await Promise.all(partUpdates);
+        }
+      } else {
       // 날짜 형식 변환 (YY.MM.DD -> YYYY-MM-DD)
       const convertDate = (dateStr: string) => {
         if (!dateStr) return null;
@@ -402,8 +443,10 @@ export default function AuctionsListPage() {
           });
         await Promise.all(partUpdates);
       }
+      }
 
       setEditingId(null);
+      setEditMode('full');
       setSecondaryPassword('');
       setPasswordError(false);
       setEditPartsData({});
@@ -877,7 +920,7 @@ export default function AuctionsListPage() {
                     </td>
                     <td className="px-2 py-3 text-xs border border-gray-200 font-medium text-gray-900 text-center whitespace-nowrap">{auction.auctionNo}</td>
                     <td className="px-2 py-3 text-xs border border-gray-200 text-gray-600 text-center whitespace-nowrap">{auction.breed}</td>
-                    {editingId === auction.id ? (
+                    {editingId === auction.id && editMode === 'full' ? (
                       <>
                         <td className="px-1 py-1 text-center whitespace-nowrap border border-gray-200">
                           <select
@@ -1023,8 +1066,11 @@ export default function AuctionsListPage() {
                           <span className="text-sm font-medium text-gray-700">
                             부위: {auction.parts.filter(p => p.isIncluded).length}/{auction.parts.length}
                           </span>
-                          {editingId === auction.id && (
+                          {editingId === auction.id && editMode !== 'minPrice' && (
                             <span className="text-xs text-gray-500">(체크박스로 상장 제외 가능)</span>
+                          )}
+                          {editingId === auction.id && editMode === 'minPrice' && (
+                            <span className="text-xs text-blue-500">(최저가격만 수정 가능)</span>
                           )}
                         </div>
                         <div className="grid grid-cols-3 gap-4">
@@ -1033,7 +1079,7 @@ export default function AuctionsListPage() {
                             <table key={colIndex} className="w-full bg-white border border-gray-200">
                               <thead className="bg-gray-50">
                                 <tr>
-                                  {editingId === auction.id && (
+                                  {editingId === auction.id && editMode !== 'minPrice' && (
                                     <th className="w-8 px-1 py-2 text-center text-xs font-semibold text-gray-600 border-r border-gray-200"></th>
                                   )}
                                   <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 border-r border-gray-200">상장번호</th>
@@ -1052,7 +1098,7 @@ export default function AuctionsListPage() {
                                   if (!part) {
                                     return (
                                       <tr key={`empty-${globalIdx}`} className="border-t border-gray-100">
-                                        {editingId === auction.id && (
+                                        {editingId === auction.id && editMode !== 'minPrice' && (
                                           <td className="px-1 py-2 text-center border-r border-gray-200"></td>
                                         )}
                                         <td className="px-2 py-2 text-xs text-gray-400 text-center border-r border-gray-200">-</td>
@@ -1065,12 +1111,13 @@ export default function AuctionsListPage() {
                                   }
                                   
                                   const isEditing = editingId === auction.id;
+                                  const isMinPriceOnly = isEditing && editMode === 'minPrice';
                                   const editedPart = editPartsData[part.id];
                                   const isIncluded = isEditing && editedPart ? editedPart.isIncluded : part.isIncluded;
                                   
                                   return (
                                     <tr key={part.id} className={`border-t border-gray-100 ${!isIncluded ? 'bg-gray-100' : ''}`}>
-                                      {isEditing && (
+                                      {isEditing && !isMinPriceOnly && (
                                         <td className={`px-1 py-1 text-center border-r border-gray-200 ${!isIncluded ? 'bg-gray-100' : ''}`}>
                                           <input
                                             type="checkbox"
@@ -1087,7 +1134,7 @@ export default function AuctionsListPage() {
                                       </td>
                                       <td className={`px-2 py-2 text-xs text-center border-r border-gray-200 ${!isIncluded ? 'text-gray-400 line-through' : 'text-gray-900'}`}>{part.name}</td>
                                       <td className={`px-1 py-1 text-xs text-center border-r border-gray-200 ${!isIncluded ? 'text-gray-400' : 'text-gray-600'}`}>
-                                        {isEditing && isIncluded ? (
+                                        {isEditing && !isMinPriceOnly && isIncluded ? (
                                           <input
                                             type="number"
                                             value={editedPart?.weight ?? String(part.weight)}
@@ -1173,17 +1220,31 @@ export default function AuctionsListPage() {
                               </button>
                             </>
                           ) : (
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                startEditing(auction);
-                              }}
-                              disabled={auction.status !== '대기'}
-                              className="px-4 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                              수정
-                            </button>
+                            <>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  startEditing(auction);
+                                }}
+                                disabled={auction.status !== '대기'}
+                                className="px-4 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                수정
+                              </button>
+                              {auction.status === '경매중' && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    startMinPriceEditing(auction);
+                                  }}
+                                  className="px-4 py-1.5 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 transition-colors"
+                                >
+                                  단가수정
+                                </button>
+                              )}
+                            </>
                           )}
                           <button
                             type="button"

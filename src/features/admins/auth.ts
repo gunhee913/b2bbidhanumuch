@@ -45,3 +45,17 @@ export async function verifyAdminCredentials(
     admin: toAdminFromRow(admin),
   };
 }
+
+export async function getAdminById(id: string): Promise<Admin | null> {
+  const supabase = await createPureClient();
+
+  const { data: adminRow, error } = await supabase
+    .from('admins')
+    .select('*')
+    .eq('id', id)
+    .single();
+
+  if (error || !adminRow) return null;
+
+  return toAdminFromRow(adminRow as AdminRow);
+}
