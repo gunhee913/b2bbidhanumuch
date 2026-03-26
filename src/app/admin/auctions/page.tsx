@@ -13,7 +13,8 @@ import {
 import * as XLSX from 'xlsx';
 import { useListings, useApproveListing, useDeleteListing, useUpdateListing, useUpdatePart } from '@/features/listings/hooks';
 import { useCompanies } from '@/features/companies/hooks';
-import { CattleListing, CattlePart } from '@/features/listings/types';
+import { CattleListing, CattlePart, CertificateData } from '@/features/listings/types';
+import PhotoModal from '@/features/listings/components/PhotoModal';
 
 // number input 스피너 숨기기 스타일
 const hideSpinnerStyle = `
@@ -71,12 +72,6 @@ const STATUS_OPTIONS: { value: AuctionStatus; label: string }[] = [
   { value: '경매중', label: '경매중' },
   { value: '마감', label: '마감' },
 ];
-
-// 증명서 데이터 타입
-interface CertificateData {
-  fileName: string;
-  fileData: string;
-}
 
 // 경매 데이터 타입
 interface Auction {
@@ -265,9 +260,23 @@ export default function AuctionsListPage() {
 
   // 사진 모달 상태
   const [photoModalAuction, setPhotoModalAuction] = useState<Auction | null>(null);
-  
-  // 확대 이미지 상태
-  const [enlargedImage, setEnlargedImage] = useState<string | null>(null);
+
+  const handlePhotoSave = async (updates: {
+    images?: string[];
+    slaughterCert?: CertificateData | null;
+    gradeCert?: CertificateData | null;
+  }) => {
+    if (!photoModalAuction) return;
+    await updateListing.mutateAsync({
+      id: photoModalAuction.id,
+      input: {
+        images: updates.images,
+        slaughterCert: updates.slaughterCert,
+        gradeCert: updates.gradeCert,
+      },
+    });
+    setPhotoModalAuction(null);
+  };
 
   // 인라인 수정 상태
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -1277,177 +1286,20 @@ export default function AuctionsListPage() {
 
       {/* 사진 보기 모달 */}
       {photoModalAuction && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          {/* 배경 오버레이 */}
-          <div 
-            className="absolute inset-0 bg-black/50"
-            onClick={() => setPhotoModalAuction(null)}
-          />
-          
-          {/* 모달 컨텐츠 */}
-          <div className="relative bg-white shadow-2xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-hidden">
-            {/* 헤더 */}
-            <div className="flex items-center justify-between p-4 border-b border-gray-100">
-              <div>
-                <h3 className="text-lg font-bold text-gray-900">상장 사진 / 증명서</h3>
-                <p className="text-sm text-gray-500">
-                  접수번호: {photoModalAuction.auctionNo} | {photoModalAuction.company} | {photoModalAuction.grade}
-                </p>
-              </div>
-              <button
-                onClick={() => setPhotoModalAuction(null)}
-                className="p-2 hover:bg-gray-100 transition-colors"
-              >
-                <X className="w-5 h-5 text-gray-500" />
-              </button>
-            </div>
-            
-            {/* 사진 그리드 */}
-            <div className="p-4 overflow-y-auto max-h-[calc(90vh-100px)]">
-              {/* 상장 사진 */}
-              <div className="mb-6">
-                <h4 className="text-sm font-semibold text-gray-700 mb-3">상장 사진</h4>
-                {photoModalAuction.images.length > 0 ? (
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    {photoModalAuction.images.map((img, index) => (
-                      <div key={index} className="space-y-2">
-                        <p className="text-xs font-medium text-gray-600 text-center">사진 {index + 1}</p>
-                        <img 
-                          src={img} 
-                          alt={`사진 ${index + 1}`}
-                          className="w-full h-40 object-cover border border-gray-200"
-                        />
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm text-gray-400 text-center py-4">등록된 사진이 없습니다.</p>
-                )}
-              </div>
-
-              {/* 증명서 */}
-              <div>
-                <h4 className="text-sm font-semibold text-gray-700 mb-3">증명서</h4>
-                <div className="flex gap-4 justify-center">
-                  {/* 도축검사증명서 */}
-                  <div className="space-y-2 w-32">
-                    <p className="text-xs font-medium text-gray-600 text-center">도축검사증명서</p>
-                    {photoModalAuction.slaughterCert?.fileData ? (
-                      <div 
-                        className="w-full border border-gray-200 cursor-pointer hover:opacity-80 overflow-hidden transition-opacity"
-                        style={{ aspectRatio: '210/297' }}
-                        onClick={() => setEnlargedImage(photoModalAuction.slaughterCert?.fileData || null)}
-                      >
-                        <img 
-                          src={photoModalAuction.slaughterCert.fileData} 
-                          alt="도축검사증명서"
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                    ) : (
-                      <div 
-                        className="w-full border border-dashed border-gray-300 flex items-center justify-center bg-gray-50"
-                        style={{ aspectRatio: '210/297' }}
-                      >
-                        <span className="text-xs text-gray-400">미등록</span>
-                      </div>
-                    )}
-                  </div>
-                  
-                  {/* 등급판정확인서 */}
-                  <div className="space-y-2 w-32">
-                    <p className="text-xs font-medium text-gray-600 text-center">등급판정확인서</p>
-                    {photoModalAuction.gradeCert?.fileData ? (
-                      <div 
-                        className="w-full border border-gray-200 cursor-pointer hover:opacity-80 overflow-hidden transition-opacity"
-                        style={{ aspectRatio: '210/297' }}
-                        onClick={() => setEnlargedImage(photoModalAuction.gradeCert?.fileData || null)}
-                      >
-                        <img 
-                          src={photoModalAuction.gradeCert.fileData} 
-                          alt="등급판정확인서"
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                    ) : (
-                      <div 
-                        className="w-full border border-dashed border-gray-300 flex items-center justify-center bg-gray-50"
-                        style={{ aspectRatio: '210/297' }}
-                      >
-                        <span className="text-xs text-gray-400">미등록</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            {/* 푸터 */}
-            <div className="p-4 border-t border-gray-100 flex justify-end">
-              <button
-                onClick={() => setPhotoModalAuction(null)}
-                className="px-4 py-2 bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors text-sm font-medium"
-              >
-                닫기
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 확대 이미지 모달 */}
-      {enlargedImage && (
-        <div 
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80"
-          onClick={() => setEnlargedImage(null)}
-        >
-          <div className="relative mx-4 max-w-4xl max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
-            <img 
-              id="print-area"
-              src={enlargedImage}
-              alt="증명서"
-              className="max-w-full max-h-[90vh] object-contain bg-white shadow-lg"
-            />
-            <div className="absolute top-2 right-2 flex gap-2">
-              <button
-                onClick={() => {
-                  const printWindow = window.open('', '_blank');
-                  if (!printWindow) return;
-                  
-                  printWindow.document.write(`
-                    <html>
-                      <head>
-                        <title>증명서 인쇄</title>
-                        <style>
-                          @page { size: A4; margin: 10mm; }
-                          body { margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
-                          img { max-width: 100%; max-height: 100%; object-fit: contain; }
-                        </style>
-                      </head>
-                      <body>
-                        <img src="${enlargedImage}" />
-                      </body>
-                    </html>
-                  `);
-                  printWindow.document.close();
-                  printWindow.onload = () => {
-                    printWindow.print();
-                    printWindow.close();
-                  };
-                }}
-                className="w-8 h-8 bg-white rounded-full flex items-center justify-center text-gray-700 hover:bg-gray-100 shadow-lg"
-              >
-                <Printer className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => setEnlargedImage(null)}
-                className="w-8 h-8 bg-white rounded-full flex items-center justify-center text-gray-700 hover:bg-gray-100 shadow-lg"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-          </div>
-        </div>
+        <PhotoModal
+          data={{
+            id: photoModalAuction.id,
+            auctionNo: photoModalAuction.auctionNo,
+            company: photoModalAuction.company,
+            grade: photoModalAuction.grade,
+            images: photoModalAuction.images,
+            slaughterCert: photoModalAuction.slaughterCert,
+            gradeCert: photoModalAuction.gradeCert,
+          }}
+          editable
+          onClose={() => setPhotoModalAuction(null)}
+          onSave={handlePhotoSave}
+        />
       )}
     </AdminLayout>
   );

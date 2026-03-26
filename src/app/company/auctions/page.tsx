@@ -9,12 +9,12 @@ import {
   ChevronUp,
   X,
   Download,
-  Printer,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { useSession } from 'next-auth/react';
 import { useListings } from '@/features/listings/hooks';
-import { CattleListing, CattlePart, STATUS_LABELS } from '@/features/listings/types';
+import { CattleListing, CattlePart, STATUS_LABELS, CertificateData } from '@/features/listings/types';
+import PhotoModal from '@/features/listings/components/PhotoModal';
 
 // number input 스피너 숨기기 스타일
 const hideSpinnerStyle = `
@@ -64,12 +64,6 @@ const createDefaultParts = (): PartData[] => [
 
 // 상태 타입 및 옵션
 type AuctionStatus = '대기' | '승인' | '마감';
-
-// 증명서 데이터 타입
-interface CertificateData {
-  fileName: string;
-  fileData: string;
-}
 
 // 경매 데이터 타입
 interface Auction {
@@ -233,9 +227,6 @@ export default function CompanyAuctionsListPage() {
 
   // 사진 모달 상태
   const [photoModalAuction, setPhotoModalAuction] = useState<Auction | null>(null);
-  
-  // 확대 이미지 상태
-  const [enlargedImage, setEnlargedImage] = useState<string | null>(null);
 
   // 필터링된 데이터 (API에서 이미 필터링됨)
   const filteredAuctions = auctions;
@@ -589,167 +580,19 @@ export default function CompanyAuctionsListPage() {
 
       {/* 사진 보기 모달 */}
       {photoModalAuction && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div 
-            className="absolute inset-0 bg-black/50"
-            onClick={() => setPhotoModalAuction(null)}
-          />
-          
-          <div className="relative bg-white shadow-2xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-hidden">
-            <div className="flex items-center justify-between p-4 border-b border-gray-100">
-              <div>
-                <h3 className="text-lg font-bold text-gray-900">상장 사진 / 증명서</h3>
-                <p className="text-sm text-gray-500">
-                  접수번호: {photoModalAuction.auctionNo} | {photoModalAuction.grade}
-                </p>
-              </div>
-              <button
-                onClick={() => setPhotoModalAuction(null)}
-                className="p-2 hover:bg-gray-100 transition-colors"
-              >
-                <X className="w-5 h-5 text-gray-500" />
-              </button>
-            </div>
-            
-            <div className="p-4 overflow-y-auto max-h-[calc(90vh-100px)]">
-              <div className="mb-6">
-                <h4 className="text-sm font-semibold text-gray-700 mb-3">상장 사진</h4>
-                {photoModalAuction.images.length > 0 ? (
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    {photoModalAuction.images.map((img, index) => (
-                      <div key={index} className="space-y-2">
-                        <p className="text-xs font-medium text-gray-600 text-center">사진 {index + 1}</p>
-                        <img 
-                          src={img} 
-                          alt={`사진 ${index + 1}`}
-                          className="w-full h-40 object-cover border border-gray-200"
-                        />
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm text-gray-400 text-center py-4">등록된 사진이 없습니다.</p>
-                )}
-              </div>
-
-              <div>
-                <h4 className="text-sm font-semibold text-gray-700 mb-3">증명서</h4>
-                <div className="flex gap-4 justify-center">
-                  <div className="space-y-2 w-32">
-                    <p className="text-xs font-medium text-gray-600 text-center">도축검사증명서</p>
-                    {photoModalAuction.slaughterCert ? (
-                      <div 
-                        className="w-full border border-gray-200 cursor-pointer hover:bg-gray-200 bg-gray-100 flex items-center justify-center transition-colors"
-                        style={{ aspectRatio: '210/297' }}
-                        onClick={() => setEnlargedImage('도축검사증명서')}
-                      >
-                        <span className="text-xs text-gray-500">보기</span>
-                      </div>
-                    ) : (
-                      <div 
-                        className="w-full border border-dashed border-gray-300 flex items-center justify-center bg-gray-50"
-                        style={{ aspectRatio: '210/297' }}
-                      >
-                        <span className="text-xs text-gray-400">미등록</span>
-                      </div>
-                    )}
-                  </div>
-                  
-                  <div className="space-y-2 w-32">
-                    <p className="text-xs font-medium text-gray-600 text-center">등급판정확인서</p>
-                    {photoModalAuction.gradeCert ? (
-                      <div 
-                        className="w-full border border-gray-200 cursor-pointer hover:bg-gray-200 bg-gray-100 flex items-center justify-center transition-colors"
-                        style={{ aspectRatio: '210/297' }}
-                        onClick={() => setEnlargedImage('등급판정확인서')}
-                      >
-                        <span className="text-xs text-gray-500">보기</span>
-                      </div>
-                    ) : (
-                      <div 
-                        className="w-full border border-dashed border-gray-300 flex items-center justify-center bg-gray-50"
-                        style={{ aspectRatio: '210/297' }}
-                      >
-                        <span className="text-xs text-gray-400">미등록</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            <div className="p-4 border-t border-gray-100 flex justify-end">
-              <button
-                onClick={() => setPhotoModalAuction(null)}
-                className="px-4 py-2 bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors text-sm font-medium"
-              >
-                닫기
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 확대 이미지 모달 */}
-      {enlargedImage && (
-        <div 
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80"
-          onClick={() => setEnlargedImage(null)}
-        >
-          <div className="relative mx-4" onClick={(e) => e.stopPropagation()}>
-            <div 
-              id="print-area"
-              className="bg-white border border-gray-300 flex items-center justify-center"
-              style={{ width: '420px', height: '594px' }}
-            >
-              <span className="text-gray-400 text-sm">{enlargedImage}</span>
-            </div>
-            <div className="absolute top-2 right-2 flex gap-2">
-              <button
-                onClick={() => {
-                  const printContent = document.getElementById('print-area');
-                  if (!printContent) return;
-                  
-                  const printWindow = window.open('', '_blank');
-                  if (!printWindow) return;
-                  
-                  printWindow.document.write(`
-                    <html>
-                      <head>
-                        <title>${enlargedImage}</title>
-                        <style>
-                          @page { size: A4; margin: 0; }
-                          body { margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
-                          .print-box { width: 210mm; height: 297mm; background: #f3f4f6; display: flex; align-items: center; justify-content: center; border: 1px solid #d1d5db; }
-                          .print-text { color: #9ca3af; font-size: 14px; }
-                        </style>
-                      </head>
-                      <body>
-                        <div class="print-box">
-                          <span class="print-text">${enlargedImage}</span>
-                        </div>
-                      </body>
-                    </html>
-                  `);
-                  printWindow.document.close();
-                  printWindow.onload = () => {
-                    printWindow.print();
-                    printWindow.close();
-                  };
-                }}
-                className="w-8 h-8 bg-white rounded-full flex items-center justify-center text-gray-700 hover:bg-gray-100 shadow-lg"
-              >
-                <Printer className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => setEnlargedImage(null)}
-                className="w-8 h-8 bg-white rounded-full flex items-center justify-center text-gray-700 hover:bg-gray-100 shadow-lg"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-          </div>
-        </div>
+        <PhotoModal
+          data={{
+            id: photoModalAuction.id,
+            auctionNo: photoModalAuction.auctionNo,
+            company: photoModalAuction.company,
+            grade: photoModalAuction.grade,
+            images: photoModalAuction.images,
+            slaughterCert: photoModalAuction.slaughterCert,
+            gradeCert: photoModalAuction.gradeCert,
+          }}
+          editable={false}
+          onClose={() => setPhotoModalAuction(null)}
+        />
       )}
     </CompanyLayout>
   );
