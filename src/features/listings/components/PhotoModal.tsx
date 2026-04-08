@@ -148,11 +148,11 @@ export default function PhotoModal({ data, editable = false, onClose, onSave }: 
   return (
     <>
       <div className="fixed inset-0 z-50 flex items-center justify-center">
-        <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+        <div className="absolute inset-0 bg-black/50 -z-10" onClick={onClose} />
 
-        <div className="relative bg-white shadow-2xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-hidden">
+        <div className="relative bg-white shadow-2xl max-w-4xl w-full mx-4 max-h-[90vh] flex flex-col rounded-sm">
           {/* 헤더 */}
-          <div className="flex items-center justify-between p-4 border-b border-gray-100">
+          <div className="flex items-center justify-between p-4 border-b border-gray-100 shrink-0">
             <div>
               <h3 className="text-lg font-bold text-gray-900">상장 사진 / 증명서</h3>
               <p className="text-sm text-gray-500">{subtitle}</p>
@@ -163,7 +163,7 @@ export default function PhotoModal({ data, editable = false, onClose, onSave }: 
           </div>
 
           {/* 본문 */}
-          <div className="p-4 overflow-y-auto max-h-[calc(90vh-130px)]">
+          <div className="p-4 overflow-y-auto flex-1 min-h-0">
             {/* 상장 사진 */}
             <div className="mb-6">
               <div className="flex items-center justify-between mb-3">
@@ -265,20 +265,18 @@ export default function PhotoModal({ data, editable = false, onClose, onSave }: 
                   />
                   {slaughterCert?.fileData ? (
                     <div
-                      className="w-full border border-gray-200 cursor-pointer hover:opacity-80 overflow-hidden transition-opacity"
-                      style={{ aspectRatio: '210/297' }}
+                      className="w-full h-72 border border-gray-200 cursor-pointer hover:opacity-80 transition-opacity bg-white flex items-center justify-center"
                       onClick={() => setEnlargedImage(slaughterCert.fileData)}
                     >
                       <img
                         src={slaughterCert.fileData}
                         alt="도축검사증명서"
-                        className="w-full h-full object-cover"
+                        className="max-w-full max-h-full object-contain"
                       />
                     </div>
                   ) : (
                     <div
-                      className="w-full border border-dashed border-gray-300 flex items-center justify-center bg-gray-50"
-                      style={{ aspectRatio: '210/297' }}
+                      className="w-full h-40 border border-dashed border-gray-300 flex items-center justify-center bg-gray-50"
                     >
                       {isEditing ? (
                         <button
@@ -331,20 +329,18 @@ export default function PhotoModal({ data, editable = false, onClose, onSave }: 
                   />
                   {gradeCert?.fileData ? (
                     <div
-                      className="w-full border border-gray-200 cursor-pointer hover:opacity-80 overflow-hidden transition-opacity"
-                      style={{ aspectRatio: '210/297' }}
+                      className="w-full h-72 border border-gray-200 cursor-pointer hover:opacity-80 transition-opacity bg-white flex items-center justify-center"
                       onClick={() => setEnlargedImage(gradeCert.fileData)}
                     >
                       <img
                         src={gradeCert.fileData}
                         alt="등급판정확인서"
-                        className="w-full h-full object-cover"
+                        className="max-w-full max-h-full object-contain"
                       />
                     </div>
                   ) : (
                     <div
-                      className="w-full border border-dashed border-gray-300 flex items-center justify-center bg-gray-50"
-                      style={{ aspectRatio: '210/297' }}
+                      className="w-full h-40 border border-dashed border-gray-300 flex items-center justify-center bg-gray-50"
                     >
                       {isEditing ? (
                         <button
@@ -366,7 +362,7 @@ export default function PhotoModal({ data, editable = false, onClose, onSave }: 
           </div>
 
           {/* 푸터 */}
-          <div className="p-4 border-t border-gray-100 flex justify-between items-center">
+          <div className="p-4 border-t border-gray-100 flex justify-between items-center shrink-0">
             <div>
               {isUploading && (
                 <span className="text-xs text-blue-500">업로드 중...</span>
