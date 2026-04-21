@@ -45,34 +45,36 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    // 3. 낙찰대금 — 누적(잔고용) + 당일분(listing_date 기준) 분리
-    const { data: winningParts } = await supabase
-      .from('cattle_parts')
-      .select(`
-        winning_dealer_id,
-        bid_amount,
-        listing_id
-      `)
-      .not('winning_dealer_id', 'is', null)
+    // 3. 낙찰대금 — bids 테이블의 is_winning=true 기준 (dealer-transactions API와 동일)
+    //    cattle_parts.winning_dealer_id 와 동기화 차이가 있을 수 있어, 거래 내역 페이지와
+    //    동일한 데이터 소스를 사용해야 잔액이 일치한다.
+    const { data: winningBidsRaw } = await supabase
+      .from('bids')
+      .select('part_id, dealer_id, bid_amount, created_at')
+      .eq('is_winning', true)
       .not('bid_amount', 'is', null);
+    const winningBids = winningBidsRaw || [];
 
-    const listingIds = [...new Set((winningParts || []).map((p: any) => p.listing_id))];
-    let listingDateMap: Record<string, string> = {};
-    if (listingIds.length > 0) {
-      const { data: listings } = await supabase
-        .from('cattle_listings')
-        .select('id, listing_date')
-        .in('id', listingIds);
-      (listings || []).forEach((l: any) => { listingDateMap[l.id] = l.listing_date; });
+    // part_id → listing_date 매핑 (당일 합계용)
+    const partIds = [...new Set(winningBids.map((b: any) => b.part_id))];
+    let partListingDateMap: Record<string, string> = {};
+    if (partIds.length > 0) {
+      const { data: partsData } = await supabase
+        .from('cattle_parts')
+        .select('id, cattle_listings(listing_date)')
+        .in('id', partIds);
+      (partsData || []).forEach((p: any) => {
+        partListingDateMap[p.id] = (p.cattle_listings as any)?.listing_date || '';
+      });
     }
 
     const cumAuctionMap: Record<string, number> = {};
     const todayAuctionMap: Record<string, number> = {};
-    (winningParts || []).forEach((part: any) => {
-      const did = part.winning_dealer_id;
-      const amt = Number(part.bid_amount || 0);
+    winningBids.forEach((bid: any) => {
+      const did = bid.dealer_id;
+      const amt = Number(bid.bid_amount || 0);
       cumAuctionMap[did] = (cumAuctionMap[did] || 0) + amt;
-      if (listingDateMap[part.listing_id] === date) {
+      if (partListingDateMap[bid.part_id] === date) {
         todayAuctionMap[did] = (todayAuctionMap[did] || 0) + amt;
       }
     });
