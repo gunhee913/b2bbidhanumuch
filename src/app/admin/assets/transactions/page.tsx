@@ -65,7 +65,62 @@ export default function TransactionsPage() {
     },
   });
 
-  const allTransactions = data?.transactions || [];
+  // 정확한 현재 잔액을 dealer-balances API에서 가져온다
+  // (transactions API의 클라이언트 누적 합산은 기간 필터 영향을 받아 부정확하기 때문)
+  const { data: balanceData } = useQuery<{ balances: { id: string; availableAmount: number }[] }>({
+    queryKey: ['dealer-balances-for-transactions', sEndDate || todayStr],
+    queryFn: async () => {
+      const res = await fetch(`/api/dealer-balances?date=${sEndDate || todayStr}`);
+      if (!res.ok) throw new Error();
+      return res.json();
+    },
+  });
+
+  const dealerBalanceMap = useMemo(() => {
+    const m = new Map<string, number>();
+    (balanceData?.balances || []).forEach(b => m.set(b.id, b.availableAmount));
+    return m;
+  }, [balanceData]);
+
+  // 잔액 계산용: 기간/타입 필터를 무시한 dealer 전체 거래
+  const { data: allDealerData } = useQuery<{ transactions: Transaction[] }>({
+    queryKey: ['dealer-transactions-all-for-balance', sEndDate || todayStr],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (sEndDate) params.append('endDate', sEndDate);
+      const res = await fetch(`/api/dealer-transactions?${params}`);
+      if (!res.ok) throw new Error();
+      return res.json();
+    },
+  });
+
+  // dealer별로 최신→과거 순으로 정렬해 현재 잔액에서 역으로 빼면서 각 거래의 잔액 계산
+  const txBalanceMap = useMemo(() => {
+    const map = new Map<string, number>();
+    const allTx = allDealerData?.transactions || [];
+    const byDealer = new Map<string, Transaction[]>();
+    allTx.forEach(tx => {
+      if (!byDealer.has(tx.dealerId)) byDealer.set(tx.dealerId, []);
+      byDealer.get(tx.dealerId)!.push(tx);
+    });
+    byDealer.forEach((txs, dealerId) => {
+      const sorted = [...txs].sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+      let running = dealerBalanceMap.get(dealerId) ?? 0;
+      sorted.forEach(tx => {
+        map.set(tx.id, running);
+        if (tx.type === 'deposit') running -= tx.amount;
+        else running += tx.amount;
+      });
+    });
+    return map;
+  }, [allDealerData, dealerBalanceMap]);
+
+  const allTransactions = (data?.transactions || []).map(tx => ({
+    ...tx,
+    balance: txBalanceMap.get(tx.id) ?? tx.balance,
+  }));
 
   const filteredTransactions = useMemo(() => {
     if (!sDealerSearch) return allTransactions;
@@ -102,20 +157,12 @@ export default function TransactionsPage() {
       }
     });
 
+    // 각 거래의 balance는 이미 dealer-balances 기반으로 정확히 계산되어 들어와 있다.
+    // 표시 순서만 최신 → 과거 순으로 정렬한다.
     groupMap.forEach(group => {
-      const sorted = [...group.transactions].sort(
-        (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+      group.transactions.sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       );
-      let runningBalance = 0;
-      const withBalance = sorted.map(tx => {
-        if (tx.type === 'deposit') {
-          runningBalance += tx.amount;
-        } else {
-          runningBalance -= tx.amount;
-        }
-        return { ...tx, balance: runningBalance };
-      });
-      group.transactions = withBalance.reverse();
     });
 
     return Array.from(groupMap.values()).sort((a, b) => a.dealerNo.localeCompare(b.dealerNo));
