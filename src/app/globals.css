@@ -110,23 +110,59 @@
   ::-webkit-scrollbar-track {
     background: #f5f5f5;
   }
-  ::-webkit-scrollbar-thumb {
-    background: #d4d4d4;
+  ::-webkit-scrollbar-thumb,
+  ::-webkit-scrollbar-thumb:hover,
+  ::-webkit-scrollbar-thumb:active,
+  ::-webkit-scrollbar-thumb:window-inactive {
+    background-image: none !important;
+    background-color: #d4d4d4 !important;
     border-radius: 4px;
-  }
-  ::-webkit-scrollbar-thumb:hover {
-    background: #bfbfbf;
   }
 
   /* 스크롤바 스타일 - 다크모드 */
   .dark ::-webkit-scrollbar-track {
     background: #1e2024;
   }
-  .dark ::-webkit-scrollbar-thumb {
-    background: #3a3f47;
+  .dark ::-webkit-scrollbar-thumb,
+  .dark ::-webkit-scrollbar-thumb:hover,
+  .dark ::-webkit-scrollbar-thumb:active,
+  .dark ::-webkit-scrollbar-thumb:window-inactive {
+    background-image: none !important;
+    background-color: #3a3f47 !important;
   }
-  .dark ::-webkit-scrollbar-thumb:hover {
-    background: #4a4f57;
+}
+
+@layer utilities {
+  /*
+   * 얇은 스크롤바 · macOS Chrome 의 hover 시 확장/진해짐 완전 차단
+   *
+   * 트릭: 실제 스크롤바 폭(6px)은 크게 잡고, thumb 좌우에 투명 border(2px)
+   * + background-clip: content-box 로 시각적 폭을 2px 로 고정.
+   * 시스템이 hover 시 폭을 확장하려 해도 border 가 transparent 이므로
+   * 시각적으로는 변화가 보이지 않음.
+   */
+  .scrollbar-thin {
+    scrollbar-gutter: stable;
+    scrollbar-width: thin;
+    scrollbar-color: #d4d4d4 transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+    background: transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb,
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover,
+  .scrollbar-thin::-webkit-scrollbar-thumb:active,
+  .scrollbar-thin::-webkit-scrollbar-thumb:window-inactive {
+    background-image: none !important;
+    background-color: #d4d4d4 !important;
+    border: 2px solid transparent !important;
+    background-clip: content-box !important;
+    border-radius: 3px;
   }
 }
 

@@ -10,6 +10,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const listingDate = searchParams.get('listingDate');
     const companyId = searchParams.get('companyId');
+    const slaughterHouse = searchParams.get('slaughter_house');
 
     // 승인된 상장 조회 (부위 정보 포함)
     let query = supabase
@@ -22,12 +23,29 @@ export async function GET(request: NextRequest) {
         gender,
         grade,
         marbling_score,
+        slaughter_house,
+        slaughter_date,
+        slaughter_no,
+        month_age,
+        trace_no,
+        carcass_weight,
+        unit_price,
+        back_fat,
+        eye_muscle,
+        meat_color,
+        fat_color,
+        texture,
+        maturity,
+        process_date,
+        process_weight,
+        images,
         status,
         company_id,
         companies (
           id,
           name,
-          company_no
+          company_no,
+          ceo
         ),
         cattle_parts (
           id,
@@ -51,6 +69,10 @@ export async function GET(request: NextRequest) {
 
     if (companyId) {
       query = query.eq('company_id', companyId);
+    }
+
+    if (slaughterHouse) {
+      query = query.eq('slaughter_house', slaughterHouse);
     }
 
     const { data: listings, error } = await query;
@@ -146,10 +168,27 @@ export async function GET(request: NextRequest) {
         gender: listing.gender,
         grade: listing.grade,
         marblingScore: listing.marbling_score,
+        slaughterHouse: listing.slaughter_house || '',
+        slaughterDate: listing.slaughter_date,
+        slaughterNo: listing.slaughter_no,
+        monthAge: listing.month_age,
+        traceNo: listing.trace_no,
+        carcassWeight: listing.carcass_weight,
+        unitPrice: listing.unit_price,
+        backFat: listing.back_fat,
+        eyeMuscle: listing.eye_muscle,
+        meatColor: listing.meat_color,
+        fatColor: listing.fat_color,
+        texture: listing.texture,
+        maturity: listing.maturity,
+        processDate: listing.process_date,
+        processWeight: listing.process_weight,
+        images: listing.images || [],
         status: listing.status,
         companyId: listing.company_id,
         companyName: listing.companies?.name || '',
         companyNo: listing.companies?.company_no,
+        companyCeo: listing.companies?.ceo || '',
         parts,
       };
     });

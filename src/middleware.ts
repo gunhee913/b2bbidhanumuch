@@ -40,9 +40,15 @@ export async function middleware(request: NextRequest) {
   const isCompanyPath = pathname.startsWith('/company') && pathname !== '/company/login';
   const isCompanyLoginPath = pathname === '/company/login';
 
-  const isDealerProtectedPath = dealerProtectedPaths.some(
-    (path) => pathname === path || pathname.startsWith(`${path}/`)
-  );
+  // 공개 접근이 허용되는 경매 경로 (신규 PC 경매장 페이지 · 관전 목적)
+  const isPublicAuctionPath =
+    pathname === '/auction/live' || pathname.startsWith('/auction/live/');
+
+  const isDealerProtectedPath =
+    !isPublicAuctionPath &&
+    dealerProtectedPaths.some(
+      (path) => pathname === path || pathname.startsWith(`${path}/`)
+    );
 
   const isDealerAuthPath = dealerAuthPaths.some(
     (path) => pathname === path || pathname.startsWith(`${path}/`)
