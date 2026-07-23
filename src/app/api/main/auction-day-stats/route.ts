@@ -3,7 +3,7 @@ import { getAdminClient } from "@/lib/supabase-admin";
 
 const supabase = getAdminClient();
 
-const ACTIVE_STATUSES = ["approved", "auction", "completed"] as const;
+const ACTIVE_STATUSES = ["approved", "auction", "completed", "closed"] as const;
 const VALID_GENDERS = ["거세", "암"] as const;
 
 /** 등급 매트릭스 행 정의: 1++는 근내지방도 9/8/7로 세분화 */

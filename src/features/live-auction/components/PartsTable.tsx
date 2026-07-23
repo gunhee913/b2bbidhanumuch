@@ -112,7 +112,7 @@ export function PartsTable({
     <div className="overflow-hidden">
       <table className="w-full table-fixed text-sm">
         <colgroup>
-          {bulkMode ? <col className="w-[36px]" /> : null}
+          {bulkMode ? <col className="w-[28px]" /> : null}
           <col className={bulkMode ? "w-[92px]" : "w-[110px]"} />
           <col className="w-[70px]" />
           <col className="w-auto" />
@@ -121,17 +121,19 @@ export function PartsTable({
         <thead className="bg-slate-50 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
           <tr>
             {bulkMode ? (
-              <th className="border-b border-slate-200 px-2 py-2 text-center">
-                <input
-                  type="checkbox"
-                  checked={allSelected}
-                  ref={(el) => {
-                    if (el) el.indeterminate = someSelected;
-                  }}
-                  onChange={handleToggleAll}
-                  aria-label="전체 선택"
-                  className="h-4 w-4 cursor-pointer accent-sky-600"
-                />
+              <th className="border-b border-slate-200 px-0 py-2 align-middle">
+                <div className="flex items-center justify-center">
+                  <input
+                    type="checkbox"
+                    checked={allSelected}
+                    ref={(el) => {
+                      if (el) el.indeterminate = someSelected;
+                    }}
+                    onChange={handleToggleAll}
+                    aria-label="전체 선택"
+                    className="block h-4 w-4 cursor-pointer accent-sky-600"
+                  />
+                </div>
               </th>
             ) : null}
             <th className="border-b border-slate-200 px-3 py-2 text-left">
@@ -290,13 +292,17 @@ function MainRow({
     : iLost
       ? "bg-slate-400"
       : "bg-slate-300";
+  // bulk 편집 모드에서 미체결 행은 체크박스가 선택 표시를 대신하므로
+  // 좌측 sky accent bar 는 노출하지 않는다. 낙찰된 행의 settlement accent 는 유지.
   const accentColor = isSettled
     ? settlementAccent
-    : isSelected
+    : isSelected && !bulkMode
       ? "bg-sky-500"
       : null;
 
   const bulkHighlight = bulkMode && bulkChecked && !isSettled;
+  const bulkHasMyBidUnchecked =
+    bulkMode && !bulkChecked && !!myBid && !isSettled;
 
   return (
     <tr
@@ -305,26 +311,40 @@ function MainRow({
       className={cn(
         "relative cursor-pointer transition-colors",
         bulkHighlight && "bg-sky-50/70 hover:bg-sky-50",
-        !bulkHighlight && isSelected && !isSettled && "bg-sky-50/70 hover:bg-sky-50",
-        !bulkHighlight && isSelected && isSettled && "bg-sky-50/40 hover:bg-sky-50/50",
-        !isSelected && isSettled && "bg-slate-50 hover:bg-slate-100/60",
-        !bulkHighlight && !isSelected && !isSettled && "hover:bg-slate-50/50",
+        !bulkHighlight && bulkHasMyBidUnchecked && "bg-sky-50/25 hover:bg-sky-50/50",
+        !bulkHighlight && !bulkHasMyBidUnchecked && isSelected && !isSettled && "bg-sky-50/70 hover:bg-sky-50",
+        // 낙찰: 선택 여부와 무관하게 sky wash 로 강조 (스캔 시 즉시 인지)
+        isSettled && iWon && isSelected && "bg-sky-100/70 hover:bg-sky-100/80",
+        isSettled && iWon && !isSelected && "bg-sky-50/70 hover:bg-sky-100/50",
+        // 유찰 · 미입찰(settled): 기존 slate wash 유지
+        isSettled && !iWon && isSelected && "bg-sky-50/40 hover:bg-sky-50/50",
+        isSettled && !iWon && !isSelected && "bg-slate-50 hover:bg-slate-100/60",
+        !bulkHighlight && !bulkHasMyBidUnchecked && !isSelected && !isSettled && "hover:bg-slate-50/50",
       )}
     >
       {bulkMode ? (
-        <td className="px-2 py-2 text-center align-middle">
-          <input
-            type="checkbox"
-            checked={bulkChecked}
-            onChange={() => onBulkToggle?.()}
-            onClick={(e) => e.stopPropagation()}
-            disabled={isSettled}
-            aria-label={`${part.partName} 선택`}
-            className={cn(
-              "h-4 w-4 cursor-pointer accent-sky-600",
-              isSettled && "cursor-not-allowed opacity-30",
-            )}
-          />
+        <td className="relative px-0 py-2 align-middle">
+          {accentColor ? (
+            <span
+              className={cn(
+                "absolute inset-y-0 left-0 w-[3px]",
+                accentColor,
+              )}
+              aria-hidden
+            />
+          ) : null}
+          {!isSettled ? (
+            <div className="flex items-center justify-center">
+              <input
+                type="checkbox"
+                checked={bulkChecked}
+                onChange={() => onBulkToggle?.()}
+                onClick={(e) => e.stopPropagation()}
+                aria-label={`${part.partName} 선택`}
+                className="block h-4 w-4 cursor-pointer accent-sky-600"
+              />
+            </div>
+          ) : null}
         </td>
       ) : null}
       <td
@@ -333,7 +353,7 @@ function MainRow({
           isSettled ? "text-slate-500" : "text-slate-900",
         )}
       >
-        {accentColor ? (
+        {accentColor && !bulkMode ? (
           <span
             className={cn(
               "absolute inset-y-0 left-0 w-[3px]",
@@ -395,16 +415,15 @@ function MainRow({
               onBidClick();
             }}
             className={cn(
-              "inline-flex h-6 items-center gap-1 px-2.5 text-[11px] font-bold transition-colors",
+              "group/bid inline-flex h-6 min-w-[92px] items-baseline gap-0.5 border px-2 text-[11px] font-bold transition-colors",
+              myBid ? "justify-end" : "justify-center",
               myBid
-                ? "bg-sky-500 text-white hover:bg-sky-600"
-                : "bg-sky-50 text-sky-700 hover:bg-sky-100",
+                ? "border-sky-500 bg-white text-sky-700 hover:border-sky-500 hover:bg-sky-500 hover:text-white"
+                : "border-sky-500 bg-white text-sky-600 hover:border-sky-500 hover:bg-sky-500 hover:text-white",
             )}
           >
             {myBid ? (
-              <span className="tabular-nums">
-                {maskWonPerKg(myBid.bidPrice, canReadBids)}
-              </span>
+              <MyBidBadgeInline bidPrice={myBid.bidPrice} canRead={canReadBids} />
             ) : (
               "입찰하기"
             )}
@@ -467,7 +486,14 @@ function SettlementSubRow({
       onClick={onClick}
       className={cn(
         "cursor-pointer transition-colors",
-        isSelected ? "bg-sky-50/40" : "bg-slate-50",
+        // 낙찰 · sub-row 도 main row 와 통일된 sky wash (하나의 "낙찰 블록" 으로 인지)
+        iWon
+          ? isSelected
+            ? "bg-sky-100/60"
+            : "bg-sky-50/70"
+          : isSelected
+            ? "bg-sky-50/40"
+            : "bg-slate-50",
       )}
     >
       <td colSpan={colSpan} className="relative px-3 pb-2 pt-0.5">
@@ -477,7 +503,7 @@ function SettlementSubRow({
         />
         <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 pl-1 text-[11px]">
           {iWon ? (
-            <span className="inline-flex shrink-0 items-center bg-sky-100 px-1.5 py-px text-[10px] font-bold text-sky-700">
+            <span className="inline-flex shrink-0 items-center bg-sky-600 px-1.5 py-0.5 text-[10px] font-bold text-white shadow-sm">
               낙찰
             </span>
           ) : iLost ? (
@@ -528,6 +554,35 @@ function SettlementSubRow({
         </div>
       </td>
     </tr>
+  );
+}
+
+const KRW_NUMBER = new Intl.NumberFormat("ko-KR");
+const BID_MASK_TOKEN = "***";
+
+/**
+ * "내 입찰가" 아웃라인 버튼 안 텍스트.
+ * 숫자와 접미어(`원/kg`)를 분리해서 좁은 컬럼에서도 잘리지 않게 하고,
+ * hover 시 부모 버튼이 채워지면 접미어도 흰색으로 자연스럽게 반전되도록 group hover 사용.
+ */
+function MyBidBadgeInline({
+  bidPrice,
+  canRead,
+}: {
+  bidPrice: number;
+  canRead: boolean;
+}) {
+  if (!canRead) return <span className="tabular-nums">{BID_MASK_TOKEN}</span>;
+  const rounded = Math.round(bidPrice);
+  return (
+    <>
+      <span className="tabular-nums -tracking-[0.02em]">
+        {KRW_NUMBER.format(rounded)}
+      </span>
+      <span className="text-[10px] font-semibold text-sky-500 group-hover/bid:text-white/85">
+        원/kg
+      </span>
+    </>
   );
 }
 

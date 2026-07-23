@@ -30,7 +30,7 @@ export function useMyBidsWithStatus(dealerId: string | null) {
   const myBidItems: MyBidItem[] = activeBids.map((bid) => {
     const part = bid.cattle_parts;
     const listing = part?.cattle_listings;
-    
+
     return {
       id: bid.id,
       listingNo: part?.listing_part_no || '',
@@ -44,9 +44,11 @@ export function useMyBidsWithStatus(dealerId: string | null) {
       myBid: bid.bid_price,
       totalAmount: bid.bid_amount,
       status: 'bidded' as const,
-      time: format(new Date(bid.created_at), 'yy.MM.dd HH:mm'),
+      time: format(new Date(bid.created_at), 'yy.MM.dd HH:mm:ss'),
       partId: bid.part_id,
       dealerId: bid.dealer_id,
+      companyName: listing?.companies?.name || '',
+      slaughterHouse: listing?.slaughter_house || '',
     };
   });
   
@@ -83,13 +85,18 @@ export function useMyAuctionResults(dealerId: string | null) {
       marblingScore: listing?.marbling_score ?? null,
       gender: listing?.gender || '',
       weight: part?.weight || 0,
+      minPrice: part?.min_price || 0,
       myBid: bid.bid_price,
       winningBid: part?.bid_price || null,
       totalAmount: bid.bid_amount,
       result: isWon ? 'won' as const : 'lost' as const,
       listingDate: listing?.listing_date || '',
       closedAt: listing?.closed_at || null,
-      time: format(new Date(bid.created_at), 'yy.MM.dd HH:mm'),
+      time: format(new Date(bid.created_at), 'yy.MM.dd HH:mm:ss'),
+      partId: bid.part_id,
+      companyName: listing?.companies?.name || '',
+      slaughterHouse: listing?.slaughter_house || '',
+      roundNo: bid.auctions?.round_no ?? null,
     };
   });
 

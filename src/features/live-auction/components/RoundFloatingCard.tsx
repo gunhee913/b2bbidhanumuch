@@ -17,8 +17,14 @@ export interface RoundFloatingCardProps {
 }
 
 /**
- * 회차 상태 카드 (오른쪽 사이드 컬럼에서 사용).
- * fixed 포지셔닝은 부모 (LiveAuctionRoom) 에서 관리한다.
+ * 회차 상태 카드 (오른쪽 사이드 컬럼).
+ *
+ * 레이아웃 (위 → 아래):
+ * - 공판장 헤더 (라벨 + 이름 + Live 상태 도트)
+ * - 회차 상태 문구 (예: "1회차 진행 중" / "다음 회차 준비 중")
+ * - 카운트다운 (진행 중일 때만) 또는 대기 아이콘
+ * - 진행바 (진행 중일 때만)
+ * - 최근 마감 (대기 상태에서만)
  */
 export function RoundFloatingCard({
   activeSlug,
@@ -36,43 +42,61 @@ export function RoundFloatingCard({
   const shortName = slugToShort(activeSlug);
 
   return (
-    <div className="pointer-events-auto relative w-[200px] rounded-2xl bg-white p-5 shadow-xl shadow-slate-300/40 ring-1 ring-slate-100">
-      <StatusBadge isLive={isLive} hasClosedRound={!!lastClosedRound} />
-
-      <div className="mt-3 text-center">
-        <h3 className="text-[15px] font-bold leading-[1.35] text-slate-900">
-          {isLive ? (
-            <>
-              {currentRound?.round_no}회차
-              <br />
-              <span className="text-slate-500">진행 중</span>
-            </>
-          ) : lastClosedRound ? (
-            <>
-              다음 회차
-              <br />
-              <span className="text-slate-500">준비 중</span>
-            </>
-          ) : (
-            <>
-              경매 시작
-              <br />
-              <span className="text-slate-500">대기 중</span>
-            </>
-          )}
-        </h3>
+    <div className="pointer-events-auto w-[220px] rounded-2xl border border-slate-200 bg-white p-4 shadow-lg shadow-slate-200/60">
+      {/* 헤더 · 공판장 · 라이브 도트 */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-baseline gap-1.5">
+          <span className="text-[10px] font-medium text-slate-400">공판장</span>
+          <span className="text-[13px] font-bold tracking-tight text-slate-900">
+            {shortName}
+          </span>
+        </div>
+        {isLive ? (
+          <span className="relative flex h-1.5 w-1.5" aria-label="Live">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-sky-500 opacity-75" />
+            <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-sky-500" />
+          </span>
+        ) : (
+          <span
+            className="h-1.5 w-1.5 rounded-full bg-slate-300"
+            aria-label={lastClosedRound ? "Waiting" : "Standby"}
+          />
+        )}
       </div>
 
-      <div className="mt-4 flex h-[96px] items-center justify-center">
+      <div className="my-3 h-px w-full bg-slate-100" />
+
+      {/* 회차 상태 문구 */}
+      <div className="text-center">
         {isLive ? (
-          <div className="flex flex-col items-center gap-1.5">
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-              남은 시간
-            </span>
-            <span className="text-[28px] font-bold leading-none tabular-nums text-sky-600">
-              {formatted}
-            </span>
-            <div className="mt-1 h-1 w-[132px] overflow-hidden rounded-full bg-slate-100">
+          <p className="text-[14px] font-bold leading-tight text-slate-900">
+            <span className="tabular-nums">{currentRound?.round_no}</span>회차{" "}
+            <span className="text-slate-500">진행 중</span>
+          </p>
+        ) : lastClosedRound ? (
+          <p className="text-[14px] font-bold leading-tight text-slate-500">
+            다음 회차 준비 중
+          </p>
+        ) : (
+          <p className="text-[14px] font-bold leading-tight text-slate-500">
+            경매 시작 대기
+          </p>
+        )}
+      </div>
+
+      {/* 카운트다운 또는 대기 아이콘 */}
+      <div className="mt-3">
+        {isLive ? (
+          <>
+            <div className="text-center">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                남은 시간
+              </p>
+              <p className="mt-1 text-[28px] font-bold leading-none tabular-nums text-sky-600">
+                {formatted}
+              </p>
+            </div>
+            <div className="mt-3 h-1 w-full overflow-hidden rounded-full bg-slate-100">
               <div
                 className={cn(
                   "h-full rounded-full transition-all duration-500",
@@ -81,30 +105,26 @@ export function RoundFloatingCard({
                 style={{ width: `${Math.min(100, progress * 100)}%` }}
               />
             </div>
-          </div>
+          </>
         ) : (
-          <div className="relative flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-slate-400 to-slate-600 shadow-lg shadow-slate-200/60">
-            {lastClosedRound ? (
-              <Clock className="h-10 w-10 text-white" strokeWidth={2} />
-            ) : (
-              <Gavel className="h-10 w-10 text-white" strokeWidth={2} />
-            )}
+          <div className="flex justify-center py-2">
+            <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-slate-50">
+              {lastClosedRound ? (
+                <Clock className="h-6 w-6 text-slate-400" strokeWidth={1.75} />
+              ) : (
+                <Gavel className="h-6 w-6 text-slate-400" strokeWidth={1.75} />
+              )}
+            </div>
           </div>
         )}
       </div>
 
-      <div className="my-3 h-px w-full bg-slate-200" />
-
-      <div className="space-y-1.5">
-        <div className="flex items-center justify-between">
-          <span className="text-[11px] font-medium text-slate-500">공판장</span>
-          <span className="text-[13px] font-bold tracking-tight text-slate-900">
-            {shortName}
-          </span>
-        </div>
-        {lastClosedRound ? (
+      {/* 최근 마감 · 대기 상태에서만 노출 */}
+      {!isLive && lastClosedRound ? (
+        <>
+          <div className="my-3 h-px w-full bg-slate-100" />
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-medium text-slate-500">
+            <span className="text-[10px] font-medium text-slate-400">
               최근 마감
             </span>
             <span className="text-[12px] font-semibold tabular-nums text-slate-700">
@@ -114,38 +134,8 @@ export function RoundFloatingCard({
                 : "-"}
             </span>
           </div>
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
-function StatusBadge({
-  isLive,
-  hasClosedRound,
-}: {
-  isLive: boolean;
-  hasClosedRound: boolean;
-}) {
-  if (isLive) {
-    return (
-      <div className="flex justify-center">
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-sky-50 px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-sky-700">
-          <span className="relative flex h-1.5 w-1.5">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-sky-500 opacity-75" />
-            <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-sky-500" />
-          </span>
-          Live
-        </span>
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex justify-center">
-      <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-500">
-        {hasClosedRound ? "Waiting" : "Standby"}
-      </span>
+        </>
+      ) : null}
     </div>
   );
 }

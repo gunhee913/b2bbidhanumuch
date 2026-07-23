@@ -3,7 +3,7 @@ import { getAdminClient } from "@/lib/supabase-admin";
 
 const supabase = getAdminClient();
 
-const ACTIVE_STATUSES = ["approved", "auction", "completed"] as const;
+const ACTIVE_STATUSES = ["approved", "auction", "completed", "closed"] as const;
 
 /**
  * GET /api/main/auction-calendar

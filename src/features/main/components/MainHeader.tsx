@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import {
   ChevronDown,
@@ -11,16 +12,33 @@ import {
   User,
 } from "lucide-react";
 import { AppleIcon, GooglePlayIcon } from "@/features/main/lib/storeIcons";
+import { cn } from "@/lib/utils";
 
 const LOGO_SRC = "/cyber_symbol%203.gif";
 
-const GNB_ITEMS: { label: string; href: string }[] = [
+interface GnbItem {
+  label: string;
+  href: string;
+  /** 딜러(중도매인/직원) 로그인 시에만 노출 */
+  dealerOnly?: boolean;
+}
+
+const GNB_ITEMS: GnbItem[] = [
   { label: "경매장", href: "/auction/live" },
   { label: "경매내역", href: "/history" },
+  { label: "배송지시", href: "/delivery", dealerOnly: true },
   { label: "시세·동향", href: "/market" },
 ];
 
 export function MainHeader() {
+  const { data: session } = useSession();
+  const pathname = usePathname();
+  const isDealer =
+    !!session?.dealer?.id || !!session?.employee?.dealerId;
+  const visibleItems = GNB_ITEMS.filter(
+    (item) => !item.dealerOnly || isDealer,
+  );
+
   return (
     <header className="sticky top-0 z-40 w-full border-b border-slate-200 bg-white/95 shadow-[0_1px_0_rgba(15,23,42,0.02)] backdrop-blur-sm">
       <div className="mx-auto flex h-[64px] max-w-[1240px] items-center justify-between px-8">
@@ -52,17 +70,33 @@ export function MainHeader() {
 
           <nav>
             <ul className="flex items-center gap-8">
-              {GNB_ITEMS.map((item) => (
-                <li key={item.href}>
-                  <Link
-                    href={item.href}
-                    className="group relative py-1 text-[16px] font-semibold text-slate-900 transition-colors hover:text-sky-700"
-                  >
-                    {item.label}
-                    <span className="absolute inset-x-0 -bottom-1 h-0.5 origin-left scale-x-0 bg-sky-600 transition-transform group-hover:scale-x-100" />
-                  </Link>
-                </li>
-              ))}
+              {visibleItems.map((item) => {
+                const isActive = isGnbActive(pathname, item.href);
+                return (
+                  <li key={item.href}>
+                    <Link
+                      href={item.href}
+                      aria-current={isActive ? "page" : undefined}
+                      className={cn(
+                        "group relative py-1 text-[16px] transition-colors",
+                        isActive
+                          ? "font-extrabold text-sky-700"
+                          : "font-semibold text-slate-800 hover:text-sky-700",
+                      )}
+                    >
+                      {item.label}
+                      <span
+                        className={cn(
+                          "absolute inset-x-0 -bottom-1 h-0.5 origin-left bg-sky-600 transition-transform",
+                          isActive
+                            ? "scale-x-100"
+                            : "scale-x-0 group-hover:scale-x-100",
+                        )}
+                      />
+                    </Link>
+                  </li>
+                );
+              })}
             </ul>
           </nav>
         </div>
@@ -87,6 +121,8 @@ export function MainHeader() {
 
 function AuthMenu() {
   const { data: session, status } = useSession();
+  const pathname = usePathname();
+  const callbackTarget = buildPcCallbackUrl(pathname);
 
   if (status === "loading") {
     return (
@@ -98,7 +134,7 @@ function AuthMenu() {
     return (
       <>
         <Link
-          href="/login"
+          href={`/login?callbackUrl=${encodeURIComponent(callbackTarget)}`}
           className="text-[14px] font-semibold text-slate-800 hover:text-sky-700"
         >
           로그인
@@ -173,6 +209,34 @@ function AuthMenu() {
       </div>
     </div>
   );
+}
+
+/**
+ * 현재 pathname 이 GNB 항목의 활성 상태인지 판정.
+ *
+ * - 정확히 일치하거나, 하위 경로(`/history/xxx`, `/auction/live/xxx`) 인 경우 활성
+ * - 배송지시(`/delivery`) · 시세동향(`/market`) 등도 하위 경로 포함
+ */
+function isGnbActive(pathname: string | null, href: string): boolean {
+  if (!pathname) return false;
+  if (pathname === href) return true;
+  return pathname.startsWith(`${href}/`);
+}
+
+/**
+ * PC 웹에서 사용할 callbackUrl 을 구성한다.
+ *
+ * - `/main` `/history` `/delivery` 같은 PC 전용 경로는 그대로 유지
+ * - `/` (모바일 root) · `/login` · `/signup` · 그 외 예상 밖 경로는 안전하게 `/main` 으로 폴백
+ * - 모바일 앱 라우트(`/bids`, `/trade`, `/market` 등) 로 로그인 후 튕겨나가지 않게 방지
+ */
+function buildPcCallbackUrl(pathname: string | null): string {
+  if (!pathname) return "/main";
+  const PC_ROUTE_PREFIXES = ["/main", "/history", "/delivery"];
+  if (PC_ROUTE_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`))) {
+    return pathname;
+  }
+  return "/main";
 }
 
 function getRoleLabel(

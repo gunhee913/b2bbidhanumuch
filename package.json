@@ -4,6 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
+    "dev:3000": "NEXT_PORT=3000 next dev --turbopack -p 3000",
+    "dev:3001": "NEXT_PORT=3001 next dev --turbopack -p 3001",
+    "dev:3002": "NEXT_PORT=3002 next dev --turbopack -p 3002",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"

@@ -58,6 +58,9 @@ export function RankingSection() {
 
   const byAmount = data?.byAmount ?? [];
   const byPart = data?.byPart ?? [];
+  const rangeLabel = data?.range
+    ? `${formatRangeDate(data.range.start)} ~ ${formatRangeDate(data.range.end)}`
+    : "";
 
   return (
     <div className="flex h-full flex-col">
@@ -83,8 +86,18 @@ export function RankingSection() {
             </Fragment>
           ))}
           {data?.isMock ? (
-            <span className="ml-1 inline-flex items-center rounded-md bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700 ring-1 ring-amber-200">
+            <span
+              className="ml-1 inline-flex items-center rounded-md bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700 ring-1 ring-amber-200"
+              title="실 낙찰 데이터가 없어 샘플 데이터를 표시합니다."
+            >
               샘플
+            </span>
+          ) : data?.isFallback && rangeLabel ? (
+            <span
+              className="ml-1 inline-flex items-center rounded-md bg-sky-50 px-2 py-0.5 text-[11px] font-semibold text-sky-700 ring-1 ring-sky-200"
+              title={`선택 기간에 낙찰이 부족하여 최근 낙찰 기간(${rangeLabel})의 데이터를 표시합니다.`}
+            >
+              {rangeLabel}
             </span>
           ) : null}
         </div>
@@ -245,4 +258,17 @@ function fillTo<T>(items: T[], n: number): (T | null)[] {
   const out: (T | null)[] = [...items];
   while (out.length < n) out.push(null);
   return out.slice(0, n);
+}
+
+/**
+ * "yyyy-MM-dd" → "M.d" 로 압축 표시. 랭킹 헤더에 실제 데이터 기간을 노출할 때 사용.
+ */
+function formatRangeDate(iso: string): string {
+  const parts = iso.split("-");
+  if (parts.length !== 3) return iso;
+  const [, m, d] = parts;
+  const mi = Number(m);
+  const di = Number(d);
+  if (!Number.isFinite(mi) || !Number.isFinite(di)) return iso;
+  return `${mi}.${di}`;
 }

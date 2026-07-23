@@ -13,8 +13,8 @@ export type DetailTab = "info" | "bid" | "bulk";
 
 const DETAIL_TABS: { value: DetailTab; label: string }[] = [
   { value: "bid", label: "입찰하기" },
-  { value: "info", label: "개체정보" },
   { value: "bulk", label: "일괄입찰" },
+  { value: "info", label: "개체정보" },
 ];
 
 const NUMBER_FORMATTER = new Intl.NumberFormat("ko-KR");
@@ -35,6 +35,11 @@ export interface PartDetailPanelProps {
   onTabChange: (t: DetailTab) => void;
   /** `bulk` 탭 컨텐츠 슬롯 · `LiveAuctionRoom` 이 `BulkBidPanel` 을 조립해 전달 */
   bulkContent?: React.ReactNode;
+  /**
+   * 입찰하기 탭의 `BidPanel` 하단 mini chart 를 숨긴다.
+   * 부위별 뷰에서 상단에 별도 `PartMarketChart` 를 두는 경우에만 true.
+   */
+  hideMarketPanel?: boolean;
 }
 
 /**
@@ -61,6 +66,7 @@ export function PartDetailPanel({
   tab,
   onTabChange,
   bulkContent,
+  hideMarketPanel,
 }: PartDetailPanelProps) {
   // 개체(listing) 조차 선택되지 않은 상태에서는 empty state.
   // bulk 탭은 개체가 있으면 part 가 없어도 진입 가능해야 하므로 part 유무는 개별 탭 단에서 판단.
@@ -146,6 +152,7 @@ export function PartDetailPanel({
               disabledReason={disabledReason}
               onRequestLogin={onRequestLogin}
               onRequestPermission={onRequestPermission}
+              hideMarketPanel={hideMarketPanel}
             />
           ) : (
             <div className="px-4 py-8 text-center text-xs text-slate-400">

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import {
@@ -23,6 +24,7 @@ import { IndividualPartsCard } from "./IndividualPartsCard";
 import { PartSidebar } from "./PartSidebar";
 import { PartListingTable } from "./PartListingTable";
 import { PartDetailPanel, type DetailTab } from "./PartDetailPanel";
+import { PartMarketChart } from "./PartMarketChart";
 import { LoginGateOverlay } from "./LoginGateOverlay";
 import { PermissionGateOverlay } from "./PermissionGateOverlay";
 import { BulkBidPanel } from "./BulkBidPanel";
@@ -61,6 +63,14 @@ export function LiveAuctionRoom({ slug }: LiveAuctionRoomProps) {
   const slaughterHouseName = slugToName(slug);
   const queryClient = useQueryClient();
   const permission = useDealerPermission();
+  const searchParams = useSearchParams();
+  /**
+   * `/history` 등 외부에서 특정 개체를 미리 선택하고 진입할 때 사용.
+   * 예: `/auction/live/eumseong?listing=260722-401`
+   */
+  const initialListingNo = searchParams.get("listing");
+  /** 진입 시 딱 한 번만 파라미터를 소비하도록 하는 가드 (사용자 조작으로 덮이지 않게) */
+  const consumedInitialListingNoRef = useRef(false);
 
   const { data: listingsData, isLoading: listingsLoading } = useLiveListings({
     slaughterHouse: slaughterHouseName,
@@ -80,7 +90,7 @@ export function LiveAuctionRoom({ slug }: LiveAuctionRoomProps) {
   );
   const [selectedPartId, setSelectedPartId] = useState<string | null>(null);
   const [detailTab, setDetailTab] = useState<DetailTab>("info");
-  const [viewMode, setViewMode] = useState<ListingViewMode>("individual");
+  const [viewMode, setViewMode] = useState<ListingViewMode>("part");
   const [gradeFilter, setGradeFilter] = useState("");
   const [companyFilter, setCompanyFilter] = useState("");
   // 일괄입찰 대상 필터 (등급/육량)
@@ -89,12 +99,30 @@ export function LiveAuctionRoom({ slug }: LiveAuctionRoomProps) {
   const [loginPromptOpen, setLoginPromptOpen] = useState(false);
   const [permissionPromptOpen, setPermissionPromptOpen] = useState(false);
   const [myBidsOpen, setMyBidsOpen] = useState(false);
+  const [myBidsInitialRound, setMyBidsInitialRound] = useState<string | null>(
+    null,
+  );
 
   useEffect(() => {
-    if (!selectedListingId && listings.length > 0) {
+    if (listings.length === 0) return;
+
+    // `?listing=<listing_no>` 지정 시 최초 1회 우선 적용 · 못 찾으면 첫 번째 상장으로 fallback
+    if (initialListingNo && !consumedInitialListingNoRef.current) {
+      const target = listings.find((l) => l.listingNo === initialListingNo);
+      consumedInitialListingNoRef.current = true;
+      if (target) {
+        setSelectedListingId(target.id);
+        setViewMode("individual");
+        setSelectedPartId(null);
+        setDetailTab("info");
+        return;
+      }
+    }
+
+    if (!selectedListingId) {
       setSelectedListingId(listings[0].id);
     }
-  }, [listings, selectedListingId]);
+  }, [listings, selectedListingId, initialListingNo]);
 
   // 부위별 뷰: 부위 그룹 계산 + 상태 자동 초기화
   const partGroups = useMemo(() => groupPartsByName(listings), [listings]);
@@ -342,26 +370,36 @@ export function LiveAuctionRoom({ slug }: LiveAuctionRoomProps) {
     setBulkYieldFilter("");
   }, [bulkContextKey]);
 
-  // bulk 탭 진입 · 컨텍스트 이동 · 필터 변경 시 매칭 후보로 자동 재선택
+  // bulk 탭 진입 · 컨텍스트 이동 · 필터 변경 시:
+  // - 미입찰 후보만 자동 선택 (재입찰은 수동 체크 opt-in)
+  // - 이미 내 입찰이 있는 부위는 현재 bidPrice 를 input 폼에 프리필 (참고/재입찰 편의)
   useEffect(() => {
     if (detailTab !== "bulk") return;
-    bulkBid.setSelected(bulkCandidates.map(({ part }) => part.id));
+    const dealerId = permission.dealerId;
+    const autoSelectIds: string[] = [];
+    const prefillPrices = new Map<string, number>();
+    for (const { part } of bulkCandidates) {
+      if (!dealerId) {
+        autoSelectIds.push(part.id);
+        continue;
+      }
+      const myBid = part.allBids.find((b) => b.dealerId === dealerId);
+      if (myBid) {
+        prefillPrices.set(part.id, myBid.bidPrice);
+      } else {
+        autoSelectIds.push(part.id);
+      }
+    }
+    bulkBid.setSelected(autoSelectIds);
+    if (prefillPrices.size > 0) bulkBid.initializePrices(prefillPrices);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [detailTab, bulkContextKey, bulkGradeFilter, bulkYieldFilter, bulkCandidates.length]);
-
-  const handleBulkSelectAll = () => {
-    bulkBid.setSelected(bulkCandidates.map(({ part }) => part.id));
-  };
-
-  const handleBulkApplyMultiplier = (multiplier: number) => {
-    bulkBid.applyMinPriceMultiplier(multiplier, bulkMinPriceByPart);
-  };
+  }, [detailTab, bulkContextKey, bulkGradeFilter, bulkYieldFilter, bulkCandidates.length, permission.dealerId]);
 
   const handleBulkApplyPlus = (delta: number) => {
     bulkBid.applyMinPricePlus(delta, bulkMinPriceByPart);
   };
 
-  const handleBulkSubmit = () => {
+  const handleBulkSubmit = async () => {
     if (!permission.isAuthenticated || !permission.isDealer) {
       setLoginPromptOpen(true);
       return;
@@ -372,11 +410,20 @@ export function LiveAuctionRoom({ slug }: LiveAuctionRoomProps) {
     }
     if (!permission.dealerId) return;
     if (bulkBid.readySubmitItems.length === 0) return;
-    bulkBid.submit({
-      dealerId: permission.dealerId,
-      auctionId: currentRound?.id ?? null,
-      items: bulkBid.readySubmitItems,
-    });
+    try {
+      const result = await bulkBid.submitAsync({
+        dealerId: permission.dealerId,
+        auctionId: currentRound?.id ?? null,
+        items: bulkBid.readySubmitItems,
+      });
+      // 하나라도 성공했다면 개별 입찰 탭으로 자연스럽게 복귀.
+      // 실패만 있는 경우엔 사용자가 원인을 확인/재시도할 수 있도록 일괄입찰 탭에 그대로 둔다.
+      if (result.successful.length > 0) {
+        setDetailTab("bid");
+      }
+    } catch {
+      // 오류 UI 는 BulkBidPanel 의 lastError 를 통해 노출됨.
+    }
   };
 
   const bulkDisabledReason = useMemo(() => {
@@ -455,7 +502,11 @@ export function LiveAuctionRoom({ slug }: LiveAuctionRoomProps) {
         <MyBidsTrigger
           dealerId={permission.dealerId}
           listingDate={listingDate}
-          onOpen={() => setMyBidsOpen(true)}
+          allRounds={roundData?.allRounds ?? []}
+          onOpen={(roundId) => {
+            setMyBidsInitialRound(roundId);
+            setMyBidsOpen(true);
+          }}
         />
       </div>
 
@@ -464,12 +515,20 @@ export function LiveAuctionRoom({ slug }: LiveAuctionRoomProps) {
         onClose={() => setMyBidsOpen(false)}
         dealerId={permission.dealerId}
         listingDate={listingDate}
+        allRounds={roundData?.allRounds ?? []}
+        initialRoundFilter={myBidsInitialRound}
+        onNavigateListing={(listingId) => {
+          setViewMode("individual");
+          setSelectedListingId(listingId);
+          setSelectedPartId(null);
+          setDetailTab("bid");
+        }}
       />
 
       {viewMode === "part" ? (
-        <div className="mx-auto grid max-w-[1240px] grid-cols-[340px_minmax(0,1fr)_340px] items-start gap-3 px-8 py-4">
-          {/* 좌: 부위 사이드 */}
-          <div className="sticky top-[128px] h-[calc(100vh-64px-48px-32px)] min-h-[600px]">
+        <div className="mx-auto grid max-w-[1240px] grid-cols-[340px_minmax(0,1fr)_340px] items-start gap-x-3 gap-y-4 px-8 py-4">
+          {/* 좌: 부위 사이드 · row-span-2 로 상단 차트/하단 컨텐츠 두 행을 세로 관통 */}
+          <div className="sticky top-[128px] row-span-2 h-[calc(100vh-64px-48px-32px)] min-h-[600px]">
             <PartSidebar
               viewMode={viewMode}
               onViewModeChange={setViewMode}
@@ -481,7 +540,15 @@ export function LiveAuctionRoom({ slug }: LiveAuctionRoomProps) {
             />
           </div>
 
-          {/* 중: 부위 리스트 테이블 */}
+          {/* 상단 (row 1) · 시세 차트가 중+우 컬럼을 가로로 관통 (빗썸 스타일) */}
+          <div className="col-span-2">
+            <PartMarketChart
+              partName={selectedPart?.partName ?? activePartGroup?.group ?? null}
+              listing={selectedListing}
+            />
+          </div>
+
+          {/* 하단 중 (row 2) · 부위 리스트 테이블 */}
           <div>
             <PartListingTable
               group={activePartGroup}
@@ -504,7 +571,7 @@ export function LiveAuctionRoom({ slug }: LiveAuctionRoomProps) {
             />
           </div>
 
-          {/* 우: 컴팩트 상세 (sticky · 내부 스크롤은 PartDetailPanel 이 담당) */}
+          {/* 하단 우 (row 2) · 컴팩트 상세 (sticky · 내부 스크롤은 PartDetailPanel 이 담당) */}
           <div className="sticky top-[128px] max-h-[calc(100vh-128px-16px)] overflow-hidden">
             <PartDetailPanel
               listing={selectedListing}
@@ -519,6 +586,7 @@ export function LiveAuctionRoom({ slug }: LiveAuctionRoomProps) {
               onRequestPermission={() => setPermissionPromptOpen(true)}
               tab={detailTab}
               onTabChange={setDetailTab}
+              hideMarketPanel
               bulkContent={
                 <BulkBidPanel
                   selectedCount={bulkBid.selectedPartIds.size}
@@ -526,10 +594,9 @@ export function LiveAuctionRoom({ slug }: LiveAuctionRoomProps) {
                   totalWeight={bulkSummary.weight}
                   totalAmount={bulkSummary.amount}
                   readyCount={bulkBid.readySubmitItems.length}
-                  onSelectAll={handleBulkSelectAll}
-                  onClearSelection={bulkBid.clearSelected}
-                  onApplyMultiplier={handleBulkApplyMultiplier}
                   onApplyPlus={handleBulkApplyPlus}
+                  onResetPrices={bulkBid.resetPrices}
+                  showFilters
                   gradeFilter={bulkGradeFilter}
                   yieldFilter={bulkYieldFilter}
                   onGradeChange={setBulkGradeFilter}
@@ -547,9 +614,9 @@ export function LiveAuctionRoom({ slug }: LiveAuctionRoomProps) {
           </div>
         </div>
       ) : (
-        <div className="mx-auto grid max-w-[1240px] grid-cols-[340px_minmax(0,1fr)_340px] items-start gap-3 px-8 py-4">
-          {/* 좌: 개체 사이드바 */}
-          <div className="sticky top-[128px] h-[calc(100vh-64px-48px-32px)] min-h-[600px]">
+        <div className="mx-auto grid max-w-[1240px] grid-cols-[340px_minmax(0,1fr)_340px] items-start gap-x-3 gap-y-6 px-8 py-4">
+          {/* 좌: 개체 사이드바 · row-span-2 */}
+          <div className="sticky top-[128px] row-span-2 h-[calc(100vh-64px-48px-32px)] min-h-[600px]">
             <ListingSidebar
               viewMode={viewMode}
               onViewModeChange={setViewMode}
@@ -568,7 +635,15 @@ export function LiveAuctionRoom({ slug }: LiveAuctionRoomProps) {
             />
           </div>
 
-          {/* 중: 선택 개체의 부위 리스트 · 부위 행 클릭은 입찰하기 탭으로 유도 */}
+          {/* 상단 (row 1) · 시세 차트가 중+우 컬럼을 가로로 관통 */}
+          <div className="col-span-2">
+            <PartMarketChart
+              partName={selectedPart?.partName ?? selectedListing?.parts[0]?.partName ?? null}
+              listing={selectedListing}
+            />
+          </div>
+
+          {/* 하단 중 (row 2) · 선택 개체의 부위 리스트 · 부위 행 클릭은 입찰하기 탭으로 유도 */}
           <div>
             <IndividualPartsCard
               listing={selectedListing}
@@ -594,7 +669,7 @@ export function LiveAuctionRoom({ slug }: LiveAuctionRoomProps) {
             />
           </div>
 
-          {/* 우: 컴팩트 상세 (sticky · 내부 스크롤은 PartDetailPanel 이 담당) */}
+          {/* 하단 우 (row 2) · 컴팩트 상세 (sticky · 내부 스크롤은 PartDetailPanel 이 담당) */}
           <div className="sticky top-[128px] max-h-[calc(100vh-128px-16px)] overflow-hidden">
             <PartDetailPanel
               listing={selectedListing}
@@ -609,6 +684,7 @@ export function LiveAuctionRoom({ slug }: LiveAuctionRoomProps) {
               onRequestPermission={() => setPermissionPromptOpen(true)}
               tab={detailTab}
               onTabChange={setDetailTab}
+              hideMarketPanel
               bulkContent={
                 <BulkBidPanel
                   selectedCount={bulkBid.selectedPartIds.size}
@@ -616,10 +692,9 @@ export function LiveAuctionRoom({ slug }: LiveAuctionRoomProps) {
                   totalWeight={bulkSummary.weight}
                   totalAmount={bulkSummary.amount}
                   readyCount={bulkBid.readySubmitItems.length}
-                  onSelectAll={handleBulkSelectAll}
-                  onClearSelection={bulkBid.clearSelected}
-                  onApplyMultiplier={handleBulkApplyMultiplier}
                   onApplyPlus={handleBulkApplyPlus}
+                  onResetPrices={bulkBid.resetPrices}
+                  showFilters={false}
                   gradeFilter={bulkGradeFilter}
                   yieldFilter={bulkYieldFilter}
                   onGradeChange={setBulkGradeFilter}

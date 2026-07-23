@@ -26,6 +26,9 @@ export async function GET(request: NextRequest) {
         rank,
         is_winning,
         created_at,
+        auctions:auction_id (
+          round_no
+        ),
         dealers (
           id,
           name
@@ -48,7 +51,10 @@ export async function GET(request: NextRequest) {
             gender,
             status,
             closed_at,
-            marbling_score
+            marbling_score,
+            slaughter_house,
+            company_id,
+            companies:company_id ( name )
           )
         )
       `)

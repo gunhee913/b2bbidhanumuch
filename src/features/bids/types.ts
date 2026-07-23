@@ -14,6 +14,9 @@ export interface BidListing {
   status: string;
   closed_at: string | null;
   marbling_score: number | null;
+  slaughter_house?: string | null;
+  company_id?: string | null;
+  companies?: { name: string | null } | null;
 }
 
 export interface BidPart {
@@ -40,6 +43,7 @@ export interface Bid {
   rank: number | null;
   is_winning: boolean;
   created_at: string;
+  auctions?: { round_no: number | null } | null;
   dealers: BidDealer;
   cattle_parts: BidPart;
 }
@@ -61,6 +65,10 @@ export interface MyBidItem {
   time: string;
   partId: string;
   dealerId: string;
+  /** 가공업체명 */
+  companyName: string;
+  /** 공판장 이름 (예: "농협 음성") · 라이브 경매 라우팅용 */
+  slaughterHouse: string;
 }
 
 // 경매 결과
@@ -73,6 +81,8 @@ export interface AuctionResult {
   marblingScore: number | null;
   gender: string;
   weight: number;
+  /** 상장 최저단가 · 경매내역 테이블 표시용 */
+  minPrice: number;
   myBid: number;
   winningBid: number | null;
   totalAmount: number;
@@ -80,4 +90,12 @@ export interface AuctionResult {
   listingDate: string;
   closedAt: string | null;
   time: string;
+  /** 거래처 배정 조회용 · cattle_parts.id */
+  partId: string;
+  /** 가공업체명 */
+  companyName: string;
+  /** 공판장 이름 (예: "농협 음성") · 라이브 경매 라우팅용 */
+  slaughterHouse: string;
+  /** 경매 회차 번호 (1, 2, 3) · 분석용 */
+  roundNo: number | null;
 }

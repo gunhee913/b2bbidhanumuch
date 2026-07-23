@@ -73,7 +73,7 @@ export function BulkPriceCell({
   }
 
   return (
-    <div className="relative">
+    <div className="relative flex justify-end">
       <input
         type="text"
         inputMode="numeric"
@@ -82,8 +82,11 @@ export function BulkPriceCell({
         onClick={(e) => e.stopPropagation()}
         placeholder="0"
         aria-label="입찰가"
+        // 최대 6자리(999,999) · 콤마 1개 포함 최대 7 chars.
+        // 원/kg 는 100,000 단위까지 · 1,000,000 이상은 실수 입력이므로 하드 제한.
+        maxLength={7}
         className={cn(
-          "h-7 w-full border bg-white px-1.5 pr-1.5 text-right text-[11px] font-bold tabular-nums outline-none placeholder:text-slate-300 focus:border-sky-500",
+          "h-7 w-[80px] border bg-white px-1.5 text-right text-[11px] font-bold tabular-nums outline-none placeholder:text-slate-300 focus:border-sky-500",
           isBelowMin
             ? "border-amber-400 text-amber-700"
             : "border-slate-200 text-slate-900",

@@ -162,6 +162,9 @@ export interface PartPriceSeriesResponse {
 export interface FetchPartPriceSeriesParams {
   partName: string;
   grade: string;
+  /** 육량 등급 필터 (A/B/C). 미지정 시 전체 육량 합산. */
+  yieldGrade?: "A" | "B" | "C" | null;
+  /** 조회 일수 (max 90). */
   days?: number;
 }
 
@@ -173,6 +176,7 @@ export async function fetchPartPriceSeries(
     grade: params.grade,
   });
   if (params.days) search.set("days", String(params.days));
+  if (params.yieldGrade) search.set("yield", params.yieldGrade);
   return await getJson<PartPriceSeriesResponse>(
     `/api/market/part-price-series?${search.toString()}`,
   );

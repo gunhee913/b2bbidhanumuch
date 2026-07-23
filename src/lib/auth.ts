@@ -195,7 +195,63 @@ export const authOptions: NextAuthOptions = {
     maxAge: 24 * 60 * 60, // 24시간
   },
   secret: process.env.NEXTAUTH_SECRET,
+  cookies: buildAuthCookies(),
 };
+
+/**
+ * NextAuth 쿠키 이름 구성.
+ *
+ * 브라우저는 localhost:3000 / :3001 / :3002 를 모두 같은 `localhost` 도메인으로 취급해
+ * 쿠키 저장소를 공유한다. 그래서 여러 포트에서 동시에 개발할 때 한쪽에서 로그인하면
+ * 다른 쪽 세션이 덮어써지거나 로그아웃 시 함께 날아가는 문제가 발생한다.
+ *
+ * 개발 환경에서는 `NEXT_PORT` 또는 `PORT` 값을 쿠키 이름에 접미사로 붙여
+ * 포트별로 독립된 세션 쿠키를 사용하도록 만든다.
+ * 예) `next-auth.session-token.p3001`
+ *
+ * 프로덕션 (`NODE_ENV=production`) 에서는 NextAuth 기본 이름을 그대로 사용한다.
+ */
+function buildAuthCookies() {
+  const isProd = process.env.NODE_ENV === "production";
+  if (isProd) return undefined;
+
+  const port = process.env.NEXT_PORT || process.env.PORT || "3000";
+  const suffix = `.p${port}`;
+
+  const baseOptions = {
+    httpOnly: true,
+    sameSite: "lax" as const,
+    path: "/",
+    secure: false,
+  };
+
+  return {
+    sessionToken: {
+      name: `next-auth.session-token${suffix}`,
+      options: baseOptions,
+    },
+    callbackUrl: {
+      name: `next-auth.callback-url${suffix}`,
+      options: baseOptions,
+    },
+    csrfToken: {
+      name: `next-auth.csrf-token${suffix}`,
+      options: baseOptions,
+    },
+    pkceCodeVerifier: {
+      name: `next-auth.pkce.code_verifier${suffix}`,
+      options: { ...baseOptions, maxAge: 900 },
+    },
+    state: {
+      name: `next-auth.state${suffix}`,
+      options: { ...baseOptions, maxAge: 900 },
+    },
+    nonce: {
+      name: `next-auth.nonce${suffix}`,
+      options: baseOptions,
+    },
+  };
+}
 
 // 타입 확장
 interface AuthUser {

@@ -30,6 +30,12 @@ export interface BidPanelProps {
   disabledReason?: string;
   onRequestLogin: () => void;
   onRequestPermission: () => void;
+  /**
+   * 하단 시세 mini chart (`MarketStatsPanel`) 를 숨김.
+   * 부위별 뷰는 우측 컬럼 상단에 `PartMarketChart` 를 별도로 두므로
+   * BidPanel 내부 mini chart 는 중복이라 이 옵션으로 끈다.
+   */
+  hideMarketPanel?: boolean;
 }
 
 export function BidPanel({
@@ -43,6 +49,7 @@ export function BidPanel({
   disabledReason,
   onRequestLogin,
   onRequestPermission,
+  hideMarketPanel,
 }: BidPanelProps) {
   const queryClient = useQueryClient();
   const createBid = useCreateBid();
@@ -274,11 +281,13 @@ export function BidPanel({
         </>
       )}
 
-      <MarketStatsPanel
-        allListings={allListings}
-        currentListing={listing}
-        currentPartName={selectedPart.partName}
-      />
+      {!hideMarketPanel ? (
+        <MarketStatsPanel
+          allListings={allListings}
+          currentListing={listing}
+          currentPartName={selectedPart.partName}
+        />
+      ) : null}
     </div>
   );
 }
@@ -471,7 +480,7 @@ function BidActionButtons({
 
   if (hasBid) {
     return (
-      <div className="grid grid-cols-[1fr_auto] gap-2">
+      <div className="grid grid-cols-[1.6fr_1fr] gap-2">
         <button
           type="button"
           onClick={onSubmit}
@@ -487,9 +496,9 @@ function BidActionButtons({
           type="button"
           onClick={onCancel}
           disabled={disabled || isCancelling}
-          className="h-11 border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 transition-colors hover:border-slate-400 hover:bg-slate-50 disabled:opacity-40"
+          className="h-11 border border-slate-300 bg-white text-sm font-semibold text-slate-700 transition-colors hover:border-rose-300 hover:bg-rose-50 hover:text-rose-600 disabled:opacity-40"
         >
-          {isCancelling ? "취소 중..." : "취소"}
+          {isCancelling ? "취소 중..." : "입찰취소"}
         </button>
       </div>
     );

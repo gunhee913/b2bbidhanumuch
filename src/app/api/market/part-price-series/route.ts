@@ -9,7 +9,8 @@ const supabase = getAdminClient();
  * Query:
  *   partName: 부위 그룹명 (좌/우 통합 · 예: "등심")
  *   grade:    등급 키 (예: "1++(9)", "1+", "1", "2", "3")
- *   days:     조회 일수 (default 7)
+ *   yield:    (선택) 육량 등급 · "A" | "B" | "C" · 지정 시 grade 문자열 suffix 로 매칭
+ *   days:     조회 일수 (default 7, max 730)
  *
  * Response:
  *   { series: { date, avg, min, max, count }[], partName, grade, days }
@@ -19,9 +20,14 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const partName = searchParams.get("partName");
     const gradeKey = searchParams.get("grade");
+    const yieldParamRaw = searchParams.get("yield");
+    const yieldFilter =
+      yieldParamRaw === "A" || yieldParamRaw === "B" || yieldParamRaw === "C"
+        ? yieldParamRaw
+        : null;
     const days = Math.max(
       1,
-      Math.min(30, parseInt(searchParams.get("days") || "7", 10)),
+      Math.min(730, parseInt(searchParams.get("days") || "7", 10)),
     );
 
     if (!partName || !gradeKey) {
@@ -89,12 +95,26 @@ export async function GET(request: NextRequest) {
       if (!price || price <= 0) continue;
 
       const listingRaw = row.cattle_listings as unknown as
-        | { listing_date: string | null }
-        | { listing_date: string | null }[]
+        | {
+            listing_date: string | null;
+            grade: string | null;
+          }
+        | {
+            listing_date: string | null;
+            grade: string | null;
+          }[]
         | null;
       const listing = Array.isArray(listingRaw) ? listingRaw[0] : listingRaw;
       const date = listing?.listing_date;
       if (!date) continue;
+
+      // 육량 후처리 필터 · grade 문자열 마지막 문자가 A/B/C 인지 확인.
+      // Supabase ilike 는 `A/B/C` suffix 매칭이 애매해 클라이언트 필터로 처리.
+      if (yieldFilter) {
+        const g = (listing?.grade ?? "").trim();
+        const suffix = g.match(/[ABC]$/)?.[0] ?? null;
+        if (suffix !== yieldFilter) continue;
+      }
 
       const acc = dailyMap.get(date) ?? {
         sum: 0,

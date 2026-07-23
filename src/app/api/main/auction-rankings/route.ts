@@ -3,7 +3,7 @@ import { getAdminClient } from "@/lib/supabase-admin";
 
 const supabase = getAdminClient();
 
-const ACTIVE_STATUSES = ["approved", "auction", "completed"] as const;
+const ACTIVE_STATUSES = ["approved", "auction", "completed", "closed"] as const;
 const VALID_PERIODS = ["day", "week", "month"] as const;
 type Period = (typeof VALID_PERIODS)[number];
 
@@ -174,15 +174,10 @@ function aggregate(parts: PartRow[]) {
     (p) => p.isWinning && p.bidAmount > 0 && p.bidPrice > 0,
   );
 
-  const bestByAmount = new Map<string, PartRow>();
-  winningParts.forEach((bid) => {
-    const prev = bestByAmount.get(bid.partName);
-    if (!prev || bid.bidAmount > prev.bidAmount) {
-      bestByAmount.set(bid.partName, bid);
-    }
-  });
-
-  const byAmount = Array.from(bestByAmount.values())
+  // 총경락금액 랭킹은 "개별 낙찰 건" 기준으로 상위 N 개를 보여준다.
+  // (같은 부위가 여러 건 팔렸다면 각각 별개 랭킹으로 노출)
+  const byAmount = winningParts
+    .slice()
     .sort((a, b) => b.bidAmount - a.bidAmount)
     .slice(0, TOP_N)
     .map(({ isWinning: _isWinning, ...rest }) => rest);
@@ -270,6 +265,11 @@ function buildMockParts(): PartRow[] {
   return parts;
 }
 
+/**
+ * 현재 기간에 낙찰이 `TOP_N` 미만이면 화면이 텅 비어 보이므로,
+ * 최근 낙찰이 있었던 시점을 기준으로 좀 더 넓은 기간을 다시 조회한다.
+ * 실 낙찰이 하나라도 있으면 그 데이터로 표시하되 `isFallback: true` 로 표시.
+ */
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -286,16 +286,28 @@ export async function GET(request: NextRequest) {
     let isFallback = false;
     let isMock = false;
 
-    const hasWinning = parts.some((p) => p.isWinning);
-    if (!hasWinning) {
+    const winningCount = parts.filter((p) => p.isWinning).length;
+    if (winningCount < TOP_N) {
       const latest = await findLatestBidListingDate(slaughterHouse);
       if (latest) {
         const [y, m, d] = latest.split("-").map(Number);
         const anchor = new Date(y, m - 1, d);
         const fallbackRange = computeRange(anchor, period);
-        range = fallbackRange;
-        parts = await fetchAllParts(range, slaughterHouse);
-        isFallback = parts.some((p) => p.isWinning);
+        // 다른 기간을 조회해서 실 낙찰이 더 많으면 교체하고 fallback 표시
+        const sameRange =
+          fallbackRange.start === range.start && fallbackRange.end === range.end;
+        if (!sameRange) {
+          const fallbackParts = await fetchAllParts(
+            fallbackRange,
+            slaughterHouse,
+          );
+          const fallbackCount = fallbackParts.filter((p) => p.isWinning).length;
+          if (fallbackCount > winningCount) {
+            range = fallbackRange;
+            parts = fallbackParts;
+            isFallback = true;
+          }
+        }
       }
     }
 

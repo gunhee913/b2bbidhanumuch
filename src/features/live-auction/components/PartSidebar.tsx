@@ -15,8 +15,8 @@ function countSettled(entry: PartGroupEntry): number {
 }
 
 const VIEW_MODE_TABS: { value: ListingViewMode; label: string }[] = [
-  { value: "individual", label: "개체별" },
   { value: "part", label: "부위별" },
+  { value: "individual", label: "개체별" },
   { value: "favorite", label: "관심" },
 ];
 
@@ -88,27 +88,29 @@ export function PartSidebar({
         </ul>
       </nav>
 
-      {/* 상단: 부위 카운트 + 총 낙찰 건수 */}
-      <div className="flex items-center justify-between border-b border-slate-100 px-3 py-2">
+      {/* 상단: 부위 카운트 + 총 낙찰 건수 · 아래 행과 동일 grid 로 세로 정렬 */}
+      <div className="grid grid-cols-[minmax(0,1fr)_56px_68px] items-baseline gap-x-5 border-b border-slate-100 bg-slate-50/60 px-4 py-2">
         <span className="text-[11px] font-semibold text-slate-500">부위</span>
-        <span className="text-[11px] font-bold tabular-nums text-slate-700">
-          {groups.length}
-          <span className="ml-0.5 font-medium text-slate-400">종</span>
-          <span className="mx-1 text-slate-300">·</span>
-          <span className="tabular-nums">{totalPartCount}</span>
-          <span className="ml-0.5 font-medium text-slate-400">건</span>
-          <span className="mx-1 text-slate-300">·</span>
-          <span
-            className={cn(
-              "tabular-nums",
-              totalSettled > 0 ? "text-sky-700" : "text-slate-400",
-            )}
-          >
-            낙찰 {totalSettled}
+        <span className="flex items-baseline justify-end gap-0.5 text-[11px] font-bold text-slate-700">
+          <span className="text-slate-400">총</span>
+          <span className="inline-block w-6 text-right tabular-nums">
+            {totalPartCount}
+          </span>
+          <span className="text-[10px] font-medium text-slate-400">건</span>
+        </span>
+        <span
+          className={cn(
+            "flex items-baseline justify-end gap-0.5 text-[11px] font-bold",
+            totalSettled > 0 ? "text-sky-700" : "text-slate-400",
+          )}
+        >
+          <span>낙찰</span>
+          <span className="inline-block w-5 text-right tabular-nums">
+            {totalSettled}
           </span>
           <span
             className={cn(
-              "ml-0.5 font-medium",
+              "text-[10px] font-medium",
               totalSettled > 0 ? "text-sky-500/70" : "text-slate-400",
             )}
           >
@@ -139,35 +141,38 @@ export function PartSidebar({
                     onClick={() => onSelect(g.group)}
                     aria-pressed={isActive}
                     className={cn(
-                      "flex w-full cursor-pointer items-center justify-between gap-2 px-4 py-3 text-left transition-colors",
+                      "grid w-full cursor-pointer grid-cols-[minmax(0,1fr)_56px_68px] items-baseline gap-x-5 px-4 py-3 text-left transition-colors",
                       isActive ? "bg-slate-100" : "hover:bg-slate-50",
                     )}
                   >
-                    <span className="text-[13px] font-bold -tracking-[0.01em] text-sky-700">
+                    <span className="truncate text-[13px] font-bold -tracking-[0.01em] text-sky-700">
                       {g.group}
                     </span>
-                    <span className="flex shrink-0 items-baseline gap-1 text-[11px] font-semibold tabular-nums">
-                      <span className="text-slate-500">
+                    <span className="flex items-baseline justify-end gap-0.5 text-[11px] font-semibold text-slate-500">
+                      <span className="inline-block w-6 text-right tabular-nums">
                         {g.count}
-                        <span className="ml-0.5 text-[10px] font-medium text-slate-400">
-                          건
-                        </span>
                       </span>
-                      <span className="text-slate-300">·</span>
+                      <span className="text-[10px] font-medium text-slate-400">
+                        건
+                      </span>
+                    </span>
+                    <span
+                      className={cn(
+                        "flex items-baseline justify-end gap-0.5 text-[11px] font-semibold",
+                        settled > 0 ? "text-sky-700" : "text-slate-400",
+                      )}
+                    >
+                      <span>낙찰</span>
+                      <span className="inline-block w-5 text-right tabular-nums">
+                        {settled}
+                      </span>
                       <span
                         className={cn(
-                          settled > 0 ? "text-sky-700" : "text-slate-400",
+                          "text-[10px] font-medium",
+                          settled > 0 ? "text-sky-500/70" : "text-slate-400",
                         )}
                       >
-                        낙찰 {settled}
-                        <span
-                          className={cn(
-                            "ml-0.5 text-[10px] font-medium",
-                            settled > 0 ? "text-sky-500/70" : "text-slate-400",
-                          )}
-                        >
-                          건
-                        </span>
+                        건
                       </span>
                     </span>
                   </button>

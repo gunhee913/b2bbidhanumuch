@@ -19,7 +19,6 @@ import { CompactFilterPill } from "./CompactFilterPill";
  */
 
 const NUMBER_FORMATTER = new Intl.NumberFormat("ko-KR");
-const MULTIPLIER_PRESETS = [1, 3, 5, 10] as const;
 const PLUS_PRESETS = [1, 10, 100, 1000] as const;
 
 export const BULK_GRADE_OPTIONS = [
@@ -45,11 +44,12 @@ export interface BulkBidPanelProps {
   totalAmount: number;
   /** 실제 서버 제출 가능한 항목 수 (선택되고 가격이 입력된 것) */
   readyCount: number;
-  onSelectAll: () => void;
-  onClearSelection: () => void;
-  onApplyMultiplier: (multiplier: number) => void;
   /** 최저단가 + 절대금액 가산 · 예: 100 → 최저단가 +100원 */
   onApplyPlus: (delta: number) => void;
+  /** 편집한 내 입찰가 전체 초기화 (선택 상태는 유지) */
+  onResetPrices: () => void;
+  /** 등급/육량 필터 노출 여부 · 개체별 뷰에서는 등급/육량이 모두 동일하므로 숨김 */
+  showFilters?: boolean;
   /** 등급/육량 필터 · 부모(LiveAuctionRoom)에서 후보 좁히기 */
   gradeFilter: string;
   yieldFilter: string;
@@ -71,10 +71,9 @@ export function BulkBidPanel({
   totalWeight,
   totalAmount,
   readyCount,
-  onSelectAll,
-  onClearSelection,
-  onApplyMultiplier,
   onApplyPlus,
+  onResetPrices,
+  showFilters = true,
   gradeFilter,
   yieldFilter,
   onGradeChange,
@@ -96,6 +95,16 @@ export function BulkBidPanel({
     const n = parsePlusInput(plusInput);
     if (n == null) return;
     onApplyPlus(n);
+  };
+
+  /** 프리셋 버튼: 입력폼의 현재 값에 `delta` 를 누적. 왼쪽 테이블에는 반영 X. */
+  const addToPlusInput = (delta: number) => {
+    setPlusInput((prev) => {
+      const current = parsePlusInput(prev) ?? 0;
+      const next = current + delta;
+      if (next <= 0) return "";
+      return NUMBER_FORMATTER.format(next);
+    });
   };
 
   const submitLabel = useMemo(() => {
@@ -177,87 +186,41 @@ export function BulkBidPanel({
               : "-"}
           </span>
         </div>
-
-        <div className="mt-2.5 flex gap-1.5">
-          <button
-            type="button"
-            onClick={onSelectAll}
-            disabled={disabled || totalCandidates === 0}
-            className="flex-1 border border-slate-200 bg-white px-2 py-1 text-[11px] font-semibold text-slate-700 hover:border-slate-300 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            전체 선택
-          </button>
-          <button
-            type="button"
-            onClick={onClearSelection}
-            disabled={disabled || selectedCount === 0}
-            className="flex-1 border border-slate-200 bg-white px-2 py-1 text-[11px] font-semibold text-slate-700 hover:border-slate-300 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            선택 해제
-          </button>
-        </div>
       </section>
 
-      {/* Section 2 · 대상 필터 · 등급 / 육량 · 후보를 좁혀 자동 재선택 */}
-      <section>
-        <h4 className="mb-1.5 text-[11px] font-semibold text-slate-500">
-          대상 필터
-        </h4>
-        <div className="flex flex-wrap gap-1.5">
-          <CompactFilterPill
-            value={gradeFilter}
-            onChange={onGradeChange}
-            label="등급"
-            options={BULK_GRADE_OPTIONS}
-          />
-          <CompactFilterPill
-            value={yieldFilter}
-            onChange={onYieldChange}
-            label="육량"
-            options={BULK_YIELD_OPTIONS}
-          />
-        </div>
-      </section>
+      {/* Section 2 · 대상 필터 · 등급 / 육량 · 후보를 좁혀 자동 재선택 · 부위별 뷰에서만 노출 */}
+      {showFilters ? (
+        <section>
+          <h4 className="mb-1.5 text-[11px] font-semibold text-slate-500">
+            대상 필터
+          </h4>
+          <div className="flex flex-wrap gap-1.5">
+            <CompactFilterPill
+              value={gradeFilter}
+              onChange={onGradeChange}
+              label="등급"
+              options={BULK_GRADE_OPTIONS}
+            />
+            <CompactFilterPill
+              value={yieldFilter}
+              onChange={onYieldChange}
+              label="육량"
+              options={BULK_YIELD_OPTIONS}
+            />
+          </div>
+        </section>
+      ) : null}
 
-      {/* Section 3 · 최저단가 대비 (%) */}
-      <section>
-        <h4 className="mb-1.5 text-[11px] font-semibold text-slate-500">
-          최저단가 대비 (%)
-        </h4>
-        <div className="grid grid-cols-4 gap-1">
-          {MULTIPLIER_PRESETS.map((pct) => (
-            <button
-              key={pct}
-              type="button"
-              onClick={() => onApplyMultiplier(1 + pct / 100)}
-              disabled={disabled || selectedCount === 0}
-              className="h-8 border border-slate-200 bg-white text-[11px] font-bold tabular-nums text-slate-700 hover:border-sky-400 hover:text-sky-700 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              +{pct}%
-            </button>
-          ))}
-        </div>
-      </section>
-
-      {/* Section 4 · 최저단가 대비 (+원) · 프리셋 + 직접입력 */}
+      {/* Section 3 · 최저단가 대비 (+원)
+       *   프리셋 버튼(+1/+10/+100/+1,000)은 입력폼 값에 누적만 하고
+       *   `적용` 버튼을 눌러야 실제로 왼쪽 테이블에 반영된다.
+       *   구성: [입력폼 · 적용 · 초기화] · [+1] [+10] [+100] [+1,000]
+       */}
       <section>
         <h4 className="mb-1.5 text-[11px] font-semibold text-slate-500">
           최저단가 대비 (+원)
         </h4>
-        <div className="grid grid-cols-4 gap-1">
-          {PLUS_PRESETS.map((won) => (
-            <button
-              key={won}
-              type="button"
-              onClick={() => onApplyPlus(won)}
-              disabled={disabled || selectedCount === 0}
-              className="h-8 border border-slate-200 bg-white text-[11px] font-bold tabular-nums text-slate-700 hover:border-sky-400 hover:text-sky-700 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              +{NUMBER_FORMATTER.format(won)}
-            </button>
-          ))}
-        </div>
-        <div className="mt-1.5 flex gap-1.5">
+        <div className="flex gap-1.5">
           <div className="relative flex-1">
             <span className="pointer-events-none absolute inset-y-0 left-2 flex items-center text-[11px] font-bold text-slate-400">
               +
@@ -284,6 +247,32 @@ export function BulkBidPanel({
           >
             적용
           </button>
+          <button
+            type="button"
+            onClick={() => {
+              onResetPrices();
+              setPlusInput("");
+            }}
+            disabled={disabled || (readyCount === 0 && !plusInput.trim())}
+            className="h-8 px-2.5 border border-slate-200 bg-white text-[11px] font-bold text-slate-600 hover:border-slate-300 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-40"
+            title="입력폼 · 편집한 내 입찰가 초기화"
+          >
+            초기화
+          </button>
+        </div>
+        <div className="mt-1.5 grid grid-cols-4 gap-1">
+          {PLUS_PRESETS.map((won) => (
+            <button
+              key={won}
+              type="button"
+              onClick={() => addToPlusInput(won)}
+              disabled={disabled || selectedCount === 0}
+              className="h-8 border border-slate-200 bg-white text-[11px] font-bold tabular-nums text-slate-700 hover:border-sky-400 hover:text-sky-700 disabled:cursor-not-allowed disabled:opacity-40"
+              title={`입력폼에 +${NUMBER_FORMATTER.format(won)}원 누적`}
+            >
+              +{NUMBER_FORMATTER.format(won)}
+            </button>
+          ))}
         </div>
       </section>
 

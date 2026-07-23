@@ -21,8 +21,8 @@ const GRADE_OPTIONS = [
 export type ListingViewMode = "individual" | "part" | "favorite";
 
 const VIEW_MODE_TABS: { value: ListingViewMode; label: string }[] = [
-  { value: "individual", label: "개체별" },
   { value: "part", label: "부위별" },
+  { value: "individual", label: "개체별" },
   { value: "favorite", label: "관심" },
 ];
 

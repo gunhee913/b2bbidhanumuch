@@ -80,6 +80,26 @@ export function useBulkBid(contextKey: string | null) {
     setPricesByPartId(new Map());
   }, []);
 
+  /**
+   * 여러 partId 의 초기 가격을 한번에 설정.
+   * 이미 값이 있는 partId 는 사용자가 편집한 것으로 간주해 유지 (사용자 편집 우선).
+   * 컨텍스트 최초 진입 시 "이미 내 입찰이 있는 부위" 의 현재 bidPrice 프리필 용도.
+   */
+  const initializePrices = useCallback(
+    (initialPricesMap: Map<string, number>) => {
+      setPricesByPartId((prev) => {
+        const next = new Map(prev);
+        initialPricesMap.forEach((price, id) => {
+          if (!next.has(id) && price > 0) {
+            next.set(id, Math.round(price));
+          }
+        });
+        return next;
+      });
+    },
+    [],
+  );
+
   const setPrice = useCallback((partId: string, price: number | null) => {
     setPricesByPartId((prev) => {
       const next = new Map(prev);
@@ -249,6 +269,7 @@ export function useBulkBid(contextKey: string | null) {
     // actions · pricing
     setPrice,
     resetPrices,
+    initializePrices,
     applyFlatPrice,
     applyMinPriceMultiplier,
     applyMinPricePlus,
