@@ -371,6 +371,19 @@ type OutcomeFilter = "all" | "won" | "lost";
 const compareListingNo = (a: string, b: string) =>
   a.localeCompare(b, "ko", { numeric: true });
 
+/**
+ * 부위별 그룹 키/라벨 정규화.
+ * 좌/우 구분 접미어를 제거해서 동일 부위로 통합.
+ *
+ * 예:
+ * - "등심(좌)"  → "등심"
+ * - "등심(우1)" → "등심"
+ * - "채끝(좌)"  → "채끝"
+ * - "치마"      → "치마" (그대로)
+ */
+const normalizePartName = (name: string): string =>
+  name.replace(/\s*\([좌우][^)]*\)\s*$/, "").trim();
+
 export function MyBidsDrawer({
   open,
   onClose,
@@ -505,22 +518,29 @@ export function MyBidsDrawer({
         compareListingNo(a.listing.listingNo, b.listing.listingNo),
       );
 
-    // 부위별 그룹 · 부위번호 오름차순, 내부는 상장번호 오름차순
+    // 부위별 그룹 · 좌/우 구분(등심(좌)/등심(우))은 하나의 "등심" 으로 통합.
+    // 그룹 key = 정규화된 이름 · 대표 partNo 는 최소값(첫 번째 부위번호) 을 사용.
     const partMap = new Map<
       string,
       { partName: string; partNo: number; bids: MyBidEntry[] }
     >();
     target.forEach((b) => {
       if (!b.part || !b.listing) return;
-      const key = b.part.partName;
-      if (!partMap.has(key)) {
-        partMap.set(key, {
-          partName: b.part.partName,
+      const normalized = normalizePartName(b.part.partName);
+      const existing = partMap.get(normalized);
+      if (!existing) {
+        partMap.set(normalized, {
+          partName: normalized,
           partNo: b.part.partNo,
-          bids: [],
+          bids: [b],
         });
+      } else {
+        existing.bids.push(b);
+        // 같은 그룹 내 최소 부위번호를 대표 정렬 키로 유지
+        if (b.part.partNo < existing.partNo) {
+          existing.partNo = b.part.partNo;
+        }
       }
-      partMap.get(key)!.bids.push(b);
     });
     const partGroups = Array.from(partMap.values())
       .map((g) => ({

@@ -11,6 +11,8 @@ import {
 import { useDealerPermission } from "../hooks/useDealerPermission";
 import { useLiveListings } from "../hooks/useLiveListings";
 import { useCurrentRound } from "../hooks/useCurrentRound";
+import { useSubMenuHidden } from "../hooks/useSubMenuHidden";
+import { cn } from "@/lib/utils";
 import { useRealtimeBids } from "@/hooks/useRealtimeBids";
 import { useRealtimeAuctions } from "@/hooks/useRealtimeAuctions";
 import { RoundStickyBar } from "./RoundStickyBar";
@@ -64,6 +66,23 @@ export function LiveAuctionRoom({ slug }: LiveAuctionRoomProps) {
   const queryClient = useQueryClient();
   const permission = useDealerPermission();
   const searchParams = useSearchParams();
+  const subMenuHidden = useSubMenuHidden();
+
+  /**
+   * 서브메뉴 노출 여부에 따라 sticky/fixed 요소들의 top 을 반응시킨다.
+   * - 노출 · 64(MainHeader) + 48(SubMenu) + 16(padding) = 128
+   * - 숨김 · 64 + 16 = 80
+   * 사이드바/디테일 패널의 height 계산도 서브메뉴 두께(48px)만큼 확장.
+   */
+  const stickyTopClass = subMenuHidden ? "top-[80px]" : "top-[128px]";
+  const sidebarHeightClass = subMenuHidden
+    ? "h-[calc(100vh-64px-32px)]"
+    : "h-[calc(100vh-64px-48px-32px)]";
+  const detailMaxHeightClass = subMenuHidden
+    ? "max-h-[calc(100vh-80px-16px)]"
+    : "max-h-[calc(100vh-128px-16px)]";
+  const floatingTopClass = subMenuHidden ? "top-20" : "top-32";
+  const stickyTransition = "transition-[top,max-height,height] duration-200 ease-out";
   /**
    * `/history` 등 외부에서 특정 개체를 미리 선택하고 진입할 때 사용.
    * 예: `/auction/live/eumseong?listing=260722-401`
@@ -493,7 +512,13 @@ export function LiveAuctionRoom({ slug }: LiveAuctionRoomProps) {
       <RoundStickyBar activeSlug={slug} />
 
       {/* 오른쪽 사이드 컬럼 · 회차 카드 + 나의 입찰 트리거 stack */}
-      <div className="pointer-events-none fixed right-8 top-32 z-30 flex flex-col gap-3">
+      <div
+        className={cn(
+          "pointer-events-none fixed right-8 z-30 flex flex-col gap-3",
+          floatingTopClass,
+          stickyTransition,
+        )}
+      >
         <RoundFloatingCard
           activeSlug={slug}
           currentRound={roundData?.currentRound ?? null}
@@ -528,7 +553,14 @@ export function LiveAuctionRoom({ slug }: LiveAuctionRoomProps) {
       {viewMode === "part" ? (
         <div className="mx-auto grid max-w-[1240px] grid-cols-[340px_minmax(0,1fr)_340px] items-start gap-x-3 gap-y-4 px-8 py-4">
           {/* 좌: 부위 사이드 · row-span-2 로 상단 차트/하단 컨텐츠 두 행을 세로 관통 */}
-          <div className="sticky top-[128px] row-span-2 h-[calc(100vh-64px-48px-32px)] min-h-[600px]">
+          <div
+            className={cn(
+              "sticky row-span-2 min-h-[600px]",
+              stickyTopClass,
+              sidebarHeightClass,
+              stickyTransition,
+            )}
+          >
             <PartSidebar
               viewMode={viewMode}
               onViewModeChange={setViewMode}
@@ -572,7 +604,14 @@ export function LiveAuctionRoom({ slug }: LiveAuctionRoomProps) {
           </div>
 
           {/* 하단 우 (row 2) · 컴팩트 상세 (sticky · 내부 스크롤은 PartDetailPanel 이 담당) */}
-          <div className="sticky top-[128px] max-h-[calc(100vh-128px-16px)] overflow-hidden">
+          <div
+            className={cn(
+              "sticky overflow-hidden",
+              stickyTopClass,
+              detailMaxHeightClass,
+              stickyTransition,
+            )}
+          >
             <PartDetailPanel
               listing={selectedListing}
               part={selectedPart}
@@ -616,7 +655,14 @@ export function LiveAuctionRoom({ slug }: LiveAuctionRoomProps) {
       ) : (
         <div className="mx-auto grid max-w-[1240px] grid-cols-[340px_minmax(0,1fr)_340px] items-start gap-x-3 gap-y-6 px-8 py-4">
           {/* 좌: 개체 사이드바 · row-span-2 */}
-          <div className="sticky top-[128px] row-span-2 h-[calc(100vh-64px-48px-32px)] min-h-[600px]">
+          <div
+            className={cn(
+              "sticky row-span-2 min-h-[600px]",
+              stickyTopClass,
+              sidebarHeightClass,
+              stickyTransition,
+            )}
+          >
             <ListingSidebar
               viewMode={viewMode}
               onViewModeChange={setViewMode}
@@ -670,7 +716,14 @@ export function LiveAuctionRoom({ slug }: LiveAuctionRoomProps) {
           </div>
 
           {/* 하단 우 (row 2) · 컴팩트 상세 (sticky · 내부 스크롤은 PartDetailPanel 이 담당) */}
-          <div className="sticky top-[128px] max-h-[calc(100vh-128px-16px)] overflow-hidden">
+          <div
+            className={cn(
+              "sticky overflow-hidden",
+              stickyTopClass,
+              detailMaxHeightClass,
+              stickyTransition,
+            )}
+          >
             <PartDetailPanel
               listing={selectedListing}
               part={selectedPart}

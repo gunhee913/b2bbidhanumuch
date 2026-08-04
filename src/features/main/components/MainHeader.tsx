@@ -27,7 +27,7 @@ const GNB_ITEMS: GnbItem[] = [
   { label: "경매장", href: "/auction/live" },
   { label: "경매내역", href: "/history" },
   { label: "배송지시", href: "/delivery", dealerOnly: true },
-  { label: "시세·동향", href: "/market" },
+  { label: "시세·동향", href: "/insight" },
 ];
 
 export function MainHeader() {
@@ -215,7 +215,7 @@ function AuthMenu() {
  * 현재 pathname 이 GNB 항목의 활성 상태인지 판정.
  *
  * - 정확히 일치하거나, 하위 경로(`/history/xxx`, `/auction/live/xxx`) 인 경우 활성
- * - 배송지시(`/delivery`) · 시세동향(`/market`) 등도 하위 경로 포함
+ * - 배송지시(`/delivery`) · 시세동향(`/insight`) 등도 하위 경로 포함
  */
 function isGnbActive(pathname: string | null, href: string): boolean {
   if (!pathname) return false;
@@ -226,13 +226,13 @@ function isGnbActive(pathname: string | null, href: string): boolean {
 /**
  * PC 웹에서 사용할 callbackUrl 을 구성한다.
  *
- * - `/main` `/history` `/delivery` 같은 PC 전용 경로는 그대로 유지
+ * - `/main` `/history` `/delivery` `/insight` 같은 PC 전용 경로는 그대로 유지
  * - `/` (모바일 root) · `/login` · `/signup` · 그 외 예상 밖 경로는 안전하게 `/main` 으로 폴백
  * - 모바일 앱 라우트(`/bids`, `/trade`, `/market` 등) 로 로그인 후 튕겨나가지 않게 방지
  */
 function buildPcCallbackUrl(pathname: string | null): string {
   if (!pathname) return "/main";
-  const PC_ROUTE_PREFIXES = ["/main", "/history", "/delivery"];
+  const PC_ROUTE_PREFIXES = ["/main", "/history", "/delivery", "/insight"];
   if (PC_ROUTE_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`))) {
     return pathname;
   }

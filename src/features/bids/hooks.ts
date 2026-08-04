@@ -49,6 +49,7 @@ export function useMyBidsWithStatus(dealerId: string | null) {
       dealerId: bid.dealer_id,
       companyName: listing?.companies?.name || '',
       slaughterHouse: listing?.slaughter_house || '',
+      roundNo: bid.auctions?.round_no ?? null,
     };
   });
   

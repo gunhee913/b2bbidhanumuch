@@ -27,11 +27,10 @@ const KRW = new Intl.NumberFormat("ko-KR");
  *
  * 섹션 구성:
  * 1. 기간 필터 (프리셋 이번주~올해)
- * 2. KPI 8 카드 · 참여 · 낙찰 성과 지표 · 일부 카드에 sparkline
- * 3. 회차별 낙찰률 (1/2/3차) + 요일별 낙찰 패턴
- * 4. 부위별 / 등급별 낙찰단가 테이블
- * 5. 분포 도넛 (등급/부위/가공업체)
- * 6. 미낙찰 분석 (TOP 5 부위 · 등급)
+ * 2. KPI 4 카드 · 입찰 · 낙찰률 · 평균단가 · 총 낙찰금액
+ * 3. 분포 도넛 (등급 / 부위 / 가공업체) · 기타는 hover 시 세부
+ * 4. 낙찰 상세 통합 테이블 · 부위별 ↔ 등급별 탭 · 육량통합 토글
+ *    - 각 행 확장 시 · 반대축 세부 + 요일별 평균단가 차트
  */
 export function AuctionAnalysisPanel({
   results,
@@ -105,31 +104,6 @@ export function AuctionAnalysisPanel({
   }, [filtered]);
 
   /**
-   * P2 · 회차별 낙찰률 · 1/2/3차 각각 낙찰건수 / 참여건수 / 낙찰률.
-   */
-  const roundStats = useMemo(() => {
-    const stats: Record<
-      number,
-      { won: number; total: number; rate: number }
-    > = {
-      1: { won: 0, total: 0, rate: 0 },
-      2: { won: 0, total: 0, rate: 0 },
-      3: { won: 0, total: 0, rate: 0 },
-    };
-    for (const r of filtered) {
-      const round = r.roundNo;
-      if (round !== 1 && round !== 2 && round !== 3) continue;
-      stats[round].total++;
-      if (r.result === "won") stats[round].won++;
-    }
-    for (const k of [1, 2, 3] as const) {
-      const s = stats[k];
-      s.rate = s.total > 0 ? Math.round((s.won / s.total) * 100) : 0;
-    }
-    return stats;
-  }, [filtered]);
-
-  /**
    * P3 · 부위별 낙찰 상세 (전체 부위).
    * 각 부위 행에는 세부 등급별 breakdown 이 포함됨 · 행 클릭 시 확장.
    * 세부 등급은 fine-grained (1++(9)/1++(8)/1++(7) 분리) 로 저장 · 렌더 시점에 통합 여부 선택.
@@ -139,46 +113,15 @@ export function AuctionAnalysisPanel({
     [filtered],
   );
 
-  /** 등급별 낙찰 상세 · fine-grained · TOP 8 (총액 기준) */
+  /**
+   * P3 · 등급별 낙찰 상세 (전체 등급).
+   * 각 등급 행에는 부위별 세부 + 요일별 평균단가 포함 · 행 클릭 시 확장.
+   * 상위 등급은 FULL 등급(육량 포함) · 렌더 시점에 육량 통합 여부에 따라 재집계.
+   */
   const gradesBreakdown = useMemo(
-    () => buildBreakdown(filtered, (r) => toFineGrade(r), 8),
+    () => buildGradesWithParts(filtered),
     [filtered],
   );
-
-  /**
-   * P4 · 미낙찰 분석 · 부위 기준 두 가지 관점.
-   * - freqLost: 자주 놓치는 부위 (미낙찰 건수 desc)
-   * - highRate: 미낙찰율 높은 부위 (미낙찰 비율 desc · 표본 3건 이상 필터)
-   */
-  const lostParts = useMemo(() => {
-    const map = new Map<
-      string,
-      { total: number; lost: number; rate: number }
-    >();
-    for (const r of filtered) {
-      const key = r.partName || "기타";
-      const p = map.get(key) ?? { total: 0, lost: 0, rate: 0 };
-      p.total++;
-      if (r.result === "lost") p.lost++;
-      map.set(key, p);
-    }
-    const arr = Array.from(map.entries())
-      .map(([name, v]) => ({
-        name,
-        total: v.total,
-        lost: v.lost,
-        rate: v.total > 0 ? Math.round((v.lost / v.total) * 100) : 0,
-      }))
-      .filter((e) => e.lost > 0);
-
-    const freqLost = [...arr].sort((a, b) => b.lost - a.lost).slice(0, 5);
-    const highRate = [...arr]
-      .filter((e) => e.total >= 3)
-      .sort((a, b) => b.rate - a.rate)
-      .slice(0, 5);
-
-    return { freqLost, highRate };
-  }, [filtered]);
 
   /** 분포 도넛 · 등급 · 부위 · 가공업체 */
   const gradeDist = useMemo(
@@ -257,34 +200,11 @@ export function AuctionAnalysisPanel({
         <DonutCard title="가공업체 분포" data={companyDist} />
       </div>
 
-      {/* 부위별 낙찰 상세 · 전체 부위 · 행 클릭 시 등급별 breakdown 확장 */}
-      <PartsBreakdownTable rows={partsBreakdown} />
-
-      {/* 회차별 낙찰률 · 요일별 평균단가는 부위 확장 영역에서 부위별로 노출 */}
-      <RoundRateCard stats={roundStats} />
-
-      {/* 등급별 낙찰 상세 · 풀 폭 */}
-      <BreakdownTable
-        title="등급별 낙찰 상세"
-        rows={gradesBreakdown}
-        nameLabel="등급"
+      {/* 낙찰 상세 · 부위별 / 등급별 탭 · 각 행 확장 시 세부 + 요일별 차트 */}
+      <PartsGradesBreakdown
+        partsRows={partsBreakdown}
+        gradesRows={gradesBreakdown}
       />
-
-      {/* 미낙찰 분석 · 최하단 · 자주놓침 + 미낙찰율 높음 */}
-      <div className="grid gap-3 md:grid-cols-2">
-        <LostTable
-          title="자주 놓치는 부위 TOP 5"
-          rows={lostParts.freqLost}
-          nameLabel="부위"
-          hint="미낙찰 건수 기준"
-        />
-        <LostTable
-          title="미낙찰율 높은 부위 TOP 5"
-          rows={lostParts.highRate}
-          nameLabel="부위"
-          hint="표본 3건 이상 · 미낙찰 비율 기준"
-        />
-      </div>
     </div>
   );
 }
@@ -390,7 +310,7 @@ function stripYieldGrade(grade: string): string {
   return grade.replace(/(1\+\+|1\+|1|2|3)([A-C])/, "$1");
 }
 
-interface DistItem {
+export interface DistItem {
   name: string;
   count: number;
   pct: number;
@@ -483,73 +403,6 @@ interface BreakdownRow {
   weight: number;
   avgPrice: number;
   totalAmount: number;
-}
-
-/**
- * P3 · 부위/등급별 낙찰 상세 데이터 생성.
- * 낙찰건 기준으로 건수/중량/평균단가/총액을 집계, TOP N + 기타로 반환.
- */
-function buildBreakdown(
-  results: AuctionResult[],
-  keyOf: (r: AuctionResult) => string,
-  topN?: number,
-): BreakdownRow[] {
-  const map = new Map<
-    string,
-    {
-      wonCount: number;
-      weight: number;
-      priceSum: number;
-      priceN: number;
-      totalAmount: number;
-    }
-  >();
-  for (const r of results) {
-    if (r.result !== "won") continue;
-    const key = keyOf(r);
-    const item = map.get(key) ?? {
-      wonCount: 0,
-      weight: 0,
-      priceSum: 0,
-      priceN: 0,
-      totalAmount: 0,
-    };
-    item.wonCount++;
-    item.weight += r.weight;
-    item.totalAmount += r.totalAmount;
-    const price = r.winningBid ?? r.myBid;
-    if (price > 0) {
-      item.priceSum += price;
-      item.priceN++;
-    }
-    map.set(key, item);
-  }
-
-  const arr = Array.from(map.entries())
-    .map(([name, v]) => ({
-      name,
-      wonCount: v.wonCount,
-      weight: v.weight,
-      avgPrice: v.priceN > 0 ? Math.round(v.priceSum / v.priceN) : 0,
-      totalAmount: v.totalAmount,
-    }))
-    .sort((a, b) => b.totalAmount - a.totalAmount);
-
-  if (!topN || arr.length <= topN) return arr;
-  const top = arr.slice(0, topN);
-  const rest = arr.slice(topN);
-  const restTotal = rest.reduce(
-    (acc, e) => ({
-      wonCount: acc.wonCount + e.wonCount,
-      weight: acc.weight + e.weight,
-      avgPrice: 0,
-      totalAmount: acc.totalAmount + e.totalAmount,
-    }),
-    { wonCount: 0, weight: 0, avgPrice: 0, totalAmount: 0 },
-  );
-  return restTotal.wonCount > 0
-    ? [...top, { name: "기타", ...restTotal }]
-    : top;
 }
 
 /**
@@ -673,6 +526,225 @@ function buildPartsWithGrades(results: AuctionResult[]): PartRow[] {
   return rows;
 }
 
+// ============================================================
+// 등급별 낙찰 상세 · 등급 → 부위 이중 집계 (부위별의 반대 방향)
+// ============================================================
+
+/**
+ * 등급 행 데이터 · 각 등급마다 부위별 세부 + 요일별 평균단가 포함.
+ * 상위 등급은 FULL 등급(육량 포함)으로 저장 · 렌더 시점에 육량 통합 여부에 따라 재집계.
+ */
+interface GradeRow extends BreakdownRow {
+  /** 이 등급에서 낙찰된 부위별 세부 */
+  partItems: BreakdownRow[];
+  /** 이 등급의 요일별 평균 낙찰단가 (7개 요일) */
+  dowStats: DowStat[];
+}
+
+/**
+ * 등급별 낙찰 상세 (부위 세부 + 요일별 평균단가 포함) 데이터 생성.
+ * FULL 등급 (예: 1++A(9)) 기준으로 이중 집계 · 육량 통합은 렌더 시점 처리.
+ */
+function buildGradesWithParts(results: AuctionResult[]): GradeRow[] {
+  interface Agg {
+    wonCount: number;
+    weight: number;
+    priceSum: number;
+    priceN: number;
+    totalAmount: number;
+  }
+  const emptyAgg = (): Agg => ({
+    wonCount: 0,
+    weight: 0,
+    priceSum: 0,
+    priceN: 0,
+    totalAmount: 0,
+  });
+  const addTo = (agg: Agg, r: AuctionResult) => {
+    agg.wonCount++;
+    agg.weight += r.weight;
+    agg.totalAmount += r.totalAmount;
+    const price = r.winningBid ?? r.myBid;
+    if (price > 0) {
+      agg.priceSum += price;
+      agg.priceN++;
+    }
+  };
+
+  const gradeMap = new Map<
+    string,
+    { agg: Agg; parts: Map<string, Agg>; dow: DowStat[] }
+  >();
+
+  for (const r of results) {
+    if (r.result !== "won") continue;
+    const gradeKey = toFullGrade(r);
+    const partKey = r.partName || "기타";
+    const entry = gradeMap.get(gradeKey) ?? {
+      agg: emptyAgg(),
+      parts: new Map<string, Agg>(),
+      dow: emptyDowStats(),
+    };
+    addTo(entry.agg, r);
+    const p = entry.parts.get(partKey) ?? emptyAgg();
+    addTo(p, r);
+    entry.parts.set(partKey, p);
+
+    if (r.listingDate) {
+      const dowIdx = parseISO(r.listingDate).getDay();
+      const dowItem = entry.dow[dowIdx];
+      dowItem.won++;
+      const price = r.winningBid ?? r.myBid;
+      if (price > 0) {
+        dowItem.priceSum += price;
+        dowItem.priceN++;
+      }
+    }
+
+    gradeMap.set(gradeKey, entry);
+  }
+
+  const toRow = (name: string, a: Agg): BreakdownRow => ({
+    name,
+    wonCount: a.wonCount,
+    weight: a.weight,
+    avgPrice: a.priceN > 0 ? Math.round(a.priceSum / a.priceN) : 0,
+    totalAmount: a.totalAmount,
+  });
+
+  return Array.from(gradeMap.entries())
+    .map(([name, entry]) => {
+      const partItems = Array.from(entry.parts.entries())
+        .map(([partName, agg]) => toRow(partName, agg))
+        .sort((a, b) => b.totalAmount - a.totalAmount);
+      const dowStats = entry.dow.map((d) => ({
+        ...d,
+        avgPrice: d.priceN > 0 ? Math.round(d.priceSum / d.priceN) : 0,
+      }));
+      return { ...toRow(name, entry.agg), partItems, dowStats };
+    })
+    .sort((a, b) => gradeScore(b.name) - gradeScore(a.name));
+}
+
+/**
+ * 등급 행 리스트를 육량등급 통합 여부에 맞춰 재집계.
+ *
+ * - yieldUnified=false: FULL 등급 그대로 (1++A(9), 1++B(9), 1++C(9), ...)
+ * - yieldUnified=true : 육량 A/B/C 제거 후 병합 (1++(9), 1++(8), 1++, 1+, ...)
+ *
+ * 통합 시:
+ * - 최상위 등급 합계 (건/중량/총액) 는 합산
+ * - 평균단가는 낙찰건 가중평균
+ * - 하위 부위 리스트는 partName 기준 재집계 (가중평균)
+ * - 요일별 통계는 요일 인덱스 기준 합산 후 재계산
+ */
+function aggregateGradeRowsByYield(
+  rows: GradeRow[],
+  yieldUnified: boolean,
+): GradeRow[] {
+  if (!yieldUnified) return rows;
+
+  interface PartAcc {
+    wonCount: number;
+    weight: number;
+    priceSumWeighted: number;
+    priceCount: number;
+    totalAmount: number;
+  }
+  interface DowAcc {
+    label: string;
+    won: number;
+    priceSum: number;
+    priceN: number;
+  }
+  interface GradeAcc {
+    wonCount: number;
+    weight: number;
+    priceSumWeighted: number;
+    priceCount: number;
+    totalAmount: number;
+    parts: Map<string, PartAcc>;
+    dow: DowAcc[];
+  }
+  const emptyGradeAcc = (): GradeAcc => ({
+    wonCount: 0,
+    weight: 0,
+    priceSumWeighted: 0,
+    priceCount: 0,
+    totalAmount: 0,
+    parts: new Map(),
+    dow: DOW_LABELS.map((label) => ({ label, won: 0, priceSum: 0, priceN: 0 })),
+  });
+
+  const merged = new Map<string, GradeAcc>();
+  for (const row of rows) {
+    const key = stripYieldGrade(row.name);
+    const cur = merged.get(key) ?? emptyGradeAcc();
+    cur.wonCount += row.wonCount;
+    cur.weight += row.weight;
+    cur.priceSumWeighted += row.avgPrice * row.wonCount;
+    cur.priceCount += row.wonCount;
+    cur.totalAmount += row.totalAmount;
+    for (const p of row.partItems) {
+      const pp = cur.parts.get(p.name) ?? {
+        wonCount: 0,
+        weight: 0,
+        priceSumWeighted: 0,
+        priceCount: 0,
+        totalAmount: 0,
+      };
+      pp.wonCount += p.wonCount;
+      pp.weight += p.weight;
+      pp.priceSumWeighted += p.avgPrice * p.wonCount;
+      pp.priceCount += p.wonCount;
+      pp.totalAmount += p.totalAmount;
+      cur.parts.set(p.name, pp);
+    }
+    for (let i = 0; i < 7; i++) {
+      cur.dow[i].won += row.dowStats[i].won;
+      cur.dow[i].priceSum += row.dowStats[i].priceSum;
+      cur.dow[i].priceN += row.dowStats[i].priceN;
+    }
+    merged.set(key, cur);
+  }
+
+  return Array.from(merged.entries())
+    .map(([name, v]) => {
+      const partItems: BreakdownRow[] = Array.from(v.parts.entries())
+        .map(([partName, p]) => ({
+          name: partName,
+          wonCount: p.wonCount,
+          weight: p.weight,
+          avgPrice:
+            p.priceCount > 0
+              ? Math.round(p.priceSumWeighted / p.priceCount)
+              : 0,
+          totalAmount: p.totalAmount,
+        }))
+        .sort((a, b) => b.totalAmount - a.totalAmount);
+      const dowStats: DowStat[] = v.dow.map((d) => ({
+        label: d.label,
+        won: d.won,
+        priceSum: d.priceSum,
+        priceN: d.priceN,
+        avgPrice: d.priceN > 0 ? Math.round(d.priceSum / d.priceN) : 0,
+      }));
+      return {
+        name,
+        wonCount: v.wonCount,
+        weight: v.weight,
+        avgPrice:
+          v.priceCount > 0
+            ? Math.round(v.priceSumWeighted / v.priceCount)
+            : 0,
+        totalAmount: v.totalAmount,
+        partItems,
+        dowStats,
+      };
+    })
+    .sort((a, b) => gradeScore(b.name) - gradeScore(a.name));
+}
+
 /**
  * 세부 등급 리스트를 육량등급 통합 여부에 맞춰 재집계.
  *
@@ -731,7 +803,7 @@ function aggregateGradesForDisplay(
 // 뷰 · 카드 · 테이블 · 차트
 // ============================================================
 
-const DONUT_PALETTE = [
+export const DONUT_PALETTE = [
   "#0f172a", // slate-900
   "#334155", // slate-700
   "#64748b", // slate-500
@@ -798,47 +870,6 @@ function KpiCard({
 }
 
 /**
- * P2 · 회차별 낙찰률 카드.
- * 1/2/3차 각각 미니 KPI 형태로 · 낙찰건수 / 전체 / 낙찰률 표시.
- */
-function RoundRateCard({
-  stats,
-}: {
-  stats: Record<number, { won: number; total: number; rate: number }>;
-}) {
-  const rounds = [1, 2, 3] as const;
-  return (
-    <div className="border border-slate-200 bg-white">
-      <SectionHeader title="회차별 낙찰률" />
-      <div className="grid grid-cols-3 divide-x divide-slate-100">
-        {rounds.map((r) => {
-          const s = stats[r];
-          const emptySample = s.total === 0;
-          return (
-            <div key={r} className="px-4 py-3">
-              <div className="text-[11px] font-semibold text-slate-500">
-                {r}차 경매
-              </div>
-              <div
-                className={cn(
-                  "mt-1 text-[20px] font-extrabold tabular-nums tracking-tight",
-                  emptySample ? "text-slate-300" : "text-sky-700",
-                )}
-              >
-                {emptySample ? "-" : `${s.rate}%`}
-              </div>
-              <div className="mt-0.5 text-[10.5px] tabular-nums text-slate-400">
-                {s.won} / {s.total} 건
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-/**
  * 요일별 평균 낙찰단가 인라인 차트 (확장 영역 임베드용).
  *
  * 색상 전략:
@@ -864,7 +895,7 @@ function InlineDowAvgPriceChart({ stats }: { stats: DowStat[] }) {
         {hasData && bestDow.avgPrice > 0 ? (
           <span className="text-[11px] tabular-nums text-slate-500">
             최고{" "}
-            <span className="font-bold text-sky-700">
+            <span className="font-bold text-slate-900">
               {bestDow.label}요일
             </span>{" "}
             <span className="text-slate-400">
@@ -886,16 +917,17 @@ function InlineDowAvgPriceChart({ stats }: { stats: DowStat[] }) {
               bestDow &&
               s.label === bestDow.label &&
               !insufficient;
-            // 최댓값 대비 비율에 따라 slate 톤을 단계별로 진하게
+            // DONUT_PALETTE 와 동일한 slate 계열 단계로 통일 (sky 제거).
+            // 최댓값 대비 비율에 따라 slate 톤 단계 (palette[0]=darkest 부터 사용).
             const dataBarClass = isBest
-              ? "bg-sky-600"
+              ? "bg-slate-900"
               : insufficient
                 ? "bg-slate-300"
                 : ratio >= 0.9
                   ? "bg-slate-700"
                   : ratio >= 0.75
-                    ? "bg-slate-600"
-                    : "bg-slate-500";
+                    ? "bg-slate-500"
+                    : "bg-slate-400";
             return (
               <div
                 key={s.label}
@@ -914,7 +946,7 @@ function InlineDowAvgPriceChart({ stats }: { stats: DowStat[] }) {
                       : insufficient
                         ? "text-slate-400"
                         : isBest
-                          ? "text-sky-700"
+                          ? "text-slate-900"
                           : "text-slate-700",
                   )}
                 >
@@ -942,11 +974,11 @@ function InlineDowAvgPriceChart({ stats }: { stats: DowStat[] }) {
                   className={cn(
                     "text-[10.5px] font-semibold",
                     isBest
-                      ? "text-sky-700"
+                      ? "text-slate-900"
                       : s.label === "일"
                         ? "text-rose-400"
                         : s.label === "토"
-                          ? "text-sky-500"
+                          ? "text-slate-500"
                           : "text-slate-500",
                   )}
                 >
@@ -966,48 +998,90 @@ function InlineDowAvgPriceChart({ stats }: { stats: DowStat[] }) {
 }
 
 // ============================================================
-// 부위별 낙찰 상세 · 행 클릭 시 등급 세부 breakdown 확장
+// 낙찰 상세 통합 컴포넌트 · 부위별 / 등급별 탭
 // ============================================================
 
-/**
- * 부위별 낙찰 상세 · 확장 가능 행 + 육량등급 통합 토글.
- *
- * - 헤더 우측 · 통합/개별 토글 · 통합 시 1++(9/8/7) → "1++" 병합
- * - 행 클릭 시 해당 부위의 등급별 상세 확장 · 등급별 낙찰건/중량/평균단가/낙찰금액 노출
- * - 확장 영역은 프로그래스 바로 각 등급 비중을 시각화
- */
-function PartsBreakdownTable({ rows }: { rows: PartRow[] }) {
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
-  /**
-   * 육량등급 (A/B/C) 통합 여부.
-   * true : 1++(9) · 육량 병합
-   * false: 1++A(9), 1++B(9), 1++C(9) · 육량별 분리
-   *
-   * 상태는 표 전체 공유 · 어느 확장 행에서 토글해도 모든 확장 행 반영.
-   */
-  const [yieldUnified, setYieldUnified] = useState(true);
+type BreakdownTab = "parts" | "grades";
 
-  const toggleRow = (name: string) => {
-    setExpanded((prev) => {
+/**
+ * 부위별 / 등급별 낙찰 상세 통합 테이블.
+ *
+ * - 상단 헤더: 탭(부위별/등급별) + 항목 수 + 육량등급 통합 토글 (전역 공유)
+ * - 각 행 클릭 시 확장:
+ *   - 부위별 → 등급별 낙찰 상세 + 요일별 평균단가 (해당 부위)
+ *   - 등급별 → 부위별 낙찰 상세 + 요일별 평균단가 (해당 등급)
+ * - 육량등급 통합 체크 시:
+ *   - 부위별 뷰: 확장 영역 등급이 1++A(9)+1++B(9)+1++C(9) → 1++(9) 로 병합
+ *   - 등급별 뷰: 최상위 등급 자체가 1++A(9),1++B(9),1++C(9) → 1++(9) 로 병합
+ */
+function PartsGradesBreakdown({
+  partsRows,
+  gradesRows,
+}: {
+  partsRows: PartRow[];
+  gradesRows: GradeRow[];
+}) {
+  const [tab, setTab] = useState<BreakdownTab>("parts");
+  const [yieldUnified, setYieldUnified] = useState(true);
+  const [expandedParts, setExpandedParts] = useState<Set<string>>(new Set());
+  const [expandedGrades, setExpandedGrades] = useState<Set<string>>(new Set());
+
+  const displayedGrades = useMemo(
+    () => aggregateGradeRowsByYield(gradesRows, yieldUnified),
+    [gradesRows, yieldUnified],
+  );
+
+  const rows = tab === "parts" ? partsRows : displayedGrades;
+  const nameLabel = tab === "parts" ? "부위" : "등급";
+  const countUnit = tab === "parts" ? "개 부위" : "개 등급";
+
+  const toggleExpansion = (name: string) => {
+    const setter = tab === "parts" ? setExpandedParts : setExpandedGrades;
+    setter((prev) => {
       const next = new Set(prev);
       if (next.has(name)) next.delete(name);
       else next.add(name);
       return next;
     });
   };
+  const isExpanded = (name: string) =>
+    (tab === "parts" ? expandedParts : expandedGrades).has(name);
 
   return (
     <div className="flex flex-col border border-slate-200 bg-white">
-      <SectionHeader
-        title="부위별 낙찰 상세"
-        right={
-          rows.length > 0 ? (
+      {/* 헤더 · 탭 + 카운트 + 육량 통합 토글 (전역 공유) */}
+      <header className="flex items-center justify-between border-b border-slate-200 px-4 py-2.5">
+        <div className="flex items-center gap-0.5">
+          <TabButton
+            active={tab === "parts"}
+            onClick={() => setTab("parts")}
+            label="부위별"
+          />
+          <TabButton
+            active={tab === "grades"}
+            onClick={() => setTab("grades")}
+            label="등급별"
+          />
+        </div>
+        <div className="flex items-center gap-4">
+          {rows.length > 0 ? (
             <span className="text-[11px] tabular-nums text-slate-400">
-              {rows.length}개 부위
+              {rows.length}
+              {countUnit}
             </span>
-          ) : undefined
-        }
-      />
+          ) : null}
+          <label className="inline-flex cursor-pointer items-center gap-1.5 text-[11px] font-semibold text-slate-600">
+            <input
+              type="checkbox"
+              checked={yieldUnified}
+              onChange={(e) => setYieldUnified(e.target.checked)}
+              className="h-3.5 w-3.5 cursor-pointer accent-slate-900"
+            />
+            육량등급 통합
+          </label>
+        </div>
+      </header>
+
       {rows.length === 0 ? (
         <div className="flex h-[140px] items-center justify-center text-[12px] text-slate-400">
           표시할 데이터가 없습니다.
@@ -1016,7 +1090,7 @@ function PartsBreakdownTable({ rows }: { rows: PartRow[] }) {
         <table className="w-full text-[12px] tabular-nums">
           <thead>
             <tr className="border-b border-slate-100 bg-slate-50/80 text-[11px] font-semibold text-slate-500">
-              <th className="px-3 py-2 text-left">부위</th>
+              <th className="px-3 py-2 text-left">{nameLabel}</th>
               <th className="px-3 py-2 text-right">낙찰건</th>
               <th className="px-3 py-2 text-right">낙찰중량</th>
               <th className="px-3 py-2 text-right">평균단가</th>
@@ -1025,25 +1099,19 @@ function PartsBreakdownTable({ rows }: { rows: PartRow[] }) {
           </thead>
           <tbody>
             {rows.map((row) => {
-              const isOpen = expanded.has(row.name);
-              const gradeRows = aggregateGradesForDisplay(
-                row.gradeItems,
-                yieldUnified,
-              );
+              const open = isExpanded(row.name);
               return (
                 <Fragment key={row.name}>
                   <tr
-                    onClick={() => toggleRow(row.name)}
+                    onClick={() => toggleExpansion(row.name)}
                     className={cn(
                       "cursor-pointer border-b border-slate-100 transition-colors last:border-b-0",
-                      isOpen
-                        ? "bg-slate-50"
-                        : "hover:bg-slate-50/60",
+                      open ? "bg-slate-50" : "hover:bg-slate-50/60",
                     )}
                   >
                     <td className="truncate px-3 py-2 text-left font-semibold text-slate-800">
                       <span className="inline-flex items-center gap-1.5">
-                        {isOpen ? (
+                        {open ? (
                           <ChevronDown className="h-3.5 w-3.5 text-slate-500" />
                         ) : (
                           <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
@@ -1064,50 +1132,13 @@ function PartsBreakdownTable({ rows }: { rows: PartRow[] }) {
                       {formatWon(row.totalAmount)}
                     </td>
                   </tr>
-                  {isOpen ? (
+                  {open ? (
                     <tr className="border-b border-slate-100 last:border-b-0">
                       <td
                         colSpan={5}
                         className="border-l-2 border-slate-900 bg-slate-50/70 px-4 py-4"
                       >
-                        <div className="grid gap-6 lg:grid-cols-2 lg:gap-8">
-                          {/* 좌측 · 등급별 낙찰 상세 (육량등급 통합 토글 포함) */}
-                          <section>
-                            <div className="mb-2 flex items-baseline justify-between gap-3">
-                              <span className="text-[12px] font-bold text-slate-800">
-                                등급별 낙찰 상세
-                              </span>
-                              <div className="flex items-center gap-3">
-                                <span className="text-[11px] tabular-nums text-slate-400">
-                                  총 {row.wonCount}건
-                                </span>
-                                <label
-                                  className="inline-flex cursor-pointer items-center gap-1.5 text-[11px] font-semibold text-slate-600"
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  <input
-                                    type="checkbox"
-                                    checked={yieldUnified}
-                                    onChange={(e) =>
-                                      setYieldUnified(e.target.checked)
-                                    }
-                                    className="h-3.5 w-3.5 cursor-pointer accent-slate-900"
-                                  />
-                                  육량등급 통합
-                                </label>
-                              </div>
-                            </div>
-                            <GradeBreakdownList
-                              items={gradeRows}
-                              parentWonCount={row.wonCount}
-                            />
-                          </section>
-
-                          {/* 우측 · 요일별 평균 낙찰단가 (해당 부위) */}
-                          <section className="lg:border-l lg:border-slate-200 lg:pl-8">
-                            <InlineDowAvgPriceChart stats={row.dowStats} />
-                          </section>
-                        </div>
+                        <ExpansionBody row={row} tab={tab} yieldUnified={yieldUnified} />
                       </td>
                     </tr>
                   ) : null}
@@ -1122,59 +1153,310 @@ function PartsBreakdownTable({ rows }: { rows: PartRow[] }) {
 }
 
 /**
- * 확장 영역의 등급별 breakdown 리스트.
- * 각 행: 컬러칩 + 등급명 + 프로그래스 바 + 낙찰건(%) + 중량 + 평균단가 + 낙찰금액.
- *
- * 좁은 컨테이너에서도 잘 보이도록 컴팩트한 그리드로 구성.
+ * 탭 헤더 버튼 · 활성 시 slate-900 + underline, 비활성 시 slate-400.
  */
-function GradeBreakdownList({
+function TabButton({
+  active,
+  onClick,
+  label,
+}: {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "relative inline-flex h-8 items-center px-3 text-[13px] font-bold transition-colors",
+        active
+          ? "text-slate-900"
+          : "text-slate-400 hover:text-slate-600",
+      )}
+      aria-pressed={active}
+    >
+      {label}
+      {active ? (
+        <span
+          className="absolute inset-x-2 -bottom-[11px] h-[2px] bg-slate-900"
+          aria-hidden
+        />
+      ) : null}
+    </button>
+  );
+}
+
+/**
+ * 확장 영역 통합 본체 (Option A · KPI 스트립 + 정돈된 리스트 + 요일차트).
+ *
+ * 구성:
+ * - 상단: KPI 스트립 4개 (최다·최고 평균단가·총 낙찰금액·최고 요일).
+ * - 하단: 2열 그리드 · 좌 = 슬림 리스트, 우 = 요일별 차트.
+ */
+function ExpansionBody({
+  row,
+  tab,
+  yieldUnified,
+}: {
+  row: PartRow | GradeRow;
+  tab: BreakdownTab;
+  yieldUnified: boolean;
+}) {
+  const items = useMemo<BreakdownRow[]>(
+    () =>
+      tab === "parts"
+        ? aggregateGradesForDisplay(
+            (row as PartRow).gradeItems,
+            yieldUnified,
+          )
+        : (row as GradeRow).partItems,
+    [row, tab, yieldUnified],
+  );
+
+  const innerLabel = tab === "parts" ? "등급" : "부위";
+
+  return (
+    <div className="flex flex-col gap-4">
+      <ExpansionKpiStrip
+        items={items}
+        totalAmount={row.totalAmount}
+        totalWonCount={row.wonCount}
+        totalWeight={row.weight}
+        dowStats={row.dowStats}
+        innerLabel={innerLabel}
+      />
+
+      <div className="grid gap-6 lg:grid-cols-2 lg:gap-8">
+        {/* 좌 · 세부 breakdown */}
+        <section>
+          <div className="mb-2 flex items-baseline justify-between gap-3">
+            <span className="text-[12px] font-bold text-slate-800">
+              {innerLabel}별 낙찰 상세
+            </span>
+            <span className="text-[11px] tabular-nums text-slate-400">
+              총 {row.wonCount}건
+            </span>
+          </div>
+          <BreakdownItemList
+            items={items}
+            parentWonCount={row.wonCount}
+            emptyMessage={`${innerLabel} 데이터가 없습니다.`}
+          />
+        </section>
+
+        {/* 우 · 요일별 평균 낙찰단가 */}
+        <section className="lg:border-l lg:border-slate-200 lg:pl-8">
+          <InlineDowAvgPriceChart stats={row.dowStats} />
+        </section>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * 확장 영역 상단 KPI 스트립 · 4개 요약 카드.
+ *
+ * - 최다 낙찰: 건수 기준 top 등급/부위 + %
+ * - 최고 평균단가: 세부 항목 중 avgPrice 최대
+ * - 총 낙찰금액: 부위/등급 전체 합계 (부모행) + 총 건수 · 중량
+ * - 최고 요일: 요일별 평균단가 최고
+ */
+function ExpansionKpiStrip({
+  items,
+  totalAmount,
+  totalWonCount,
+  totalWeight,
+  dowStats,
+  innerLabel,
+}: {
+  items: BreakdownRow[];
+  totalAmount: number;
+  totalWonCount: number;
+  totalWeight: number;
+  dowStats: DowStat[];
+  innerLabel: string;
+}) {
+  // 최다 낙찰 (건수) · 동수일 경우 등장 순서 유지
+  const topByCount = useMemo(
+    () =>
+      items.reduce<BreakdownRow | null>(
+        (best, cur) =>
+          !best || cur.wonCount > best.wonCount ? cur : best,
+        null,
+      ),
+    [items],
+  );
+
+  // 최고 평균단가
+  const topByPrice = useMemo(
+    () =>
+      items.reduce<BreakdownRow | null>(
+        (best, cur) =>
+          cur.avgPrice > 0 && (!best || cur.avgPrice > best.avgPrice)
+            ? cur
+            : best,
+        null,
+      ),
+    [items],
+  );
+
+  // 최고 요일
+  const bestDow = useMemo(
+    () =>
+      dowStats.reduce<DowStat | null>(
+        (best, cur) =>
+          cur.avgPrice > 0 && (!best || cur.avgPrice > best.avgPrice)
+            ? cur
+            : best,
+        null,
+      ),
+    [dowStats],
+  );
+
+  const topPct =
+    topByCount && totalWonCount > 0
+      ? Math.round((topByCount.wonCount / totalWonCount) * 100)
+      : 0;
+
+  return (
+    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+      <ExpansionKpiCard
+        label={`최다 낙찰 ${innerLabel}`}
+        value={topByCount?.name ?? "-"}
+        sub={
+          topByCount
+            ? `${topByCount.wonCount}건 · ${topPct}%`
+            : "데이터 없음"
+        }
+      />
+      <ExpansionKpiCard
+        label={`최고 평균단가`}
+        value={
+          topByPrice && topByPrice.avgPrice > 0
+            ? `${KRW.format(topByPrice.avgPrice)}원/kg`
+            : "-"
+        }
+        sub={
+          topByPrice && topByPrice.avgPrice > 0
+            ? `${innerLabel} · ${topByPrice.name}`
+            : "데이터 없음"
+        }
+      />
+      <ExpansionKpiCard
+        label="총 낙찰금액"
+        value={formatWon(totalAmount)}
+        sub={
+          totalWonCount > 0
+            ? `${totalWonCount}건 · ${KRW.format(totalWeight)}kg`
+            : "-"
+        }
+      />
+      <ExpansionKpiCard
+        label="최고 요일"
+        value={bestDow ? `${bestDow.label}요일` : "-"}
+        sub={
+          bestDow && bestDow.avgPrice > 0
+            ? `${KRW.format(bestDow.avgPrice)}원/kg`
+            : "데이터 없음"
+        }
+      />
+    </div>
+  );
+}
+
+/**
+ * 확장 영역 전용 KPI 요약 카드 · 라벨 · 값 · 서브 텍스트의 3단 위계.
+ * (상위 요약용 `KpiCard` 와 이름 충돌 방지를 위해 `ExpansionKpiCard` 로 분리)
+ */
+function ExpansionKpiCard({
+  label,
+  value,
+  sub,
+}: {
+  label: string;
+  value: string;
+  sub?: string;
+}) {
+  return (
+    <div className="flex min-w-0 flex-col gap-0.5 border border-slate-200 bg-white px-3 py-2.5">
+      <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+        {label}
+      </span>
+      <span
+        className="truncate text-[14.5px] font-extrabold leading-tight tabular-nums text-slate-900"
+        title={value}
+      >
+        {value}
+      </span>
+      {sub ? (
+        <span
+          className="truncate text-[10.5px] tabular-nums text-slate-500"
+          title={sub}
+        >
+          {sub}
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * 확장 영역 세부 breakdown 리스트 (부위 또는 등급 공용).
+ *
+ * 슬림 4열: [컬러칩+이름] · [프로그래스 바 넓게] · [건수] · [낙찰금액].
+ * 평균단가 · 중량은 `title` 툴팁으로 이동해서 스캔 밀도 감소.
+ */
+function BreakdownItemList({
   items,
   parentWonCount,
+  emptyMessage,
 }: {
   items: BreakdownRow[];
   parentWonCount: number;
+  emptyMessage: string;
 }) {
   if (items.length === 0) {
     return (
-      <div className="py-2 text-[11px] text-slate-400">
-        등급 데이터가 없습니다.
-      </div>
+      <div className="py-2 text-[11px] text-slate-400">{emptyMessage}</div>
     );
   }
+
   return (
-    <ul className="flex flex-col gap-1.5">
+    <ul className="flex flex-col">
       {items.map((g, i) => {
         const pct =
           parentWonCount > 0
             ? Math.round((g.wonCount / parentWonCount) * 100)
             : 0;
         const color = DONUT_PALETTE[i % DONUT_PALETTE.length];
+        const tooltip = `${g.name} · ${g.wonCount}건 (${pct}%) · ${KRW.format(g.weight)}kg · 평균 ${g.avgPrice > 0 ? `${KRW.format(g.avgPrice)}원/kg` : "-"} · ${formatWon(g.totalAmount)}`;
         return (
           <li
             key={g.name}
-            className="grid grid-cols-[10px_52px_minmax(40px,1fr)_82px_66px_88px_92px] items-center gap-2 text-[11px] tabular-nums"
+            title={tooltip}
+            className="grid grid-cols-[14px_80px_minmax(60px,1fr)_72px_100px] items-center gap-2.5 py-1.5 text-[11.5px] tabular-nums"
           >
             <span
               className="h-2.5 w-2.5"
               style={{ backgroundColor: color }}
               aria-hidden
             />
-            <span className="font-bold text-slate-800">{g.name}</span>
-            <div className="relative h-1.5 w-full min-w-0 bg-slate-200/60">
+            <span className="min-w-0 truncate font-bold text-slate-800">
+              {g.name}
+            </span>
+            <div className="relative h-2 w-full min-w-0 bg-slate-100">
               <div
                 className="absolute inset-y-0 left-0"
                 style={{ width: `${pct}%`, backgroundColor: color }}
               />
             </div>
-            <span className="text-right text-slate-700">
-              <span className="font-semibold">{g.wonCount}건</span>
-              <span className="ml-1 text-slate-400">({pct}%)</span>
-            </span>
-            <span className="text-right text-slate-500">
-              {KRW.format(g.weight)}kg
-            </span>
-            <span className="text-right text-slate-500">
-              {g.avgPrice > 0 ? `${KRW.format(g.avgPrice)}원` : "-"}
+            <span className="text-right">
+              <span className="font-bold text-slate-800">{g.wonCount}</span>
+              <span className="ml-0.5 text-[10px] text-slate-400">건</span>
+              <span className="ml-1 text-[10px] text-slate-400">
+                ({pct}%)
+              </span>
             </span>
             <span className="text-right font-bold text-slate-900">
               {formatWon(g.totalAmount)}
@@ -1186,156 +1468,7 @@ function GradeBreakdownList({
   );
 }
 
-/**
- * P3 · 등급별 낙찰 상세 테이블.
- * 이름 / 낙찰건수 / 낙찰중량 / 평균단가 / 낙찰금액 (총액 desc 정렬).
- */
-function BreakdownTable({
-  title,
-  rows,
-  nameLabel,
-  scrollable = false,
-}: {
-  title: string;
-  rows: BreakdownRow[];
-  nameLabel: string;
-  /** true 일 경우 tbody 를 스크롤 컨테이너로 감싸고 헤더 sticky */
-  scrollable?: boolean;
-}) {
-  const emptyView = (
-    <div className="flex h-[140px] items-center justify-center text-[12px] text-slate-400">
-      표시할 데이터가 없습니다.
-    </div>
-  );
-
-  const table = (
-    <table className="w-full text-[12px] tabular-nums">
-      <thead className={cn(scrollable && "sticky top-0 z-10")}>
-        <tr className="border-b border-slate-100 bg-slate-50/80 text-[11px] font-semibold text-slate-500 backdrop-blur">
-          <th className="px-3 py-2 text-left">{nameLabel}</th>
-          <th className="px-3 py-2 text-right">낙찰건</th>
-          <th className="px-3 py-2 text-right">낙찰중량</th>
-          <th className="px-3 py-2 text-right">평균단가</th>
-          <th className="px-3 py-2 text-right">낙찰금액</th>
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((row) => (
-          <tr
-            key={row.name}
-            className="border-b border-slate-100 last:border-b-0"
-          >
-            <td className="truncate px-3 py-2 text-left font-semibold text-slate-800">
-              {row.name}
-            </td>
-            <td className="px-3 py-2 text-right text-slate-700">
-              {row.wonCount}건
-            </td>
-            <td className="px-3 py-2 text-right text-slate-700">
-              {KRW.format(row.weight)}kg
-            </td>
-            <td className="px-3 py-2 text-right text-slate-700">
-              {row.avgPrice > 0 ? `${KRW.format(row.avgPrice)}` : "-"}
-            </td>
-            <td className="px-3 py-2 text-right font-bold text-slate-900">
-              {formatWon(row.totalAmount)}
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
-
-  return (
-    <div className="flex flex-col border border-slate-200 bg-white">
-      <SectionHeader
-        title={title}
-        right={
-          rows.length > 0 ? (
-            <span className="text-[11px] tabular-nums text-slate-400">
-              {rows.length}개 항목
-            </span>
-          ) : undefined
-        }
-      />
-      {rows.length === 0 ? (
-        emptyView
-      ) : scrollable ? (
-        <div className="max-h-[520px] overflow-y-auto">{table}</div>
-      ) : (
-        table
-      )}
-    </div>
-  );
-}
-
-/**
- * P4 · 미낙찰 분석 테이블.
- * 자주 놓치는 부위 · 미낙찰율 높은 부위 TOP 5.
- */
-function LostTable({
-  title,
-  rows,
-  nameLabel,
-  hint,
-}: {
-  title: string;
-  rows: { name: string; total: number; lost: number; rate: number }[];
-  nameLabel: string;
-  hint?: string;
-}) {
-  return (
-    <div className="border border-slate-200 bg-white">
-      <SectionHeader
-        title={title}
-        right={
-          hint ? (
-            <span className="text-[10.5px] text-slate-400">{hint}</span>
-          ) : undefined
-        }
-      />
-      {rows.length === 0 ? (
-        <div className="flex h-[140px] items-center justify-center text-[12px] text-slate-400">
-          미낙찰 데이터가 없습니다.
-        </div>
-      ) : (
-        <table className="w-full text-[12px] tabular-nums">
-          <thead>
-            <tr className="border-b border-slate-100 bg-slate-50/60 text-[11px] font-semibold text-slate-500">
-              <th className="px-3 py-2 text-left">{nameLabel}</th>
-              <th className="px-3 py-2 text-right">미낙찰</th>
-              <th className="px-3 py-2 text-right">참여</th>
-              <th className="px-3 py-2 text-right">미낙찰률</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => (
-              <tr
-                key={row.name}
-                className="border-b border-slate-100 last:border-b-0"
-              >
-                <td className="truncate px-3 py-2 text-left font-semibold text-slate-800">
-                  {row.name}
-                </td>
-                <td className="px-3 py-2 text-right text-slate-700">
-                  {row.lost}건
-                </td>
-                <td className="px-3 py-2 text-right text-slate-500">
-                  {row.total}건
-                </td>
-                <td className="px-3 py-2 text-right font-bold text-rose-600">
-                  {row.rate}%
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-    </div>
-  );
-}
-
-function DonutCard({ title, data }: { title: string; data: DistItem[] }) {
+export function DonutCard({ title, data }: { title: string; data: DistItem[] }) {
   const total = useMemo(
     () => data.reduce((sum, d) => sum + d.count, 0),
     [data],

@@ -69,6 +69,8 @@ export interface MyBidItem {
   companyName: string;
   /** 공판장 이름 (예: "농협 음성") · 라이브 경매 라우팅용 */
   slaughterHouse: string;
+  /** 경매 회차 번호 (1, 2, 3) · 이력 테이블 구분용 */
+  roundNo: number | null;
 }
 
 // 경매 결과

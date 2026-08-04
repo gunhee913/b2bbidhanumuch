@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Lock } from "lucide-react";
 import { useDealerPermission } from "../hooks/useDealerPermission";
+import { useSubMenuHidden } from "../hooks/useSubMenuHidden";
 import {
   SLAUGHTER_HOUSE_SLUGS,
   type SlaughterHouseSlug,
@@ -13,9 +14,27 @@ export interface RoundStickyBarProps {
   activeSlug: SlaughterHouseSlug;
 }
 
+/**
+ * `RoundStickyBar` · 공판장 탭 (음성/부천/고령/나주) sticky 서브메뉴.
+ *
+ * 스크롤 동작 · `useSubMenuHidden` 훅으로 상태 공유:
+ * - 페이지 최상단 · 노출
+ * - 그 이후 · 위로 슬라이드해 숨김 (`-translate-y-full`)
+ * - z-30 이라 MainHeader (z-40) 뒤로 자연스럽게 감춰짐
+ *
+ * 같은 훅을 `LiveAuctionRoom` 이 구독해 좌우 sticky/fixed 요소의
+ * top 값도 함께 반응 (128 ↔ 80).
+ */
 export function RoundStickyBar({ activeSlug }: RoundStickyBarProps) {
+  const hidden = useSubMenuHidden();
+
   return (
-    <div className="sticky top-[64px] z-30 w-full border-b border-slate-200 bg-white/95 backdrop-blur-sm">
+    <div
+      className={cn(
+        "sticky top-[64px] z-30 w-full border-b border-slate-200 bg-white/95 backdrop-blur-sm transition-transform duration-200 ease-out",
+        hidden && "-translate-y-full",
+      )}
+    >
       <div className="mx-auto flex h-[48px] max-w-[1240px] items-stretch px-8">
         <SlaughterHouseTabs activeSlug={activeSlug} />
       </div>

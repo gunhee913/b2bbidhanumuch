@@ -47,6 +47,12 @@ export interface LivePart {
   bidCount: number;
   highestBid: LivePartBid | null;
   allBids: LivePartBid[];
+  /**
+   * 결과 회차 · 확정된 경매 회차 번호 (1, 2, 3 ...).
+   * 낙찰된 부위는 낙찰 회차, 유찰이지만 내 입찰이 있으면 내 입찰 회차,
+   * 그 외에는 null. 실경매(진행중) 컨텍스트에서는 항상 null.
+   */
+  roundNo?: number | null;
 }
 
 export interface LiveListing {

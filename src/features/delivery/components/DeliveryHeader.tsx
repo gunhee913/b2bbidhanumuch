@@ -34,15 +34,8 @@ export function DeliveryHeader({
 }: DeliveryHeaderProps) {
   return (
     <div className="border-b border-slate-200 bg-white">
-      <div className="mx-auto w-full max-w-[1240px] px-8 pb-4 pt-8">
-        <h1 className="text-[22px] font-extrabold tracking-tight text-slate-900">
-          배송지시
-        </h1>
-        <p className="mt-1 text-[13px] text-slate-500">
-          낙찰받은 부위의 최종 납품 거래처를 지정하세요.
-        </p>
-
-        <div className="mt-6 flex flex-wrap items-center gap-3">
+      <div className="mx-auto w-full max-w-[1240px] px-8 pb-4 pt-6">
+        <div className="flex flex-wrap items-center gap-3">
           <PeriodFilter
             startDate={startDate}
             endDate={endDate}

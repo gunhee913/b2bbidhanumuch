@@ -37,9 +37,24 @@ import {
 export interface PartMarketChartProps {
   partName: string | null;
   listing: LiveListing | null;
+  /**
+   * 차트 캔버스 높이(px). 미지정 시 기본 320 (경매장 규범).
+   * `/insight` 대시보드처럼 세로 여백이 넉넉한 화면에서만 override.
+   */
+  height?: number;
+  /**
+   * 컴포넌트 outer border/bg 를 렌더할지 여부. default true.
+   * 부모가 카드 컨테이너를 직접 제공할 때 false 로 지정.
+   */
+  bordered?: boolean;
+  /**
+   * 헤더 좌측 slot · 부위명 `<h4>` 를 대체.
+   * `/insight` 는 부위 selector pill 을 여기에 주입해 title/filter 중복 제거.
+   */
+  headerLeft?: React.ReactNode;
 }
 
-const CHART_HEIGHT = 320;
+const DEFAULT_CHART_HEIGHT = 320;
 const VOLUME_COLOR = "#cbd5e1"; // slate-300
 /** 마우스 호버 시 Y축에 팝업되는 라인별 가격 배지 색상 · 브랜드 sky-600 통일. */
 const HOVER_BADGE_COLOR = "#0284c7";
@@ -149,7 +164,14 @@ interface LineSeriesData {
  * - 원/두 커스텀 formatter · day/week/month tickMarkFormatter
  * - 호버 시 상단 InfoBar 갱신 + 우측 축에 가격 라벨 pop
  */
-export function PartMarketChart({ partName, listing }: PartMarketChartProps) {
+export function PartMarketChart({
+  partName,
+  listing,
+  height,
+  bordered = true,
+  headerLeft,
+}: PartMarketChartProps) {
+  const chartHeight = height ?? DEFAULT_CHART_HEIGHT;
   const [granularity, setGranularity] = useState<PriceGranularity>("day");
   const [yieldUnified, setYieldUnified] = useState(false);
 
@@ -355,12 +377,19 @@ export function PartMarketChart({ partName, listing }: PartMarketChartProps) {
   const hasAny = lineSeriesData.some((gs) => gs.points.length > 0);
 
   return (
-    <div className="flex flex-col overflow-hidden border border-slate-200 bg-white">
-      {/* Row 1 · 부위명 + granularity */}
+    <div
+      className={cn(
+        "flex flex-col overflow-hidden",
+        bordered ? "border border-slate-200 bg-white" : "bg-transparent",
+      )}
+    >
+      {/* Row 1 · 부위명(또는 커스텀 slot) + granularity */}
       <header className="flex items-center justify-between gap-2 border-b border-slate-100 px-3 py-2">
-        <h4 className="text-[13px] font-bold text-slate-900">
-          {normalizedPart}
-        </h4>
+        {headerLeft ?? (
+          <h4 className="text-[13px] font-bold text-slate-900">
+            {normalizedPart}
+          </h4>
+        )}
         <GranularityTabs value={granularity} onChange={setGranularity} />
       </header>
 
@@ -385,7 +414,7 @@ export function PartMarketChart({ partName, listing }: PartMarketChartProps) {
         {!hasAny ? (
           <div
             className="flex items-center justify-center text-[11px] text-slate-400"
-            style={{ height: CHART_HEIGHT }}
+            style={{ height: chartHeight }}
           >
             {anyLoading ? "불러오는 중…" : "데이터 없음"}
           </div>
@@ -393,7 +422,7 @@ export function PartMarketChart({ partName, listing }: PartMarketChartProps) {
           <PriceLineChart
             seriesList={lineSeriesData}
             granularity={granularity}
-            height={CHART_HEIGHT}
+            height={chartHeight}
           />
         )}
       </div>

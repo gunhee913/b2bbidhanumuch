@@ -4,10 +4,11 @@ import { Fragment, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import type { LiveListing, LivePart } from "../api";
 import {
+  formatKrw,
   formatWeightKg,
   formatWon,
   formatWonPerKg,
-  maskWonPerKg,
+  maskKrw,
 } from "../lib/masking";
 import { BulkPriceCell } from "./BulkPriceCell";
 
@@ -303,6 +304,9 @@ function MainRow({
   const bulkHighlight = bulkMode && bulkChecked && !isSettled;
   const bulkHasMyBidUnchecked =
     bulkMode && !bulkChecked && !!myBid && !isSettled;
+  // 진행 중 · 내가 입찰한 행 (bulk 모드가 아닌 일반 조회 시).
+  // 미입찰 흰 배경 ↔ 낙찰 진한 sky 사이의 중간 톤으로 스캔 시 즉시 인지.
+  const hasMyBidInProgress = !bulkMode && !!myBid && !isSettled;
 
   return (
     <tr
@@ -313,13 +317,15 @@ function MainRow({
         bulkHighlight && "bg-sky-50/70 hover:bg-sky-50",
         !bulkHighlight && bulkHasMyBidUnchecked && "bg-sky-50/25 hover:bg-sky-50/50",
         !bulkHighlight && !bulkHasMyBidUnchecked && isSelected && !isSettled && "bg-sky-50/70 hover:bg-sky-50",
+        // 진행 중 · 내가 입찰한 행 (미선택) → 옅은 sky wash 로 3단 위계 구성
+        hasMyBidInProgress && !isSelected && "bg-sky-50/40 hover:bg-sky-50/60",
         // 낙찰: 선택 여부와 무관하게 sky wash 로 강조 (스캔 시 즉시 인지)
         isSettled && iWon && isSelected && "bg-sky-100/70 hover:bg-sky-100/80",
         isSettled && iWon && !isSelected && "bg-sky-50/70 hover:bg-sky-100/50",
         // 유찰 · 미입찰(settled): 기존 slate wash 유지
         isSettled && !iWon && isSelected && "bg-sky-50/40 hover:bg-sky-50/50",
         isSettled && !iWon && !isSelected && "bg-slate-50 hover:bg-slate-100/60",
-        !bulkHighlight && !bulkHasMyBidUnchecked && !isSelected && !isSettled && "hover:bg-slate-50/50",
+        !bulkHighlight && !bulkHasMyBidUnchecked && !hasMyBidInProgress && !isSelected && !isSettled && "hover:bg-slate-50/50",
       )}
     >
       {bulkMode ? (
@@ -378,7 +384,7 @@ function MainRow({
           isSettled ? "text-slate-400" : "text-slate-700",
         )}
       >
-        {formatWonPerKg(part.minPrice)}
+        {formatKrw(part.minPrice)}
       </td>
       <td
         className={cn(
@@ -402,7 +408,7 @@ function MainRow({
                 iWon ? "text-sky-700" : "text-slate-400",
               )}
             >
-              {maskWonPerKg(myBid.bidPrice, canReadBids)}
+              {maskKrw(myBid.bidPrice, canReadBids)}
             </span>
           ) : (
             <span className="text-xs text-slate-300">-</span>
@@ -417,8 +423,9 @@ function MainRow({
             className={cn(
               "group/bid inline-flex h-6 min-w-[92px] items-baseline gap-0.5 border px-2 text-[11px] font-bold transition-colors",
               myBid ? "justify-end" : "justify-center",
+              // 입찰중: filled sky (강조) · 미입찰: outline sky (수동 액션 유도)
               myBid
-                ? "border-sky-500 bg-white text-sky-700 hover:border-sky-500 hover:bg-sky-500 hover:text-white"
+                ? "border-sky-600 bg-sky-600 text-white shadow-sm hover:border-sky-700 hover:bg-sky-700"
                 : "border-sky-500 bg-white text-sky-600 hover:border-sky-500 hover:bg-sky-500 hover:text-white",
             )}
           >
@@ -435,7 +442,7 @@ function MainRow({
               canReadBids ? "text-sky-700" : "text-slate-400",
             )}
           >
-            {maskWonPerKg(myBid.bidPrice, canReadBids)}
+            {maskKrw(myBid.bidPrice, canReadBids)}
           </span>
         ) : (
           <span className="text-xs text-slate-300">-</span>
@@ -562,8 +569,7 @@ const BID_MASK_TOKEN = "***";
 
 /**
  * "내 입찰가" 아웃라인 버튼 안 텍스트.
- * 숫자와 접미어(`원/kg`)를 분리해서 좁은 컬럼에서도 잘리지 않게 하고,
- * hover 시 부모 버튼이 채워지면 접미어도 흰색으로 자연스럽게 반전되도록 group hover 사용.
+ * 단위(`원/kg`)는 헤더 우측 상단 캡션에 명시하므로 셀에서는 순수 숫자만 표시.
  */
 function MyBidBadgeInline({
   bidPrice,
@@ -575,14 +581,9 @@ function MyBidBadgeInline({
   if (!canRead) return <span className="tabular-nums">{BID_MASK_TOKEN}</span>;
   const rounded = Math.round(bidPrice);
   return (
-    <>
-      <span className="tabular-nums -tracking-[0.02em]">
-        {KRW_NUMBER.format(rounded)}
-      </span>
-      <span className="text-[10px] font-semibold text-sky-500 group-hover/bid:text-white/85">
-        원/kg
-      </span>
-    </>
+    <span className="tabular-nums -tracking-[0.02em]">
+      {KRW_NUMBER.format(rounded)}
+    </span>
   );
 }
 

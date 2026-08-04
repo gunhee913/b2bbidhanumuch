@@ -60,23 +60,27 @@ export function IndividualPartsCard({
 
   return (
     <div className="flex flex-col overflow-hidden border border-slate-200 bg-white">
-      {/* 헤더 */}
-      <div className="flex items-center justify-between gap-2 border-b border-slate-100 px-4 py-2.5">
-        <div className="flex min-w-0 items-baseline gap-2">
-          {listing ? (
-            <>
-              <h3 className="text-[14px] font-bold -tracking-[0.01em] tabular-nums text-slate-900">
-                {listing.listingNo}
-              </h3>
-              <span className="shrink-0 text-[11px] font-semibold text-slate-500">
-                {listing.breed || "-"}
-                <span className="mx-0.5 text-slate-300">·</span>
-                {listing.gender || "-"}
-              </span>
-              <span className="shrink-0 rounded-sm bg-slate-100 px-1.5 py-px text-[10px] font-bold tabular-nums text-slate-700">
-                {formatGradeLabel(listing.grade, listing.marblingScore)}
-              </span>
-              <span className="mx-1 text-slate-300">·</span>
+      {/* 헤더 · 2단 구성 */}
+      {listing ? (
+        <div className="border-b border-slate-100 px-4 pb-2 pt-2.5">
+          {/* Row 1 · 타이틀 (접수번호 · 등급 · 축종/성별) */}
+          <div className="flex items-center gap-2">
+            <h3 className="shrink-0 whitespace-nowrap text-[14px] font-bold -tracking-[0.01em] tabular-nums text-slate-900">
+              {listing.listingNo}
+            </h3>
+            <span className="shrink-0 rounded-sm bg-slate-100 px-1.5 py-px text-[10px] font-bold tabular-nums text-slate-700">
+              {formatGradeLabel(listing.grade, listing.marblingScore)}
+            </span>
+            <span className="shrink-0 text-[11px] font-semibold text-slate-500">
+              {listing.breed || "-"}
+              <span className="mx-0.5 text-slate-300">·</span>
+              {listing.gender || "-"}
+            </span>
+          </div>
+
+          {/* Row 2 · 메타 (부위/낙찰) 좌 · 단위/액션 우 */}
+          <div className="mt-1.5 flex items-center gap-2">
+            <div className="flex min-w-0 items-center gap-1.5">
               <span className="shrink-0 text-[11px] font-semibold tabular-nums text-slate-500">
                 {total}
                 <span className="ml-0.5 text-[10px] font-medium text-slate-400">
@@ -100,21 +104,26 @@ export function IndividualPartsCard({
                   건
                 </span>
               </span>
-            </>
-          ) : (
-            <span className="text-[13px] font-semibold text-slate-400">
-              개체를 선택해 주세요
-            </span>
-          )}
-        </div>
+            </div>
 
-        {listing ? (
-          <HideSettledToggle
-            active={hideSettled}
-            onClick={() => setHideSettled((v) => !v)}
-          />
-        ) : null}
-      </div>
+            <div className="ml-auto flex items-center gap-2">
+              <span className="whitespace-nowrap text-[10.5px] font-medium tabular-nums text-slate-400">
+                단위 · 원/kg
+              </span>
+              <HideSettledToggle
+                active={hideSettled}
+                onClick={() => setHideSettled((v) => !v)}
+              />
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="border-b border-slate-100 px-4 py-3">
+          <span className="text-[13px] font-semibold text-slate-400">
+            개체를 선택해 주세요
+          </span>
+        </div>
+      )}
 
       {/* Body */}
       {isLoading ? (

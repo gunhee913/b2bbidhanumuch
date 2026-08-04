@@ -5,6 +5,7 @@ import { EyeOff, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatGradeLabel, parseQualityGrade } from "../lib/grade";
 import {
+  formatKrw,
   formatWeightKg,
   formatWon,
   formatWonPerKg,
@@ -210,6 +211,9 @@ export function PartListingTable({
             active={hideSettled}
             onClick={() => setHideSettled((v) => !v)}
           />
+          <span className="ml-1 whitespace-nowrap text-[10.5px] font-medium tabular-nums text-slate-400">
+            단위 · 원/kg
+          </span>
         </div>
       </div>
 
@@ -434,6 +438,9 @@ function MainRow({
   const bulkHighlight = bulkMode && bulkChecked && !isSettled;
   const bulkHasMyBidUnchecked =
     bulkMode && !bulkChecked && !!myBid && !isSettled;
+  // 진행 중 · 내가 입찰한 행 (bulk 모드가 아닌 일반 조회 시).
+  // 미입찰 흰 배경 ↔ 낙찰 진한 sky 사이의 중간 톤으로 스캔 시 즉시 인지.
+  const hasMyBidInProgress = !bulkMode && !!myBid && !isSettled;
 
   return (
     <tr
@@ -444,13 +451,15 @@ function MainRow({
         bulkHighlight && "bg-sky-50/70 hover:bg-sky-50",
         !bulkHighlight && bulkHasMyBidUnchecked && "bg-sky-50/25 hover:bg-sky-50/50",
         !bulkHighlight && !bulkHasMyBidUnchecked && isSelected && !isSettled && "bg-sky-50/70 hover:bg-sky-50",
+        // 진행 중 · 내가 입찰한 행 (미선택) → 옅은 sky wash 로 3단 위계 구성
+        hasMyBidInProgress && !isSelected && "bg-sky-50/40 hover:bg-sky-50/60",
         // 낙찰: 선택 여부와 무관하게 sky wash 로 강조 (스캔 시 즉시 인지)
         isSettled && iWon && isSelected && "bg-sky-100/70 hover:bg-sky-100/80",
         isSettled && iWon && !isSelected && "bg-sky-50/70 hover:bg-sky-100/50",
         // 유찰 · 미입찰(settled): 기존 slate wash 유지
         isSettled && !iWon && isSelected && "bg-sky-50/40 hover:bg-sky-50/50",
         isSettled && !iWon && !isSelected && "bg-slate-50 hover:bg-slate-100/60",
-        !bulkHighlight && !bulkHasMyBidUnchecked && !isSelected && !isSettled && "hover:bg-slate-50/50",
+        !bulkHighlight && !bulkHasMyBidUnchecked && !hasMyBidInProgress && !isSelected && !isSettled && "hover:bg-slate-50/50",
       )}
     >
       {bulkMode ? (
@@ -544,7 +553,7 @@ function MainRow({
           isSettled ? "text-slate-400" : "text-slate-700",
         )}
       >
-        {formatWonPerKg(part.minPrice)}
+        {formatKrw(part.minPrice)}
       </td>
       <td
         className={cn(
@@ -580,8 +589,9 @@ function MainRow({
             className={cn(
               "group/bid inline-flex h-6 min-w-[92px] items-baseline gap-0.5 border px-2 text-[11px] font-bold transition-colors",
               myBid ? "justify-end" : "justify-center",
+              // 입찰중: filled sky (강조) · 미입찰: outline sky (수동 액션 유도)
               myBid
-                ? "border-sky-500 bg-white text-sky-700 hover:border-sky-500 hover:bg-sky-500 hover:text-white"
+                ? "border-sky-600 bg-sky-600 text-white shadow-sm hover:border-sky-700 hover:bg-sky-700"
                 : "border-sky-500 bg-white text-sky-600 hover:border-sky-500 hover:bg-sky-500 hover:text-white",
             )}
           >
@@ -738,10 +748,8 @@ const KRW_NUMBER = new Intl.NumberFormat("ko-KR");
 const BID_MASK_TOKEN = "***";
 
 /**
- * "내 입찰가" 배지 텍스트 · 좁은 컬럼에 맞게 두 조각으로 분리.
- * - 큰 숫자 (bold + tabular-nums + tighter tracking)
- * - 얇은 접미어 `원/kg` (10px · 0.85 opacity)
- * 컬럼 폭이 부족해 텍스트가 잘리던 문제 해소.
+ * "내 입찰가" 배지 텍스트 · 단위(`원/kg`)는 헤더 우측 상단 캡션에 명시.
+ * 셀에는 순수 숫자만 노출해 컬럼 스캔 속도 향상.
  */
 function MyBidBadge({
   bidPrice,
@@ -753,20 +761,15 @@ function MyBidBadge({
   if (!canRead) return <span className="tabular-nums">{BID_MASK_TOKEN}</span>;
   const rounded = Math.round(bidPrice);
   return (
-    <>
-      <span className="tabular-nums -tracking-[0.02em]">
-        {KRW_NUMBER.format(rounded)}
-      </span>
-      <span className="text-[10px] font-semibold text-sky-500 group-hover/bid:text-white/85">
-        원/kg
-      </span>
-    </>
+    <span className="tabular-nums -tracking-[0.02em]">
+      {KRW_NUMBER.format(rounded)}
+    </span>
   );
 }
 
 /**
  * 낙찰 후 표시되는 "내 입찰가" 텍스트 (버튼 없이 텍스트만).
- * 배지와 동일한 분리 방식으로 tone(won/lost) 만 색상으로 구분.
+ * 단위는 헤더 캡션에서 처리 · tone(won/lost) 만 색상으로 구분.
  */
 function MyBidText({
   bidPrice,
@@ -788,14 +791,11 @@ function MyBidText({
   return (
     <span
       className={cn(
-        "inline-flex items-baseline justify-end gap-0.5 tabular-nums",
+        "text-xs font-bold tabular-nums -tracking-[0.02em]",
         tone === "won" ? "text-sky-700" : "text-slate-400",
       )}
     >
-      <span className="text-xs font-bold -tracking-[0.02em]">
-        {KRW_NUMBER.format(rounded)}
-      </span>
-      <span className="text-[10px] font-semibold opacity-85">원/kg</span>
+      {KRW_NUMBER.format(rounded)}
     </span>
   );
 }

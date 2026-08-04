@@ -16,6 +16,16 @@ export function formatWon(value: number | null | undefined): string {
   return `${NUMBER_FORMATTER.format(Math.round(value))}원`;
 }
 
+/**
+ * 단위 접미어 없이 원화 숫자만 포맷 · 헤더에 단위가 이미 명시된 테이블 셀 용도.
+ * 예: 35168 → "35,168" · null/0/음수 → "-"
+ */
+export function formatKrw(value: number | null | undefined): string {
+  if (value === null || value === undefined) return "-";
+  if (!Number.isFinite(value) || value <= 0) return "-";
+  return NUMBER_FORMATTER.format(Math.round(value));
+}
+
 export function formatWonPerKg(
   value: number | null | undefined,
 ): string {
@@ -38,6 +48,18 @@ export function maskWonPerKg(
 ): string {
   if (!canRead) return MASK_TOKEN;
   return formatWonPerKg(value);
+}
+
+/**
+ * 단위 접미어 없는 마스킹 포맷 · 컬럼 헤더에 단위가 명시된 테이블 셀 용도.
+ * canRead=false → MASK_TOKEN · true → 콤마 포맷 숫자만.
+ */
+export function maskKrw(
+  value: number | null | undefined,
+  canRead: boolean,
+): string {
+  if (!canRead) return MASK_TOKEN;
+  return formatKrw(value);
 }
 
 export function maskWon(

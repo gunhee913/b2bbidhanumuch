@@ -1,25 +1,33 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { format } from "date-fns";
 import { ko } from "date-fns/locale";
+import { useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
 import type { AuctionResult, MyBidItem } from "@/features/bids/types";
 import type { AssignmentInfo } from "@/features/delivery/types";
 import {
+  formatKrw,
   formatWeightKg,
   formatWon,
-  formatWonPerKg,
 } from "@/features/live-auction/lib/masking";
 import { formatGradeLabel } from "@/features/live-auction/lib/grade";
 import { CompactFilterPill } from "@/features/live-auction/components/CompactFilterPill";
-import { nameToSlug } from "@/constants/slaughterHouseSlugs";
+import { EntityDetailDialog } from "@/features/live-auction/components/EntityDetailDialog";
 import {
   HistoryCalendar,
   type CalendarDayStat,
 } from "./HistoryCalendar";
 import { StatusBadge } from "./ResultBadge";
+
+/**
+ * `listingNo` (예: `260720-101-01`) 에서 부위 번호(마지막 2자리) 를 추출.
+ */
+function parsePartNo(listingNo: string): number | null {
+  const m = listingNo.match(/-(\d{2})$/);
+  return m ? Number(m[1]) : null;
+}
 
 export interface HistoryCalendarPanelProps {
   activeBids: MyBidItem[];
@@ -51,6 +59,8 @@ type DailyRow =
       myBid: number;
       totalAmount: number;
       minPrice: number;
+      /** 경매 회차 (1, 2, 3) */
+      roundNo: number | null;
       bid: MyBidItem;
     }
   | {
@@ -71,6 +81,8 @@ type DailyRow =
       winningBid: number | null;
       totalAmount: number;
       minPrice: number;
+      /** 경매 회차 (1, 2, 3) */
+      roundNo: number | null;
       result: "won" | "lost";
     };
 
@@ -102,6 +114,10 @@ export function HistoryCalendarPanel({
   assignments,
   isLoading,
 }: HistoryCalendarPanelProps) {
+  const { data: session } = useSession();
+  const dealerId =
+    session?.dealer?.id ?? session?.employee?.dealerId ?? null;
+
   const [cursor, setCursor] = useState<Date>(new Date());
   const [selectedDate, setSelectedDate] = useState<string | null>(
     format(new Date(), "yyyy-MM-dd"),
@@ -110,12 +126,19 @@ export function HistoryCalendarPanel({
   const [gradeFilter, setGradeFilter] = useState<string>("");
   const [companyFilter, setCompanyFilter] = useState<string>("");
   const [statusFilter, setStatusFilter] = useState<string>("");
+  const [roundFilter, setRoundFilter] = useState<string>("");
+
+  const [detailTarget, setDetailTarget] = useState<{
+    listingNo: string;
+    partNo: number | null;
+  } | null>(null);
 
   useEffect(() => {
     setPartFilter("");
     setGradeFilter("");
     setCompanyFilter("");
     setStatusFilter("");
+    setRoundFilter("");
   }, [selectedDate]);
 
   const dailyStats = useMemo<Record<string, CalendarDayStat>>(() => {
@@ -163,6 +186,7 @@ export function HistoryCalendarPanel({
         myBid: b.myBid,
         totalAmount: b.totalAmount,
         minPrice: b.minPrice,
+        roundNo: b.roundNo,
         bid: b,
       }));
 
@@ -186,15 +210,16 @@ export function HistoryCalendarPanel({
         winningBid: r.winningBid,
         totalAmount: r.totalAmount,
         minPrice: r.minPrice,
+        roundNo: r.roundNo,
         result: r.result,
       }));
 
-    return [...active, ...resultRows].sort((a, b) => {
-      const pa = a.kind === "active" ? 0 : a.kind === "result" ? 1 : 2;
-      const pb = b.kind === "active" ? 0 : b.kind === "result" ? 1 : 2;
-      if (pa !== pb) return pa - pb;
-      return b.time.localeCompare(a.time);
-    });
+    // 상장번호 오름차순 (101 → 201 → 301 …) · numeric 옵션으로 자연수 정렬
+    // 부위번호까지 포함된 전체 상장번호(예: 260720-101-01) 기준으로 정렬해
+    // 같은 개체 안의 부위들은 인접하게 배치.
+    return [...active, ...resultRows].sort((a, b) =>
+      a.listingNo.localeCompare(b.listingNo, undefined, { numeric: true }),
+    );
   }, [activeBids, results, selectedDate]);
 
   const partOptions = useMemo(() => {
@@ -224,6 +249,16 @@ export function HistoryCalendarPanel({
     return Array.from(set).sort((a, b) => a.localeCompare(b, "ko"));
   }, [dailyRows]);
 
+  const roundOptions = useMemo(() => {
+    const set = new Set<number>();
+    for (const row of dailyRows) {
+      if (row.roundNo != null) set.add(row.roundNo);
+    }
+    return Array.from(set)
+      .sort((a, b) => a - b)
+      .map((n) => `${n}차`);
+  }, [dailyRows]);
+
   const filteredRows = useMemo(() => {
     return dailyRows.filter((row) => {
       if (partFilter && row.partName !== partFilter) return false;
@@ -243,15 +278,27 @@ export function HistoryCalendarPanel({
               : "미낙찰";
         if (rowStatus !== statusFilter) return false;
       }
+      if (roundFilter) {
+        const rowRound = row.roundNo != null ? `${row.roundNo}차` : "";
+        if (rowRound !== roundFilter) return false;
+      }
       return true;
     });
-  }, [dailyRows, partFilter, gradeFilter, companyFilter, statusFilter]);
+  }, [
+    dailyRows,
+    partFilter,
+    gradeFilter,
+    companyFilter,
+    statusFilter,
+    roundFilter,
+  ]);
 
   const hasActiveFilter =
     partFilter !== "" ||
     gradeFilter !== "" ||
     companyFilter !== "" ||
-    statusFilter !== "";
+    statusFilter !== "" ||
+    roundFilter !== "";
 
   const dailySummary = useMemo(() => {
     let activeCount = 0;
@@ -337,6 +384,12 @@ export function HistoryCalendarPanel({
             options={STATUS_FILTER_OPTIONS}
           />
           <CompactFilterPill
+            label="회차"
+            value={roundFilter}
+            onChange={setRoundFilter}
+            options={roundOptions}
+          />
+          <CompactFilterPill
             label="부위"
             value={partFilter}
             onChange={setPartFilter}
@@ -362,76 +415,96 @@ export function HistoryCalendarPanel({
                 setGradeFilter("");
                 setCompanyFilter("");
                 setStatusFilter("");
+                setRoundFilter("");
               }}
               className="ml-1 inline-flex h-7 items-center rounded-md border border-slate-200 bg-white px-2 text-[11px] font-medium text-slate-500 transition-colors hover:border-slate-300 hover:text-slate-700"
             >
               초기화
             </button>
           ) : null}
+
+          {/* 우측 · 가격열 단위 캡션 · ml-auto 로 필터 그룹과 시각 분리 */}
+          <span className="ml-auto whitespace-nowrap text-[10.5px] font-medium tabular-nums text-slate-400">
+            단위 · 원/kg
+            <span className="mx-1 text-slate-300">·</span>
+            총 금액은 원
+          </span>
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1240px] border-collapse text-[12px]">
+          {/*
+           * 컬럼 폭 · 컨테이너 가용 폭(≈1176px) 안에 자연스럽게 맞도록 재분배.
+           * 원칙:
+           * - 등급 `1++A(9)` · 중량 `100.5kg` 처럼 실제 최악 콘텐츠 폭 이상을 확보.
+           * - 총금액/가공업체 등 이전에 과잉 배정되었던 컬럼을 축소해 균형화.
+           * - 가격열은 단위 접미어를 헤더로 이전한 뒤 숫자만 표시 → 컴팩트 유지.
+           * fixed 열 합계 ≈ 1012px · 거래처(auto) ≈ 164px 확보.
+           */}
+          <table className="w-full table-fixed text-[12px]">
             <colgroup>
-              <col className="w-[70px]" />
-              <col className="w-[142px]" />
+              <col className="w-[60px]" />
+              <col className="w-[44px]" />
               <col className="w-[124px]" />
-              <col className="w-[96px]" />
-              <col className="w-[60px]" />
-              <col className="w-[60px]" />
-              <col className="w-[96px]" />
-              <col className="w-[96px]" />
-              <col className="w-[96px]" />
-              <col className="w-[108px]" />
-              <col className="w-[130px]" />
+              <col className="w-[124px]" />
+              <col className="w-[82px]" />
+              <col className="w-[82px]" />
+              <col className="w-[66px]" />
+              <col className="w-[84px]" />
+              <col className="w-[84px]" />
+              <col className="w-[86px]" />
+              <col className="w-[100px]" />
+              <col className="w-[100px]" />
               <col className="w-auto" />
             </colgroup>
-            <thead className="bg-slate-50 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+            <thead className="bg-slate-50 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
               <tr>
-                <th className="border-b border-r border-slate-200 px-3 py-2 text-center">
+                <th className="whitespace-nowrap border-b border-slate-200 px-3 py-2.5 text-center">
                   상태
                 </th>
-                <th className="border-b border-r border-slate-200 px-3 py-2 text-center">
+                <th className="whitespace-nowrap border-b border-slate-200 px-3 py-2.5 text-center">
+                  회차
+                </th>
+                <th className="whitespace-nowrap border-b border-slate-200 px-3 py-2.5 text-center">
                   입찰시간
                 </th>
-                <th className="border-b border-r border-slate-200 px-3 py-2 text-center">
+                <th className="whitespace-nowrap border-b border-slate-200 px-3 py-2.5 text-center">
                   상장번호
                 </th>
-                <th className="border-b border-r border-slate-200 px-3 py-2 text-center">
+                <th className="whitespace-nowrap border-b border-slate-200 px-3 py-2.5 text-center">
                   부위
                 </th>
-                <th className="border-b border-r border-slate-200 px-3 py-2 text-center">
+                <th className="whitespace-nowrap border-b border-slate-200 px-3 py-2.5 text-center">
                   등급
                 </th>
-                <th className="border-b border-r border-slate-200 px-3 py-2 text-center">
+                <th className="whitespace-nowrap border-b border-slate-200 px-3 py-2.5 text-center">
                   중량
                 </th>
-                <th className="border-b border-r border-slate-200 px-3 py-2 text-center">
+                <th className="whitespace-nowrap border-b border-slate-200 px-3 py-2.5 text-center">
                   최저단가
                 </th>
-                <th className="border-b border-r border-slate-200 px-3 py-2 text-center">
+                <th className="whitespace-nowrap border-b border-slate-200 px-3 py-2.5 text-center">
                   낙찰가
                 </th>
-                <th className="border-b border-r border-slate-200 px-3 py-2 text-center">
+                <th className="whitespace-nowrap border-b border-slate-200 px-3 py-2.5 text-center">
                   내 입찰가
                 </th>
-                <th className="border-b border-r border-slate-200 px-3 py-2 text-center">
+                <th className="whitespace-nowrap border-b border-slate-200 px-3 py-2.5 text-center">
                   총 금액
                 </th>
-                <th className="border-b border-r border-slate-200 px-3 py-2 text-center">
+                <th className="whitespace-nowrap border-b border-slate-200 px-3 py-2.5 text-center">
                   가공업체
                 </th>
-                <th className="border-b border-slate-200 px-3 py-2 text-center">
+                <th className="whitespace-nowrap border-b border-slate-200 px-3 py-2.5 text-center">
                   거래처
                 </th>
               </tr>
             </thead>
             <tbody>
               {isLoading ? (
-                <SkeletonRows colSpan={12} rows={4} />
+                <SkeletonRows colSpan={13} rows={4} />
               ) : filteredRows.length === 0 ? (
                 <EmptyRow
-                  colSpan={12}
+                  colSpan={13}
                   message={
                     hasActiveFilter
                       ? "필터 조건에 해당하는 내역이 없습니다."
@@ -444,6 +517,12 @@ export function HistoryCalendarPanel({
                     key={`${row.kind}-${row.id}`}
                     row={row}
                     assignment={assignments[row.partId] ?? null}
+                    onOpenDetail={() =>
+                      setDetailTarget({
+                        listingNo: row.entityListingNo,
+                        partNo: parsePartNo(row.listingNo),
+                      })
+                    }
                   />
                 ))
               )}
@@ -451,6 +530,16 @@ export function HistoryCalendarPanel({
           </table>
         </div>
       </div>
+
+      <EntityDetailDialog
+        open={!!detailTarget}
+        onOpenChange={(open) => {
+          if (!open) setDetailTarget(null);
+        }}
+        listingNo={detailTarget?.listingNo ?? null}
+        focusPartNo={detailTarget?.partNo ?? null}
+        dealerId={dealerId}
+      />
     </div>
   );
 }
@@ -458,9 +547,11 @@ export function HistoryCalendarPanel({
 function DailyRowView({
   row,
   assignment,
+  onOpenDetail,
 }: {
   row: DailyRow;
   assignment: AssignmentInfo | null;
+  onOpenDetail: () => void;
 }) {
   const gradeLabel = formatGradeLabel(row.grade, row.marblingScore);
   const isActive = row.kind === "active";
@@ -473,48 +564,56 @@ function DailyRowView({
         !isActive && !isWon && "text-slate-500",
       )}
     >
-      <td className="border-r border-slate-100 px-3 py-2 align-middle">
+      <td className="px-3 py-2.5 text-center align-middle">
         <div className="flex justify-center">
           <StatusBadge
             status={isActive ? "active" : row.result}
           />
         </div>
       </td>
-      <td className="whitespace-nowrap border-r border-slate-100 px-3 py-2 text-center align-middle text-[11px] tabular-nums text-slate-500">
+      <td className="px-1 py-2.5 text-center align-middle">
+        <div className="flex justify-center">
+          <RoundBadge roundNo={row.roundNo} />
+        </div>
+      </td>
+      <td className="whitespace-nowrap px-3 py-2.5 text-center align-middle text-[11px] tabular-nums text-slate-500">
         {row.time}
       </td>
-      <td className="whitespace-nowrap border-r border-slate-100 px-3 py-2 text-left align-middle">
-        <ListingLink
-          slaughterHouse={row.slaughterHouse}
-          entityListingNo={row.entityListingNo}
-          label={row.listingNo || row.entityListingNo}
-        />
+      <td className="whitespace-nowrap px-3 py-2.5 text-center align-middle">
+        <button
+          type="button"
+          onClick={onOpenDetail}
+          className="text-[12px] font-bold -tracking-[0.02em] tabular-nums text-sky-700 hover:underline"
+        >
+          {row.listingNo || row.entityListingNo}
+        </button>
       </td>
       <td
         className={cn(
-          "whitespace-nowrap border-r border-slate-100 px-3 py-2 text-center align-middle text-[13px] font-semibold",
+          "px-3 py-2.5 text-center align-middle text-[13px] font-semibold",
           isActive || isWon ? "text-slate-900" : "text-slate-500",
         )}
+        title={row.partName}
       >
-        {row.partName}
+        <span className="block truncate">{row.partName}</span>
       </td>
       <td
         className={cn(
-          "whitespace-nowrap border-r border-slate-100 px-3 py-2 text-center align-middle text-[12px] font-semibold tabular-nums",
+          "whitespace-nowrap px-3 py-2.5 text-center align-middle text-[12px] font-semibold tabular-nums",
           isActive || isWon ? "text-slate-800" : "text-slate-400",
         )}
       >
         {gradeLabel}
       </td>
-      <td className="whitespace-nowrap border-r border-slate-100 px-3 py-2 text-right align-middle text-[11px] tabular-nums text-slate-700">
+      <td className="whitespace-nowrap px-3 py-2.5 text-center align-middle text-[11px] tabular-nums text-slate-700">
         {formatWeightKg(row.weight)}
       </td>
-      <td className="whitespace-nowrap border-r border-slate-100 px-3 py-2 text-right align-middle text-[12px] tabular-nums text-slate-500">
-        {row.minPrice > 0 ? formatWonPerKg(row.minPrice) : "-"}
+      <td className="whitespace-nowrap px-3 py-2.5 text-center align-middle text-[12px] tabular-nums text-slate-500">
+        {row.minPrice > 0 ? formatKrw(row.minPrice) : "-"}
       </td>
       <td
         className={cn(
-          "whitespace-nowrap border-r border-slate-100 px-3 py-2 text-right align-middle text-[12px] font-bold tabular-nums",
+          "whitespace-nowrap px-3 py-2.5 text-center align-middle text-[12px] font-bold tabular-nums",
           isActive
             ? "text-slate-400"
             : isWon
@@ -522,16 +621,14 @@ function DailyRowView({
               : "text-slate-400",
         )}
       >
-        {isActive
-          ? "-"
-          : formatWonPerKg(row.winningBid ?? null)}
+        {isActive ? "-" : formatKrw(row.winningBid ?? null)}
       </td>
-      <td className="whitespace-nowrap border-r border-slate-100 px-3 py-2 text-right align-middle text-[12px] tabular-nums text-slate-700">
-        {formatWonPerKg(row.myBid)}
+      <td className="whitespace-nowrap px-3 py-2.5 text-center align-middle text-[12px] tabular-nums text-slate-700">
+        {formatKrw(row.myBid)}
       </td>
       <td
         className={cn(
-          "whitespace-nowrap border-r border-slate-100 px-3 py-2 text-right align-middle text-[12px] font-bold tabular-nums",
+          "whitespace-nowrap px-3 py-2.5 text-center align-middle text-[12px] font-bold tabular-nums",
           isActive
             ? "text-slate-900"
             : isWon
@@ -539,11 +636,11 @@ function DailyRowView({
               : "text-slate-400",
         )}
       >
-        {isActive || isWon ? formatWon(row.totalAmount) : "-"}
+        {isActive || isWon ? formatKrw(row.totalAmount) : "-"}
       </td>
       <td
         className={cn(
-          "whitespace-nowrap border-r border-slate-100 px-3 py-2 text-center align-middle text-[12px]",
+          "whitespace-nowrap px-3 py-2.5 text-center align-middle text-[12px]",
           isActive || isWon ? "text-slate-700" : "text-slate-400",
         )}
         title={row.companyName || undefined}
@@ -552,7 +649,7 @@ function DailyRowView({
           {row.companyName || "-"}
         </span>
       </td>
-      <td className="border-r-0 border-slate-100 px-3 py-2 align-middle">
+      <td className="px-3 py-2.5 text-center align-middle">
         <div className="flex justify-center">
           <PartnerCell assignment={assignment} eligible={isWon} />
         </div>
@@ -564,45 +661,7 @@ function DailyRowView({
 /**
  * 거래처 셀.
  *
- * - 공판장 slug 매핑 성공 시 · `/auction/live/[slug]?listing=<entityListingNo>` 로 이동
- * - 매핑 실패 (예상치 못한 공판장명) 시 · 링크 대신 텍스트 노출로 fallback
- */
-function ListingLink({
-  slaughterHouse,
-  entityListingNo,
-  label,
-}: {
-  slaughterHouse: string;
-  entityListingNo: string;
-  label: string;
-}) {
-  const slug = slaughterHouse ? nameToSlug(slaughterHouse) : null;
-  const cls =
-    "text-[12px] font-bold -tracking-[0.02em] tabular-nums text-sky-700 hover:underline";
-  if (!slug) {
-    return (
-      <span
-        className={cn(cls, "cursor-default hover:no-underline text-slate-500")}
-        title="공판장 정보 없음 · 이동 불가"
-      >
-        {label}
-      </span>
-    );
-  }
-  return (
-    <Link
-      href={`/auction/live/${slug}?listing=${encodeURIComponent(entityListingNo)}`}
-      className={cls}
-    >
-      {label}
-    </Link>
-  );
-}
-
-/**
- * 거래처 셀.
- *
- * - 배정된 거래처가 있으면 이름 + 대표자 (small)
+ * - 배정된 거래처가 있으면 이름 + 거래처번호 (small)
  * - 낙찰인데 미배정 → "미배정" 뱃지 (배정 필요를 상기)
  * - 진행중 → 아직 낙찰 확정 전이므로 "-"
  * - 미낙찰 → 배정 대상 아님 "-"
@@ -620,9 +679,9 @@ function PartnerCell({
         <span className="truncate text-[12px] font-bold text-slate-900">
           {assignment.partnerName || "-"}
         </span>
-        {assignment.representative ? (
-          <span className="truncate text-[10.5px] text-slate-400">
-            {assignment.representative}
+        {assignment.partnerNo ? (
+          <span className="truncate text-[10.5px] tabular-nums text-slate-400">
+            {assignment.partnerNo}
           </span>
         ) : null}
       </div>
@@ -636,6 +695,37 @@ function PartnerCell({
     );
   }
   return <span className="text-[11px] text-slate-300">-</span>;
+}
+
+/**
+ * 회차 배지 · 1차/2차/3차 를 색 톤으로 시각 구분.
+ *
+ * 회차가 진행될수록 톤이 진해지도록 3단 위계 구성:
+ * - 1차: slate-50  · 초기 · 가장 옅음
+ * - 2차: slate-200 · 중간
+ * - 3차: slate-800 · 확정 · 가장 진함
+ * - 없음: "-" 텍스트만
+ */
+function RoundBadge({ roundNo }: { roundNo: number | null }) {
+  if (roundNo == null) {
+    return <span className="text-[11px] text-slate-300">-</span>;
+  }
+  const styleMap: Record<number, string> = {
+    1: "bg-slate-50 text-slate-600 ring-1 ring-inset ring-slate-200",
+    2: "bg-slate-200 text-slate-700",
+    3: "bg-slate-800 text-white",
+  };
+  const cls = styleMap[roundNo] ?? "bg-slate-100 text-slate-600";
+  return (
+    <span
+      className={cn(
+        "inline-flex h-5 shrink-0 items-center whitespace-nowrap px-1.5 text-[10px] font-bold leading-none tabular-nums",
+        cls,
+      )}
+    >
+      {roundNo}차
+    </span>
+  );
 }
 
 function SummaryPill({

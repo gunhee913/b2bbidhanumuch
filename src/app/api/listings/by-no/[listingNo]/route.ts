@@ -83,16 +83,19 @@ export async function GET(
 
     console.log('[listings/by-no] candidateDealerIds:', Array.from(candidateDealerIds), 'isAdmin:', isAdmin);
 
-    // 각 부위의 입찰 현황 조회
+    // 각 부위의 입찰 현황 조회 · auction_id 를 함께 가져와 회차 매핑용으로 사용
     const partIds = (listing.cattle_parts || []).map((p: any) => p.id);
     const bidsByPart: Record<string, any[]> = {};
-    
+    // auction_id → round_no 매핑 · 여러 회차에 입찰이 있을 수 있으므로 일괄 조회
+    const auctionRoundMap: Record<string, number | null> = {};
+
     if (partIds.length > 0) {
       const { data: bidsData, error: bidsError } = await supabase
         .from('bids')
         .select(`
           id,
           part_id,
+          auction_id,
           dealer_id,
           bid_price,
           bid_amount,
@@ -111,6 +114,27 @@ export async function GET(
         console.error('입찰 조회 오류:', bidsError);
       }
 
+      // 회차 매핑을 위해 등장한 auction_id 들 모아서 batch 조회
+      const auctionIds = Array.from(
+        new Set(
+          (bidsData || [])
+            .map((b: any) => b.auction_id)
+            .filter(Boolean),
+        ),
+      );
+      if (auctionIds.length > 0) {
+        const { data: auctionsData, error: auctionsError } = await supabase
+          .from('auctions')
+          .select('id, round_no')
+          .in('id', auctionIds);
+        if (auctionsError) {
+          console.error('회차 조회 오류:', auctionsError);
+        }
+        (auctionsData || []).forEach((a: any) => {
+          auctionRoundMap[a.id] = a.round_no ?? null;
+        });
+      }
+
       (bidsData || []).forEach((bid: any) => {
         if (!bidsByPart[bid.part_id]) {
           bidsByPart[bid.part_id] = [];
@@ -124,6 +148,8 @@ export async function GET(
           bidAmount: bid.bid_amount,
           isWinning: !!bid.is_winning,
           createdAt: bid.created_at,
+          auctionId: bid.auction_id || null,
+          roundNo: bid.auction_id ? (auctionRoundMap[bid.auction_id] ?? null) : null,
         });
       });
     }
@@ -207,10 +233,10 @@ export async function GET(
         return {
           ...basePartData,
           bidCount: isSettled ? partBids.length : 0,
-          highestBid: (isSettled || hasWinner) ? (highestBid ? { bidPrice: highestBid.bidPrice, bidAmount: highestBid.bidAmount, dealerNo: highestBid.dealerNo } : null) : null,
+          highestBid: (isSettled || hasWinner) ? (highestBid ? { bidPrice: highestBid.bidPrice, bidAmount: highestBid.bidAmount, dealerNo: highestBid.dealerNo, roundNo: highestBid.roundNo ?? null } : null) : null,
           hasWinner,
           allBids: [],
-          myBid: myBid ? { bidId: myBid.id, bidPrice: myBid.bidPrice, bidAmount: myBid.bidAmount, isWinning: myBidIsWinning } : null,
+          myBid: myBid ? { bidId: myBid.id, bidPrice: myBid.bidPrice, bidAmount: myBid.bidAmount, isWinning: myBidIsWinning, roundNo: myBid.roundNo ?? null } : null,
         };
       }),
     };

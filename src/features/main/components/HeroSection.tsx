@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { format, parseISO } from "date-fns";
 import Link from "next/link";
-import { BadgeCheck, ChevronLeft, ChevronRight } from "lucide-react";
+import { BadgeCheck } from "lucide-react";
 import { fetchNotices, type NoticeItem } from "@/features/main/api";
 
 export function HeroSection() {
@@ -144,13 +144,7 @@ function FloatingPromotionCard() {
   return (
     <div className="fixed right-4 top-28 z-30">
       <div className="relative w-[200px] rounded-2xl bg-white p-5 shadow-xl shadow-slate-300/40 ring-1 ring-slate-100">
-        <div className="flex justify-center">
-          <span className="inline-flex items-center rounded-full bg-sky-100 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-sky-700">
-            Notice
-          </span>
-        </div>
-
-        <div className="mt-3 text-center">
+        <div className="text-center">
           <h3 className="text-[15px] font-bold leading-[1.35] text-slate-900">
             매참인 모집
             <br />
@@ -164,35 +158,14 @@ function FloatingPromotionCard() {
           </div>
         </div>
 
-        <div className="mt-1 flex items-center justify-center gap-2.5">
-          <button
-            type="button"
-            aria-label="이전 슬라이드"
-            className="text-slate-400 transition-colors hover:text-slate-600"
-          >
-            <ChevronLeft className="h-3.5 w-3.5" />
-          </button>
-          <span className="text-[12px]">
-            <span className="font-bold text-sky-600">1</span>
-            <span className="text-slate-400"> / 3</span>
-          </span>
-          <button
-            type="button"
-            aria-label="다음 슬라이드"
-            className="text-slate-400 transition-colors hover:text-slate-600"
-          >
-            <ChevronRight className="h-3.5 w-3.5" />
-          </button>
-        </div>
-
-        <div className="my-3 h-px w-full bg-slate-200" />
+        <div className="my-4 h-px w-full bg-slate-200" />
 
         <div className="flex items-center justify-between">
           <span className="text-[11px] font-medium text-slate-500">
-            고객센터
+            문의전화
           </span>
           <span className="text-[13px] font-bold tracking-tight text-slate-900">
-            1588-1004
+            031-123-4567
           </span>
         </div>
       </div>
