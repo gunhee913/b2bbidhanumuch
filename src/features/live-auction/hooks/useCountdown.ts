@@ -14,7 +14,7 @@ export interface UseCountdownParams {
 export interface CountdownResult {
   /** 남은 밀리초 (음수면 0으로 clamp). */
   remainingMs: number;
-  /** mm:ss 형식 문자열. */
+  /** 60분 초과 시 H:MM:SS, 이하 시 MM:SS 로 자동 포맷. */
   formatted: string;
   /** 초과 종료 여부. */
   isExpired: boolean;
@@ -22,12 +22,15 @@ export interface CountdownResult {
   progress: number;
 }
 
-function formatMMSS(ms: number): string {
+function formatCountdown(ms: number): string {
   if (ms <= 0) return "00:00";
   const totalSec = Math.floor(ms / 1000);
-  const m = Math.floor(totalSec / 60);
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
   const s = totalSec % 60;
-  return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  const mm = String(m).padStart(2, "0");
+  const ss = String(s).padStart(2, "0");
+  return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
 }
 
 /**
@@ -66,7 +69,7 @@ export function useCountdown({
 
   return {
     remainingMs,
-    formatted: formatMMSS(remainingMs),
+    formatted: formatCountdown(remainingMs),
     isExpired: rawRemaining <= 0,
     progress,
   };

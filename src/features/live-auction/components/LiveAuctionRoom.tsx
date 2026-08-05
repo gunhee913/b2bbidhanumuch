@@ -17,6 +17,8 @@ import { useRealtimeBids } from "@/hooks/useRealtimeBids";
 import { useRealtimeAuctions } from "@/hooks/useRealtimeAuctions";
 import { RoundStickyBar } from "./RoundStickyBar";
 import { RoundFloatingCard } from "./RoundFloatingCard";
+import { RoundScheduleList } from "./RoundScheduleList";
+import { useRoundSchedule } from "@/features/round-schedules/hooks/useRoundSchedule";
 import {
   MyBidsDrawer,
   MyBidsTrigger,
@@ -97,6 +99,11 @@ export function LiveAuctionRoom({ slug }: LiveAuctionRoomProps) {
   });
 
   const { data: roundData } = useCurrentRound(format(new Date(), "yyyy-MM-dd"));
+
+  const { data: scheduleData, isLoading: scheduleLoading } = useRoundSchedule(
+    slaughterHouseName,
+    format(new Date(), "yyyy-MM-dd"),
+  );
 
   const listings = listingsData?.listings ?? [];
 
@@ -523,6 +530,12 @@ export function LiveAuctionRoom({ slug }: LiveAuctionRoomProps) {
           activeSlug={slug}
           currentRound={roundData?.currentRound ?? null}
           lastClosedRound={roundData?.lastClosedRound ?? null}
+        />
+        <RoundScheduleList
+          schedules={scheduleData?.schedules ?? []}
+          currentRound={roundData?.currentRound ?? null}
+          allRounds={roundData?.allRounds ?? []}
+          isLoading={scheduleLoading}
         />
         <MyBidsTrigger
           dealerId={permission.dealerId}

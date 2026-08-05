@@ -54,6 +54,7 @@ export interface CompanyInfo {
   representative: string | null;
   phone: string | null;
   fax: string | null;
+  email: string | null;
   businessNumber: string | null;
   ecommerceNumber: string | null;
   address: string | null;

@@ -11,6 +11,7 @@ interface CompanyInfo {
   representative: string;
   phone: string;
   fax: string;
+  email: string;
   businessNumber: string;
   ecommerceNumber: string;
   address: string;
@@ -26,6 +27,7 @@ export default function CompanyInfoPage() {
     representative: '',
     phone: '',
     fax: '',
+    email: '',
     businessNumber: '',
     ecommerceNumber: '',
     address: '',
@@ -48,6 +50,7 @@ export default function CompanyInfoPage() {
         representative: data.representative || '',
         phone: data.phone || '',
         fax: data.fax || '',
+        email: data.email || '',
         businessNumber: data.businessNumber || '',
         ecommerceNumber: data.ecommerceNumber || '',
         address: data.address || '',
@@ -87,6 +90,7 @@ export default function CompanyInfoPage() {
         representative: data.representative || '',
         phone: data.phone || '',
         fax: data.fax || '',
+        email: data.email || '',
         businessNumber: data.businessNumber || '',
         ecommerceNumber: data.ecommerceNumber || '',
         address: data.address || '',
@@ -104,6 +108,7 @@ export default function CompanyInfoPage() {
     { key: 'ecommerceNumber', label: '통신판매번호' },
     { key: 'phone', label: '전화번호' },
     { key: 'fax', label: '팩스번호' },
+    { key: 'email', label: '이메일' },
     { key: 'businessHours', label: '운영시간' },
   ] as const;
 
@@ -188,6 +193,7 @@ export default function CompanyInfoPage() {
                     {form.ecommerceNumber && <span>통신판매번호 {form.ecommerceNumber}</span>}
                     <span>전화 {form.phone || '-'}</span>
                     <span>팩스 {form.fax || '-'}</span>
+                    {form.email && <span>이메일 {form.email}</span>}
                     {form.businessHours && <span>{form.businessHours}</span>}
                   </div>
                 </div>

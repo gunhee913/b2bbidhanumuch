@@ -21,6 +21,7 @@ export async function GET() {
       representative: data.representative,
       phone: data.phone,
       fax: data.fax,
+      email: data.email ?? '',
       businessNumber: data.business_number,
       ecommerceNumber: data.ecommerce_number,
       address: data.address,

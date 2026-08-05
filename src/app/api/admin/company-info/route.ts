@@ -21,6 +21,7 @@ export async function GET() {
       representative: data.representative,
       phone: data.phone,
       fax: data.fax,
+      email: data.email ?? '',
       businessNumber: data.business_number,
       ecommerceNumber: data.ecommerce_number,
       address: data.address,
@@ -37,13 +38,14 @@ export async function PATCH(request: NextRequest) {
     const supabase = await createPureClient();
     const body = await request.json();
 
-    const { name, representative, phone, fax, businessNumber, ecommerceNumber, address, businessHours } = body;
+    const { name, representative, phone, fax, email, businessNumber, ecommerceNumber, address, businessHours } = body;
 
     const updateData: Record<string, string> = { updated_at: new Date().toISOString() };
     if (name !== undefined) updateData.name = name;
     if (representative !== undefined) updateData.representative = representative;
     if (phone !== undefined) updateData.phone = phone;
     if (fax !== undefined) updateData.fax = fax;
+    if (email !== undefined) updateData.email = email;
     if (businessNumber !== undefined) updateData.business_number = businessNumber;
     if (ecommerceNumber !== undefined) updateData.ecommerce_number = ecommerceNumber;
     if (address !== undefined) updateData.address = address;
@@ -66,6 +68,7 @@ export async function PATCH(request: NextRequest) {
       representative: data.representative,
       phone: data.phone,
       fax: data.fax,
+      email: data.email ?? '',
       businessNumber: data.business_number,
       ecommerceNumber: data.ecommerce_number,
       address: data.address,
