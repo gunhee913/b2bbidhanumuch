@@ -3,6 +3,8 @@
 import { Fragment, useMemo, useState } from "react";
 import {
   Cell,
+  Line,
+  LineChart,
   Pie,
   PieChart,
   ResponsiveContainer,

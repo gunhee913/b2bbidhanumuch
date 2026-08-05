@@ -207,7 +207,7 @@ export function BidPanel({
               </span>
             </div>
 
-            <div className="mt-2 grid grid-cols-4 gap-1">
+            <div className="mt-2 grid grid-cols-5 gap-1">
               {STEP_BUTTONS.map((btn) => (
                 <button
                   key={btn.label}
@@ -226,6 +226,23 @@ export function BidPanel({
                   {btn.label}
                 </button>
               ))}
+              {/* 초기화 · 최저단가로 리셋 · 증분 버튼과 톤 분리 (slate) */}
+              <button
+                type="button"
+                onClick={() => {
+                  setPrice(selectedPart.minPrice ?? 0);
+                  setError(null);
+                }}
+                disabled={disabled}
+                title="최저단가로 초기화"
+                className={cn(
+                  "h-8 border border-slate-200 bg-white text-[11px] font-semibold text-slate-500 transition-colors",
+                  "hover:border-slate-400 hover:bg-slate-50 hover:text-slate-800",
+                  "disabled:opacity-40 disabled:hover:border-slate-200 disabled:hover:bg-white disabled:hover:text-slate-500",
+                )}
+              >
+                초기화
+              </button>
             </div>
 
             <div className="mt-4 flex items-baseline justify-between border-t border-dashed border-slate-200 pt-3">

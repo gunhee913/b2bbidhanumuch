@@ -218,14 +218,18 @@ export function PartListingTable({
       </div>
 
       <table className="w-full table-fixed text-sm">
+        {/*
+         * 컬럼 폭 재조정 · "내 입찰가" 를 고정 폭으로 만들어 버튼이 최저단가 옆에
+         * 인접하도록 시각 거리 축소. 남은 여백은 `부위` (auto) 가 자연스럽게 흡수.
+         */}
         <colgroup>
           {bulkMode ? <col className="w-[28px]" /> : null}
           <col className={bulkMode ? "w-[100px]" : "w-[104px]"} />
-          <col className={bulkMode ? "w-[54px]" : "w-[62px]"} />
+          <col className="w-auto" />
           <col className={bulkMode ? "w-[50px]" : "w-[58px]"} />
           <col className={bulkMode ? "w-[44px]" : "w-[50px]"} />
           <col className={bulkMode ? "w-[68px]" : "w-[76px]"} />
-          <col className={bulkMode ? "w-[108px]" : "w-auto"} />
+          <col className={bulkMode ? "w-[108px]" : "w-[112px]"} />
         </colgroup>
         <thead className="bg-slate-50 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
           <tr>
