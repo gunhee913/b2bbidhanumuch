@@ -14,7 +14,7 @@ export function CompleteStep({ applicantName }: Props) {
         <CheckCircle2 className="h-9 w-9" />
       </div>
       <h2 className="text-2xl font-bold text-slate-900">
-        회원가입 신청이 완료되었습니다
+        매참인 신청이 접수되었습니다
       </h2>
       <p className="mt-3 text-sm text-slate-600">
         {applicantName ? `${applicantName}님, ` : ""}거래인 약정에 대한 전자
@@ -27,10 +27,13 @@ export function CompleteStep({ applicantName }: Props) {
           다음 절차 안내
         </div>
         <ul className="space-y-2 text-xs leading-relaxed text-slate-600">
-          <li>1. 관리자가 신청 내역과 사업자 정보를 검토합니다.</li>
-          <li>2. 승인 완료 시 등록하신 휴대전화 번호로 안내가 발송됩니다.</li>
+          <li>1. 관리자가 신청 내역과 사업자 정보를 확인합니다.</li>
           <li>
-            3. 승인 후 로그인하시면 부분육 경매에 참여하실 수 있습니다.
+            2. 필요 시 등록하신 휴대번호로 담당자가 별도로 연락드립니다.
+          </li>
+          <li>
+            3. 승인 후 안내에 따라 로그인하시면 부분육 경매에 참여하실 수
+            있습니다.
           </li>
         </ul>
       </div>

@@ -40,6 +40,7 @@ const menuItems = [
     icon: Users,
     subItems: [
       { title: '중도매인 관리', href: '/admin/users/dealers' },
+      { title: '매참인 신청 관리', href: '/admin/users/dealer-applications' },
       { title: '상장업체 관리', href: '/admin/users/companies' },
       { title: '관리자 관리', href: '/admin/users/admins' },
     ],

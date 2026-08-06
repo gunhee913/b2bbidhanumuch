@@ -129,7 +129,7 @@ export function MyBidsTrigger({
   return (
     <div
       className={cn(
-        "pointer-events-auto w-[220px] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg shadow-slate-200/60",
+        "pointer-events-auto w-[236px] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg shadow-slate-200/60",
         disabled && "opacity-70",
       )}
     >

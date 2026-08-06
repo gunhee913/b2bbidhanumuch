@@ -1,6 +1,8 @@
 "use client";
 
 import { Check } from "lucide-react";
+import { format } from "date-fns";
+import { ko } from "date-fns/locale";
 import type { RoundInfo } from "@/features/main/api";
 import type { RoundSchedule } from "@/features/round-schedules/types";
 import { cn } from "@/lib/utils";
@@ -9,7 +11,19 @@ export interface RoundScheduleListProps {
   schedules: RoundSchedule[];
   currentRound: RoundInfo | null;
   allRounds: RoundInfo[];
+  /** yyyy-MM-dd · 헤더 우측 라벨 · schedules 의 auctionDate 대신 명시적으로 전달 */
+  date: string;
   isLoading?: boolean;
+}
+
+function formatHeaderDate(iso: string): string {
+  try {
+    const d = new Date(`${iso}T00:00:00`);
+    if (Number.isNaN(d.getTime())) return iso;
+    return format(d, "M.d (EEEEE)", { locale: ko });
+  } catch {
+    return iso;
+  }
 }
 
 type RowStatus = "completed" | "live" | "upcoming";
@@ -37,6 +51,7 @@ export function RoundScheduleList({
   schedules,
   currentRound,
   allRounds,
+  date,
   isLoading,
 }: RoundScheduleListProps) {
   const closedRoundNos = new Set(
@@ -68,7 +83,9 @@ export function RoundScheduleList({
         <span className="text-[13px] font-bold tracking-tight text-slate-900">
           예정 시간표
         </span>
-        <span className="text-[10.5px] font-medium text-slate-400">오늘</span>
+        <span className="text-[10.5px] font-medium tabular-nums text-slate-400">
+          {formatHeaderDate(date)}
+        </span>
       </div>
       <div className="h-px w-full bg-slate-100" />
 

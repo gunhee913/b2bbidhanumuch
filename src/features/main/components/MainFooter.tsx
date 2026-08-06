@@ -39,7 +39,14 @@ export function MainFooter() {
 
   const topLinks: { label: string; href: string; strong?: boolean }[] = [
     ...STATIC_LINKS,
-    { label: "제휴 문의", href: `mailto:${email}` },
+    {
+      label: "매참인 신청 문의",
+      href: `mailto:${email}?subject=${encodeURIComponent("[매참인 신청 문의]")}`,
+    },
+    {
+      label: "부분육 상장 문의",
+      href: `mailto:${email}?subject=${encodeURIComponent("[부분육 상장 문의]")}`,
+    },
   ];
 
   return (

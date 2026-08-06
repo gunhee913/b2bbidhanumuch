@@ -10,15 +10,59 @@ import {
 import { AgreementStep } from "@/features/signup/components/AgreementStep";
 import { InfoStep } from "@/features/signup/components/InfoStep";
 import { CompleteStep } from "@/features/signup/components/CompleteStep";
-import type { SignupFormValues } from "@/features/signup/schema";
+import type { AgreementId, SignupFormValues } from "@/features/signup/schema";
+import { useSubmitDealerApplication } from "@/features/dealer-applications/hooks";
 
 export default function SignupPage() {
   const [step, setStep] = useState<SignupStep>("agreement");
   const [applicantName, setApplicantName] = useState<string | undefined>();
+  const [agreements, setAgreements] = useState<Record<AgreementId, boolean>>({
+    service: false,
+    privacy: false,
+    trade: false,
+    marketing: false,
+  });
+  const [serverError, setServerError] = useState<string | null>(null);
 
-  const handleSubmit = (values: SignupFormValues) => {
-    setApplicantName(values.name);
-    setStep("complete");
+  const { mutateAsync, isPending } = useSubmitDealerApplication();
+
+  const handleAgreementNext = (values: Record<AgreementId, boolean>) => {
+    setAgreements(values);
+    setStep("info");
+  };
+
+  const handleSubmit = async (values: SignupFormValues) => {
+    setServerError(null);
+    try {
+      await mutateAsync({
+        applicantName: values.name,
+        phone: values.phone,
+        email: values.email || undefined,
+        password: values.password,
+        auctionPassword: values.auctionPassword,
+        businessName: values.businessName,
+        businessNo: values.businessNo,
+        representativeName: values.representative,
+        address: values.address,
+        businessType: values.businessType,
+        preferredSlaughterHouses: values.preferredSlaughterHouses,
+        preferredParts: values.preferredParts,
+        preferredGrades: values.preferredGrades,
+        expectedMonthlyVolume: values.expectedMonthlyVolume || undefined,
+        distributionChannels: values.distributionChannels,
+        inquiry: values.inquiry || undefined,
+        agreedService: agreements.service,
+        agreedPrivacy: agreements.privacy,
+        agreedTrade: agreements.trade,
+        agreedMarketing: agreements.marketing,
+      });
+      setApplicantName(values.name);
+      setStep("complete");
+    } catch (err) {
+      setServerError(
+        err instanceof Error ? err.message : "신청 접수 중 오류가 발생했습니다.",
+      );
+    }
   };
 
   return (
@@ -28,14 +72,12 @@ export default function SignupPage() {
         <div className="mx-auto max-w-[1240px] px-8">
           <header className="mb-10 text-center">
             <p className="mb-2 text-xs font-bold uppercase tracking-widest text-sky-700">
-              Matching Party Application
+              Dealer Application
             </p>
-            <h1 className="text-3xl font-bold text-slate-900">
-              매매참여인(매참인) 회원가입
-            </h1>
+            <h1 className="text-3xl font-bold text-slate-900">매참인 신청</h1>
             <p className="mt-2 text-sm text-slate-500">
-              전자 약정에 동의하고 사업자 정보를 등록하시면, 관리자 검토 후
-              경매 참여 계정이 활성화됩니다.
+              전자 약정에 동의하고 사업자 정보 및 거래 희망 사항을 남겨 주시면,
+              담당자가 확인 후 안내드립니다.
             </p>
           </header>
 
@@ -45,12 +87,14 @@ export default function SignupPage() {
 
           <div className="mx-auto max-w-3xl">
             {step === "agreement" && (
-              <AgreementStep onNext={() => setStep("info")} />
+              <AgreementStep onNext={handleAgreementNext} />
             )}
             {step === "info" && (
               <InfoStep
                 onBack={() => setStep("agreement")}
                 onSubmit={handleSubmit}
+                isSubmitting={isPending}
+                serverError={serverError}
               />
             )}
             {step === "complete" && (

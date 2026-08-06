@@ -23,7 +23,6 @@ export interface RoundFloatingCardProps {
  * - 헤더 · 공판장명 + 상태 chip (LIVE/대기)
  * - 카운트다운 (진행 중) 또는 대기 아이콘 (대기)
  * - 진행바 + 진행률(%)
- * - 시작/종료 시각 meta strip (진행 중)
  * - 최근 마감 (대기 상태)
  */
 export function RoundFloatingCard({
@@ -42,14 +41,6 @@ export function RoundFloatingCard({
   const shortName = slugToShort(activeSlug);
   const progressPct = Math.min(100, Math.round(progress * 100));
   const isCritical = progress > 0.85;
-
-  const startedAt = currentRound?.started_at
-    ? new Date(currentRound.started_at)
-    : null;
-  const endedAt =
-    startedAt && currentRound?.round_duration_min
-      ? new Date(startedAt.getTime() + currentRound.round_duration_min * 60_000)
-      : null;
 
   return (
     <div className="pointer-events-auto w-[236px] rounded-2xl border border-slate-200 bg-white shadow-lg shadow-slate-200/60">
@@ -123,20 +114,8 @@ export function RoundFloatingCard({
         )}
       </div>
 
-      {/* 하단 meta · 시작/종료 시각 (라이브) 또는 최근 마감 (대기) */}
-      {isLive && startedAt ? (
-        <>
-          <div className="h-px w-full bg-slate-100" />
-          <div className="flex items-center justify-between px-4 py-2.5 text-[11px]">
-            <MetaItem label="시작" time={format(startedAt, "HH:mm")} />
-            <span className="h-3 w-px bg-slate-200" aria-hidden />
-            <MetaItem
-              label="종료"
-              time={endedAt ? format(endedAt, "HH:mm") : "--:--"}
-            />
-          </div>
-        </>
-      ) : lastClosedRound ? (
+      {/* 대기 상태에서 최근 마감 정보 · 라이브 시에는 하단 meta 미노출 */}
+      {!isLive && lastClosedRound ? (
         <>
           <div className="h-px w-full bg-slate-100" />
           <div className="flex items-center justify-between px-4 py-2.5">
@@ -190,15 +169,6 @@ function StatusChip({
       )}
     >
       {label}
-    </span>
-  );
-}
-
-function MetaItem({ label, time }: { label: string; time: string }) {
-  return (
-    <span className="flex flex-1 items-baseline justify-center gap-1.5">
-      <span className="text-slate-400">{label}</span>
-      <span className="font-semibold tabular-nums text-slate-700">{time}</span>
     </span>
   );
 }

@@ -1,11 +1,15 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { AGREEMENT_BODY, AGREEMENT_ITEMS, type AgreementId } from "@/features/signup/schema";
+import {
+  AGREEMENT_BODY,
+  AGREEMENT_ITEMS,
+  type AgreementId,
+} from "@/features/signup/schema";
 import { FileSignature } from "lucide-react";
 
 interface Props {
-  onNext: () => void;
+  onNext: (agreements: Record<AgreementId, boolean>) => void;
 }
 
 export function AgreementStep({ onNext }: Props) {
@@ -48,8 +52,8 @@ export function AgreementStep({ onNext }: Props) {
           </h2>
         </div>
         <p className="mb-4 text-sm text-slate-600">
-          아래 약정서를 확인한 후 동의 체크박스에 표시해 주세요. 회원가입
-          신청과 동시에 본 약정이 전자적으로 체결됩니다.
+          아래 약정서를 확인한 후 동의 체크박스에 표시해 주세요. 매참인 신청과
+          동시에 본 약정이 전자적으로 체결됩니다.
         </p>
         <div className="max-h-80 overflow-y-auto whitespace-pre-line rounded-lg border border-slate-200 bg-slate-50 p-5 text-xs leading-relaxed text-slate-700">
           {AGREEMENT_BODY}
@@ -103,7 +107,7 @@ export function AgreementStep({ onNext }: Props) {
         </p>
         <button
           type="button"
-          onClick={onNext}
+          onClick={() => onNext(checked)}
           disabled={!allRequiredChecked}
           className="inline-flex items-center gap-2 rounded-md bg-sky-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:hover:bg-slate-300"
         >

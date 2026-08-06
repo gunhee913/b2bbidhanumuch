@@ -535,6 +535,7 @@ export function LiveAuctionRoom({ slug }: LiveAuctionRoomProps) {
           schedules={scheduleData?.schedules ?? []}
           currentRound={roundData?.currentRound ?? null}
           allRounds={roundData?.allRounds ?? []}
+          date={listingDate}
           isLoading={scheduleLoading}
         />
         <MyBidsTrigger
