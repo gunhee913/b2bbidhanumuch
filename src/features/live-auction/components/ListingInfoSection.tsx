@@ -20,7 +20,8 @@ export interface ListingInfoSectionProps {
  * - 섹션 헤더는 값 라벨과 확실히 차별화 (11px bold + 하단 hairline)
  * - 셀 사이 세로 divider 제거, 공백으로 구분
  * - 텍스트 셀은 좌측 정렬, 숫자 셀은 중앙 정렬
- * - 핵심 KPI (등급 · 근내지방 · 경락단가) 만 sky-600 emphasis
+ * - 핵심 KPI (등급 · 근내지방 · 경락단가) 는 크기·굵기로만 emphasis · 색은 slate-900 통일
+ *   (blue 색상은 액션/상태 표시에 예약하고, 정적 정보 표시는 무채색으로 스캔 부담 최소화)
  */
 export function ListingInfoSection({
   listing,
@@ -158,10 +159,8 @@ function SpecCell({
       </span>
       <span
         className={cn(
-          "min-h-[16px] whitespace-nowrap leading-none",
-          emphasis
-            ? "text-[14px] font-extrabold text-sky-600"
-            : "text-[13px] font-bold text-slate-900",
+          "min-h-[16px] whitespace-nowrap leading-none text-slate-900",
+          emphasis ? "text-[14px] font-extrabold" : "text-[13px] font-bold",
         )}
       >
         {children}
@@ -196,7 +195,7 @@ function NumericCell({
           value == null
             ? "text-[15px] font-bold text-slate-300"
             : emphasis
-              ? "text-[18px] font-extrabold text-sky-600"
+              ? "text-[18px] font-extrabold text-slate-900"
               : "text-[15px] font-bold text-slate-900",
         )}
       >
@@ -238,9 +237,9 @@ export function TraceInfoLink({
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      className="inline-flex items-center gap-1.5 border border-slate-300 bg-white px-3 py-1.5 text-[12px] font-semibold text-slate-700 transition-colors hover:border-slate-900 hover:bg-slate-900 hover:text-white"
+      className="inline-flex h-7 shrink-0 items-center gap-1 rounded-md border border-slate-200 bg-white px-2 text-[11px] font-semibold text-slate-600 transition-colors hover:border-sky-400 hover:bg-sky-50 hover:text-sky-700"
     >
-      <ExternalLink className="h-3.5 w-3.5" />
+      <ExternalLink className="h-3 w-3" />
       축산물 이력정보
     </a>
   );

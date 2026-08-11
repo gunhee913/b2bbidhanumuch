@@ -25,7 +25,7 @@ export interface EntityResultPartsCardProps {
  * - 입찰하기 버튼/편집 모드 완전 제거 (과거 데이터)
  * - `낙찰가`, `낙찰자` 를 별도 컬럼으로 노출 → 한 줄로 훑기 가능
  * - SettlementSubRow 제거 · 단일 행 밀도 유지
- * - 상태 배지: 내 낙찰(sky) · 유찰(slate) · 그 외 배지 없음
+ * - 상태 배지: 내 낙찰(sky) · 미낙찰(slate) · 그 외 배지 없음
  *
  * `/delivery`, `/history` 다이얼로그에서 사용.
  */
@@ -302,7 +302,7 @@ function ResultRow({
  * 내 입찰가 셀 · 상태 배지 인라인.
  *
  * - 내 낙찰: `97,500` (sky-700) + `낙찰` chip
- * - 내 유찰 (최저단가 미달 등): `1,800` (slate-500) + `유찰` chip
+ * - 내 미낙찰 (회차 유찰 등 낙찰자 없음): `1,800` (slate-500) + `미낙찰` chip
  * - 다른 딜러 낙찰 · 내 입찰 있음: 값만 (slate-500)
  * - 미입찰 · 완전 유찰: `-`
  */
@@ -336,7 +336,7 @@ function MyBidCell({
         </span>
       ) : iLost && isSettled ? (
         <span className="inline-flex shrink-0 items-center bg-slate-200 px-1.5 py-0.5 text-[10px] font-bold leading-none text-slate-600">
-          유찰
+          미낙찰
         </span>
       ) : null}
     </span>

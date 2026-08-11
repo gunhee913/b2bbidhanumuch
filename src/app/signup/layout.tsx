@@ -18,7 +18,5 @@ export default function SignupLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  return (
-    <div className="min-w-[1280px] bg-slate-50 text-slate-900">{children}</div>
-  );
+  return <div className="bg-white text-slate-900">{children}</div>;
 }

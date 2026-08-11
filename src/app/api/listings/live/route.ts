@@ -1,16 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminClient } from '@/lib/supabase-admin';
+import { resolveAuth } from '@/lib/resolve-auth';
 
 const supabase = getAdminClient();
 
 // GET: 승인된 상장의 실시간 입찰 현황 조회
-// 경매 없이도 승인된 상장에 대한 입찰 현황을 조회
+// 오픈 최고가 경매 정책:
+// - dealer 뷰: 진행 중 회차에서는 타 매참인의 입찰 정보를 마스킹하고,
+//   `topBid` 필드에 최고가와 내 소유 여부만 노출. 회차 마감 후에는 전체 공개.
+// - 관리자/출품업체 뷰: 기존과 동일하게 전체 공개.
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const listingDate = searchParams.get('listingDate');
     const companyId = searchParams.get('companyId');
-    const slaughterHouse = searchParams.get('slaughter_house');
+    // Phase 1 통합 이후 공판장 필터는 서버에서 무시한다.
+
+    const auth = await resolveAuth(request);
+    const isDealer = auth?.userType === 'dealer_user';
+    const viewerDealerId = auth?.dealerId ?? null;
 
     // 승인된 상장 조회 (부위 정보 포함)
     let query = supabase
@@ -60,7 +68,7 @@ export async function GET(request: NextRequest) {
           winning_dealer_id
         )
       `)
-      .in('status', ['approved', 'auction', 'closed', 'completed']) // 승인됨, 경매중, 마감, 완료
+      .in('status', ['approved', 'auction', 'closed', 'completed'])
       .order('listing_no', { ascending: true });
 
     if (listingDate) {
@@ -71,10 +79,6 @@ export async function GET(request: NextRequest) {
       query = query.eq('company_id', companyId);
     }
 
-    if (slaughterHouse) {
-      query = query.eq('slaughter_house', slaughterHouse);
-    }
-
     const { data: listings, error } = await query;
 
     if (error) {
@@ -82,10 +86,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    // listing_id로 입찰 조회 (part_id는 수백 개가 될 수 있어 URL 길이 초과 발생)
+    // listing_id로 입찰 조회 · 부위별 최고가 tie-break: bid_price DESC, created_at ASC
     const listingIds = (listings || []).map((l: any) => l.id);
-    let allBids: any[] = [];
-    
+    let allBidsRaw: any[] = [];
+
     if (listingIds.length > 0) {
       const { data: bidsData, error: bidsError } = await supabase
         .from('bids')
@@ -98,6 +102,7 @@ export async function GET(request: NextRequest) {
           bid_amount,
           rank,
           is_winning,
+          is_top_bid,
           created_at,
           updated_at,
           updated_by,
@@ -108,18 +113,19 @@ export async function GET(request: NextRequest) {
           )
         `)
         .in('listing_id', listingIds)
-        .order('bid_price', { ascending: false });
+        .order('bid_price', { ascending: false })
+        .order('created_at', { ascending: true });
 
       if (bidsError) {
         console.error('입찰 조회 오류:', bidsError);
       } else {
-        allBids = bidsData || [];
+        allBidsRaw = bidsData || [];
       }
     }
 
     // 부위별 입찰 그룹화
     const bidsByPart: Record<string, any[]> = {};
-    (allBids || []).forEach((bid: any) => {
+    allBidsRaw.forEach((bid: any) => {
       if (!bidsByPart[bid.part_id]) {
         bidsByPart[bid.part_id] = [];
       }
@@ -133,6 +139,7 @@ export async function GET(request: NextRequest) {
         bidAt: bid.created_at,
         rank: bid.rank,
         isWinning: bid.is_winning,
+        isTopBid: bid.is_top_bid,
         updatedAt: bid.updated_at,
         updatedBy: bid.updated_by,
       });
@@ -145,18 +152,44 @@ export async function GET(request: NextRequest) {
         .sort((a: any, b: any) => a.part_no - b.part_no)
         .map((part: any) => {
           const partBids = bidsByPart[part.id] || [];
-          const highestBid = partBids.length > 0 ? partBids[0] : null;
-          
+          const isSettled = partBids.some((b: any) => b.rank != null);
+          // 부위별 현재 최고가 · is_top_bid=true row (없으면 partBids 첫 번째)
+          const topRow =
+            partBids.find((b: any) => b.isTopBid) ??
+            (partBids.length > 0 ? partBids[0] : null);
+
+          const topBid = topRow
+            ? {
+                bidPrice: topRow.bidPrice,
+                bidAt: topRow.bidAt,
+                isMine: !!viewerDealerId && topRow.dealerId === viewerDealerId,
+              }
+            : null;
+
+          // 딜러 뷰 · 진행 중에는 타 매참인 정보 마스킹 (내 입찰만 노출)
+          const maskForDealer = isDealer && !isSettled;
+          const exposedBids = maskForDealer
+            ? partBids.filter((b: any) => b.dealerId === viewerDealerId)
+            : partBids;
+          const highestBid = maskForDealer
+            ? null
+            : partBids.length > 0
+              ? partBids[0]
+              : null;
+
           return {
             id: part.id,
             partNo: part.part_no,
             partName: part.part_name,
-            listingPartNo: part.listing_part_no || `${listing.listing_no}-${String(part.part_no).padStart(2, '0')}`,
+            listingPartNo:
+              part.listing_part_no ||
+              `${listing.listing_no}-${String(part.part_no).padStart(2, '0')}`,
             weight: part.weight,
             minPrice: part.min_price,
             bidCount: partBids.length,
-            highestBid: highestBid,
-            allBids: partBids,
+            highestBid,
+            topBid,
+            allBids: exposedBids,
           };
         });
 
@@ -193,7 +226,7 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    // 통계 계산
+    // 통계 계산 (진행 중 최고가 × 중량 합계)
     let totalParts = 0;
     let partsWithBids = 0;
     let totalBidAmount = 0;
@@ -203,7 +236,8 @@ export async function GET(request: NextRequest) {
         totalParts++;
         if (part.bidCount > 0) {
           partsWithBids++;
-          totalBidAmount += (part.highestBid?.bidPrice || 0) * part.weight;
+          const topPrice = part.topBid?.bidPrice ?? part.highestBid?.bidPrice ?? 0;
+          totalBidAmount += topPrice * (part.weight ?? 0);
         }
       });
     });
@@ -216,7 +250,7 @@ export async function GET(request: NextRequest) {
         partsWithBids,
         partsWithoutBids: totalParts - partsWithBids,
         totalBidAmount: Math.round(totalBidAmount),
-      }
+      },
     });
   } catch (error) {
     console.error('실시간 상장 조회 오류:', error);

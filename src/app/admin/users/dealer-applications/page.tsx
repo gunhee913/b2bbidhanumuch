@@ -406,12 +406,11 @@ function DetailModal({ id, onClose }: { id: string; onClose: () => void }) {
                 )}
               </Section>
 
-              {/* 약정 동의 이력 */}
-              <Section title="약정 동의 이력" icon={FileText}>
+              {/* 약관 동의 이력 */}
+              <Section title="약관 동의 이력" icon={FileText}>
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   <AgreementItem label="서비스 이용약관" agreed={data.agreedService} required />
                   <AgreementItem label="개인정보 수집·이용" agreed={data.agreedPrivacy} required />
-                  <AgreementItem label="거래인 약정 (전자 약정)" agreed={data.agreedTrade} required />
                   <AgreementItem label="마케팅 정보 수신" agreed={data.agreedMarketing} />
                 </div>
                 <p className="mt-2 text-[11px] text-slate-500">

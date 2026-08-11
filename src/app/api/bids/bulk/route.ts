@@ -1,6 +1,7 @@
 import { getAdminClient } from "@/lib/supabase-admin";
 import { NextRequest, NextResponse } from "next/server";
 import { resolveAuth } from "@/lib/resolve-auth";
+import { MIN_BID_INCREMENT } from "@/features/live-auction/constants/bidding";
 
 const supabase = getAdminClient();
 
@@ -34,6 +35,7 @@ type FailReason =
   | "no_open_round" // open 회차 없음
   | "closed" // 회차 시간 만료
   | "below_min" // 최저단가 미달
+  | "outbid" // 이미 타 매참인이 더 높은 최고가로 입찰함
   | "settled" // 이미 낙찰 확정
   | "invalid" // 기타 검증 실패
   | "db_error"; // DB 오류
@@ -154,7 +156,7 @@ export async function POST(request: NextRequest) {
       ),
     );
 
-    let openAuctionByListing = new Map<
+    const openAuctionByListing = new Map<
       string,
       { auctionId: string; startedAt: string | null; durationMin: number | null }
     >();
@@ -178,7 +180,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // 각 부위의 기존 입찰 조회 (동일 dealer)
+    // 각 부위의 기존 입찰 조회 (동일 dealer · audit log 원본값 확보용)
     const { data: existingBids } = await supabase
       .from("bids")
       .select("id, part_id, bid_price, bid_amount, auction_id, rank")
@@ -189,7 +191,6 @@ export async function POST(request: NextRequest) {
     (existingBids ?? []).forEach((b) => existingByPart.set(b.part_id, b));
 
     // 이미 낙찰 확정된 부위 (rank != null) 는 편집 불가로 취급 → 실패
-    // 그리고 다른 딜러가 낙찰받은 경우도 확인 (rank in any bid)
     const { data: settledCheck } = await supabase
       .from("bids")
       .select("part_id, rank")
@@ -204,6 +205,8 @@ export async function POST(request: NextRequest) {
     const failed: FailedItem[] = [];
 
     // 각 아이템 처리 (순차 · 실패는 개별 기록)
+    // 사전 검증(상장 상태 / open 회차 / 이미 낙찰) 통과 후 place_bid RPC 로 원자적 처리.
+    // 최저가/최고가+min_increment 검증은 RPC 안에서 부위 row lock 과 함께 수행.
     for (const item of items) {
       const part = partById.get(item.partId);
       if (!part) {
@@ -263,43 +266,81 @@ export async function POST(request: NextRequest) {
           continue;
         }
       }
-      if (part.min_price && item.pricePerKg < part.min_price) {
+
+      const resolvedAuctionId = auctionIdInput ?? openInfo.auctionId ?? null;
+
+      const { data: rpcData, error: rpcError } = await supabase.rpc("place_bid", {
+        p_part_id: item.partId,
+        p_dealer_id: finalDealerId,
+        p_bid_price: item.pricePerKg,
+        p_auction_id: resolvedAuctionId,
+        p_min_increment: MIN_BID_INCREMENT,
+      });
+
+      if (rpcError) {
+        console.error("[bids/bulk] place_bid 오류", item.partId, rpcError);
         failed.push({
           partId: item.partId,
-          reason: "below_min",
-          message: `최저가(${part.min_price.toLocaleString()}원) 이상으로 입찰해 주세요.`,
+          reason: "db_error",
+          message: rpcError.message,
         });
         continue;
       }
 
-      const partWeight = part.weight ?? 0;
-      const bidAmount = Math.round(item.pricePerKg * partWeight);
-      const resolvedAuctionId = auctionIdInput ?? openInfo.auctionId ?? null;
+      const result = rpcData as {
+        ok: boolean;
+        code?: string;
+        minPrice?: number;
+        currentTop?: number;
+        nextMin?: number;
+        bidId?: string;
+        bidAmount?: number;
+        isUpdate?: boolean;
+      };
 
+      if (!result?.ok) {
+        switch (result?.code) {
+          case "PART_NOT_FOUND":
+            failed.push({
+              partId: item.partId,
+              reason: "not_found",
+              message: "부위 정보를 찾을 수 없습니다.",
+            });
+            break;
+          case "NOT_INCLUDED":
+            failed.push({
+              partId: item.partId,
+              reason: "not_included",
+              message: "상장에 포함되지 않은 부위입니다.",
+            });
+            break;
+          case "BELOW_MIN":
+            failed.push({
+              partId: item.partId,
+              reason: "below_min",
+              message: `최저가(${result.minPrice?.toLocaleString()}원) 이상으로 입찰해 주세요.`,
+            });
+            break;
+          case "OUTBID":
+            failed.push({
+              partId: item.partId,
+              reason: "outbid",
+              message: `타 매참인 최고가 ${result.currentTop?.toLocaleString()}원/kg · 최소 ${result.nextMin?.toLocaleString()}원/kg 필요`,
+            });
+            break;
+          default:
+            failed.push({
+              partId: item.partId,
+              reason: "invalid",
+              message: "입찰 처리 중 오류가 발생했습니다.",
+            });
+        }
+        continue;
+      }
+
+      // audit log · 기존 입찰이 있었으면 dealer_update 로 기록
       const existing = existingByPart.get(item.partId);
       if (existing) {
-        const { data: updated, error: updateError } = await supabase
-          .from("bids")
-          .update({
-            bid_price: item.pricePerKg,
-            bid_amount: bidAmount,
-            auction_id: resolvedAuctionId,
-          })
-          .eq("id", existing.id)
-          .select("id")
-          .single();
-
-        if (updateError) {
-          console.error("[bids/bulk] update 오류", item.partId, updateError);
-          failed.push({
-            partId: item.partId,
-            reason: "db_error",
-            message: updateError.message,
-          });
-          continue;
-        }
-
-        // audit log · 실패해도 입찰 자체는 성공 처리
         await supabase.from("bid_audit_logs").insert({
           bid_id: existing.id,
           auction_id: resolvedAuctionId || existing.auction_id || null,
@@ -309,45 +350,16 @@ export async function POST(request: NextRequest) {
           old_bid_price: existing.bid_price,
           new_bid_price: item.pricePerKg,
           old_bid_amount: existing.bid_amount,
-          new_bid_amount: bidAmount,
+          new_bid_amount: result.bidAmount ?? null,
           performed_by: null,
         });
-
-        successful.push({
-          partId: item.partId,
-          bidId: updated.id,
-          isUpdate: true,
-        });
-      } else {
-        const { data: inserted, error: insertError } = await supabase
-          .from("bids")
-          .insert({
-            auction_id: resolvedAuctionId,
-            listing_id: part.listing_id,
-            part_id: item.partId,
-            dealer_id: finalDealerId,
-            bid_price: item.pricePerKg,
-            bid_amount: bidAmount,
-          })
-          .select("id")
-          .single();
-
-        if (insertError) {
-          console.error("[bids/bulk] insert 오류", item.partId, insertError);
-          failed.push({
-            partId: item.partId,
-            reason: "db_error",
-            message: insertError.message,
-          });
-          continue;
-        }
-
-        successful.push({
-          partId: item.partId,
-          bidId: inserted.id,
-          isUpdate: false,
-        });
       }
+
+      successful.push({
+        partId: item.partId,
+        bidId: result.bidId ?? existing?.id ?? "",
+        isUpdate: !!result.isUpdate,
+      });
     }
 
     return NextResponse.json({ successful, failed });

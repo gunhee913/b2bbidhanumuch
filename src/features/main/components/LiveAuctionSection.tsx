@@ -4,7 +4,6 @@ import { useQuery } from "@tanstack/react-query";
 import { format, parseISO } from "date-fns";
 import { useMemo, useState } from "react";
 import { CATTLE_PART_NAMES } from "@/constants/cattleParts";
-import { SLAUGHTER_HOUSES } from "@/constants/slaughterHouses";
 import {
   fetchLiveSettlements,
   type LiveSettlementItem,
@@ -48,7 +47,6 @@ function parseGrade(grade: string): { quality: string; quantity: string } {
 }
 
 export function LiveAuctionSection() {
-  const [slaughterHouse, setSlaughterHouse] = useState("");
   const [quality, setQuality] = useState("");
   const [quantity, setQuantity] = useState("");
   const [partName, setPartName] = useState("");
@@ -62,14 +60,13 @@ export function LiveAuctionSection() {
 
   const filtered = useMemo(() => {
     return records.filter((r) => {
-      if (slaughterHouse && r.slaughterHouse !== slaughterHouse) return false;
       if (partName && r.partName !== partName) return false;
       const parsed = parseGrade(r.grade);
       if (quality && parsed.quality !== quality) return false;
       if (quantity && parsed.quantity !== quantity) return false;
       return true;
     });
-  }, [records, slaughterHouse, quality, quantity, partName]);
+  }, [records, quality, quantity, partName]);
 
 
   return (
@@ -80,12 +77,6 @@ export function LiveAuctionSection() {
             실시간 경매 내역
           </h2>
           <div className="flex flex-wrap items-center gap-2">
-            <FilterSelect
-              value={slaughterHouse}
-              onChange={setSlaughterHouse}
-              label="공판장"
-              options={SLAUGHTER_HOUSES}
-            />
             <FilterSelect
               value={quality}
               onChange={setQuality}
@@ -111,7 +102,6 @@ export function LiveAuctionSection() {
           <table className="w-full table-fixed text-sm">
             <colgroup>
               <col className="w-[12%]" />
-              <col className="w-[10%]" />
               <col className="w-[12%]" />
               <col className="w-[8%]" />
               <col className="w-[8%]" />
@@ -120,14 +110,12 @@ export function LiveAuctionSection() {
               <col className="w-[8%]" />
               <col className="w-[11%]" />
               <col className="w-[11%]" />
+              <col className="w-[10%]" />
             </colgroup>
             <thead className="bg-slate-50 text-xs font-semibold text-slate-600">
               <tr>
                 <th className="border-b border-slate-200 px-4 py-3 text-center">
                   경락일시
-                </th>
-                <th className="border-b border-slate-200 px-4 py-3 text-center">
-                  공판장명
                 </th>
                 <th className="border-b border-slate-200 px-4 py-3 text-center">
                   상장업체명
@@ -153,6 +141,9 @@ export function LiveAuctionSection() {
                 <th className="border-b border-slate-200 px-4 py-3 text-center">
                   총경락금액
                 </th>
+                <th className="border-b border-slate-200 px-4 py-3 text-center">
+                  도축장명
+                </th>
               </tr>
             </thead>
           </table>
@@ -160,7 +151,6 @@ export function LiveAuctionSection() {
             <table className="w-full table-fixed text-sm">
               <colgroup>
                 <col className="w-[12%]" />
-                <col className="w-[10%]" />
                 <col className="w-[12%]" />
                 <col className="w-[8%]" />
                 <col className="w-[8%]" />
@@ -169,6 +159,7 @@ export function LiveAuctionSection() {
                 <col className="w-[8%]" />
                 <col className="w-[11%]" />
                 <col className="w-[11%]" />
+                <col className="w-[10%]" />
               </colgroup>
               <tbody className="divide-y divide-slate-100">
                 {isLoading ? (
@@ -205,9 +196,6 @@ export function LiveAuctionSection() {
                         {formatSettledAt(r.settledAt)}
                       </td>
                       <td className="px-4 py-3 truncate text-center text-slate-700">
-                        {r.slaughterHouse || "-"}
-                      </td>
-                      <td className="px-4 py-3 truncate text-center text-slate-700">
                         {r.companyName || "-"}
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap text-center text-slate-700">
@@ -230,6 +218,9 @@ export function LiveAuctionSection() {
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap text-right tabular-nums font-semibold text-slate-900">
                         {formatAmount(r.bidAmount)}
+                      </td>
+                      <td className="px-4 py-3 truncate text-center text-slate-500">
+                        {r.slaughterHouse || "-"}
                       </td>
                     </tr>
                   ))

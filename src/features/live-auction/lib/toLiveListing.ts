@@ -64,6 +64,21 @@ export function toLiveListingFromByNo(
     const roundNo =
       p.highestBid?.roundNo ?? p.myBid?.roundNo ?? null;
 
+    // 오픈 최고가 · 서버 topBid 를 우선 사용, 없으면 highestBid 로 폴백.
+    const topBid = p.topBid
+      ? {
+          bidPrice: p.topBid.bidPrice,
+          bidAt: p.topBid.bidAt ?? null,
+          isMine: !!p.topBid.isMine,
+        }
+      : p.highestBid
+        ? {
+            bidPrice: p.highestBid.bidPrice,
+            bidAt: null,
+            isMine: myBidIsWinning,
+          }
+        : null;
+
     return {
       id: p.id,
       partNo: p.partNo,
@@ -73,6 +88,7 @@ export function toLiveListingFromByNo(
       minPrice: p.minPrice,
       bidCount: p.bidCount || allBids.length,
       highestBid: allBids.find((b) => b.rank === 1) || null,
+      topBid,
       allBids,
       roundNo,
     };
@@ -159,6 +175,11 @@ export interface LivByNoResponse {
       bidAmount: number;
       dealerNo: string;
       roundNo?: number | null;
+    } | null;
+    topBid?: {
+      bidPrice: number;
+      bidAt: string | null;
+      isMine: boolean;
     } | null;
     hasWinner?: boolean;
     allBids?: unknown[];

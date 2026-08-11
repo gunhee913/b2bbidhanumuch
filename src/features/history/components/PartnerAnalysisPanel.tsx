@@ -26,7 +26,6 @@ import { useWinningParts } from "@/features/delivery/hooks/useWinningParts";
 import { useDeliveryAssignments } from "@/features/delivery/hooks/useDeliveryAssignments";
 import type { AssignmentInfo, WinningPart } from "@/features/delivery/types";
 import { formatWon } from "@/features/live-auction/lib/masking";
-import { nameToSlug } from "@/constants/slaughterHouseSlugs";
 import { formatGradeLabel } from "@/features/live-auction/lib/grade";
 import { PeriodFilter } from "./PeriodFilter";
 import { DonutCard, type DistItem } from "./AuctionAnalysisPanel";
@@ -779,7 +778,6 @@ function PartnerDailyTable({
                     </td>
                     <td className="whitespace-nowrap px-2 py-2 text-left">
                       <ListingLink
-                        slaughterHouse={it.slaughterHouse}
                         entityListingNo={it.listingNo}
                         label={it.listingPartNo || it.listingNo}
                       />
@@ -818,22 +816,19 @@ function PartnerDailyTable({
 // ============================================================
 
 /**
- * 상장번호 링크 · 라이브 경매장으로 딥링크.
- * 공판장 slug 매핑 실패 시 텍스트만 노출.
+ * 상장번호 링크 · 통합 라이브 경매장으로 딥링크.
+ * Phase 1 통합 이후 공판장 슬러그는 사용하지 않고 `?listing=` 쿼리로만 전달한다.
  */
 function ListingLink({
-  slaughterHouse,
   entityListingNo,
   label,
 }: {
-  slaughterHouse: string;
   entityListingNo: string;
   label: string;
 }) {
-  const slug = slaughterHouse ? nameToSlug(slaughterHouse) : null;
   const cls =
     "text-[12px] font-bold -tracking-[0.02em] tabular-nums text-sky-700 hover:underline";
-  if (!slug) {
+  if (!entityListingNo) {
     return (
       <span
         className={cn(
@@ -847,7 +842,7 @@ function ListingLink({
   }
   return (
     <Link
-      href={`/auction/live/${slug}?listing=${encodeURIComponent(entityListingNo)}`}
+      href={`/auction/live?listing=${encodeURIComponent(entityListingNo)}`}
       className={cls}
     >
       {label}

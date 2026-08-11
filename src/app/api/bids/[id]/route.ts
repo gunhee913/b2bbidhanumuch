@@ -5,10 +5,17 @@ const supabase = getAdminClient();
 
 const ADMIN_BID_PASSWORD = process.env.ADMIN_BID_PASSWORD || '1234';
 
+/**
+ * 관리자 수동 입찰 수정/삭제 후 부위 상태를 재계산.
+ * - rank / is_winning : 회차 마감(close_round) 이후에만 세팅되므로,
+ *   기존에 rank 가 있었던 부위(=이미 마감된 회차)에 한해 재계산.
+ *   진행 중 부위는 rank=null 유지 (마감 시 close_round 가 세팅).
+ * - is_top_bid : 진행 중이든 마감이든 항상 "현재 최고가 row" 유지 (open 경매 규칙).
+ */
 async function recalcWinnerForPart(partId: string) {
   const { data: bids } = await supabase
     .from('bids')
-    .select('id, bid_price, bid_amount, dealer_id')
+    .select('id, bid_price, bid_amount, dealer_id, rank')
     .eq('part_id', partId)
     .order('bid_price', { ascending: false })
     .order('created_at', { ascending: true });
@@ -16,7 +23,7 @@ async function recalcWinnerForPart(partId: string) {
   if (!bids || bids.length === 0) {
     await supabase
       .from('bids')
-      .update({ is_winning: false, rank: null })
+      .update({ is_winning: false, rank: null, is_top_bid: false })
       .eq('part_id', partId);
     await supabase
       .from('cattle_parts')
@@ -26,11 +33,30 @@ async function recalcWinnerForPart(partId: string) {
   }
 
   const topBid = bids[0];
-  for (let i = 0; i < bids.length; i++) {
+  const wasSettled = bids.some((b: any) => b.rank != null);
+
+  if (wasSettled) {
+    // 이미 마감된 회차 · rank / is_winning 도 재계산
+    for (let i = 0; i < bids.length; i++) {
+      await supabase
+        .from('bids')
+        .update({
+          rank: i + 1,
+          is_winning: i === 0,
+          is_top_bid: i === 0,
+        })
+        .eq('id', bids[i].id);
+    }
+  } else {
+    // 진행 중 회차 · is_top_bid 만 재계산 (rank/is_winning 은 close_round 담당)
     await supabase
       .from('bids')
-      .update({ rank: i + 1, is_winning: i === 0 })
-      .eq('id', bids[i].id);
+      .update({ is_top_bid: false })
+      .eq('part_id', partId);
+    await supabase
+      .from('bids')
+      .update({ is_top_bid: true })
+      .eq('id', topBid.id);
   }
 
   await supabase

@@ -23,7 +23,6 @@ interface SubmitBody {
   inquiry?: string;
   agreedService: boolean;
   agreedPrivacy: boolean;
-  agreedTrade: boolean;
   agreedMarketing: boolean;
 }
 
@@ -65,7 +64,6 @@ export async function POST(request: NextRequest) {
     inquiry,
     agreedService,
     agreedPrivacy,
-    agreedTrade,
     agreedMarketing,
   } = body;
 
@@ -86,7 +84,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  if (!agreedService || !agreedPrivacy || !agreedTrade) {
+  if (!agreedService || !agreedPrivacy) {
     return NextResponse.json(
       { error: "필수 약관에 동의해 주세요." },
       { status: 400 },
@@ -123,7 +121,7 @@ export async function POST(request: NextRequest) {
         inquiry: inquiry || null,
         agreed_service: agreedService,
         agreed_privacy: agreedPrivacy,
-        agreed_trade: agreedTrade,
+        agreed_trade: false,
         agreed_marketing: agreedMarketing,
         agreed_at: nowIso,
         agreed_ip: ip,

@@ -3,17 +3,20 @@
 import { format } from "date-fns";
 import { Info } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { TruncatedText } from "@/components/ui/tooltip";
 import type { LiveListing, LivePart } from "../api";
 import { formatGradeLabel } from "../lib/grade";
 import { BidPanel } from "./BidPanel";
+import { BidHistoryPanel } from "./BidHistoryPanel";
 import { ListingImageGallery } from "./ListingImageGallery";
 import { TraceInfoLink } from "./ListingInfoSection";
 
-export type DetailTab = "info" | "bid" | "bulk";
+export type DetailTab = "info" | "bid" | "bulk" | "history";
 
 const DETAIL_TABS: { value: DetailTab; label: string }[] = [
   { value: "bid", label: "입찰하기" },
   { value: "bulk", label: "일괄입찰" },
+  { value: "history", label: "입찰내역" },
   { value: "info", label: "개체정보" },
 ];
 
@@ -92,35 +95,60 @@ export function PartDetailPanel({
 
   return (
     <div className="flex max-h-[inherit] flex-col overflow-hidden border border-slate-200 bg-white">
-      {/* 헤더 · 고정 */}
-      <header className="flex shrink-0 items-center justify-between gap-2 border-b border-slate-100 px-4 py-2.5">
-        <h2 className="truncate text-[18px] font-bold leading-none -tracking-[0.01em] tabular-nums text-slate-900">
-          {listing.listingNo}
+      {/* 헤더 · 고정
+       * 부위가 선택되면 부위 상장번호(`260811-101-01`), 아니면 개체 상장번호(`260811-101`).
+       * · 부위별 뷰에서는 부위 컨텍스트가 명확하도록 suffix 포함 노출
+       * · bulk 탭이나 부위 미선택 상태에서는 개체 번호로 자연 폴백
+       *
+       * 크기: 앱 panel/drawer 헤더 컨벤션인 text-[15px] 사용
+       * (MyBidsDrawer 와 동일). 카드 헤더(14px)보다 1px 커서
+       * panel 급 무게감 유지.
+       */}
+      <header className="flex shrink-0 items-center border-b border-slate-100 px-4 py-2.5">
+        <h2 className="truncate text-[15px] font-bold leading-none -tracking-[0.01em] tabular-nums text-slate-900">
+          {part?.listingPartNo || listing.listingNo}
         </h2>
-        <TraceInfoLink traceNo={listing.traceNo} />
       </header>
 
-      {/* 탭 · 고정 · [개체정보 | 입찰하기] */}
+      {/* 탭 · 고정 · [입찰하기 | 일괄입찰 | 입찰내역 | 개체정보]
+       * "입찰내역" 탭은 선택된 부위의 총 입찰 수를 카운터로 함께 표시해
+       * 별도 진입점(내 입찰가 셀 secondary link) 없이도 참여도 인지 가능.
+       */}
+      {/**
+       * 상세 패널 탭 · 밑줄 스타일 (사이드바의 다크 pill 과 계층 차별화).
+       * · 페이지-레벨 nav = fill (사이드바)  vs  컴포넌트-레벨 nav = line (여기)
+       * · 좁은 폭(340px) 4개 탭 배치에서 lightweight 밑줄이 컨텐츠 존재감 방해 최소
+       */}
       <nav className="shrink-0 border-b border-slate-100">
         <ul className="flex items-stretch">
           {DETAIL_TABS.map((t) => {
             const isActive = tab === t.value;
+            const historyCount =
+              t.value === "history" && part?.bidCount ? part.bidCount : null;
             return (
               <li key={t.value} className="flex-1">
                 <button
                   type="button"
                   onClick={() => onTabChange(t.value)}
                   className={cn(
-                    "relative flex h-10 w-full items-center justify-center text-[13px] font-bold transition-colors",
-                    isActive
-                      ? "text-slate-900"
-                      : "text-slate-400 hover:text-slate-700",
+                    "relative flex h-10 w-full items-center justify-center gap-1 text-[13px] font-bold transition-colors",
+                    isActive ? "text-slate-900" : "text-slate-400",
                   )}
                 >
-                  {t.label}
+                  <span>{t.label}</span>
+                  {historyCount != null ? (
+                    <span
+                      className={cn(
+                        "text-[10.5px] font-semibold tabular-nums",
+                        isActive ? "text-slate-500" : "text-slate-400",
+                      )}
+                    >
+                      · {historyCount}
+                    </span>
+                  ) : null}
                   {isActive ? (
                     <span
-                      className="absolute inset-x-4 bottom-0 h-[2px] bg-slate-900"
+                      className="absolute inset-x-3 bottom-0 h-[2px] bg-slate-900"
                       aria-hidden
                     />
                   ) : null}
@@ -159,6 +187,8 @@ export function PartDetailPanel({
               가운데 테이블에서 부위를 선택해 주세요.
             </div>
           )
+        ) : tab === "history" ? (
+          <BidHistoryPanel partId={part?.id ?? null} isLive />
         ) : (
           <>
             <div className="p-3">
@@ -203,22 +233,10 @@ function HorizontalInfoGrid({
     <div className="flex flex-col gap-3">
       {/* 품질정보 · 라벨위/값아래 4열 그리드 · 핵심 지표 상단 배치 */}
       <div className="grid grid-cols-4 gap-x-2 gap-y-3">
-        <NumericCell label="등급" value={gradeLabel} emphasis />
-        <NumericCell
-          label="근내지방"
-          value={listing.marblingScore}
-          emphasis
-        />
-        <NumericCell
-          label="등지방"
-          value={listing.backFat}
-          unit="mm"
-        />
-        <NumericCell
-          label="등심면적"
-          value={listing.eyeMuscle}
-          unit="cm²"
-        />
+        <NumericCell label="등급" value={gradeLabel} />
+        <NumericCell label="근내지방" value={listing.marblingScore} />
+        <NumericCell label="등지방" value={listing.backFat} unit="mm" />
+        <NumericCell label="등심면적" value={listing.eyeMuscle} unit="cm²" />
         <NumericCell label="육색" value={listing.meatColor} />
         <NumericCell label="지방색" value={listing.fatColor} />
         <NumericCell label="조직감" value={listing.texture} />
@@ -241,14 +259,35 @@ function HorizontalInfoGrid({
         <Cell label="도축장">{listing.slaughterHouse || "-"}</Cell>
         <Cell label="가공업체">{listing.companyName || "-"}</Cell>
         <Cell label="도체중">{formatKg(listing.carcassWeight)}</Cell>
-        <Cell label="경락단가" emphasis>
+        <Cell label="경락단가">
           {listing.unitPrice
             ? `${NUMBER_FORMATTER.format(Math.round(listing.unitPrice))}원/kg`
             : "-"}
         </Cell>
-        <Cell label="이력번호" span={2}>
-          {formatTraceNo(listing.traceNo)}
-        </Cell>
+        <TraceNoRow traceNo={listing.traceNo} />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * 이력번호 · 값 우측에 `축산물 이력정보` 외부 링크 버튼 병치.
+ * - col-span-2 로 그리드 전폭 사용
+ * - 라벨(좌) · 값+버튼(우) 2 영역 · flex justify-between
+ * - 버튼 h-7 로 row 높이 살짝 상승 (그리드의 다른 12px 라인 대비 8px 증가)
+ *   → 정보 가치 대비 허용 범위 (트레이서빌리티 진입점 강조)
+ */
+function TraceNoRow({ traceNo }: { traceNo: string | null | undefined }) {
+  return (
+    <div className="col-span-2 flex min-w-0 items-center justify-between gap-3">
+      <span className="shrink-0 whitespace-nowrap text-[11px] font-medium text-slate-400">
+        이력번호
+      </span>
+      <div className="flex min-w-0 items-center gap-2">
+        <span className="min-w-0 truncate text-right text-[12px] font-semibold tabular-nums text-slate-900">
+          {formatTraceNo(traceNo)}
+        </span>
+        <TraceInfoLink traceNo={traceNo} />
       </div>
     </div>
   );
@@ -257,14 +296,19 @@ function HorizontalInfoGrid({
 function Cell({
   label,
   children,
-  emphasis,
   span,
 }: {
   label: string;
   children: React.ReactNode;
-  emphasis?: boolean;
   span?: 1 | 2;
 }) {
+  const stringValue =
+    typeof children === "string"
+      ? children
+      : typeof children === "number"
+        ? String(children)
+        : null;
+
   return (
     <div
       className={cn(
@@ -275,26 +319,17 @@ function Cell({
       <span className="shrink-0 whitespace-nowrap text-[11px] font-medium text-slate-400">
         {label}
       </span>
-      <span
-        className={cn(
-          "min-w-0 truncate text-right tabular-nums",
-          emphasis
-            ? "text-[13px] font-bold text-sky-600"
-            : "text-[12px] font-semibold text-slate-900",
-        )}
-      >
-        {children}
-      </span>
+      {stringValue ? (
+        <TruncatedText
+          value={stringValue}
+          className="min-w-0 truncate text-right text-[12px] font-semibold tabular-nums text-slate-900"
+        />
+      ) : (
+        <span className="min-w-0 truncate text-right text-[12px] font-semibold tabular-nums text-slate-900">
+          {children}
+        </span>
+      )}
     </div>
-  );
-}
-
-function SectionDivider() {
-  return (
-    <div
-      className="col-span-2 my-1 border-t border-slate-100"
-      aria-hidden
-    />
   );
 }
 
@@ -309,12 +344,10 @@ function NumericCell({
   label,
   value,
   unit,
-  emphasis,
 }: {
   label: string;
   value: number | string | null | undefined;
   unit?: string;
-  emphasis?: boolean;
 }) {
   const isEmpty =
     value == null || (typeof value === "string" && value.trim().length === 0);
@@ -326,12 +359,8 @@ function NumericCell({
       </span>
       <span
         className={cn(
-          "whitespace-nowrap leading-none tabular-nums",
-          isEmpty
-            ? "text-[13px] font-bold text-slate-300"
-            : emphasis
-              ? "text-[15px] font-extrabold text-sky-600"
-              : "text-[13px] font-bold text-slate-900",
+          "whitespace-nowrap text-[13px] font-bold leading-none tabular-nums",
+          isEmpty ? "text-slate-300" : "text-slate-900",
         )}
       >
         {isEmpty ? "-" : value}

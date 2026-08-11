@@ -8,7 +8,9 @@ import {
   QueryClientProvider,
 } from '@tanstack/react-query';
 import { ThemeProvider } from 'next-themes';
+import { Toaster as SonnerToaster } from 'sonner';
 import DarkModeSync from '@/components/DarkModeSync';
+import { TooltipProvider } from '@/components/ui/tooltip';
 
 function makeQueryClient() {
   return new QueryClient({
@@ -53,7 +55,37 @@ export default function Providers({ children }: { children: React.ReactNode }) {
       disableTransitionOnChange
     >
       <DarkModeSync />
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+      <QueryClientProvider client={queryClient}>
+        {/*
+         * TooltipProvider · @radix-ui/react-tooltip 은 상위 provider 필요.
+         * root 배치로 모든 페이지 tooltip 이 동일 delay/skip 설정 공유.
+         * delayDuration 200 · 빠르게 노출되되 hover 이동 시 노이즈 방지.
+         */}
+        <TooltipProvider delayDuration={200} skipDelayDuration={100}>
+          {children}
+        </TooltipProvider>
+        {/*
+         * sonner · 우측 상단 스택 토스트 · 앱 전역 root 마운트
+         * · richColors : success/error/warning 표준 톤 자동 적용
+         * · closeButton: hover 시 X 버튼 노출
+         * · offset     : 상단 헤더 (64px) 아래 살짝 여백
+         * · 트레이딩 UI 컨텍스트: 밀림/최고가 갱신 등 realtime 알림에 사용
+         */}
+        <SonnerToaster
+          position="top-right"
+          richColors
+          closeButton
+          offset={80}
+          toastOptions={{
+            classNames: {
+              toast:
+                'font-pretendard border border-slate-200 shadow-lg',
+              title: 'text-[13px] font-bold -tracking-[0.01em]',
+              description: 'text-[12px] text-slate-600',
+            },
+          }}
+        />
+      </QueryClientProvider>
     </ThemeProvider>
   );
 }

@@ -14,13 +14,11 @@ async function getJson<T>(url: string, init?: RequestInit): Promise<T> {
 }
 
 export async function fetchRoundSchedules(
-  slaughterHouse: string,
   date: string,
+  slaughterHouse?: string,
 ): Promise<RoundSchedulesResponse> {
-  const params = new URLSearchParams({
-    slaughterHouse,
-    date,
-  });
+  const params = new URLSearchParams({ date });
+  if (slaughterHouse) params.set("slaughterHouse", slaughterHouse);
   return await getJson<RoundSchedulesResponse>(
     `/api/round-schedules?${params.toString()}`,
   );

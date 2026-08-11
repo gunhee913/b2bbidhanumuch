@@ -100,6 +100,8 @@ export async function GET(
           bid_price,
           bid_amount,
           is_winning,
+          is_top_bid,
+          rank,
           created_at,
           dealers (
             id,
@@ -108,7 +110,8 @@ export async function GET(
           )
         `)
         .in('part_id', partIds)
-        .order('bid_price', { ascending: false });
+        .order('bid_price', { ascending: false })
+        .order('created_at', { ascending: true });
 
       if (bidsError) {
         console.error('입찰 조회 오류:', bidsError);
@@ -147,6 +150,8 @@ export async function GET(
           bidPrice: bid.bid_price,
           bidAmount: bid.bid_amount,
           isWinning: !!bid.is_winning,
+          isTopBid: !!bid.is_top_bid,
+          rank: bid.rank ?? null,
           createdAt: bid.created_at,
           auctionId: bid.auction_id || null,
           roundNo: bid.auction_id ? (auctionRoundMap[bid.auction_id] ?? null) : null,
@@ -211,10 +216,19 @@ export async function GET(
 
         if (isAdmin) {
           const highestBid = partBids.length > 0 ? partBids[0] : null;
+          const topRow =
+            partBids.find((b: any) => b.isTopBid) ?? highestBid;
           return {
             ...basePartData,
             bidCount: partBids.length,
             highestBid,
+            topBid: topRow
+              ? {
+                  bidPrice: topRow.bidPrice,
+                  bidAt: topRow.createdAt,
+                  isMine: false,
+                }
+              : null,
             allBids: partBids,
           };
         }
@@ -223,20 +237,52 @@ export async function GET(
           ? partBids.find((b: any) => candidateDealerIds.has(b.dealerId))
           : null;
 
-        const isSettled = ['completed', 'closed'].includes(listing.status);
+        // 상장 status 마감 or 부위의 어떤 bid 에 rank 세팅되면 마감 (close_round)
+        const isSettled =
+          ['completed', 'closed'].includes(listing.status) ||
+          partBids.some((b: any) => b.rank != null);
+        // 오픈 최고가 · 현재 최고가 row (매참인 정보 제외 · 딜러에게 노출)
+        const topRow =
+          partBids.find((b: any) => b.isTopBid) ??
+          (partBids.length > 0 ? partBids[0] : null);
+        const topBid = topRow
+          ? {
+              bidPrice: topRow.bidPrice,
+              bidAt: topRow.createdAt,
+              isMine: !!myBid && topRow.id === myBid.id,
+            }
+          : null;
         const highestBid = partBids.length > 0 ? partBids[0] : null;
         const myBidIsWinning = !!myBid?.isWinning;
         const hasWinner = partBids.some((b: any) => b.isWinning);
 
-        console.log(`[listings/by-no] part ${part.part_name}: bids=${partBids.length}, myBid=${myBid ? JSON.stringify({dealerId: myBid.dealerId, bidPrice: myBid.bidPrice, isWinning: myBid.isWinning}) : 'null'}, hasWinner=${hasWinner}, bidDealerIds=${partBids.map((b: any) => b.dealerId).join(',')}`);
+        console.log(`[listings/by-no] part ${part.part_name}: bids=${partBids.length}, myBid=${myBid ? JSON.stringify({dealerId: myBid.dealerId, bidPrice: myBid.bidPrice, isWinning: myBid.isWinning}) : 'null'}, hasWinner=${hasWinner}, topPrice=${topBid?.bidPrice ?? null}`);
 
         return {
           ...basePartData,
           bidCount: isSettled ? partBids.length : 0,
-          highestBid: (isSettled || hasWinner) ? (highestBid ? { bidPrice: highestBid.bidPrice, bidAmount: highestBid.bidAmount, dealerNo: highestBid.dealerNo, roundNo: highestBid.roundNo ?? null } : null) : null,
+          highestBid:
+            isSettled && highestBid
+              ? {
+                  bidPrice: highestBid.bidPrice,
+                  bidAmount: highestBid.bidAmount,
+                  dealerNo: highestBid.dealerNo,
+                  roundNo: highestBid.roundNo ?? null,
+                }
+              : null,
+          topBid,
           hasWinner,
           allBids: [],
-          myBid: myBid ? { bidId: myBid.id, bidPrice: myBid.bidPrice, bidAmount: myBid.bidAmount, isWinning: myBidIsWinning, roundNo: myBid.roundNo ?? null } : null,
+          myBid: myBid
+            ? {
+                bidId: myBid.id,
+                bidPrice: myBid.bidPrice,
+                bidAmount: myBid.bidAmount,
+                isWinning: myBidIsWinning,
+                isTopBid: !!myBid.isTopBid,
+                roundNo: myBid.roundNo ?? null,
+              }
+            : null,
         };
       }),
     };

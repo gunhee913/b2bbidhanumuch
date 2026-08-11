@@ -108,7 +108,6 @@ export interface DealerApplicationSubmitInput {
   inquiry?: string;
   agreedService: boolean;
   agreedPrivacy: boolean;
-  agreedTrade: boolean;
   agreedMarketing: boolean;
 }
 

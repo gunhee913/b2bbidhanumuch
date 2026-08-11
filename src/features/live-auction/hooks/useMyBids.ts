@@ -8,6 +8,8 @@ export interface MyBidEntry {
   bidAmount: number;
   rank: number | null;
   isWinning: boolean;
+  /** 오픈 최고가 · 진행 중 회차에서 내가 현재 1위 여부. 마감 후엔 is_winning 사용. */
+  isTopBid: boolean;
   createdAt: string | null;
   auctionId: string | null;
   partId: string | null;
@@ -42,6 +44,7 @@ interface RawApiBid {
   bid_amount: number;
   rank: number | null;
   is_winning: boolean;
+  is_top_bid?: boolean;
   created_at: string;
   cattle_parts?: {
     id: string;
@@ -75,6 +78,7 @@ function toMyBidEntry(raw: RawApiBid): MyBidEntry {
     bidAmount: raw.bid_amount,
     rank: raw.rank,
     isWinning: raw.is_winning,
+    isTopBid: !!raw.is_top_bid,
     createdAt: raw.created_at ?? null,
     auctionId: raw.auction_id,
     partId: raw.part_id,

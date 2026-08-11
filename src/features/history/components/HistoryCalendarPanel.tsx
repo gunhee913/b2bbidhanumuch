@@ -425,7 +425,7 @@ export function HistoryCalendarPanel({
 
           {/* 우측 · 가격열 단위 캡션 · ml-auto 로 필터 그룹과 시각 분리 */}
           <span className="ml-auto whitespace-nowrap text-[10.5px] font-medium tabular-nums text-slate-400">
-            단위 · 원/kg
+            단위 : 원/kg
             <span className="mx-1 text-slate-300">·</span>
             총 금액은 원
           </span>

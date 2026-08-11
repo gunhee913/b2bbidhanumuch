@@ -1106,6 +1106,26 @@ function NavigateLink({
  * - entity variant: 1-line grid [부위명 | 중량 | 단가 | 금액]
  * - part   variant: 2-line 카드 · 상장번호+금액 / 등급·부위·중량·단가
  */
+/**
+ * 진행 중 회차의 오픈 최고가 상태 배지.
+ * - 1위 : 내가 현재 최고가 (isTopBid)
+ * - 역전당함 : 내 입찰이 있지만 최고가에서 밀려남
+ */
+function OpenBidStatusBadge({ isTop }: { isTop: boolean }) {
+  if (isTop) {
+    return (
+      <span className="inline-flex items-center gap-0.5 bg-sky-600 px-1 py-px text-[9px] font-bold uppercase tracking-wider text-white shadow-sm">
+        1위
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-0.5 bg-amber-500 px-1 py-px text-[9px] font-bold uppercase tracking-wider text-white shadow-sm">
+      역전
+    </span>
+  );
+}
+
 function BidRow({
   bid,
   variant,
@@ -1127,8 +1147,9 @@ function BidRow({
           isLost && "opacity-60",
         )}
       >
-        <span className="truncate font-semibold text-slate-900">
-          {bid.part?.partName ?? "-"}
+        <span className="flex min-w-0 items-center gap-1 truncate font-semibold text-slate-900">
+          <span className="truncate">{bid.part?.partName ?? "-"}</span>
+          {!isSettled ? <OpenBidStatusBadge isTop={bid.isTopBid} /> : null}
         </span>
         <span className="text-right text-[11px] tabular-nums text-slate-400">
           {formatWeightKg(bid.part?.weight ?? null)}
@@ -1150,7 +1171,6 @@ function BidRow({
     );
   }
 
-  // Part variant · 2-line
   const subtitleBits: string[] = [];
   if (listing) {
     subtitleBits.push(formatGradeLabel(listing.grade, listing.marblingScore));
@@ -1173,6 +1193,7 @@ function BidRow({
           <span className="truncate text-[13px] font-bold tabular-nums text-sky-700">
             {listing?.listingNo ?? "-"}
           </span>
+          {!isSettled ? <OpenBidStatusBadge isTop={bid.isTopBid} /> : null}
           {onNavigate && listing ? (
             <NavigateLink
               onClick={onNavigate}

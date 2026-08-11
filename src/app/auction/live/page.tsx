@@ -1,10 +1,23 @@
-import { redirect } from "next/navigation";
+"use client";
+
+import { MainHeader } from "@/features/main/components/MainHeader";
+import { MainFooter } from "@/features/main/components/MainFooter";
+import { LiveAuctionRoom } from "@/features/live-auction/components/LiveAuctionRoom";
 
 /**
- * `/auction/live` 는 진입 지점 역할만 하고,
- * 기본 공판장(음성)으로 즉시 리다이렉트한다.
- * 공판장 전환은 실시간 경매 페이지 상단의 공판장 dropdown 을 통해 이루어진다.
+ * `/auction/live` · 통합 실시간 경매 뷰.
+ *
+ * Phase 1 이전에는 공판장 슬러그로 리다이렉트했으나,
+ * 이제는 공판장 구분 없이 하나의 통합 뷰만 렌더링한다.
  */
-export default function AuctionLiveIndexPage() {
-  redirect("/auction/live/eumseong");
+export default function AuctionLivePage() {
+  return (
+    <>
+      <MainHeader />
+      <main className="min-h-[calc(100vh-64px)] bg-slate-50 pb-12">
+        <LiveAuctionRoom />
+      </main>
+      <MainFooter />
+    </>
+  );
 }

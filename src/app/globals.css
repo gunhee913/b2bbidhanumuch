@@ -1,4 +1,5 @@
 @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css');
+@import "overlayscrollbars/overlayscrollbars.css";
 
 @tailwind base;
 @tailwind components;
@@ -164,6 +165,83 @@
     background-clip: content-box !important;
     border-radius: 3px;
   }
+
+}
+
+/*
+ * OverlayScrollbars 커스텀 테마 · Upbit / Notion 스타일 overlay 스크롤바
+ *
+ * 배경:
+ * - `overflow: overlay` 는 Chrome 121 (2024-01) 에서 완전 제거
+ * - 순수 CSS 로는 "컨텐츠 위 부유하는 스크롤바" 구현 불가
+ * - OverlayScrollbars 는 native scroll 동작을 유지하고 스크롤바만 커스텀 렌더
+ *
+ * `<OverlayScroll />` (src/components/ui/overlay-scroll.tsx) wrapper 통해 사용.
+ * 여기서는 시각 스타일만 튜닝.
+ */
+/* flex-col + flex-1 조합에서 컨텐츠 overflow 방지용 min-height */
+.overlay-scroll {
+  min-height: 0;
+}
+.overlay-scroll .os-scrollbar {
+  --os-size: 10px;
+  --os-padding-perpendicular: 2px;
+  --os-padding-axis: 2px;
+  --os-track-border-radius: 0;
+  --os-handle-border-radius: 3px;
+  --os-handle-bg: rgba(203, 213, 225, 0.55);
+  --os-handle-bg-hover: rgba(148, 163, 184, 0.55);
+  --os-handle-bg-active: rgba(148, 163, 184, 0.7);
+  --os-handle-min-size: 24px;
+}
+
+/*
+ * 실시간 가격 변화 · row flash 애니메이션 · Upbit / Bithumb 시세판 표준.
+ *
+ * 구현: box-shadow inset 으로 row 전체를 tint 하고 900ms 에 걸쳐 fade-out.
+ * background-color 를 건드리지 않아 base row bg (bg-white / bg-sky-50 / ...) 와 충돌 없음.
+ *
+ * `up`   · 최고가 상승 → sky (누군가 더 높게 입찰)
+ * `down` · 최고가 하락 → rose (희귀 · 취소/롤백 등)
+ */
+@keyframes flash-up {
+  0% {
+    box-shadow: inset 0 0 0 9999px rgba(56, 189, 248, 0.18);
+  }
+  100% {
+    box-shadow: inset 0 0 0 9999px rgba(56, 189, 248, 0);
+  }
+}
+@keyframes flash-down {
+  0% {
+    box-shadow: inset 0 0 0 9999px rgba(244, 63, 94, 0.18);
+  }
+  100% {
+    box-shadow: inset 0 0 0 9999px rgba(244, 63, 94, 0);
+  }
+}
+.flash-up {
+  animation: flash-up 900ms ease-out forwards;
+}
+.flash-down {
+  animation: flash-down 900ms ease-out forwards;
+}
+
+/*
+ * 라운드 카운트다운 · critical zone (< 30초) 부드러운 pulse.
+ * Tailwind 기본 `animate-pulse` 는 opacity 0.5 까지 감소해 시인성이 크게 떨어짐.
+ * 여기서는 0.85 까지만 감소해 "urgent 하되 읽을 수 있음" 유지.
+ */
+@keyframes pulse-soft {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}
+.animate-pulse-soft {
+  animation: pulse-soft 1.4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
 /* react-datepicker 커스텀 스타일 */

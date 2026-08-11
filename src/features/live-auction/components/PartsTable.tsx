@@ -3,14 +3,14 @@
 import { Fragment, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import type { LiveListing, LivePart } from "../api";
-import {
-  formatKrw,
-  formatWeightKg,
-  formatWon,
-  formatWonPerKg,
-  maskKrw,
-} from "../lib/masking";
+import { formatWon, formatWonPerKg } from "../lib/masking";
+import { usePriceFlash } from "../hooks/usePriceFlash";
 import { BulkPriceCell } from "./BulkPriceCell";
+import {
+  MaskedPriceSlot,
+  PriceSlot,
+  type PriceTone,
+} from "./PriceSlot";
 
 export interface PartsTableProps {
   listing: LiveListing;
@@ -107,7 +107,7 @@ export function PartsTable({
     }
   };
 
-  const colCount = bulkMode ? 5 : 4;
+  const colCount = bulkMode ? 6 : 5;
 
   return (
     <div className="overflow-hidden">
@@ -117,9 +117,10 @@ export function PartsTable({
           <col className={bulkMode ? "w-[92px]" : "w-[110px]"} />
           <col className="w-[70px]" />
           <col className="w-auto" />
+          <col className="w-[104px]" />
           <col className={bulkMode ? "w-[108px]" : "w-auto"} />
         </colgroup>
-        <thead className="bg-slate-50 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+        <thead className="bg-slate-50 text-[11px] font-semibold -tracking-[0.01em] text-slate-500">
           <tr>
             {bulkMode ? (
               <th className="border-b border-slate-200 px-0 py-2 align-middle">
@@ -145,6 +146,9 @@ export function PartsTable({
             </th>
             <th className="border-b border-slate-200 px-3 py-2 text-right">
               최저단가
+            </th>
+            <th className="border-b border-slate-200 px-3 py-2 text-right">
+              현재 최고가
             </th>
             <th className="border-b border-slate-200 px-3 py-2 text-right">
               내 입찰가
@@ -285,28 +289,42 @@ function MainRow({
   const iWon = settlementCase === "won";
   const iLost = settlementCase === "lost";
 
-  // 좌측 accent: 마감된 경우 sub-row 와 연결되도록 항상 표시,
-  // 진행 중일 땐 선택 시에만 sky.
-  // (마감 + 선택 조합은 배경 tint 로 구분)
+  // 진행 중 · 내 입찰 상태 3분화 (부위별 탭과 동일 스펙):
+  //   - isMyTop     · 내가 최고가 (leading)         → sky wash + sky-500 bar
+  //   - isMyOutbid  · 내가 밀림 (outbid, 액션 필요) → rose wash + rose-500 bar
+  //   - 그 외        · 미입찰                       → white / hover 만
+  const isMyTop = !isSettled && !!myBid && part.topBid?.isMine === true;
+  const isMyOutbid = !isSettled && !!myBid && part.topBid?.isMine !== true;
+
+  // 좌측 accent bar 색: 마감 → 결과별, 진행 중 → 상태별 (내 1위/밀림/선택).
+  //   iWon  → sky-600, iLost → rose-500 (진행 중 밀림과 시맨틱 통일), noBid → slate-300
   const settlementAccent = iWon
     ? "bg-sky-600"
     : iLost
-      ? "bg-slate-400"
+      ? "bg-rose-500"
       : "bg-slate-300";
-  // bulk 편집 모드에서 미체결 행은 체크박스가 선택 표시를 대신하므로
-  // 좌측 sky accent bar 는 노출하지 않는다. 낙찰된 행의 settlement accent 는 유지.
-  const accentColor = isSettled
-    ? settlementAccent
-    : isSelected && !bulkMode
-      ? "bg-sky-500"
-      : null;
+  const progressAccent = isMyTop
+    ? "bg-sky-500"
+    : isMyOutbid
+      ? "bg-rose-500"
+      : isSelected && !bulkMode
+        ? "bg-sky-500"
+        : null;
+  const accentColor = isSettled ? settlementAccent : progressAccent;
 
   const bulkHighlight = bulkMode && bulkChecked && !isSettled;
-  const bulkHasMyBidUnchecked =
-    bulkMode && !bulkChecked && !!myBid && !isSettled;
-  // 진행 중 · 내가 입찰한 행 (bulk 모드가 아닌 일반 조회 시).
-  // 미입찰 흰 배경 ↔ 낙찰 진한 sky 사이의 중간 톤으로 스캔 시 즉시 인지.
-  const hasMyBidInProgress = !bulkMode && !!myBid && !isSettled;
+  // bulk 모드 · 체크 안 됨 + 내 입찰 있음:
+  //   - 내가 1위     → 옅은 sky wash
+  //   - 내가 밀림    → 옅은 rose wash (액션 필요 강조)
+  const bulkMyBidWash =
+    bulkMode && !bulkChecked && !!myBid && !isSettled
+      ? isMyTop
+        ? "bg-sky-50/30 hover:bg-sky-50/50"
+        : "bg-rose-50/30 hover:bg-rose-50/50"
+      : null;
+
+  // 실시간 최고가 변화 감지 → row flash (Upbit/Bithumb 스타일).
+  const priceFlash = usePriceFlash(!isSettled ? part.topBid?.bidPrice : null);
 
   return (
     <tr
@@ -314,18 +332,31 @@ function MainRow({
       aria-selected={isSelected}
       className={cn(
         "relative cursor-pointer transition-colors",
+        priceFlash === "up" && "flash-up",
+        priceFlash === "down" && "flash-down",
+        // bulk highlight (체크됨) — 편집 상태 우선, sky wash 로 통일
         bulkHighlight && "bg-sky-50/70 hover:bg-sky-50",
-        !bulkHighlight && bulkHasMyBidUnchecked && "bg-sky-50/25 hover:bg-sky-50/50",
-        !bulkHighlight && !bulkHasMyBidUnchecked && isSelected && !isSettled && "bg-sky-50/70 hover:bg-sky-50",
-        // 진행 중 · 내가 입찰한 행 (미선택) → 옅은 sky wash 로 3단 위계 구성
-        hasMyBidInProgress && !isSelected && "bg-sky-50/40 hover:bg-sky-50/60",
-        // 낙찰: 선택 여부와 무관하게 sky wash 로 강조 (스캔 시 즉시 인지)
+        // bulk 모드 · 체크 안됨 · 내 입찰 상태 wash
+        !bulkHighlight && bulkMyBidWash,
+        // 진행 중 · 내가 1위 (leading) → sky wash · selected 시 진한 톤
+        !bulkMode && isMyTop && isSelected && "bg-sky-100/60 hover:bg-sky-100/80",
+        !bulkMode && isMyTop && !isSelected && "bg-sky-50/60 hover:bg-sky-50/80",
+        // 진행 중 · 내가 밀림 (outbid) → rose wash · 액션 유도
+        !bulkMode && isMyOutbid && isSelected && "bg-rose-100/60 hover:bg-rose-100/80",
+        !bulkMode && isMyOutbid && !isSelected && "bg-rose-50/60 hover:bg-rose-50/80",
+        // 진행 중 · 미입찰 · selected → 기존 sky selection 유지
+        !bulkMode && !isMyTop && !isMyOutbid && !isSettled && isSelected && "bg-sky-50/70 hover:bg-sky-50",
+        // 진행 중 · 미입찰 · unselected → 흰 배경 + hover 만
+        !bulkMode && !isMyTop && !isMyOutbid && !isSettled && !isSelected && "hover:bg-slate-50/50",
+        // 낙찰 (settled + iWon): sky wash · 선택 시 진한 톤
         isSettled && iWon && isSelected && "bg-sky-100/70 hover:bg-sky-100/80",
         isSettled && iWon && !isSelected && "bg-sky-50/70 hover:bg-sky-100/50",
-        // 유찰 · 미입찰(settled): 기존 slate wash 유지
-        isSettled && !iWon && isSelected && "bg-sky-50/40 hover:bg-sky-50/50",
-        isSettled && !iWon && !isSelected && "bg-slate-50 hover:bg-slate-100/60",
-        !bulkHighlight && !bulkHasMyBidUnchecked && !hasMyBidInProgress && !isSelected && !isSettled && "hover:bg-slate-50/50",
+        // 정산 · 미낙찰 (iLost, 참여했으나 밀림) → rose wash (진행 중 밀림 상태의 연장)
+        isSettled && iLost && isSelected && "bg-rose-100/60 hover:bg-rose-100/80",
+        isSettled && iLost && !isSelected && "bg-rose-50/60 hover:bg-rose-50/80",
+        // 정산 · 미입찰 (noBid, 참여 안 함) → slate wash (중립)
+        isSettled && !iWon && !iLost && isSelected && "bg-sky-50/40 hover:bg-sky-50/50",
+        isSettled && !iWon && !iLost && !isSelected && "bg-slate-50 hover:bg-slate-100/60",
       )}
     >
       {bulkMode ? (
@@ -356,7 +387,7 @@ function MainRow({
       <td
         className={cn(
           "relative px-3 py-2 text-left text-sm font-semibold",
-          isSettled ? "text-slate-500" : "text-slate-900",
+          isSettled ? "text-slate-700" : "text-slate-900",
         )}
       >
         {accentColor && !bulkMode ? (
@@ -372,19 +403,33 @@ function MainRow({
       </td>
       <td
         className={cn(
-          "px-3 py-2 text-right text-xs tabular-nums",
-          isSettled ? "text-slate-400" : "text-slate-700",
+          "px-3 py-2 text-right text-xs",
+          isSettled ? "text-slate-600" : "text-slate-900",
         )}
       >
-        {formatWeightKg(part.weight)}
+        <WeightCell weight={part.weight} isSettled={isSettled} />
       </td>
       <td
         className={cn(
-          "px-3 py-2 text-right text-xs tabular-nums",
-          isSettled ? "text-slate-400" : "text-slate-700",
+          "px-3 py-2 text-right",
+          isSettled ? "text-slate-600" : "text-slate-700",
         )}
       >
-        {formatKrw(part.minPrice)}
+        <PriceSlot
+          value={part.minPrice}
+          tone={isSettled ? "muted" : "regular"}
+        />
+      </td>
+      <td
+        className={cn(
+          "px-3 py-2 text-right",
+          hasSubRowBelow && "border-b-0",
+        )}
+      >
+        <TopBidCell
+          topBid={part.topBid}
+          isSettled={isSettled}
+        />
       </td>
       <td
         className={cn(
@@ -402,50 +447,54 @@ function MainRow({
           />
         ) : isSettled ? (
           myBid ? (
-            <span
-              className={cn(
-                "text-xs font-bold tabular-nums",
-                iWon ? "text-sky-700" : "text-slate-400",
-              )}
-            >
-              {maskKrw(myBid.bidPrice, canReadBids)}
-            </span>
+            !canReadBids ? (
+              <MaskedPriceSlot tone={iWon ? "won" : "lost"} />
+            ) : (
+              <PriceSlot
+                value={myBid.bidPrice}
+                tone={iWon ? "won" : "lost"}
+              />
+            )
           ) : (
-            <span className="text-xs text-slate-300">-</span>
+            <PriceSlot value={null} tone="muted" />
           )
         ) : onBidClick ? (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onBidClick();
-            }}
-            className={cn(
-              "group/bid inline-flex h-6 min-w-[92px] items-baseline gap-0.5 border px-2 text-[11px] font-bold transition-colors",
-              myBid ? "justify-end" : "justify-center",
-              // 입찰중: filled sky (강조) · 미입찰: outline sky (수동 액션 유도)
-              myBid
-                ? "border-sky-600 bg-sky-600 text-white shadow-sm hover:border-sky-700 hover:bg-sky-700"
-                : "border-sky-500 bg-white text-sky-600 hover:border-sky-500 hover:bg-sky-500 hover:text-white",
-            )}
-          >
-            {myBid ? (
-              <MyBidBadgeInline bidPrice={myBid.bidPrice} canRead={canReadBids} />
-            ) : (
-              "입찰하기"
-            )}
-          </button>
+          // 셀 자체가 text-right 로 정렬되어 있어 inline-flex 버튼이 우측 벽에 밀착됨.
+          // flex justify-center 래퍼로 감싸 버튼만 셀 내부 중앙에 배치 · 좌우 breathing 확보.
+          // (부위별 뷰 `PartListingTable` 과 동일 스펙: h-7 · min-w-[60px] · px-2 · font-semibold)
+          <div className="flex justify-center">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onBidClick();
+              }}
+              className={cn(
+                "group/bid inline-flex h-7 min-w-[60px] items-center justify-center gap-0.5 border px-2 text-[11px] font-semibold transition-colors",
+                // 입찰중: filled sky (강조) · 미입찰: outline sky (수동 액션 유도)
+                myBid
+                  ? "border-sky-600 bg-sky-600 text-white shadow-sm hover:border-sky-700 hover:bg-sky-700"
+                  : "border-sky-500 bg-white text-sky-600 hover:border-sky-500 hover:bg-sky-500 hover:text-white",
+              )}
+            >
+              {myBid ? (
+                <MyBidBadgeInline
+                  bidPrice={myBid.bidPrice}
+                  canRead={canReadBids}
+                />
+              ) : (
+                "입찰하기"
+              )}
+            </button>
+          </div>
         ) : myBid ? (
-          <span
-            className={cn(
-              "text-xs font-bold tabular-nums",
-              canReadBids ? "text-sky-700" : "text-slate-400",
-            )}
-          >
-            {maskKrw(myBid.bidPrice, canReadBids)}
-          </span>
+          !canReadBids ? (
+            <MaskedPriceSlot tone="mine" />
+          ) : (
+            <PriceSlot value={myBid.bidPrice} tone="mine" />
+          )
         ) : (
-          <span className="text-xs text-slate-300">-</span>
+          <PriceSlot value={null} tone="muted" />
         )}
       </td>
     </tr>
@@ -454,9 +503,9 @@ function MainRow({
 
 /**
  * 회차 마감 후 각 부위 아래에 표시되는 결과 sub-row.
- * 3가지 케이스:
- * - won  → sky-600 accent + `낙찰` chip (진한 sky · 브랜드)
- * - lost → slate accent + `유찰` chip
+ * 3가지 케이스 (내 관점):
+ * - won   → sky-600 accent + `낙찰` chip (진한 sky · 브랜드)
+ * - lost  → rose-500 accent + `미낙찰` chip (내가 입찰했으나 밀림 · rose wash · 진행 중 outbid 상태 연장)
  * - noBid → slate accent (chip 없음) · 순수 정보 표시
  */
 function SettlementSubRow({
@@ -477,10 +526,11 @@ function SettlementSubRow({
   const iWon = settlementCase === "won";
   const iLost = settlementCase === "lost";
 
+  // Accent · MainRow 와 완전 통일: won=sky-600, lost=rose-500, noBid=slate-300
   const accentColor = iWon
     ? "bg-sky-600"
     : iLost
-      ? "bg-slate-400"
+      ? "bg-rose-500"
       : "bg-slate-300";
 
   // 총 낙찰금액 = 낙찰가 × 중량 (winningBid.bidAmount 이 이미 계산된 경우 우선)
@@ -493,14 +543,18 @@ function SettlementSubRow({
       onClick={onClick}
       className={cn(
         "cursor-pointer transition-colors",
-        // 낙찰 · sub-row 도 main row 와 통일된 sky wash (하나의 "낙찰 블록" 으로 인지)
+        // sub-row 도 main row 와 통일된 wash · 하나의 "결과 블록" 으로 인지
         iWon
           ? isSelected
             ? "bg-sky-100/60"
             : "bg-sky-50/70"
-          : isSelected
-            ? "bg-sky-50/40"
-            : "bg-slate-50",
+          : iLost
+            ? isSelected
+              ? "bg-rose-100/60"
+              : "bg-rose-50/60"
+            : isSelected
+              ? "bg-sky-50/40"
+              : "bg-slate-50",
       )}
     >
       <td colSpan={colSpan} className="relative px-3 pb-2 pt-0.5">
@@ -508,56 +562,75 @@ function SettlementSubRow({
           className={cn("absolute inset-y-0 left-0 w-[3px]", accentColor)}
           aria-hidden
         />
-        <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 pl-1 text-[11px]">
-          {iWon ? (
-            <span className="inline-flex shrink-0 items-center bg-sky-600 px-1.5 py-0.5 text-[10px] font-bold text-white shadow-sm">
-              낙찰
-            </span>
-          ) : iLost ? (
-            <span className="inline-flex shrink-0 items-center bg-slate-200 px-1.5 py-px text-[10px] font-bold text-slate-600">
-              유찰
-            </span>
-          ) : null}
+        {/**
+         * Grid 4열 · [chip | 낙찰자 | 낙찰가 | 총액] · `PartListingTable` 과 통일 스펙.
+         * 부위별 뷰와 동일 컨벤션 · 모든 row 에서 세로 정렬 유지.
+         * 컬럼 폭은 tight fit (chip 46 · 낙찰자 88 · 낙찰가 120 · 총액 1fr).
+         */}
+        <div className="grid grid-cols-[46px_88px_120px_minmax(0,1fr)] items-center gap-x-1.5 pl-1 text-[11px]">
+          <div className="flex">
+            {iWon ? (
+              <span className="inline-flex items-center bg-sky-600 px-1.5 py-0.5 text-[10px] font-bold text-white shadow-sm">
+                낙찰
+              </span>
+            ) : iLost ? (
+              <span className="inline-flex items-center bg-rose-100 px-1.5 py-0.5 text-[10px] font-bold text-rose-700">
+                미낙찰
+              </span>
+            ) : (
+              <span className="inline-flex items-center bg-slate-200 px-1.5 py-0.5 text-[10px] font-bold text-slate-600">
+                미입찰
+              </span>
+            )}
+          </div>
 
-          <span className="flex shrink-0 items-center gap-1">
-            <span className="text-slate-400">낙찰자</span>
+          <div className="flex min-w-0 items-center gap-1">
+            <span className="shrink-0 text-slate-500">낙찰자</span>
             <span
               className={cn(
-                "font-semibold tabular-nums",
-                iWon ? "text-sky-800" : "text-slate-700",
+                "truncate font-semibold tabular-nums",
+                iWon
+                  ? "text-sky-800"
+                  : iLost
+                    ? "text-rose-800"
+                    : "text-slate-800",
               )}
             >
               {winningBid?.dealerNo || "-"}
             </span>
-          </span>
+          </div>
 
-          <span className="text-slate-300">·</span>
-
-          <span className="flex shrink-0 items-center gap-1">
-            <span className="text-slate-400">낙찰가</span>
+          <div className="flex min-w-0 items-center gap-1">
+            <span className="shrink-0 text-slate-500">낙찰가</span>
             <span
               className={cn(
-                "font-bold tabular-nums",
-                iWon ? "text-sky-700" : "text-slate-700",
+                "truncate font-bold tabular-nums",
+                iWon
+                  ? "text-sky-700"
+                  : iLost
+                    ? "text-rose-700"
+                    : "text-slate-800",
               )}
             >
               {formatWonPerKg(winningBid?.bidPrice ?? null)}
             </span>
-          </span>
+          </div>
 
-          <span className="text-slate-300">·</span>
-
-          <span className="flex shrink-0 items-center gap-1">
-            <span className="text-slate-400">총액</span>
+          <div className="flex min-w-0 items-center gap-1">
+            <span className="shrink-0 text-slate-500">총액</span>
             <span
               className={cn(
-                "font-bold tabular-nums",
-                iWon ? "text-sky-700" : "text-slate-700",
+                "truncate font-bold tabular-nums",
+                iWon
+                  ? "text-sky-700"
+                  : iLost
+                    ? "text-rose-700"
+                    : "text-slate-800",
               )}
             >
               {totalAmount != null ? formatWon(totalAmount) : "-"}
             </span>
-          </span>
+          </div>
         </div>
       </td>
     </tr>
@@ -566,6 +639,43 @@ function SettlementSubRow({
 
 const KRW_NUMBER = new Intl.NumberFormat("ko-KR");
 const BID_MASK_TOKEN = "***";
+
+/**
+ * 중량 셀 · 숫자를 고정폭 슬롯에 우측 정렬해 소수점이 세로로 일직선이 되도록 함.
+ * text-xs · tabular-nums 기준 `w-[30px]` 슬롯이면 "10.0" 과 "9.8" 의 소수점이 정렬됨.
+ * 부위별 탭(`PartListingTable.WeightCell`) 과 동일 스펙.
+ */
+function WeightCell({
+  weight,
+  isSettled,
+}: {
+  weight: number | null | undefined;
+  isSettled: boolean;
+}) {
+  if (
+    weight === null ||
+    weight === undefined ||
+    !Number.isFinite(weight) ||
+    weight <= 0
+  ) {
+    return <span className="text-slate-300">-</span>;
+  }
+  return (
+    <span className="inline-flex items-baseline justify-end tabular-nums">
+      <span className="inline-block w-[30px] text-right font-medium">
+        {weight.toFixed(1)}
+      </span>
+      <span
+        className={cn(
+          "pl-0.5 font-medium",
+          isSettled ? "text-slate-500" : "text-slate-400",
+        )}
+      >
+        kg
+      </span>
+    </span>
+  );
+}
 
 /**
  * "내 입찰가" 아웃라인 버튼 안 텍스트.
@@ -585,6 +695,26 @@ function MyBidBadgeInline({
       {KRW_NUMBER.format(rounded)}
     </span>
   );
+}
+
+/**
+ * 오픈 최고가 · 부위별 현재 최고가 셀.
+ * PriceSlot 을 사용해 6자리 fixed 포맷으로 정렬 · 최저단가·내입찰가와 세로 열 통일.
+ */
+function TopBidCell({
+  topBid,
+  isSettled,
+}: {
+  topBid: LivePart["topBid"];
+  isSettled: boolean;
+}) {
+  if (!topBid) return <PriceSlot value={null} tone="muted" />;
+  const tone: PriceTone = isSettled
+    ? "muted"
+    : topBid.isMine
+      ? "mine"
+      : "primary";
+  return <PriceSlot value={topBid.bidPrice} tone={tone} />;
 }
 
 /** listing 하단 요약 라인용 */

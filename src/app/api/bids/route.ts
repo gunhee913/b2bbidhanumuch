@@ -1,6 +1,7 @@
 import { getAdminClient } from '@/lib/supabase-admin';
 import { NextRequest, NextResponse } from 'next/server';
 import { resolveAuth } from '@/lib/resolve-auth';
+import { MIN_BID_INCREMENT } from '@/features/live-auction/constants/bidding';
 
 const supabase = getAdminClient();
 
@@ -25,6 +26,7 @@ export async function GET(request: NextRequest) {
         bid_amount,
         rank,
         is_winning,
+        is_top_bid,
         created_at,
         auctions:auction_id (
           round_no
@@ -106,7 +108,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { auctionId, partId, bidPrice, weight } = body;
+    const { auctionId, partId, bidPrice } = body;
     const clientDealerId = body.dealerId;
 
     // 필수 값 검증 (auctionId는 이제 optional)
@@ -245,42 +247,65 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 최저가 확인
-    if (part.min_price && bidPrice < part.min_price) {
-      return NextResponse.json(
-        { error: `최저가(${part.min_price.toLocaleString()}원) 이상으로 입찰해주세요.` },
-        { status: 400 }
-      );
-    }
-
-    // 입찰금액 계산
-    const partWeight = weight || part.weight || 0;
-    const bidAmount = Math.round(bidPrice * partWeight);
-
+    // 기존 입찰가 조회 (audit log 원본값 확보용)
     const { data: existingBid } = await supabase
       .from('bids')
       .select('id, bid_price, bid_amount, auction_id')
       .eq('part_id', partId)
       .eq('dealer_id', finalDealerId)
-      .single();
+      .maybeSingle();
 
-    if (existingBid) {
-      const { data: updatedBid, error: updateError } = await supabase
-        .from('bids')
-        .update({
-          bid_price: bidPrice,
-          bid_amount: bidAmount,
-          auction_id: resolvedAuctionId,
-        })
-        .eq('id', existingBid.id)
-        .select()
-        .single();
+    // 오픈 최고가 · place_bid RPC 로 원자적 처리 (SELECT FOR UPDATE 락 + min_increment 검증)
+    const { data: rpcData, error: rpcError } = await supabase.rpc('place_bid', {
+      p_part_id: partId,
+      p_dealer_id: finalDealerId,
+      p_bid_price: bidPrice,
+      p_auction_id: resolvedAuctionId,
+      p_min_increment: MIN_BID_INCREMENT,
+    });
 
-      if (updateError) {
-        console.error('입찰 수정 오류:', updateError);
-        return NextResponse.json({ error: updateError.message }, { status: 500 });
+    if (rpcError) {
+      console.error('입찰 RPC 오류:', rpcError);
+      return NextResponse.json({ error: rpcError.message }, { status: 500 });
+    }
+
+    const result = rpcData as {
+      ok: boolean;
+      code?: string;
+      minPrice?: number;
+      currentTop?: number;
+      nextMin?: number;
+      bidId?: string;
+      bidAmount?: number;
+      isUpdate?: boolean;
+    };
+
+    if (!result?.ok) {
+      switch (result?.code) {
+        case 'PART_NOT_FOUND':
+          return NextResponse.json({ error: '부위 정보를 찾을 수 없습니다.', code: result.code }, { status: 404 });
+        case 'NOT_INCLUDED':
+          return NextResponse.json({ error: '상장에 포함되지 않은 부위입니다.', code: result.code }, { status: 400 });
+        case 'BELOW_MIN':
+          return NextResponse.json({
+            error: `최저가(${result.minPrice?.toLocaleString()}원) 이상으로 입찰해주세요.`,
+            code: result.code,
+            minPrice: result.minPrice,
+          }, { status: 400 });
+        case 'OUTBID':
+          return NextResponse.json({
+            error: `타 매참인이 이미 ${result.currentTop?.toLocaleString()}원/kg 으로 입찰했습니다. 최소 ${result.nextMin?.toLocaleString()}원/kg 이상 필요합니다.`,
+            code: result.code,
+            currentTop: result.currentTop,
+            nextMin: result.nextMin,
+          }, { status: 409 });
+        default:
+          return NextResponse.json({ error: '입찰 처리 중 오류가 발생했습니다.', code: result?.code }, { status: 400 });
       }
+    }
 
+    // 기존 입찰이 있었으면 audit log 기록 (dealer_update)
+    if (existingBid) {
       await supabase.from('bid_audit_logs').insert({
         bid_id: existingBid.id,
         auction_id: resolvedAuctionId || existingBid.auction_id || null,
@@ -290,41 +315,22 @@ export async function POST(request: NextRequest) {
         old_bid_price: existingBid.bid_price,
         new_bid_price: bidPrice,
         old_bid_amount: existingBid.bid_amount,
-        new_bid_amount: bidAmount,
+        new_bid_amount: result.bidAmount ?? null,
         performed_by: null,
       });
-
-      return NextResponse.json({
-        ...updatedBid,
-        isUpdate: true,
-        message: '입찰가가 수정되었습니다.',
-      });
-    }
-
-    // 새 입찰 등록
-    const { data: newBid, error: insertError } = await supabase
-      .from('bids')
-      .insert({
-        auction_id: resolvedAuctionId,
-        listing_id: part.listing_id,
-        part_id: partId,
-        dealer_id: finalDealerId,
-        bid_price: bidPrice,
-        bid_amount: bidAmount,
-      })
-      .select()
-      .single();
-
-    if (insertError) {
-      console.error('입찰 등록 오류:', insertError);
-      return NextResponse.json({ error: insertError.message }, { status: 500 });
     }
 
     return NextResponse.json({
-      ...newBid,
-      isUpdate: false,
-      message: '입찰이 등록되었습니다.',
-    }, { status: 201 });
+      id: result.bidId,
+      auction_id: resolvedAuctionId,
+      part_id: partId,
+      dealer_id: finalDealerId,
+      bid_price: bidPrice,
+      bid_amount: result.bidAmount ?? 0,
+      is_top_bid: true,
+      isUpdate: !!result.isUpdate,
+      message: result.isUpdate ? '입찰가가 수정되었습니다.' : '입찰이 등록되었습니다.',
+    }, { status: result.isUpdate ? 200 : 201 });
   } catch (error) {
     console.error('입찰 등록 오류:', error);
     return NextResponse.json(

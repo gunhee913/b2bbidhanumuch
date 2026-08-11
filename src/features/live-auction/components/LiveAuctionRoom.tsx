@@ -1,23 +1,17 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import {
-  slugToName,
-  type SlaughterHouseSlug,
-} from "@/constants/slaughterHouseSlugs";
-import { useDealerPermission } from "../hooks/useDealerPermission";
 import { useLiveListings } from "../hooks/useLiveListings";
 import { useCurrentRound } from "../hooks/useCurrentRound";
-import { useSubMenuHidden } from "../hooks/useSubMenuHidden";
 import { cn } from "@/lib/utils";
 import { useRealtimeBids } from "@/hooks/useRealtimeBids";
 import { useRealtimeAuctions } from "@/hooks/useRealtimeAuctions";
-import { RoundStickyBar } from "./RoundStickyBar";
+import { toast } from "sonner";
 import { RoundFloatingCard } from "./RoundFloatingCard";
-import { RoundScheduleList } from "./RoundScheduleList";
 import { useRoundSchedule } from "@/features/round-schedules/hooks/useRoundSchedule";
 import {
   MyBidsDrawer,
@@ -30,7 +24,6 @@ import { PartListingTable } from "./PartListingTable";
 import { PartDetailPanel, type DetailTab } from "./PartDetailPanel";
 import { PartMarketChart } from "./PartMarketChart";
 import { LoginGateOverlay } from "./LoginGateOverlay";
-import { PermissionGateOverlay } from "./PermissionGateOverlay";
 import { BulkBidPanel } from "./BulkBidPanel";
 import { useBulkBid } from "../hooks/useBulkBid";
 import { groupPartsByName } from "../lib/partGrouping";
@@ -59,49 +52,43 @@ function matchesBulkYield(filter: string, grade: string | null): boolean {
   return (m?.[0] ?? "A") === filter;
 }
 
-export interface LiveAuctionRoomProps {
-  slug: SlaughterHouseSlug;
-}
-
-export function LiveAuctionRoom({ slug }: LiveAuctionRoomProps) {
-  const slaughterHouseName = slugToName(slug);
+/**
+ * 실시간 경매 통합 뷰.
+ *
+ * Phase 1 통합 이후 공판장 슬러그/권한 게이팅은 제거되었고,
+ * 로그인한 매참인은 모든 상장에 대해 입찰 가능하다.
+ */
+export function LiveAuctionRoom() {
   const queryClient = useQueryClient();
-  const permission = useDealerPermission();
+  const { data: session, status } = useSession();
   const searchParams = useSearchParams();
-  const subMenuHidden = useSubMenuHidden();
 
-  /**
-   * 서브메뉴 노출 여부에 따라 sticky/fixed 요소들의 top 을 반응시킨다.
-   * - 노출 · 64(MainHeader) + 48(SubMenu) + 16(padding) = 128
-   * - 숨김 · 64 + 16 = 80
-   * 사이드바/디테일 패널의 height 계산도 서브메뉴 두께(48px)만큼 확장.
-   */
-  const stickyTopClass = subMenuHidden ? "top-[80px]" : "top-[128px]";
-  const sidebarHeightClass = subMenuHidden
-    ? "h-[calc(100vh-64px-32px)]"
-    : "h-[calc(100vh-64px-48px-32px)]";
-  const detailMaxHeightClass = subMenuHidden
-    ? "max-h-[calc(100vh-80px-16px)]"
-    : "max-h-[calc(100vh-128px-16px)]";
-  const floatingTopClass = subMenuHidden ? "top-20" : "top-32";
-  const stickyTransition = "transition-[top,max-height,height] duration-200 ease-out";
+  const isAuthenticated = status === "authenticated" && !!session;
+  const dealerId =
+    session?.dealer?.id || session?.employee?.dealerId || null;
+  const isDealer =
+    session?.user?.userType === "dealer_user" && !!dealerId;
+
+  const stickyTopClass = "top-[80px]";
+  const sidebarHeightClass = "h-[calc(100vh-64px-32px)]";
+  const detailMaxHeightClass = "max-h-[calc(100vh-80px-16px)]";
+  const floatingTopClass = "top-20";
+
   /**
    * `/history` 등 외부에서 특정 개체를 미리 선택하고 진입할 때 사용.
-   * 예: `/auction/live/eumseong?listing=260722-401`
+   * 예: `/auction/live?listing=260722-401`
    */
   const initialListingNo = searchParams.get("listing");
   /** 진입 시 딱 한 번만 파라미터를 소비하도록 하는 가드 (사용자 조작으로 덮이지 않게) */
   const consumedInitialListingNoRef = useRef(false);
 
   const { data: listingsData, isLoading: listingsLoading } = useLiveListings({
-    slaughterHouse: slaughterHouseName,
     listingDate: format(new Date(), "yyyy-MM-dd"),
   });
 
   const { data: roundData } = useCurrentRound(format(new Date(), "yyyy-MM-dd"));
 
   const { data: scheduleData, isLoading: scheduleLoading } = useRoundSchedule(
-    slaughterHouseName,
     format(new Date(), "yyyy-MM-dd"),
   );
 
@@ -123,7 +110,6 @@ export function LiveAuctionRoom({ slug }: LiveAuctionRoomProps) {
   const [bulkGradeFilter, setBulkGradeFilter] = useState("");
   const [bulkYieldFilter, setBulkYieldFilter] = useState("");
   const [loginPromptOpen, setLoginPromptOpen] = useState(false);
-  const [permissionPromptOpen, setPermissionPromptOpen] = useState(false);
   const [myBidsOpen, setMyBidsOpen] = useState(false);
   const [myBidsInitialRound, setMyBidsInitialRound] = useState<string | null>(
     null,
@@ -152,17 +138,57 @@ export function LiveAuctionRoom({ slug }: LiveAuctionRoomProps) {
 
   // 부위별 뷰: 부위 그룹 계산 + 상태 자동 초기화
   const partGroups = useMemo(() => groupPartsByName(listings), [listings]);
+
+  // 업체 필터 옵션 · 개체별 사이드바와 동일하게 상장 companyName 유니크 집합
+  const companyOptions = useMemo(() => {
+    const set = new Set<string>();
+    listings.forEach((l) => {
+      if (l.companyName) set.add(l.companyName);
+    });
+    return Array.from(set).sort();
+  }, [listings]);
+
+  /**
+   * 부위별 뷰 · 등급/업체 필터를 적용한 그룹 목록.
+   *
+   * - 각 그룹의 items 를 개별 필터링 → count 재계산 → 빈 그룹 제거
+   * - Sidebar 카운트(경매건수/낙찰건수) · 중앙 `PartListingTable` 이 모두
+   *   filteredPartGroups 를 기준으로 렌더링돼 필터 결과가 일관되게 반영됨
+   * - gradeFilter/companyFilter 는 개체별 뷰와 공유되는 state 라
+   *   뷰 전환 시 자연스럽게 필터가 유지됨
+   */
+  const filteredPartGroups = useMemo(() => {
+    if (!gradeFilter && !companyFilter) return partGroups;
+    return partGroups
+      .map((g) => {
+        const items = g.items.filter(({ listing }) => {
+          if (
+            gradeFilter &&
+            !matchesBulkGrade(gradeFilter, listing.grade, listing.marblingScore)
+          ) {
+            return false;
+          }
+          if (companyFilter && listing.companyName !== companyFilter) {
+            return false;
+          }
+          return true;
+        });
+        return { group: g.group, count: items.length, items };
+      })
+      .filter((g) => g.count > 0);
+  }, [partGroups, gradeFilter, companyFilter]);
+
   const totalPartCount = useMemo(
-    () => partGroups.reduce((sum, g) => sum + g.count, 0),
-    [partGroups],
+    () => filteredPartGroups.reduce((sum, g) => sum + g.count, 0),
+    [filteredPartGroups],
   );
 
   const activePartGroup = useMemo(
     () =>
-      partGroups.find((g) => g.group === selectedPartGroup) ??
-      partGroups[0] ??
+      filteredPartGroups.find((g) => g.group === selectedPartGroup) ??
+      filteredPartGroups[0] ??
       null,
-    [partGroups, selectedPartGroup],
+    [filteredPartGroups, selectedPartGroup],
   );
 
   // 부위 그룹이 정해지면 그 안의 첫 개체 자동 선택
@@ -183,13 +209,15 @@ export function LiveAuctionRoom({ slug }: LiveAuctionRoomProps) {
     }
   }, [viewMode, activePartGroup, selectedPartId]);
 
-  // viewMode 를 부위별로 진입할 때 그룹 없으면 첫 그룹 자동 선택
+  // viewMode 부위별 진입 시 · 필터로 선택 그룹이 사라진 경우 · 첫 그룹으로 자동 이동
   useEffect(() => {
     if (viewMode !== "part") return;
-    if (!selectedPartGroup && partGroups.length > 0) {
-      setSelectedPartGroup(partGroups[0].group);
+    if (filteredPartGroups.length === 0) return;
+    const exists = filteredPartGroups.some((g) => g.group === selectedPartGroup);
+    if (!exists) {
+      setSelectedPartGroup(filteredPartGroups[0].group);
     }
-  }, [viewMode, selectedPartGroup, partGroups]);
+  }, [viewMode, selectedPartGroup, filteredPartGroups]);
 
   // 개체별/관심 뷰 · 개체가 바뀌면 첫 부위 자동 선택
   useEffect(() => {
@@ -205,16 +233,56 @@ export function LiveAuctionRoom({ slug }: LiveAuctionRoomProps) {
     }
   }, [viewMode, listings, selectedListingId, selectedPartId]);
 
-  useRealtimeBids({
-    onBidChange: () => {
+  /**
+   * 오픈 최고가 정책 · realtime "역전당함" 감지.
+   *
+   * 서버가 반환한 topBid/isMine 상태를 기반으로 내가 1위인 partId 집합을 유지하고,
+   * realtime bid 이벤트에서 새 최고가 dealer 가 내가 아닐 때 알림을 띄운다.
+   * 상세 정보(입찰가 등) 는 refetch 후 반영된다.
+   */
+  const myTopPartsRef = useRef<Set<string>>(new Set());
+  const partNameByIdRef = useRef<Map<string, string>>(new Map());
+
+  useEffect(() => {
+    const nextMyTop = new Set<string>();
+    const nextNames = new Map<string, string>();
+    for (const listing of listings) {
+      for (const part of listing.parts) {
+        nextNames.set(part.id, `${listing.listingNo} ${part.partName}`);
+        if (part.topBid?.isMine) nextMyTop.add(part.id);
+      }
+    }
+    myTopPartsRef.current = nextMyTop;
+    partNameByIdRef.current = nextNames;
+  }, [listings]);
+
+  const handleBidChange = useCallback(
+    (payload?: { partId: string; dealerId: string; isTopBid?: boolean }) => {
       queryClient.invalidateQueries({
         queryKey: ["live-auction", "listings"],
       });
       queryClient.invalidateQueries({
         queryKey: ["live-auction", "my-bids"],
       });
+
+      if (!payload || !dealerId) return;
+      if (!payload.isTopBid) return;
+      if (payload.dealerId === dealerId) return;
+      if (!myTopPartsRef.current.has(payload.partId)) return;
+
+      const label =
+        partNameByIdRef.current.get(payload.partId) ?? "선택 부위";
+      // 중복 알림 방지 · 같은 partId 는 다음 갱신까지 한 번만 알림
+      myTopPartsRef.current.delete(payload.partId);
+      toast.error("타 매참인이 최고가를 갱신했습니다", {
+        description: `${label} · 1위 자리에서 밀렸습니다. 최고가 확인 후 재입찰해 주세요.`,
+        duration: 6000,
+      });
     },
-  });
+    [queryClient, dealerId],
+  );
+
+  useRealtimeBids({ onBidChange: handleBidChange });
   useRealtimeAuctions({
     onAuctionChange: () => {
       queryClient.invalidateQueries({
@@ -297,7 +365,6 @@ export function LiveAuctionRoom({ slug }: LiveAuctionRoomProps) {
     queryClient,
   ]);
 
-  const isAuthorizedHere = permission.isSlaughterHouseAuthorized(slug);
   const listingDate = format(new Date(), "yyyy-MM-dd");
 
   const selectedListing = useMemo(
@@ -401,7 +468,6 @@ export function LiveAuctionRoom({ slug }: LiveAuctionRoomProps) {
   // - 이미 내 입찰이 있는 부위는 현재 bidPrice 를 input 폼에 프리필 (참고/재입찰 편의)
   useEffect(() => {
     if (detailTab !== "bulk") return;
-    const dealerId = permission.dealerId;
     const autoSelectIds: string[] = [];
     const prefillPrices = new Map<string, number>();
     for (const { part } of bulkCandidates) {
@@ -419,26 +485,22 @@ export function LiveAuctionRoom({ slug }: LiveAuctionRoomProps) {
     bulkBid.setSelected(autoSelectIds);
     if (prefillPrices.size > 0) bulkBid.initializePrices(prefillPrices);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [detailTab, bulkContextKey, bulkGradeFilter, bulkYieldFilter, bulkCandidates.length, permission.dealerId]);
+  }, [detailTab, bulkContextKey, bulkGradeFilter, bulkYieldFilter, bulkCandidates.length, dealerId]);
 
   const handleBulkApplyPlus = (delta: number) => {
     bulkBid.applyMinPricePlus(delta, bulkMinPriceByPart);
   };
 
   const handleBulkSubmit = async () => {
-    if (!permission.isAuthenticated || !permission.isDealer) {
+    if (!isAuthenticated || !isDealer) {
       setLoginPromptOpen(true);
       return;
     }
-    if (!isAuthorizedHere) {
-      setPermissionPromptOpen(true);
-      return;
-    }
-    if (!permission.dealerId) return;
+    if (!dealerId) return;
     if (bulkBid.readySubmitItems.length === 0) return;
     try {
       const result = await bulkBid.submitAsync({
-        dealerId: permission.dealerId,
+        dealerId,
         auctionId: currentRound?.id ?? null,
         items: bulkBid.readySubmitItems,
       });
@@ -453,11 +515,8 @@ export function LiveAuctionRoom({ slug }: LiveAuctionRoomProps) {
   };
 
   const bulkDisabledReason = useMemo(() => {
-    if (!permission.isAuthenticated || !permission.isDealer) {
+    if (!isAuthenticated || !isDealer) {
       return "로그인 후 이용해 주세요.";
-    }
-    if (!isAuthorizedHere) {
-      return "이 공판장 참여 권한이 없습니다.";
     }
     if (!currentRound || currentRound.status !== "open") {
       return "현재 진행 중인 회차가 없습니다.";
@@ -467,9 +526,8 @@ export function LiveAuctionRoom({ slug }: LiveAuctionRoomProps) {
     }
     return undefined;
   }, [
-    permission.isAuthenticated,
-    permission.isDealer,
-    isAuthorizedHere,
+    isAuthenticated,
+    isDealer,
     currentRound,
     bulkCandidates.length,
   ]);
@@ -516,30 +574,23 @@ export function LiveAuctionRoom({ slug }: LiveAuctionRoomProps) {
 
   return (
     <>
-      <RoundStickyBar activeSlug={slug} />
-
       {/* 오른쪽 사이드 컬럼 · 회차 카드 + 나의 입찰 트리거 stack */}
       <div
         className={cn(
           "pointer-events-none fixed right-8 z-30 flex flex-col gap-3",
           floatingTopClass,
-          stickyTransition,
         )}
       >
         <RoundFloatingCard
-          activeSlug={slug}
           currentRound={roundData?.currentRound ?? null}
           lastClosedRound={roundData?.lastClosedRound ?? null}
-        />
-        <RoundScheduleList
           schedules={scheduleData?.schedules ?? []}
-          currentRound={roundData?.currentRound ?? null}
           allRounds={roundData?.allRounds ?? []}
           date={listingDate}
-          isLoading={scheduleLoading}
+          isSchedulesLoading={scheduleLoading}
         />
         <MyBidsTrigger
-          dealerId={permission.dealerId}
+          dealerId={dealerId}
           listingDate={listingDate}
           allRounds={roundData?.allRounds ?? []}
           onOpen={(roundId) => {
@@ -552,7 +603,7 @@ export function LiveAuctionRoom({ slug }: LiveAuctionRoomProps) {
       <MyBidsDrawer
         open={myBidsOpen}
         onClose={() => setMyBidsOpen(false)}
-        dealerId={permission.dealerId}
+        dealerId={dealerId}
         listingDate={listingDate}
         allRounds={roundData?.allRounds ?? []}
         initialRoundFilter={myBidsInitialRound}
@@ -572,17 +623,21 @@ export function LiveAuctionRoom({ slug }: LiveAuctionRoomProps) {
               "sticky row-span-2 min-h-[600px]",
               stickyTopClass,
               sidebarHeightClass,
-              stickyTransition,
             )}
           >
             <PartSidebar
               viewMode={viewMode}
               onViewModeChange={setViewMode}
-              groups={partGroups}
+              groups={filteredPartGroups}
               selectedGroup={activePartGroup?.group ?? null}
               onSelect={setSelectedPartGroup}
               isLoading={listingsLoading}
               totalPartCount={totalPartCount}
+              gradeFilter={gradeFilter}
+              companyFilter={companyFilter}
+              onGradeChange={setGradeFilter}
+              onCompanyChange={setCompanyFilter}
+              companyOptions={companyOptions}
             />
           </div>
 
@@ -602,12 +657,8 @@ export function LiveAuctionRoom({ slug }: LiveAuctionRoomProps) {
               selectedPartId={selectedPartId}
               onSelect={handleSelectPartRow}
               onBidRequest={handleBidRequest}
-              dealerId={permission.dealerId}
-              canReadBids={
-                permission.isAuthenticated &&
-                permission.isDealer &&
-                isAuthorizedHere
-              }
+              dealerId={dealerId}
+              canReadBids={isAuthenticated && isDealer}
               isLoading={listingsLoading}
               bulkMode={isBulkMode}
               bulkSelected={bulkBid.selectedPartIds}
@@ -623,20 +674,19 @@ export function LiveAuctionRoom({ slug }: LiveAuctionRoomProps) {
               "sticky overflow-hidden",
               stickyTopClass,
               detailMaxHeightClass,
-              stickyTransition,
             )}
           >
             <PartDetailPanel
               listing={selectedListing}
               part={selectedPart}
               allListings={listings}
-              dealerId={permission.dealerId}
-              isLoggedIn={permission.isAuthenticated && permission.isDealer}
-              isAuthorized={isAuthorizedHere}
+              dealerId={dealerId}
+              isLoggedIn={isAuthenticated && isDealer}
+              isAuthorized
               canBid={canBid}
               disabledReason={disabledReason}
               onRequestLogin={() => setLoginPromptOpen(true)}
-              onRequestPermission={() => setPermissionPromptOpen(true)}
+              onRequestPermission={() => setLoginPromptOpen(true)}
               tab={detailTab}
               onTabChange={setDetailTab}
               hideMarketPanel
@@ -674,7 +724,6 @@ export function LiveAuctionRoom({ slug }: LiveAuctionRoomProps) {
               "sticky row-span-2 min-h-[600px]",
               stickyTopClass,
               sidebarHeightClass,
-              stickyTransition,
             )}
           >
             <ListingSidebar
@@ -707,9 +756,9 @@ export function LiveAuctionRoom({ slug }: LiveAuctionRoomProps) {
           <div>
             <IndividualPartsCard
               listing={selectedListing}
-              dealerId={permission.dealerId}
-              isLoggedIn={permission.isAuthenticated && permission.isDealer}
-              isAuthorized={isAuthorizedHere}
+              dealerId={dealerId}
+              isLoggedIn={isAuthenticated && isDealer}
+              isAuthorized
               selectedPartId={selectedPartId}
               onSelectPart={(partId) => {
                 setSelectedPartId(partId);
@@ -735,20 +784,19 @@ export function LiveAuctionRoom({ slug }: LiveAuctionRoomProps) {
               "sticky overflow-hidden",
               stickyTopClass,
               detailMaxHeightClass,
-              stickyTransition,
             )}
           >
             <PartDetailPanel
               listing={selectedListing}
               part={selectedPart}
               allListings={listings}
-              dealerId={permission.dealerId}
-              isLoggedIn={permission.isAuthenticated && permission.isDealer}
-              isAuthorized={isAuthorizedHere}
+              dealerId={dealerId}
+              isLoggedIn={isAuthenticated && isDealer}
+              isAuthorized
               canBid={canBid}
               disabledReason={disabledReason}
               onRequestLogin={() => setLoginPromptOpen(true)}
-              onRequestPermission={() => setPermissionPromptOpen(true)}
+              onRequestPermission={() => setLoginPromptOpen(true)}
               tab={detailTab}
               onTabChange={setDetailTab}
               hideMarketPanel
@@ -783,11 +831,6 @@ export function LiveAuctionRoom({ slug }: LiveAuctionRoomProps) {
       <LoginGateOverlay
         open={loginPromptOpen}
         onClose={() => setLoginPromptOpen(false)}
-      />
-      <PermissionGateOverlay
-        open={permissionPromptOpen}
-        slaughterHouseName={slaughterHouseName}
-        onClose={() => setPermissionPromptOpen(false)}
       />
     </>
   );

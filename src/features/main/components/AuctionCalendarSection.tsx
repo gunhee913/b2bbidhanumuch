@@ -4,13 +4,11 @@ import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useMemo, useState } from "react";
-import { SLAUGHTER_HOUSES } from "@/constants/slaughterHouses";
 import {
   fetchAuctionCalendar,
   fetchAuctionDayStats,
   type AuctionDayGradeStat,
 } from "@/features/main/api";
-import { FilterSelect } from "@/features/main/components/FilterSelect";
 import { cn } from "@/lib/utils";
 
 const NUMBER_FORMATTER = new Intl.NumberFormat("ko-KR");
@@ -79,18 +77,14 @@ export function AuctionCalendarSection() {
   });
 
   const [selectedDate, setSelectedDate] = useState<Date>(today);
-  const [slaughterHouse, setSlaughterHouse] = useState<string>(
-    SLAUGHTER_HOUSES[0],
-  );
   const [genderFilter, setGenderFilter] = useState<GenderFilter>("all");
 
   const monthKey = toMonthKey(anchorMonth);
   const dateKey = toDateKey(selectedDate);
 
   const calendarQuery = useQuery({
-    queryKey: ["main", "auction-calendar", monthKey, slaughterHouse || "all"],
-    queryFn: () =>
-      fetchAuctionCalendar(monthKey, slaughterHouse || undefined),
+    queryKey: ["main", "auction-calendar", monthKey, "all"],
+    queryFn: () => fetchAuctionCalendar(monthKey),
     staleTime: 60_000,
   });
 
@@ -99,13 +93,13 @@ export function AuctionCalendarSection() {
       "main",
       "auction-day-stats",
       dateKey,
-      slaughterHouse || "all",
+      "all",
       genderFilter,
     ],
     queryFn: () =>
       fetchAuctionDayStats(
         dateKey,
-        slaughterHouse || undefined,
+        undefined,
         genderFilter === "all" ? undefined : genderFilter,
       ),
     staleTime: 60_000,
@@ -146,13 +140,6 @@ export function AuctionCalendarSection() {
       <div className="mx-auto max-w-[1240px] px-8">
         <div className="mb-8 flex items-end justify-between gap-4">
           <h2 className="text-2xl font-bold text-slate-900">경매 캘린더</h2>
-          <FilterSelect
-            value={slaughterHouse}
-            onChange={setSlaughterHouse}
-            label="공판장"
-            options={SLAUGHTER_HOUSES}
-            allowAll={false}
-          />
         </div>
 
         <div className="grid grid-cols-1 items-stretch gap-4 lg:grid-cols-2">
@@ -170,7 +157,6 @@ export function AuctionCalendarSection() {
 
           <DetailPanel
             selectedDayLabel={selectedDayLabel}
-            slaughterHouseLabel={slaughterHouse}
             totalCount={totalCount}
             genderFilter={genderFilter}
             setGenderFilter={setGenderFilter}
@@ -307,7 +293,6 @@ function CalendarView({
 
 interface DetailPanelProps {
   selectedDayLabel: string;
-  slaughterHouseLabel: string;
   totalCount: number;
   genderFilter: GenderFilter;
   setGenderFilter: (v: GenderFilter) => void;
@@ -316,7 +301,6 @@ interface DetailPanelProps {
 
 function DetailPanel({
   selectedDayLabel,
-  slaughterHouseLabel,
   totalCount,
   genderFilter,
   setGenderFilter,
@@ -330,7 +314,7 @@ function DetailPanel({
             {selectedDayLabel}
           </div>
           <div className="mt-0.5 text-xs text-slate-500">
-            {slaughterHouseLabel}
+            전체 공판장
           </div>
         </div>
         <div className="text-right">

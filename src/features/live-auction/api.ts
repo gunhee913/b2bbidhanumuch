@@ -35,6 +35,21 @@ export interface LivePartBid {
   bidAt: string | null;
   rank: number | null;
   isWinning: boolean;
+  /** 현재 최고가 여부 · 오픈 최고가 경매에서 O(1) 조회용. */
+  isTopBid?: boolean;
+}
+
+/**
+ * 오픈 최고가 경매 · 부위별 현재 최고가.
+ *
+ * 진행 중 회차에서 딜러 뷰에 노출되는 최소 정보(가격 + 시각 + 내 소유 여부).
+ * 매참인 신원(`dealerNo`/`dealerName`)은 회차 마감 후에만 `highestBid` /
+ * `allBids` 를 통해 공개된다.
+ */
+export interface LivePartTopBid {
+  bidPrice: number;
+  bidAt: string | null;
+  isMine: boolean;
 }
 
 export interface LivePart {
@@ -45,7 +60,17 @@ export interface LivePart {
   weight: number | null;
   minPrice: number | null;
   bidCount: number;
+  /**
+   * 최고 입찰 상세 (매참인 정보 포함).
+   * 딜러 뷰의 진행 중 회차에서는 매참인 익명성 정책상 `null` 로 마스킹된다.
+   * 회차 마감 후 또는 관리자/출품업체 뷰에서만 노출.
+   */
   highestBid: LivePartBid | null;
+  /**
+   * 오픈 최고가 · 진행 중 회차에서도 모든 매참인이 볼 수 있는 최고가.
+   * 매참인 신원은 포함하지 않는다.
+   */
+  topBid: LivePartTopBid | null;
   allBids: LivePartBid[];
   /**
    * 결과 회차 · 확정된 경매 회차 번호 (1, 2, 3 ...).
@@ -185,5 +210,61 @@ export async function fetchPartPriceSeries(
   if (params.yieldGrade) search.set("yield", params.yieldGrade);
   return await getJson<PartPriceSeriesResponse>(
     `/api/market/part-price-series?${search.toString()}`,
+  );
+}
+
+/**
+ * 부위별 입찰내역 (Bid History) · 타임라인 + 통계.
+ *
+ * 딜러 시점: 본인은 "나", 다른 딜러는 익명 라벨 (딜러 A/B/C, first_bid_at 순).
+ * 관리자/출품업체 시점: 딜러 실명 + dealer_no 노출.
+ *
+ * `wasTopAtTime` 은 이 입찰이 등록될 당시 최고가였는지 여부 (running max 판정).
+ */
+export interface BidHistoryEntry {
+  id: string;
+  dealerLabel: string;
+  /** 딜러 뷰에서는 null (마스킹) · 관리자/출품업체 뷰에서만 노출 */
+  dealerNo: string | null;
+  dealerName: string | null;
+  isMine: boolean;
+  bidPrice: number;
+  bidAmount: number;
+  bidAt: string;
+  /** 등록 당시 최고가였는가 (경신 이벤트 판정) */
+  wasTopAtTime: boolean;
+  /** 현재 시점에서 최고가인가 */
+  isCurrentTop: boolean;
+}
+
+export interface BidHistoryResponse {
+  partId: string;
+  partName: string;
+  listingNo: string;
+  listingPartNo: string | null;
+  grade: string;
+  marblingScore: number | null;
+  weight: number | null;
+  minPrice: number | null;
+  stats: {
+    totalBids: number;
+    totalDealers: number;
+    /** 최고가가 갱신된 횟수 (초기 입찰 포함) */
+    topBidUpdates: number;
+  };
+  currentTop: {
+    bidPrice: number;
+    bidAt: string;
+    isMine: boolean;
+  } | null;
+  /** 최신순 (created_at DESC) 정렬된 타임라인 */
+  history: BidHistoryEntry[];
+}
+
+export async function fetchBidHistory(
+  partId: string,
+): Promise<BidHistoryResponse> {
+  return await getJson<BidHistoryResponse>(
+    `/api/bids/part/${encodeURIComponent(partId)}/history`,
   );
 }
