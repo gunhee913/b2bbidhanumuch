@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { OverlayScroll } from "@/components/ui/overlay-scroll";
 import { usePriceFlash } from "../hooks/usePriceFlash";
 import { CompactFilterPill } from "./CompactFilterPill";
+import { SummaryStack } from "./SidebarSummaryStack";
 import type { PartGroupEntry } from "../lib/partGrouping";
 import type { ListingViewMode } from "./ListingSidebar";
 
@@ -20,13 +21,30 @@ const GRADE_OPTIONS = [
   "3",
 ] as const;
 
-/** 그룹 내에서 낙찰이 확정된 부위 개수 (`allBids` 에 rank 가 채워진 항목이 있으면 마감) */
-function countSettled(entry: PartGroupEntry): number {
-  let n = 0;
+/**
+ * 그룹 낙찰 요약:
+ *  - count  · 낙찰이 확정된 부위 개수 (`allBids` 에 rank 필드가 채워진 항목 존재)
+ *  - amount · 낙찰(winning) 입찰가 × 중량 합계 (원)
+ * `bidAmount` 이 서버에서 확정된 경우 우선 사용 (반올림 오차 방지).
+ */
+function computeSettlement(entry: PartGroupEntry): {
+  count: number;
+  amount: number;
+} {
+  let count = 0;
+  let amount = 0;
   for (const item of entry.items) {
-    if (item.part.allBids.some((b) => b.rank != null)) n += 1;
+    if (item.part.allBids.some((b) => b.rank != null)) count += 1;
+    const winningBid = item.part.allBids.find((b) => b.isWinning);
+    if (winningBid) {
+      amount +=
+        winningBid.bidAmount ??
+        (item.part.weight != null
+          ? Math.round(winningBid.bidPrice * item.part.weight)
+          : 0);
+    }
   }
-  return n;
+  return { count, amount };
 }
 
 /**
@@ -95,9 +113,9 @@ export function PartSidebar({
   onCompanyChange,
   companyOptions,
 }: PartSidebarProps) {
-  const settledByGroup = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const g of groups) map.set(g.group, countSettled(g));
+  const settlementByGroup = useMemo(() => {
+    const map = new Map<string, { count: number; amount: number }>();
+    for (const g of groups) map.set(g.group, computeSettlement(g));
     return map;
   }, [groups]);
 
@@ -112,9 +130,9 @@ export function PartSidebar({
 
   const totalSettled = useMemo(() => {
     let sum = 0;
-    for (const n of settledByGroup.values()) sum += n;
+    for (const s of settlementByGroup.values()) sum += s.count;
     return sum;
-  }, [settledByGroup]);
+  }, [settlementByGroup]);
 
   const hasActiveFilter = !!(gradeFilter || companyFilter);
   const resetFilters = () => {
@@ -146,7 +164,12 @@ export function PartSidebar({
         </ul>
       </nav>
 
-      {/* 필터(좌) + 요약 카운트(우) · `ListingSidebar` 와 동일 컨벤션 */}
+      {/*
+       * 필터(좌) + 요약(우 · 2-line) · `ListingSidebar` 와 동일 컨벤션
+       *  Line 1 · [총 N건 · 낙찰 M건]  · 카운트 (11px bold)
+       *  Line 2 · [낙찰대금 X.XX억원]  · hero number (13px bold sky · NumberFlow 롤링)
+       * 낙찰이 0건일 때는 line 2 를 렌더링하지 않아 자연스러운 축소.
+       */}
       <div className="flex items-center justify-between gap-2 border-b border-slate-100 px-3 py-2">
         <div className="flex items-center gap-1.5">
           <CompactFilterPill
@@ -173,40 +196,20 @@ export function PartSidebar({
             </button>
           ) : null}
         </div>
-        <div className="flex shrink-0 items-baseline gap-1.5 text-[11px] font-bold tabular-nums">
-          <span className="flex items-baseline gap-0.5 text-slate-700">
-            <span className="text-slate-400">총</span>
-            <span>{totalPartCount}</span>
-            <span className="text-[10px] font-medium text-slate-400">건</span>
-          </span>
-          <span className="text-slate-200">·</span>
-          <span
-            className={cn(
-              "flex items-baseline gap-0.5",
-              totalSettled > 0 ? "text-sky-700" : "text-slate-400",
-            )}
-          >
-            <span>낙찰</span>
-            <span>{totalSettled}</span>
-            <span
-              className={cn(
-                "text-[10px] font-medium",
-                totalSettled > 0 ? "text-sky-500/70" : "text-slate-400",
-              )}
-            >
-              건
-            </span>
-          </span>
-        </div>
+        <SummaryStack
+          totalCount={totalPartCount}
+          settledCount={totalSettled}
+        />
       </div>
 
       {/*
-       * 컬럼 헤더 · 5-col · 2 시맨틱 그룹 (아래 rows 와 동일 template).
-       *   [부위 | 상장 | 낙찰 | 입찰 | 참여]
-       *              ↑ static  ↑ live (얇은 divider)
-       * 순수 텍스트 · 색상만으로 그룹 구분.
+       * 컬럼 헤더 · 5-col · divider 없이 typography + position 만으로 그룹 분리.
+       *   [부위 | 상장 | 낙찰 | 입찰 | 낙찰대금]
+       *          └─ activity metrics ─┘   └ outcome ┘
+       * 좌→우 스캔 flow · counts → live → 최종 금액 (Upbit 스타일 clean)
+       * 컬럼 폭 24/26/32/50 · gap-x-1.5 · `ListingSidebar` 와 grid template 통일
        */}
-      <div className="grid grid-cols-[minmax(0,1fr)_28px_28px_38px_28px] items-baseline gap-x-1.5 border-b border-slate-100 bg-slate-50/60 pl-4 pr-3 py-2">
+      <div className="grid grid-cols-[minmax(0,1fr)_24px_26px_32px_50px] items-baseline gap-x-1.5 border-b border-slate-100 bg-slate-50/60 pl-4 pr-3 py-2">
         <span className="text-[10px] font-semibold text-slate-500">부위</span>
         <span className="text-right text-[10px] font-semibold text-slate-500">
           상장
@@ -214,11 +217,11 @@ export function PartSidebar({
         <span className="text-right text-[10px] font-semibold text-slate-500">
           낙찰
         </span>
-        <span className="border-l border-slate-200/60 pl-2 text-right text-[10px] font-semibold text-sky-700">
+        <span className="text-right text-[10px] font-semibold text-sky-700">
           입찰
         </span>
-        <span className="text-right text-[10px] font-semibold text-sky-700/80">
-          참여
+        <span className="text-right text-[10px] font-semibold text-slate-500">
+          낙찰대금
         </span>
       </div>
 
@@ -247,7 +250,10 @@ export function PartSidebar({
           <ul className="divide-y divide-slate-100">
             {groups.map((g) => {
               const isActive = g.group === selectedGroup;
-              const settled = settledByGroup.get(g.group) ?? 0;
+              const settlement = settlementByGroup.get(g.group) ?? {
+                count: 0,
+                amount: 0,
+              };
               const activity = activityByGroup.get(g.group) ?? {
                 bidCount: 0,
                 bidderCount: 0,
@@ -257,9 +263,9 @@ export function PartSidebar({
                   <PartRow
                     name={g.group}
                     count={g.count}
-                    settled={settled}
+                    settled={settlement.count}
+                    settledAmount={settlement.amount}
                     bidCount={activity.bidCount}
-                    bidderCount={activity.bidderCount}
                     isActive={isActive}
                     onClick={() => onSelect(g.group)}
                   />
@@ -276,9 +282,16 @@ export function PartSidebar({
 /**
  * 부위 그룹 row · 5-col grid · 순수 텍스트 톤 (뱃지/pill/dot 없음).
  *
- * 라이브 애니메이션만 유지:
- *  - `NumberFlow` · 입찰 rolling counter (Toss/거래소 감성)
- *  - `usePriceFlash` · 입찰 증가 감지 → flash-up class 900ms (sky wash pulse)
+ * 컬럼 (헤더와 동일 template):
+ *   [부위 | 상장 | 낙찰 | 입찰 || 낙찰대금]
+ *          └── activity metrics ──┘  └ outcome ┘
+ *
+ * 라이브 애니메이션:
+ *  - `NumberFlow` · 입찰 / 낙찰대금 rolling (Toss/거래소 감성)
+ *  - `usePriceFlash` · 입찰 · 낙찰대금 증가 감지 → flash-up 900ms sky pulse
+ *
+ * 낙찰대금 포맷: compact notation · 1 decimal ("381.6만" · "1.2억")
+ *   0원 → "—" 로 표시 (slate-300 muted · 명확한 no-data 시그널)
  *
  * 상태는 배경 (selected = bg-slate-100) 과 텍스트 색상으로만 표현.
  */
@@ -286,20 +299,21 @@ function PartRow({
   name,
   count,
   settled,
+  settledAmount,
   bidCount,
-  bidderCount,
   isActive,
   onClick,
 }: {
   name: string;
   count: number;
   settled: number;
+  settledAmount: number;
   bidCount: number;
-  bidderCount: number;
   isActive: boolean;
   onClick: () => void;
 }) {
   const bidFlash = usePriceFlash(bidCount);
+  const amountFlash = usePriceFlash(settledAmount);
 
   return (
     <button
@@ -307,24 +321,26 @@ function PartRow({
       onClick={onClick}
       aria-pressed={isActive}
       className={cn(
-        "grid w-full cursor-pointer grid-cols-[minmax(0,1fr)_28px_28px_38px_28px] items-baseline gap-x-1.5 pl-4 pr-3 py-3 text-left transition-colors",
+        // `h-[52px]` fixed · `ListingRow` 와 정확히 동일한 pixel height (min-h 아님)
+        // 컬럼 폭 24/26/32/50 · gap-x-1.5 · `ListingSidebar` 와 grid template 통일
+        "grid h-[52px] w-full cursor-pointer grid-cols-[minmax(0,1fr)_24px_26px_32px_50px] items-center gap-x-1.5 pl-4 pr-3 py-3 text-left transition-colors",
         isActive ? "bg-slate-100" : "hover:bg-slate-50",
       )}
     >
-      {/* 부위명 · 기존 톤 유지 (text-sky-700 bold) */}
-      <span className="truncate text-[13px] font-bold -tracking-[0.01em] text-sky-700">
+      {/* 부위명 · dominant (13px sky-700 bold · truncate · leading-none 명시) */}
+      <span className="truncate text-[13px] font-bold leading-none -tracking-[0.01em] text-sky-700">
         {name}
       </span>
 
-      {/* 상장 · static base */}
-      <span className="flex items-baseline justify-end text-[11px] font-semibold text-slate-500 tabular-nums">
+      {/* 상장 · static base count */}
+      <span className="justify-self-end text-[11px] font-semibold text-slate-500 tabular-nums">
         {count}
       </span>
 
-      {/* 낙찰 · 값 있으면 sky-700 · 없으면 muted */}
+      {/* 낙찰 count · 값 있으면 sky-700 · 없으면 muted */}
       <span
         className={cn(
-          "flex items-baseline justify-end text-[11px] font-semibold tabular-nums",
+          "justify-self-end text-[11px] font-semibold tabular-nums",
           settled > 0 ? "text-sky-700" : "text-slate-300",
         )}
       >
@@ -332,12 +348,12 @@ function PartRow({
       </span>
 
       {/*
-       * 입찰 · 라이브 카운터 · NumberFlow rolling + flash-up on 증가.
-       * border-l 로 좌측(정적)과 시각 분리 · pl-3 로 divider 여유.
+       * 입찰 · 라이브 카운터 · activity 그룹 마지막 · divider 없음
+       * NumberFlow rolling + flash-up on 증가 (누군가 입찰 시 sky pulse).
        */}
       <span
         className={cn(
-          "flex items-center justify-end border-l border-slate-200/60 pl-2 text-[11px] font-bold tabular-nums",
+          "justify-self-end text-[11px] font-bold tabular-nums",
           bidCount > 0 ? "text-sky-700" : "text-slate-300",
           bidFlash === "up" && "flash-up",
         )}
@@ -345,14 +361,28 @@ function PartRow({
         <NumberFlow value={bidCount} locales="ko-KR" willChange />
       </span>
 
-      {/* 참여자 · secondary · 값 있으면 slate-600 · 없으면 muted */}
+      {/*
+       * 낙찰대금 · 업비트 `거래대금` 스타일 · outcome 컬럼 · 최우측
+       * 11px medium slate-600 · flash-up sky wash 900ms · subtle 낙찰 시그널
+       * divider 없이 typography + position 으로 outcome 그룹 시각 분리
+       */}
       <span
         className={cn(
-          "flex items-baseline justify-end text-[11px] font-semibold tabular-nums",
-          bidderCount > 0 ? "text-slate-600" : "text-slate-300",
+          "justify-self-end text-[11px] font-medium tabular-nums",
+          settledAmount > 0 ? "text-slate-600" : "text-slate-300",
+          amountFlash === "up" && "flash-up",
         )}
       >
-        {bidderCount}
+        {settledAmount > 0 ? (
+          <NumberFlow
+            value={settledAmount}
+            locales="ko-KR"
+            format={{ notation: "compact", maximumFractionDigits: 1 }}
+            willChange
+          />
+        ) : (
+          "—"
+        )}
       </span>
     </button>
   );

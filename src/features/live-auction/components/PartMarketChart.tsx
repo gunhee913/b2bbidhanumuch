@@ -55,7 +55,7 @@ export interface PartMarketChartProps {
 }
 
 const DEFAULT_CHART_HEIGHT = 320;
-const VOLUME_COLOR = "#cbd5e1"; // slate-300
+const VOLUME_COLOR = "#cbd5e1"; // slate-300 · 무채색 cool neutral · 라인 slate 팔레트와 조화 · 배경 대비 확실
 /** 마우스 호버 시 Y축에 팝업되는 라인별 가격 배지 색상 · 브랜드 sky-600 통일. */
 const HOVER_BADGE_COLOR = "#0284c7";
 
@@ -487,7 +487,8 @@ function PriceLineChart({
     const chart = createChart(el, {
       layout: {
         background: { type: ColorType.Solid, color: "#ffffff" },
-        textColor: "#64748b",
+        // Upbit 스타일 · 텍스트 대비 강화 (slate-500 → slate-700)
+        textColor: "#334155",
         fontSize: 10,
         fontFamily:
           'ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto',
@@ -499,8 +500,9 @@ function PriceLineChart({
         attributionLogo: false,
       },
       grid: {
-        vertLines: { color: "#f8fafc" },
-        horzLines: { color: "#f1f5f9" },
+        // Upbit 스타일 · vertical grid 완전 제거 · horizontal 만 극도로 옅게
+        vertLines: { color: "transparent" },
+        horzLines: { color: "#f5f8fb" },
       },
       rightPriceScale: {
         borderColor: "#e2e8f0",
@@ -519,16 +521,17 @@ function PriceLineChart({
       },
       crosshair: {
         mode: CrosshairMode.Normal,
+        // Upbit 스타일 · dashed → dotted (더 얇고 미묘한 hover 가이드)
         vertLine: {
-          color: "#cbd5e1",
+          color: "#94a3b8",
           width: 1,
-          style: 2,
+          style: 1,
           labelBackgroundColor: "#0f172a",
         },
         horzLine: {
-          color: "#cbd5e1",
+          color: "#94a3b8",
           width: 1,
-          style: 2,
+          style: 1,
           labelBackgroundColor: "#0f172a",
         },
       },
@@ -724,8 +727,10 @@ function PriceLineChart({
         color: gs.color,
         lineWidth: styleOpts.lineWidth,
         lineStyle: styleOpts.lineStyle,
-        // 최신값 배지는 숨기고, 호버 시에만 라인별 hover PriceLine 라벨 노출
-        lastValueVisible: false,
+        // Upbit 스타일 · 최신값 우측 축 anchor 상시 노출 (라인 색 badge)
+        // priceLineVisible 은 유지 false · dashed horizontal 로 인한 clutter 방지
+        // hover 시 별도 hoverPriceLine 이 sky-600 배지로 pop (라인 색과 대비)
+        lastValueVisible: true,
         priceLineVisible: false,
         crosshairMarkerVisible: true,
         crosshairMarkerRadius: 3,
@@ -1250,7 +1255,8 @@ function toGradeKey(
  * 통합(null) vs A/B/C 별 라인 스타일 정책.
  * lightweight-charts LineStyle: 0=Solid · 1=Dotted · 2=Dashed · 3=LargeDashed · 4=SparseDotted
  *
- * 굵기는 통합/개별 모두 2px 로 통일 · 대신 대시/도트 패턴으로 A/B/C 를 구분.
+ * 굵기는 통합/개별 모두 2px 로 통일 (lightweight-charts LineWidth 정수 1|2|3|4).
+ * 대시/도트 패턴만으로 A/B/C 를 구분 · 시각 계층은 색상 강도로 표현.
  */
 function getLineStyleOptions(yieldG: YieldGrade | null): {
   lineWidth: 2 | 1;

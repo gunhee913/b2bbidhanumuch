@@ -7,20 +7,33 @@ import { OverlayScroll } from "@/components/ui/overlay-scroll";
 import { TruncatedText } from "@/components/ui/tooltip";
 import { usePriceFlash } from "../hooks/usePriceFlash";
 import { CompactFilterPill } from "./CompactFilterPill";
+import { SummaryStack } from "./SidebarSummaryStack";
 import type { LiveListing } from "../api";
 import { formatGradeLabel, parseQualityGrade } from "../lib/grade";
 import { cn } from "@/lib/utils";
 
 /**
- * 해당 개체(상장) 안에서 낙찰이 확정된 부위 수를 카운트.
- * `PartSidebar.countSettled` 와 동일 로직 (allBids 중 rank 필드가 채워진 항목 존재).
+ * 개체(상장) 낙찰 요약:
+ *  - count  · 낙찰 확정된 부위 수 (`allBids` 에 rank 필드가 채워진 항목 존재)
+ *  - amount · 낙찰(winning) 입찰가 × 중량 합계 (원)
+ * `PartSidebar.computeSettlement` 와 동일 시맨틱.
  */
-function countSettledPartsInListing(listing: LiveListing): number {
-  let n = 0;
+function computeListingSettlement(listing: LiveListing): {
+  count: number;
+  amount: number;
+} {
+  let count = 0;
+  let amount = 0;
   for (const p of listing.parts) {
-    if (p.allBids.some((b) => b.rank != null)) n += 1;
+    if (p.allBids.some((b) => b.rank != null)) count += 1;
+    const winningBid = p.allBids.find((b) => b.isWinning);
+    if (winningBid) {
+      amount +=
+        winningBid.bidAmount ??
+        (p.weight != null ? Math.round(winningBid.bidPrice * p.weight) : 0);
+    }
   }
-  return n;
+  return { count, amount };
 }
 
 /**
@@ -223,9 +236,9 @@ function IndividualView({
   resetFilters: () => void;
   isLoading: boolean;
 }) {
-  const settledByListing = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const l of filtered) map.set(l.id, countSettledPartsInListing(l));
+  const settlementByListing = useMemo(() => {
+    const map = new Map<string, { count: number; amount: number }>();
+    for (const l of filtered) map.set(l.id, computeListingSettlement(l));
     return map;
   }, [filtered]);
 
@@ -240,13 +253,17 @@ function IndividualView({
 
   const totalSettled = useMemo(() => {
     let sum = 0;
-    for (const n of settledByListing.values()) sum += n;
+    for (const s of settlementByListing.values()) sum += s.count;
     return sum;
-  }, [settledByListing]);
+  }, [settlementByListing]);
 
   return (
     <>
-      {/* 필터(좌) + 요약 카운트(우) · `PartSidebar` 와 동일 컨벤션 */}
+      {/*
+       * 필터(좌) + 요약(우 · 2-line) · `PartSidebar` 와 동일 컨벤션
+       *  Line 1 · [총 N건 · 낙찰 M건]
+       *  Line 2 · [낙찰대금 X.XX억원] · 낙찰 있을 때만 노출 (NumberFlow 롤링)
+       */}
       <div className="flex items-center justify-between gap-2 border-b border-slate-100 px-3 py-2">
         <div className="flex items-center gap-1.5">
           <CompactFilterPill
@@ -273,39 +290,22 @@ function IndividualView({
             </button>
           ) : null}
         </div>
-        <div className="flex shrink-0 items-baseline gap-1.5 text-[11px] font-bold tabular-nums">
-          <span className="flex items-baseline gap-0.5 text-slate-700">
-            <span className="text-slate-400">총</span>
-            <span>{filtered.length}</span>
-            <span className="text-[10px] font-medium text-slate-400">건</span>
-          </span>
-          <span className="text-slate-200">·</span>
-          <span
-            className={cn(
-              "flex items-baseline gap-0.5",
-              totalSettled > 0 ? "text-sky-700" : "text-slate-400",
-            )}
-          >
-            <span>낙찰</span>
-            <span>{totalSettled}</span>
-            <span
-              className={cn(
-                "text-[10px] font-medium",
-                totalSettled > 0 ? "text-sky-500/70" : "text-slate-400",
-              )}
-            >
-              건
-            </span>
-          </span>
-        </div>
+        <SummaryStack
+          totalCount={filtered.length}
+          settledCount={totalSettled}
+        />
       </div>
 
       {/*
-       * 컬럼 헤더 · 5-col · 2개 시맨틱 그룹 (아래 rows 와 동일 template).
-       *   [개체 | 상장 | 낙찰 || 입찰 | 참여]
+       * 컬럼 헤더 · 5-col · divider 없이 typography + position 만으로 그룹 분리.
+       *   [개체 | 상장 | 낙찰 | 입찰 | 낙찰대금]
+       *          └─ activity metrics ─┘   └ outcome ┘
        * `PartSidebar` 헤더와 완벽 대칭 · 두 뷰 스캔 리듬 동일.
+       *
+       * 컬럼 폭 24/26/32/50 · metric breathing 확보 · gap-x-1.5 (6px)
+       * Spec line 은 gap-0.5 + tracking-0.05em 로 압축 → company 5자 여유
        */}
-      <div className="grid grid-cols-[minmax(0,1fr)_28px_28px_38px_28px] items-baseline gap-x-1.5 border-b border-slate-100 bg-slate-50/60 pl-4 pr-3 py-2">
+      <div className="grid grid-cols-[minmax(0,1fr)_24px_26px_32px_50px] items-baseline gap-x-1.5 border-b border-slate-100 bg-slate-50/60 pl-4 pr-3 py-2">
         <span className="text-[10px] font-semibold text-slate-500">개체</span>
         <span className="text-right text-[10px] font-semibold text-slate-500">
           상장
@@ -313,11 +313,11 @@ function IndividualView({
         <span className="text-right text-[10px] font-semibold text-slate-500">
           낙찰
         </span>
-        <span className="border-l border-slate-200/60 pl-2 text-right text-[10px] font-semibold text-sky-700">
+        <span className="text-right text-[10px] font-semibold text-sky-700">
           입찰
         </span>
-        <span className="text-right text-[10px] font-semibold text-sky-700/80">
-          참여
+        <span className="text-right text-[10px] font-semibold text-slate-500">
+          낙찰대금
         </span>
       </div>
 
@@ -342,7 +342,10 @@ function IndividualView({
             {filtered.map((listing) => {
               const isActive = listing.id === selectedListingId;
               const partCount = listing.parts.length;
-              const settled = settledByListing.get(listing.id) ?? 0;
+              const settlement = settlementByListing.get(listing.id) ?? {
+                count: 0,
+                amount: 0,
+              };
               const activity = activityByListing.get(listing.id) ?? {
                 bidCount: 0,
                 bidderCount: 0,
@@ -352,9 +355,9 @@ function IndividualView({
                   <ListingRow
                     listing={listing}
                     partCount={partCount}
-                    settled={settled}
+                    settled={settlement.count}
+                    settledAmount={settlement.amount}
                     bidCount={activity.bidCount}
-                    bidderCount={activity.bidderCount}
                     isActive={isActive}
                     onClick={() => onSelect(listing.id)}
                   />
@@ -369,28 +372,34 @@ function IndividualView({
 }
 
 /**
- * 개체 row · 5-col grid · 순수 텍스트 톤 (뱃지/pill/dot 없음).
- * `PartSidebar.PartRow` 와 완전 통일된 스펙.
- * 라이브 애니메이션 · 입찰 NumberFlow + flash-up on 증가.
+ * 개체 row · 단일 grid · metrics 는 row 전체 높이 기준 세로 중앙 정렬.
+ *
+ * 구조 · `[좌 col: 상장번호 stack spec | 상장 | 낙찰 | 낙찰금액 || 입찰]`
+ *  - Left col · flex-col · 상장번호 (line 1) + spec info (line 2)
+ *  - Metric cells · row 전체 높이 기준 `items-center` 로 세로 중앙
+ *  - 입찰 cell · `self-stretch` 로 divider 가 row 전체 높이 span
+ *
+ * 라이브 애니메이션 · 입찰 · 낙찰금액 NumberFlow rolling + flash-up on 증가.
  */
 function ListingRow({
   listing,
   partCount,
   settled,
+  settledAmount,
   bidCount,
-  bidderCount,
   isActive,
   onClick,
 }: {
   listing: LiveListing;
   partCount: number;
   settled: number;
+  settledAmount: number;
   bidCount: number;
-  bidderCount: number;
   isActive: boolean;
   onClick: () => void;
 }) {
   const bidFlash = usePriceFlash(bidCount);
+  const amountFlash = usePriceFlash(settledAmount);
 
   return (
     <button
@@ -398,31 +407,46 @@ function ListingRow({
       onClick={onClick}
       aria-pressed={isActive}
       className={cn(
-        "grid w-full cursor-pointer grid-cols-[minmax(0,1fr)_28px_28px_38px_28px] items-center gap-x-1.5 pl-4 pr-3 py-3 text-left transition-colors",
+        // `h-[52px]` fixed · `PartRow` 와 정확히 동일한 pixel height (min-h 아님)
+        // 컬럼 폭 24/26/32/50 · gap-x-1.5 · metric breathing 확보
+        // spec line 압축 (gap-0.5 + tracking-0.05em) 로 company 여유 유지
+        "grid h-[52px] w-full cursor-pointer grid-cols-[minmax(0,1fr)_24px_26px_32px_50px] items-center gap-x-1.5 pl-4 pr-3 py-3 text-left transition-colors",
         isActive ? "bg-slate-100" : "hover:bg-slate-50",
       )}
     >
-      <ListingInfoStack listing={listing} />
+      {/*
+       * Left col · 2-line stack (상장번호 + spec).
+       * leading-none + mt-0.5 로 두 line 간 gap 최소화.
+       */}
+      <div className="flex min-w-0 flex-col">
+        <span className="truncate whitespace-nowrap text-[13px] font-bold leading-none tabular-nums -tracking-[0.01em] text-sky-700">
+          {listing.listingNo}
+        </span>
+        <ListingSpecLine listing={listing} />
+      </div>
 
-      {/* 상장 · static base */}
-      <span className="flex items-baseline justify-end text-[11px] font-semibold text-slate-500 tabular-nums">
+      {/* 상장 · static base count · 세로 중앙 (grid items-center) */}
+      <span className="justify-self-end text-[11px] font-semibold text-slate-500 tabular-nums">
         {partCount}
       </span>
 
-      {/* 낙찰 · 값 있으면 sky-700 · 없으면 muted */}
+      {/* 낙찰 count · 값 있으면 sky-700 · 없으면 muted */}
       <span
         className={cn(
-          "flex items-baseline justify-end text-[11px] font-semibold tabular-nums",
+          "justify-self-end text-[11px] font-semibold tabular-nums",
           settled > 0 ? "text-sky-700" : "text-slate-300",
         )}
       >
         {settled}
       </span>
 
-      {/* 입찰 · 라이브 카운터 · NumberFlow + flash-up on 증가 */}
+      {/*
+       * 입찰 · 라이브 카운터 · activity 그룹 마지막 · divider 없음
+       * NumberFlow rolling + flash-up on 증가
+       */}
       <span
         className={cn(
-          "flex items-center justify-end border-l border-slate-200/60 pl-2 text-[11px] font-bold tabular-nums",
+          "justify-self-end text-[11px] font-bold tabular-nums",
           bidCount > 0 ? "text-sky-700" : "text-slate-300",
           bidFlash === "up" && "flash-up",
         )}
@@ -430,34 +454,45 @@ function ListingRow({
         <NumberFlow value={bidCount} locales="ko-KR" willChange />
       </span>
 
-      {/* 참여자 · secondary · 값 있으면 slate-600 · 없으면 muted */}
+      {/*
+       * 낙찰대금 · 업비트 `거래대금` 스타일 · outcome 컬럼 · 최우측
+       * 11px medium slate-600 · flash-up sky wash 900ms · subtle 낙찰 시그널
+       * divider 없이 typography + position 으로 outcome 그룹 시각 분리
+       */}
       <span
         className={cn(
-          "flex items-baseline justify-end text-[11px] font-semibold tabular-nums",
-          bidderCount > 0 ? "text-slate-600" : "text-slate-300",
+          "justify-self-end text-[11px] font-medium tabular-nums",
+          settledAmount > 0 ? "text-slate-600" : "text-slate-300",
+          amountFlash === "up" && "flash-up",
         )}
       >
-        {bidderCount}
+        {settledAmount > 0 ? (
+          <NumberFlow
+            value={settledAmount}
+            locales="ko-KR"
+            format={{ notation: "compact", maximumFractionDigits: 1 }}
+            willChange
+          />
+        ) : (
+          "—"
+        )}
       </span>
     </button>
   );
 }
 
 /**
- * 개체 정보 2-line 스택 · 상장번호 dominant + meta 단일 라인 정렬.
+ * 개체 spec line (row line 2) · [등급 · 축종(성별) · 업체명] · full-width.
  *
- * Line 1 · [상장번호] 단독 · sky-700 bold · 스캔 진입점
- * Line 2 · [등급 · 축종(성별) · 업체명]
- *   - 등급 · semibold slate-900
- *   - 축종/성별 · `한우(거세)` 형식으로 응축 · slate-600
- *   - 업체명 · truncate + tooltip · 남는 폭 auto-fit
+ * 등급 semibold slate-900 · 축종/성별 slate-600 · 업체명 slate-500
+ *  - 업체명만 `min-w-0 truncate` (앞 요소 `shrink-0`) · 남는 폭 auto-fit
+ *  - `한우(거세)` 형식으로 응축 · 구분자 1개 절감
+ *  - 폰트 11px · `-tracking-[0.03em]` 자간 압축 (좁은 폭 대응 · 조밀 스캔)
+ *  - `mt-0.5 + leading-none` · 상장번호와 gap 최소화 (2px)
  *
- * 폭 제약 (사이드바 좁음 + 우측 5-metric 확장) 대응:
- *  - line 2 폰트 11px (기존 11.5px) · `-tracking-[0.015em]` 자간 압축
- *  - 축종+성별 괄호 병합 (구분자 1개 절감 · `·` 3개 → 2개)
- *  - 업체명만 `min-w-0 truncate` (앞 요소 `shrink-0`) 로 마지막에 자연 축소
+ * 낙찰금액 은 line 1 metric 컬럼으로 승격됨 → sub-line 없이 uniform 2-line row.
  */
-function ListingInfoStack({ listing }: { listing: LiveListing }) {
+function ListingSpecLine({ listing }: { listing: LiveListing }) {
   const gradeLabel = formatGradeLabel(listing.grade, listing.marblingScore);
   const breed = listing.breed?.trim();
   const gender = listing.gender?.trim();
@@ -467,39 +502,31 @@ function ListingInfoStack({ listing }: { listing: LiveListing }) {
     breed && gender ? `${breed}(${gender})` : breed || gender || null;
 
   return (
-    <div className="flex min-w-0 flex-col leading-tight">
-      {/* Line 1 · 상장번호 단독 */}
-      <span className="truncate whitespace-nowrap text-[13px] font-bold tabular-nums -tracking-[0.01em] text-sky-700">
-        {listing.listingNo}
+    <div className="mt-0.5 flex min-w-0 items-baseline gap-0.5 leading-none -tracking-[0.05em]">
+      <span className="shrink-0 whitespace-nowrap text-[11px] font-semibold tabular-nums text-slate-900">
+        {gradeLabel}
       </span>
-
-      {/* Line 2 · [등급 · 축종(성별) · 업체명] · 자간 압축 + 폰트 축소 */}
-      <div className="mt-1 flex min-w-0 items-baseline gap-1 -tracking-[0.015em]">
-        <span className="shrink-0 whitespace-nowrap text-[11px] font-semibold tabular-nums text-slate-900">
-          {gradeLabel}
-        </span>
-        {breedGender ? (
-          <>
-            <span className="shrink-0 text-slate-300" aria-hidden>
-              ·
-            </span>
-            <span className="shrink-0 whitespace-nowrap text-[11px] font-medium text-slate-600">
-              {breedGender}
-            </span>
-          </>
-        ) : null}
-        {company ? (
-          <>
-            <span className="shrink-0 text-slate-300" aria-hidden>
-              ·
-            </span>
-            <TruncatedText
-              value={company}
-              className="min-w-0 truncate text-[11px] font-medium text-slate-500"
-            />
-          </>
-        ) : null}
-      </div>
+      {breedGender ? (
+        <>
+          <span className="shrink-0 text-slate-300" aria-hidden>
+            ·
+          </span>
+          <span className="shrink-0 whitespace-nowrap text-[11px] font-medium text-slate-600">
+            {breedGender}
+          </span>
+        </>
+      ) : null}
+      {company ? (
+        <>
+          <span className="shrink-0 text-slate-300" aria-hidden>
+            ·
+          </span>
+          <TruncatedText
+            value={company}
+            className="min-w-0 truncate text-[11px] font-medium text-slate-500"
+          />
+        </>
+      ) : null}
     </div>
   );
 }
