@@ -3,11 +3,13 @@
 import { useEffect, useMemo, useState } from "react";
 import NumberFlow from "@number-flow/react";
 import { useQueryClient } from "@tanstack/react-query";
-import { AlertCircle, Info, TrendingUp } from "lucide-react";
+import { AlertCircle, Info } from "lucide-react";
+import { motion } from "framer-motion";
+import { cva, type VariantProps } from "class-variance-authority";
 import { useCreateBid } from "@/features/auctions/hooks";
 import { cn } from "@/lib/utils";
 import type { LiveListing, LivePart } from "../api";
-import { formatWon, formatWeightKg, formatWonPerKg } from "../lib/masking";
+import { formatWeightKg } from "../lib/masking";
 import { formatGradeLabel } from "../lib/grade";
 import { MIN_BID_INCREMENT } from "../constants/bidding";
 import { MarketStatsPanel } from "./MarketStatsPanel";
@@ -119,6 +121,18 @@ export function BidPanel({
   // 내가 이미 입찰 했는데 1위가 아닌 경우 → 역전당한 상태 (아웃비드)
   const isOutbid = !isSettled && !!myBid && !iAmTop && !!topBid;
 
+  /*
+   * 입력 값이 최저단가와 정확히 일치하는 상태 · placeholder-like 표시용.
+   *
+   * 최저단가는 "경매 시작가(플로어)" 라서 그대로 두면 실질적으로 의미 있는
+   * 입찰이 되지 않는다. 사용자가 값을 능동적으로 조정하도록 유도하기 위해
+   * 이 조건일 때 input 값을 회색으로 dim 처리 (활성 입력 색 대비).
+   *
+   * 사용자가 한 자리라도 수정하면 자동 해제 → 정상 강조 색으로 복귀.
+   */
+  const isAtMinPriceFloor =
+    selectedPart.minPrice != null && price === selectedPart.minPrice;
+
   const submit = async () => {
     setError(null);
     if (!isLoggedIn) return onRequestLogin();
@@ -175,63 +189,100 @@ export function BidPanel({
 
   return (
     <div className="flex h-full flex-col">
-      {/* 컴팩트 헤더 · settled/live 동일 · 상태 chip 이 자연스럽게 마감 상태 노출 */}
-      <header className="border-b border-slate-100 px-5 pt-3.5 pb-3">
-        <div className="flex items-center gap-2">
-          <h3 className="text-[17px] font-bold leading-none text-slate-900">
+      {/*
+       * 헤더 · 1줄 인라인 · Trading UI 표준 (Upbit 마켓 헤더 style).
+       *
+       * 배치 (좌 → 우):
+       *   [부위명 · dominant] [등급 · accent] · [업체명 · meta] · [중량 · meta]
+       *
+       * 위계 (전부 baseline align · 1줄):
+       *   - 부위명 · 16px bold slate-900        · PRIMARY (뭘 사는가)
+       *   - 등급   · 13px bold sky-700          · SECONDARY (품질 신호 · accent 색으로 구분)
+       *   - 업체명 · 12px medium slate-500      · META (어느 목장)
+       *   - 중량   · 12px medium slate-500      · META (계산 기준)
+       *
+       * 이전 설계 문제:
+       *   - 2줄 (등급 위 · 업체명+중량 아래) · chip 자리 없어지자 우측 공백
+       *   - Line 2 가 orphan 느낌 · 계층 관계 모호
+       *
+       * 새 설계:
+       *   - 사이즈+굵기+색상만으로 계층 표현 · 모두 1줄
+       *   - 상태 chip (낙찰/미낙찰/1위/입찰중/역전) 전부 제거
+       *     · 내 입찰가 tile 톤 + 왼쪽 테이블 row 톤으로 상태 이미 전달
+       *     · 헤더는 "정체성" 만 담당 · 상태는 데이터가 스스로 말함
+       *   - 긴 업체명은 truncate · min-w-0 로 flex-shrink 허용
+       */}
+      <header className="border-b border-slate-100 px-5 pt-4 pb-3">
+        <div className="flex items-baseline gap-1.5">
+          <h3 className="shrink-0 text-[16px] font-bold leading-none tracking-tight text-slate-900">
             {selectedPart.partName}
           </h3>
-          <span className="inline-flex items-center bg-slate-100 px-1.5 py-px text-[10px] font-bold tabular-nums text-slate-700">
+          <span className="shrink-0 text-slate-300">·</span>
+          <span className="shrink-0 text-[13px] font-semibold tabular-nums leading-none text-slate-700">
             {gradeLabel}
           </span>
-          <MyBidStatusChip
-            myBid={myBid}
-            isSettled={isSettled}
-            iAmTop={iAmTop}
-            isOutbid={isOutbid}
-          />
-        </div>
-        <div className="mt-1.5 flex items-center gap-2 text-[11px] text-slate-500">
-          <span className="tabular-nums">
-            {formatWeightKg(selectedPart.weight)}
+          <span className="shrink-0 text-slate-300">·</span>
+          <span className="min-w-0 truncate text-[12px] font-medium leading-none text-slate-500">
+            {listing.companyName}
           </span>
-          <span className="text-slate-300">·</span>
-          <span className="tabular-nums">
-            최저 {formatWonPerKg(selectedPart.minPrice)}
+          <span className="shrink-0 text-slate-300">·</span>
+          <span className="shrink-0 text-[12px] font-medium tabular-nums leading-none text-slate-500">
+            {formatWeightKg(selectedPart.weight)}
           </span>
         </div>
       </header>
 
-      {/* 현재 최고가 요약 · 오픈 최고가 정책 */}
-      <TopBidSummary
-        topBid={topBid}
+      {/*
+       * 3-column 시세 tile · Upbit 마켓 정보 style.
+       *
+       * 최저단가 | 현재 최고가 | 내 입찰가
+       * - 현재 최고가만 sky-50 배경 + sky-700 텍스트 (매수 primary · 시장 앵커)
+       * - 내 입찰가는 내 상태에 따라 tone 변화:
+       *   · iAmTop (1위)      · sky (내가 최고가)
+       *   · isOutbid (역전)    · rose (내가 밀림)
+       *   · 낙찰(마감 후)      · sky
+       *   · 미낙찰(마감 후)    · slate
+       *   · 미입찰            · slate "—"
+       * - 이전에 사용했던 "갱신가" 라는 용어는 도메인에서 쓰이지 않아 제거.
+       *   "얼마 이상 입찰해야 1위 되는지" 는 input 초기값과 인라인 경고로 대체.
+       */}
+      <PriceTileRow
+        minPrice={selectedPart.minPrice}
+        topPrice={topBid?.bidPrice ?? null}
+        myBidPrice={myBid?.bidPrice ?? null}
         iAmTop={iAmTop}
-        nextMinBid={nextMinBid}
+        isOutbid={isOutbid}
+        isSettled={isSettled}
+        isWinning={!!myBid?.isWinning}
       />
 
-      {/* 아웃비드 배너 */}
-      {isOutbid && topBid ? (
-        <div className="mx-5 mt-3 flex items-start gap-2 border-l-[3px] border-amber-500 bg-amber-50 px-3 py-2 text-[11.5px] font-semibold text-amber-800">
-          <TrendingUp className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-          <span className="leading-relaxed">
-            타 매참인이 더 높은 가격으로 입찰했습니다.
-            <br />
-            최소{" "}
-            <span className="font-bold tabular-nums">
-              {formatWonPerKg(nextMinBid)}
-            </span>{" "}
-            이상 입력해야 1위 갱신이 가능합니다.
+      {/*
+       * Input 독립 블록 · 명확한 editable affordance.
+       *
+       * 이전(v2) 은 label-value 3행 표 안에 input 을 섞어 놓아 편집 가능한 행과
+       * readonly 행이 구분되지 않았다 (사용자 피드백: "입력폼 같은 느낌이 아니라
+       * 입력이 되어있는 느낌"). Interaction affordance 실패.
+       *
+       * v3: input 을 독립 블록으로 분리 · 표준 form input 어포던스 적용:
+       * - 명확한 border (idle slate-300 → hover slate-400 → focus sky-500)
+       * - focus:ring-2 (sky glow)
+       * - caret-sky-600 (커서 눈에 띔)
+       * - "원" suffix (Upbit KRW 처럼 unit 명시)
+       * - 위에 별도 label ("입찰가 (원/kg)")
+       */}
+      <div className="mx-5 mt-4">
+        <label
+          htmlFor="bid-price-input"
+          className="mb-1.5 block text-[11px] font-semibold text-slate-600"
+        >
+          입찰가
+          <span className="ml-1 text-[10px] font-medium text-slate-400">
+            (원/kg)
           </span>
-        </div>
-      ) : null}
-
-      {/* 입력 영역 */}
-      <div className="px-5 py-4">
-        <label className="text-[11px] font-semibold text-slate-500">
-          내 입찰가 <span className="text-slate-400">(원/kg)</span>
         </label>
-        <div className="relative mt-1.5">
+        <div className="relative">
           <input
+            id="bid-price-input"
             type="text"
             inputMode="numeric"
             value={NUMBER_FORMATTER.format(price)}
@@ -241,16 +292,41 @@ export function BidPanel({
               setError(null);
             }}
             disabled={disabled}
+            /*
+             * text-color 우선순위:
+             * 1) disabled  · slate-400 (form primitive convention)
+             * 2) 최저단가 floor · slate-400 (placeholder-like · 조정 유도)
+             * 3) 그 외    · slate-900 (활성 입력)
+             *
+             * disabled 스타일은 반드시 뒤에 와야 우선 적용 됨 (Tailwind cascade).
+             */
             className={cn(
-              "h-11 w-full border border-slate-300 bg-white px-3 pr-12 text-right text-[18px] font-bold tabular-nums text-slate-900 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-100",
-              "disabled:bg-slate-50 disabled:text-slate-400",
+              "h-12 w-full border bg-white px-4 pr-10 text-right text-[18px] font-bold tabular-nums caret-sky-600 transition-colors",
+              "border-slate-300 hover:border-slate-400",
+              "focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20",
+              isAtMinPriceFloor
+                ? "text-slate-400 font-semibold"
+                : "text-slate-900",
+              "disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-50 disabled:text-slate-400",
             )}
           />
-          <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-slate-400">
+          <span
+            className={cn(
+              "pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-[12px] font-semibold transition-colors",
+              isAtMinPriceFloor ? "text-slate-300" : "text-slate-400",
+            )}
+          >
             원
           </span>
         </div>
 
+        {/*
+         * 스텝 버튼 · input 바로 아래 배치 (Gestalt proximity).
+         *
+         * 입찰가 값을 조작하는 컨트롤(input + step)끼리 인접하게 두어
+         * 조작 흐름이 자연스러움. 이전엔 총액 아래에 있어 시각적으로
+         * "총액 관련 액션" 처럼 오해될 여지가 있었음.
+         */}
         <div className="mt-2 grid grid-cols-5 gap-1">
           {STEP_BUTTONS.map((btn) => (
             <button
@@ -270,7 +346,15 @@ export function BidPanel({
               {btn.label}
             </button>
           ))}
-          {/* 최소 갱신가로 즉시 세팅 · 오픈 최고가 UX */}
+          {/*
+           * "최소가" 버튼 · 라벨/스타일 통일.
+           *
+           * 내부 동작은 상황에 따라 스마트 (nextMinBid):
+           *   - 내가 최고가거나 최고가 없음 → 부위 최저단가로 초기화
+           *   - 타 매참인이 최고가        → 그 위 +1원 (MIN_BID_INCREMENT)
+           * 그러나 UI 라벨은 항상 "최소가" 로 통일해 노이즈 최소화.
+           * outbid 시의 urgency 는 이미 내 입찰가 tile 의 rose 톤이 전달함.
+           */}
           <button
             type="button"
             onClick={() => {
@@ -281,59 +365,68 @@ export function BidPanel({
             title={
               iAmTop || !topBid
                 ? "최저단가로 초기화"
-                : "타 매참인 최고가보다 한 단계 위로"
+                : "현재 최고가 +1원 (역전 최소값)"
             }
             className={cn(
               "h-8 border text-[11px] font-semibold transition-colors",
-              isOutbid
-                ? "border-amber-400 bg-amber-50 text-amber-700 hover:border-amber-500 hover:bg-amber-100"
-                : "border-slate-200 bg-white text-slate-500 hover:border-slate-400 hover:bg-slate-50 hover:text-slate-800",
+              "border-slate-200 bg-white text-slate-500 hover:border-slate-400 hover:bg-slate-50 hover:text-slate-800",
               "disabled:opacity-40",
             )}
           >
-            {isOutbid ? "1위 갱신가" : "최소가"}
+            최소가
           </button>
         </div>
 
-        <div className="mt-4 flex items-baseline justify-between border-t border-dashed border-slate-200 pt-3">
-          <span className="text-[11px] font-semibold text-slate-500">
-            총 입찰금액
-          </span>
-          <div className="text-right">
-            <NumberFlow
-              value={totalAmount}
-              locales="ko-KR"
-              suffix="원"
-              className="text-[20px] font-bold tabular-nums leading-none text-slate-900"
-              willChange
-              respectMotionPreference
-            />
-            <div className="mt-1 text-[10px] text-slate-400 tabular-nums">
-              {NUMBER_FORMATTER.format(price)}원/kg ×{" "}
+        {/*
+         * 중량/낙찰대금 요약 · Uniform Typography.
+         *
+         * 두 값 모두 같은 사이즈·굵기.
+         * 이유:
+         * - 6자리 숫자(총액) vs 짧은 kg(중량) → 숫자 자체의 시각 무게가 이미 차이 만듦
+         * - CTA(sky-600 primary) 와 강조 경쟁 방지 → 요약은 quiet
+         * - "Emphasize by exception" 원칙 · 모든 걸 강조하면 아무것도 강조 안 됨
+         */}
+        <dl className="mt-4 space-y-2">
+          <div className="flex items-baseline justify-between">
+            <dt className="text-[12px] font-medium text-slate-500">중량</dt>
+            <dd className="text-[14px] font-semibold tabular-nums text-slate-800">
               {formatWeightKg(selectedPart.weight)}
-            </div>
+            </dd>
           </div>
-        </div>
+          <div className="flex items-baseline justify-between">
+            <dt className="text-[12px] font-medium text-slate-500">
+              낙찰대금
+            </dt>
+            <dd>
+              <NumberFlow
+                value={totalAmount}
+                locales="ko-KR"
+                suffix="원"
+                className="text-[14px] font-semibold tabular-nums text-slate-800"
+                willChange
+                respectMotionPreference
+              />
+            </dd>
+          </div>
+        </dl>
 
+        {/* 인라인 경고 · 최저단가 미달 시 얇게 표시 (배너 대신) */}
         {price > 0 && !meetsMinPrice && selectedPart.minPrice ? (
-          <div className="mt-3 flex items-start gap-1.5 bg-amber-50 px-3 py-2 text-[11px] font-semibold text-amber-800 ring-1 ring-amber-200">
-            <AlertCircle className="mt-px h-3 w-3 shrink-0" />
-            <span>
-              최저단가 {formatWonPerKg(selectedPart.minPrice)} 이상으로
-              입력해 주세요.
-            </span>
+          <div className="mt-2 flex items-center gap-1.5 text-[11px] font-medium text-amber-700">
+            <AlertCircle className="h-3 w-3 shrink-0" />
+            <span>최저단가 이상 입력이 필요합니다.</span>
           </div>
         ) : null}
 
         {error ? (
-          <div className="mt-3 flex items-start gap-1.5 bg-red-50 px-3 py-2 text-[11px] font-semibold text-red-700 ring-1 ring-red-200">
-            <AlertCircle className="mt-px h-3 w-3 shrink-0" />
+          <div className="mt-2 flex items-center gap-1.5 text-[11px] font-medium text-red-600">
+            <AlertCircle className="h-3 w-3 shrink-0" />
             <span>{error}</span>
           </div>
         ) : null}
       </div>
 
-      <div className="border-t border-slate-100 px-5 py-3">
+      <div className="mt-4 px-5 pb-4">
         <BidActionButtons
           loginState={
             !isLoggedIn
@@ -364,161 +457,151 @@ export function BidPanel({
 }
 
 /**
- * 오픈 최고가 · 부위 헤더 우측에 표시되는 상태 배지.
- * - 낙찰 / 미낙찰 / 마감 : 회차 마감 후 (내 관점)
- * - 1위 : 진행 중이며 내가 현재 최고가 보유
- * - 역전당함 : 진행 중이지만 내 입찰이 최고가에서 밀려남
- * - 입찰중 : 진행 중이며 내가 입찰했으나 아직 최고가 계산 전 (희귀 케이스)
+ * 시세 스트립 · Bloomberg terminal 방식 · 값 색상 자체가 신호.
+ *
+ * 디자인 언어:
+ *   - 카드/배경/underline bar/dot/뱃지 다 없음 · 값 typography 만
+ *   - 3-column · divide-x 수직 라인 · Segmented reading rhythm
+ *   - 상태는 값 색상 하나로 전달 (Bloomberg/Reuters classic)
+ *   - 단위 "원/kg" 반복 제거 · 하단에 한 번만 subtle caption
+ *
+ * 값 색상 계층 (자연스러운 3-tier hierarchy):
+ *   - 최저단가     · slate-500  · reference · 참고 정보 (subdued)
+ *   - 현재 최고가   · slate-900  · dominant · 시장 앵커 (강조)
+ *   - 내 입찰가    · state 색   · personal · 상태 신호 (sky/rose/slate)
+ *
+ * 이전 반복 실패:
+ *   - v1 · 3색 배경 stripe → 쿠폰 스티커
+ *   - v2 · 하단 accent bar → AI 랜딩 클리셰
+ *   - v3 · Ring 카드 + hover → 여전히 카드 노이즈
+ *   - v4 · Vertical order book → 옆으로가 낫다
+ *   - v5 · Horizontal + dot → dot 도 데코임
+ *
+ * 최종 · Colored Values Only:
+ *   - 값 색상 = 신호 · 데코 zero
+ *   - 라벨 균일 · 값만 위계 표현
  */
-function MyBidStatusChip({
-  myBid,
-  isSettled,
+
+type PriceState = "default" | "sky" | "rose";
+
+function PriceTileRow({
+  minPrice,
+  topPrice,
+  myBidPrice,
   iAmTop,
   isOutbid,
+  isSettled,
+  isWinning,
 }: {
-  myBid: LivePart["allBids"][number] | null;
-  isSettled: boolean;
+  minPrice: number | null;
+  topPrice: number | null;
+  myBidPrice: number | null;
   iAmTop: boolean;
   isOutbid: boolean;
+  isSettled: boolean;
+  isWinning: boolean;
 }) {
-  if (isSettled && myBid?.isWinning) {
-    return (
-      <span className="ml-auto inline-flex items-center gap-1 bg-sky-100 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-sky-700">
-        <span className="h-1 w-1 bg-sky-600" aria-hidden />
-        낙찰
-      </span>
-    );
-  }
+  const myState: PriceState =
+    isSettled && isWinning
+      ? "sky"
+      : !isSettled && iAmTop
+        ? "sky"
+        : !isSettled && isOutbid
+          ? "rose"
+          : "default";
 
-  if (isSettled && myBid) {
-    return (
-      <span className="ml-auto inline-flex items-center gap-1 bg-slate-100 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-500">
-        <span className="h-1 w-1 bg-slate-400" aria-hidden />
-        미낙찰
-      </span>
-    );
-  }
-
-  if (isSettled) {
-    return (
-      <span className="ml-auto inline-flex items-center gap-1 bg-slate-100 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-400">
-        마감
-      </span>
-    );
-  }
-
-  if (iAmTop) {
-    return (
-      <span className="ml-auto inline-flex items-center gap-1 bg-sky-600 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white shadow-sm">
-        <span className="h-1 w-1 bg-white" aria-hidden />
-        1위
-      </span>
-    );
-  }
-
-  if (isOutbid) {
-    return (
-      <span className="ml-auto inline-flex items-center gap-1 bg-amber-500 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white shadow-sm">
-        <span className="h-1 w-1 bg-white" aria-hidden />
-        역전당함
-      </span>
-    );
-  }
-
-  if (myBid) {
-    return (
-      <span className="ml-auto inline-flex items-center gap-1 bg-sky-50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-sky-700">
-        <span className="h-1 w-1 bg-sky-500" aria-hidden />
-        입찰중
-      </span>
-    );
-  }
-
-  return null;
+  return (
+    <motion.div
+      className="mx-5 mt-4 grid grid-cols-3 divide-x divide-slate-100 border-y border-slate-200/70"
+      initial={{ opacity: 0, y: 4 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+    >
+      <PriceCell label="최저단가" value={minPrice} valueTone="muted" />
+      <PriceCell label="현재 최고가" value={topPrice} valueTone="anchor" />
+      <PriceCell label="내 입찰가" value={myBidPrice} valueTone={myState} />
+    </motion.div>
+  );
 }
 
 /**
- * 오픈 최고가 · 현재 최고가 요약 카드.
- * - 진행 중 회차에서만 렌더링 (settled 여부는 부모가 판단)
- * - iAmTop 이면 sky 강조, 아니면 slate 안내
- * - 최고가 없으면 "첫 입찰 대기" placeholder
+ * 값 색상 · CVA variant · 위계 3-tier + state 2종.
+ *
+ * - muted   · slate-500 · 참고 정보 (reference)
+ * - anchor  · slate-900 · 시장 앵커 (dominant)
+ * - default · slate-900 · 내 값 · 상태 없음 (기본)
+ * - sky     · sky-700   · 내 값 · 승리 중 (1위/낙찰)
+ * - rose    · rose-700  · 내 값 · 역전당함 (경고)
  */
-function TopBidSummary({
-  topBid,
-  iAmTop,
-  nextMinBid,
-}: {
-  topBid: LivePart["topBid"];
-  iAmTop: boolean;
-  nextMinBid: number | null;
-}) {
-  if (!topBid) {
-    return (
-      <div className="mx-5 mt-4 border-l-[3px] border-slate-300 bg-slate-50 px-3 py-2.5">
-        <div className="flex items-baseline justify-between">
-          <span className="text-[11px] font-semibold text-slate-500">
-            현재 최고가
-          </span>
-          <span className="text-[13px] font-bold tabular-nums text-slate-400">
-            첫 입찰 대기
-          </span>
-        </div>
-        <div className="mt-0.5 text-[10.5px] font-medium text-slate-400">
-          최저단가부터 입찰이 시작됩니다.
-        </div>
-      </div>
-    );
-  }
+const valueStyles = cva(
+  "text-[15px] font-bold tabular-nums leading-none",
+  {
+    variants: {
+      valueTone: {
+        muted: "text-slate-500",
+        anchor: "text-slate-900",
+        default: "text-slate-900",
+        sky: "text-sky-700",
+        rose: "text-rose-700",
+      },
+    },
+    defaultVariants: { valueTone: "default" },
+  },
+);
 
+type ValueVariants = VariantProps<typeof valueStyles>;
+type ValueTone = NonNullable<ValueVariants["valueTone"]>;
+
+/**
+ * Horizontal cell · Vertically stacked · label + value only.
+ *
+ * 구조:
+ *   [label]     ← 10.5px medium slate-500 (모든 셀 동일)
+ *   [value]     ← 15px bold tabular · 색상은 tone 에 따라
+ *
+ * 단위 "원/kg" 제거 · 상위 컨테이너 caption 이나 컨텍스트가 담당.
+ * padding py-3 · breathing room 확보.
+ */
+function PriceCell({
+  label,
+  value,
+  valueTone,
+}: {
+  label: string;
+  value: number | null;
+  valueTone: ValueTone;
+}) {
   return (
-    <div
-      className={cn(
-        "mx-5 mt-4 border-l-[3px] px-3 py-2.5",
-        iAmTop
-          ? "border-sky-600 bg-sky-50/60"
-          : "border-slate-400 bg-slate-50",
-      )}
-    >
-      <div className="flex items-baseline justify-between">
-        <span className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-500">
-          현재 최고가
-          {iAmTop ? (
-            <span className="inline-flex items-center bg-sky-600 px-1 py-px text-[9px] font-bold uppercase tracking-wider text-white">
-              나
-            </span>
-          ) : null}
-        </span>
+    <div className="flex flex-col items-center gap-1.5 px-2 py-3">
+      <span className="text-[10.5px] font-medium text-slate-500">{label}</span>
+      {value != null && value > 0 ? (
         <NumberFlow
-          value={Math.round(topBid.bidPrice)}
+          value={Math.round(value)}
           locales="ko-KR"
-          suffix="원/kg"
-          className={cn(
-            "text-[16px] font-bold tabular-nums",
-            iAmTop ? "text-sky-700" : "text-slate-800",
-          )}
+          className={valueStyles({ valueTone })}
           willChange
           respectMotionPreference
         />
-      </div>
-      {!iAmTop && nextMinBid ? (
-        <div className="mt-1 flex items-baseline justify-between">
-          <span className="text-[10.5px] font-medium text-slate-500">
-            1위 갱신가
-          </span>
-          <NumberFlow
-            value={Math.round(nextMinBid)}
-            locales="ko-KR"
-            suffix="원/kg 이상"
-            className="text-[12px] font-bold tabular-nums text-slate-700"
-            willChange
-            respectMotionPreference
-          />
-        </div>
-      ) : null}
+      ) : (
+        <span className={valueStyles({ valueTone: "muted" })}>—</span>
+      )}
     </div>
   );
 }
 
+/**
+ * CTA 버튼 · Upbit 매수/매도 컨벤션 · h-12 sky-600 primary.
+ *
+ * 상태별 스타일:
+ * - settled       : 회색 disabled "경매 종료"
+ * - unauth        : 회색 filled "로그인 후 입찰 가능"
+ * - unauthorized  : amber filled "이 공판장 권한 필요"
+ * - hasBid + ready: [입찰 변경 sky-600] + [입찰취소 outline slate]
+ * - ready         : 단일 sky-600 "입찰하기"
+ *
+ * 이전(v1) 은 primary 를 slate-900 로 두었는데, Upbit/Binance/Bithumb 는
+ * primary 매수 = 파랑 컨벤션. sky-600 이 "실행" 감정을 훨씬 강하게 전달.
+ */
 function BidActionButtons({
   loginState,
   hasBid,
@@ -538,14 +621,13 @@ function BidActionButtons({
   onSubmit: () => void;
   onCancel: () => void;
 }) {
-  // 회차 마감 · 모든 액션 무효 · 단일 disabled 버튼으로 상태 명확히 전달
   if (isSettled) {
     return (
       <button
         type="button"
         disabled
         aria-disabled
-        className="h-11 w-full cursor-not-allowed bg-slate-100 text-sm font-bold text-slate-500"
+        className="h-12 w-full cursor-not-allowed bg-slate-100 text-[15px] font-bold text-slate-500"
       >
         경매 종료
       </button>
@@ -557,7 +639,7 @@ function BidActionButtons({
       <button
         type="button"
         onClick={onSubmit}
-        className="h-11 w-full bg-slate-100 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-200"
+        className="h-12 w-full bg-slate-100 text-[15px] font-bold text-slate-700 transition-colors hover:bg-slate-200"
       >
         로그인 후 입찰 가능
       </button>
@@ -569,7 +651,7 @@ function BidActionButtons({
       <button
         type="button"
         onClick={onSubmit}
-        className="h-11 w-full bg-amber-100 text-sm font-bold text-amber-800 transition-colors hover:bg-amber-200"
+        className="h-12 w-full bg-amber-100 text-[15px] font-bold text-amber-800 transition-colors hover:bg-amber-200"
       >
         이 공판장 권한 필요
       </button>
@@ -584,7 +666,7 @@ function BidActionButtons({
           onClick={onSubmit}
           disabled={disabled}
           className={cn(
-            "h-11 bg-sky-600 text-sm font-bold text-white transition-colors hover:bg-sky-700",
+            "h-12 bg-sky-600 text-[15px] font-bold text-white transition-colors hover:bg-sky-700",
             disabled && "opacity-50",
           )}
         >
@@ -594,7 +676,7 @@ function BidActionButtons({
           type="button"
           onClick={onCancel}
           disabled={disabled || isCancelling}
-          className="h-11 border border-slate-300 bg-white text-sm font-semibold text-slate-700 transition-colors hover:border-rose-300 hover:bg-rose-50 hover:text-rose-600 disabled:opacity-40"
+          className="h-12 border border-slate-300 bg-white text-[14px] font-semibold text-slate-700 transition-colors hover:border-rose-300 hover:bg-rose-50 hover:text-rose-600 disabled:opacity-40"
         >
           {isCancelling ? "취소 중..." : "입찰취소"}
         </button>
@@ -608,7 +690,7 @@ function BidActionButtons({
       onClick={onSubmit}
       disabled={disabled}
       className={cn(
-        "h-11 w-full bg-slate-900 text-sm font-bold text-white transition-colors hover:bg-slate-800",
+        "h-12 w-full bg-sky-600 text-[15px] font-bold text-white transition-colors hover:bg-sky-700",
         disabled && "opacity-50",
       )}
     >

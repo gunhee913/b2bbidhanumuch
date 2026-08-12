@@ -391,6 +391,17 @@ export function LiveAuctionRoom() {
     setDetailTab("bid");
   };
 
+  /**
+   * 마감된 sub-row 의 "입찰내역" 링크 클릭:
+   *   listing/part 를 선택하고 우측 상세 패널의 `history` 탭 활성화.
+   *   handleBidRequest / handleSelectPartRow 와 대칭.
+   */
+  const handleHistoryRequest = (listingId: string, partId: string) => {
+    setSelectedListingId(listingId);
+    setSelectedPartId(partId);
+    setDetailTab("history");
+  };
+
   // ────────────────────────────────────────────────────────────────
   // 일괄입찰 통합
   // 컨텍스트 · 개체별 = 선택된 listingId · 부위별 = 선택된 partGroup
@@ -657,6 +668,7 @@ export function LiveAuctionRoom() {
               selectedPartId={selectedPartId}
               onSelect={handleSelectPartRow}
               onBidRequest={handleBidRequest}
+              onHistoryRequest={handleHistoryRequest}
               dealerId={dealerId}
               canReadBids={isAuthenticated && isDealer}
               isLoading={listingsLoading}
@@ -768,6 +780,10 @@ export function LiveAuctionRoom() {
               onBidRequest={(partId) => {
                 setSelectedPartId(partId);
                 setDetailTab("bid");
+              }}
+              onHistoryRequest={(partId) => {
+                setSelectedPartId(partId);
+                setDetailTab("history");
               }}
               isLoading={listingsLoading}
               bulkMode={isBulkMode}

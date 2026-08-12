@@ -61,7 +61,7 @@ export function RoundFloatingCard({
         : "normal";
 
   return (
-    <div className="pointer-events-auto w-[236px] rounded-2xl border border-slate-200 bg-white shadow-lg shadow-slate-200/60">
+    <div className="pointer-events-auto w-[236px] rounded-[1px] border border-slate-200 bg-white shadow-lg shadow-slate-200/60">
       {/* 헤더 · 타이틀 + 날짜 · 병합 이후 date 는 여기서만 노출 */}
       <div className="flex items-center justify-between gap-2 px-4 py-3">
         <span className="text-[13px] font-bold tracking-tight text-slate-900">

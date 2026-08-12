@@ -1,11 +1,14 @@
 "use client";
 
 import { Fragment, useMemo } from "react";
+import { ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { LiveListing, LivePart } from "../api";
-import { formatWon, formatWonPerKg } from "../lib/masking";
+import { formatGradeLabel } from "../lib/grade";
+import { formatWon } from "../lib/masking";
 import { usePriceFlash } from "../hooks/usePriceFlash";
 import { BulkPriceCell } from "./BulkPriceCell";
+import { ListingPartGradeStack } from "./PartListingTable";
 import {
   MaskedPriceSlot,
   PriceSlot,
@@ -25,6 +28,11 @@ export interface PartsTableProps {
    * 제공되지 않으면 버튼 대신 기존의 masked 값 노출로 fallback.
    */
   onBidRequest?: (partId: string) => void;
+  /**
+   * 마감된 sub-row 우측의 "입찰내역" 링크 클릭 · 부모에서 `history` 탭 활성화.
+   * 부위별 뷰(`PartListingTable`) 과 동일 UX.
+   */
+  onHistoryRequest?: (partId: string) => void;
   /** 낙찰 완료된 부위 숨김 (헤더 필터에서 토글) */
   hideSettled?: boolean;
   /** 일괄입찰 편집 모드 · 좌측 체크박스 + 인라인 input 노출 */
@@ -53,6 +61,7 @@ export function PartsTable({
   selectedPartId,
   onSelectPart,
   onBidRequest,
+  onHistoryRequest,
   hideSettled = false,
   bulkMode = false,
   bulkSelected,
@@ -111,14 +120,20 @@ export function PartsTable({
 
   return (
     <div className="overflow-hidden">
+      {/*
+       * 컬럼 스펙 · 부위별 뷰(`PartListingTable`) 와 완전 통일:
+       *   [bulk?] [상장정보 · w-auto] [중량 · 60] [최저단가 · 66/60]
+       *          [현재 최고가 · 76/68] [내 입찰가 · 68/64]
+       * 헤더/셀 padding, border 라인, 폰트 스펙 모두 동일.
+       */}
       <table className="w-full table-fixed text-sm">
         <colgroup>
           {bulkMode ? <col className="w-[28px]" /> : null}
-          <col className={bulkMode ? "w-[92px]" : "w-[110px]"} />
-          <col className="w-[70px]" />
           <col className="w-auto" />
-          <col className="w-[104px]" />
-          <col className={bulkMode ? "w-[108px]" : "w-auto"} />
+          <col className="w-[60px]" />
+          <col className={bulkMode ? "w-[60px]" : "w-[66px]"} />
+          <col className={bulkMode ? "w-[68px]" : "w-[76px]"} />
+          <col className={bulkMode ? "w-[64px]" : "w-[68px]"} />
         </colgroup>
         <thead className="bg-slate-50 text-[11px] font-semibold -tracking-[0.01em] text-slate-500">
           <tr>
@@ -138,19 +153,19 @@ export function PartsTable({
                 </div>
               </th>
             ) : null}
-            <th className="border-b border-slate-200 px-3 py-2 text-left">
-              부위
+            <th className="whitespace-nowrap border-b border-slate-200 py-2 pl-3 pr-2 text-left">
+              상장정보
             </th>
-            <th className="border-b border-slate-200 px-3 py-2 text-right">
+            <th className="whitespace-nowrap border-b border-l border-slate-200 border-l-slate-100 py-2 pl-3 pr-4 text-right">
               중량
             </th>
-            <th className="border-b border-slate-200 px-3 py-2 text-right">
+            <th className="whitespace-nowrap border-b border-slate-200 px-3 py-2 text-right">
               최저단가
             </th>
-            <th className="border-b border-slate-200 px-3 py-2 text-right">
+            <th className="whitespace-nowrap border-b border-slate-200 px-3 py-2 text-right">
               현재 최고가
             </th>
-            <th className="border-b border-slate-200 px-3 py-2 text-right">
+            <th className="whitespace-nowrap border-b border-slate-200 px-3 py-2 text-center">
               내 입찰가
             </th>
           </tr>
@@ -187,6 +202,7 @@ export function PartsTable({
               return (
                 <Fragment key={part.id}>
                   <MainRow
+                    listing={listing}
                     part={part}
                     myBid={myBid}
                     isSelected={isSelected}
@@ -213,6 +229,11 @@ export function PartsTable({
                       winningBid={winningBid}
                       weight={part.weight}
                       onClick={() => onSelectPart(part.id)}
+                      onHistoryClick={
+                        onHistoryRequest
+                          ? () => onHistoryRequest(part.id)
+                          : undefined
+                      }
                       colSpan={colCount}
                     />
                   ) : null}
@@ -253,8 +274,10 @@ function RowGap({
 
 /**
  * 부위 메인 row. 마감 시 slate-50 배경 + text muted.
+ * 부위별 `PartListingTable.MainRow` 와 컬럼/셀 스펙 완전 통일.
  */
 function MainRow({
+  listing,
   part,
   myBid,
   isSelected,
@@ -270,6 +293,7 @@ function MainRow({
   onBulkToggle,
   onBulkPriceChange,
 }: {
+  listing: LiveListing;
   part: LivePart;
   myBid: LivePart["allBids"][number] | null;
   isSelected: boolean;
@@ -286,6 +310,7 @@ function MainRow({
   onBulkToggle: (() => void) | null;
   onBulkPriceChange: ((partId: string, price: number | null) => void) | null;
 }) {
+  const gradeLabel = formatGradeLabel(listing.grade, listing.marblingScore);
   const iWon = settlementCase === "won";
   const iLost = settlementCase === "lost";
 
@@ -384,12 +409,7 @@ function MainRow({
           ) : null}
         </td>
       ) : null}
-      <td
-        className={cn(
-          "relative px-3 py-2 text-left text-sm font-semibold",
-          isSettled ? "text-slate-700" : "text-slate-900",
-        )}
-      >
+      <td className="relative overflow-hidden py-2 pl-3 pr-2 text-left align-middle">
         {accentColor && !bulkMode ? (
           <span
             className={cn(
@@ -399,11 +419,17 @@ function MainRow({
             aria-hidden
           />
         ) : null}
-        {part.partName}
+        <ListingPartGradeStack
+          displayNo={part.listingPartNo || listing.listingNo}
+          companyName={listing.companyName}
+          partName={part.partName}
+          gradeLabel={gradeLabel}
+          isSettled={isSettled}
+        />
       </td>
       <td
         className={cn(
-          "px-3 py-2 text-right text-xs",
+          "whitespace-nowrap border-l border-slate-100 py-2 pl-3 pr-4 text-right text-xs",
           isSettled ? "text-slate-600" : "text-slate-900",
         )}
       >
@@ -411,7 +437,7 @@ function MainRow({
       </td>
       <td
         className={cn(
-          "px-3 py-2 text-right",
+          "whitespace-nowrap px-3 py-2 text-right",
           isSettled ? "text-slate-600" : "text-slate-700",
         )}
       >
@@ -422,7 +448,7 @@ function MainRow({
       </td>
       <td
         className={cn(
-          "px-3 py-2 text-right",
+          "whitespace-nowrap px-3 py-2 text-right",
           hasSubRowBelow && "border-b-0",
         )}
       >
@@ -433,7 +459,7 @@ function MainRow({
       </td>
       <td
         className={cn(
-          "px-3 py-2 text-right",
+          "whitespace-nowrap px-3 py-2 text-right",
           hasSubRowBelow && "border-b-0",
         )}
       >
@@ -514,6 +540,7 @@ function SettlementSubRow({
   winningBid,
   weight,
   onClick,
+  onHistoryClick,
   colSpan = 4,
 }: {
   isSelected: boolean;
@@ -521,6 +548,7 @@ function SettlementSubRow({
   winningBid: LivePart["allBids"][number] | null;
   weight: number | null;
   onClick: () => void;
+  onHistoryClick?: () => void;
   colSpan?: number;
 }) {
   const iWon = settlementCase === "won";
@@ -563,12 +591,12 @@ function SettlementSubRow({
           aria-hidden
         />
         {/**
-         * Grid 4열 · [chip | 낙찰자 | 낙찰가 | 총액] · `PartListingTable` 과 통일 스펙.
-         * 부위별 뷰와 동일 컨벤션 · 모든 row 에서 세로 정렬 유지.
-         * 컬럼 폭은 tight fit (chip 46 · 낙찰자 88 · 낙찰가 120 · 총액 1fr).
+         * Flex row · [chip] [낙찰자] [낙찰가] [낙찰대금] ....(ml-auto).... [입찰내역 →]
+         * `PartListingTable.SettlementSubRow` 와 동일 스펙 · 각 metric 은 shrink-0 컨텐츠 크기 tight fit.
+         * Metric 사이 간격 gap-3 (12px) 균일 · 입찰내역은 ml-auto 로 우측 벽 밀착.
          */}
-        <div className="grid grid-cols-[46px_88px_120px_minmax(0,1fr)] items-center gap-x-1.5 pl-1 text-[11px]">
-          <div className="flex">
+        <div className="flex items-center gap-x-3 pl-1 text-[11px]">
+          <div className="flex w-[46px] shrink-0">
             {iWon ? (
               <span className="inline-flex items-center bg-sky-600 px-1.5 py-0.5 text-[10px] font-bold text-white shadow-sm">
                 낙찰
@@ -584,11 +612,11 @@ function SettlementSubRow({
             )}
           </div>
 
-          <div className="flex min-w-0 items-center gap-1">
-            <span className="shrink-0 text-slate-500">낙찰자</span>
+          <div className="flex shrink-0 items-center gap-1">
+            <span className="text-slate-500">낙찰자</span>
             <span
               className={cn(
-                "truncate font-semibold tabular-nums",
+                "font-semibold tabular-nums",
                 iWon
                   ? "text-sky-800"
                   : iLost
@@ -600,11 +628,11 @@ function SettlementSubRow({
             </span>
           </div>
 
-          <div className="flex min-w-0 items-center gap-1">
-            <span className="shrink-0 text-slate-500">낙찰가</span>
+          <div className="flex shrink-0 items-center gap-1">
+            <span className="text-slate-500">낙찰가</span>
             <span
               className={cn(
-                "truncate font-bold tabular-nums",
+                "font-bold tabular-nums",
                 iWon
                   ? "text-sky-700"
                   : iLost
@@ -612,15 +640,17 @@ function SettlementSubRow({
                     : "text-slate-800",
               )}
             >
-              {formatWonPerKg(winningBid?.bidPrice ?? null)}
+              {winningBid?.bidPrice != null
+                ? KRW_NUMBER.format(Math.round(winningBid.bidPrice))
+                : "-"}
             </span>
           </div>
 
-          <div className="flex min-w-0 items-center gap-1">
-            <span className="shrink-0 text-slate-500">총액</span>
+          <div className="flex shrink-0 items-center gap-1">
+            <span className="text-slate-500">낙찰대금</span>
             <span
               className={cn(
-                "truncate font-bold tabular-nums",
+                "font-bold tabular-nums",
                 iWon
                   ? "text-sky-700"
                   : iLost
@@ -631,6 +661,20 @@ function SettlementSubRow({
               {totalAmount != null ? formatWon(totalAmount) : "-"}
             </span>
           </div>
+
+          {onHistoryClick ? (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onHistoryClick();
+              }}
+              className="ml-auto inline-flex shrink-0 items-center gap-0.5 whitespace-nowrap text-[11px] font-semibold text-slate-500 transition-colors hover:text-sky-700"
+            >
+              입찰내역
+              <ChevronRight className="h-3 w-3" aria-hidden />
+            </button>
+          ) : null}
         </div>
       </td>
     </tr>

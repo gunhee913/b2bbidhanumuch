@@ -1,10 +1,11 @@
 "use client";
 
 import { Fragment, useMemo, useState } from "react";
+import { ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { TruncatedText } from "@/components/ui/tooltip";
 import { formatGradeLabel } from "../lib/grade";
-import { formatWon, formatWonPerKg } from "../lib/masking";
+import { formatWon } from "../lib/masking";
 import { usePriceFlash } from "../hooks/usePriceFlash";
 import type { PartGroupEntry, PartGroupItem } from "../lib/partGrouping";
 import type { LivePart } from "../api";
@@ -23,6 +24,8 @@ export interface PartListingTableProps {
   onSelect: (listingId: string, partId: string) => void;
   /** "입찰하기" 버튼 클릭 · 입찰하기 탭으로 유도. */
   onBidRequest: (listingId: string, partId: string) => void;
+  /** 마감된 sub-row 의 "입찰내역" 링크 클릭 · 입찰내역 탭으로 유도. */
+  onHistoryRequest?: (listingId: string, partId: string) => void;
   dealerId: string | null;
   canReadBids: boolean;
   isLoading: boolean;
@@ -56,6 +59,7 @@ export function PartListingTable({
   selectedPartId,
   onSelect,
   onBidRequest,
+  onHistoryRequest,
   dealerId,
   canReadBids,
   isLoading,
@@ -224,7 +228,7 @@ export function PartListingTable({
               최저단가
             </th>
             <th className="whitespace-nowrap border-b border-slate-200 px-3 py-2 text-right">
-              현재가격
+              현재 최고가
             </th>
             <th className="whitespace-nowrap border-b border-slate-200 px-3 py-2 text-center">
               내 입찰가
@@ -300,6 +304,11 @@ export function PartListingTable({
                       winningBid={winningBid}
                       weight={item.part.weight}
                       onClick={() => onSelect(item.listing.id, item.part.id)}
+                      onHistoryClick={
+                        onHistoryRequest
+                          ? () => onHistoryRequest(item.listing.id, item.part.id)
+                          : undefined
+                      }
                       colSpan={colCount}
                     />
                   ) : null}
@@ -576,6 +585,7 @@ function MainRow({
 /**
  * 회차 마감 후 각 부위 아래에 표시되는 결과 sub-row.
  * 개체별 `PartsTable.SettlementSubRow` 와 동일하되 colSpan 은 5 (통합 컬럼 기준).
+ * `onHistoryClick` 이 제공되면 우측에 "입찰내역 →" 링크 노출.
  */
 function SettlementSubRow({
   isSelected,
@@ -583,6 +593,7 @@ function SettlementSubRow({
   winningBid,
   weight,
   onClick,
+  onHistoryClick,
   colSpan = 5,
 }: {
   isSelected: boolean;
@@ -590,6 +601,7 @@ function SettlementSubRow({
   winningBid: LivePart["allBids"][number] | null;
   weight: number | null;
   onClick: () => void;
+  onHistoryClick?: () => void;
   colSpan?: number;
 }) {
   const iWon = settlementCase === "won";
@@ -631,16 +643,16 @@ function SettlementSubRow({
           aria-hidden
         />
         {/**
-         * Grid 4열 · [chip | 낙찰자 | 낙찰가 | 총액] · 모든 row 에서 동일 X 좌표.
-         * · 상태 chip 는 항상 노출(낙찰/미낙찰/미입찰) → 좌측 시각 anchor 로 스캔 리듬 형성
-         * · Column 폭은 실제 최대 content 기준 tight fit
-         *   - 낙찰자: 라벨(30) + "7000002"(50) + gap = ~85px → 88px
-         *   - 낙찰가: 라벨(30) + "100,000원/kg"(80) + gap = ~115px → 120px
-         *   - 총액  : 남은 폭 흡수 (`1fr`) · 좁아지면 값이 truncate
+         * Flex row · [chip] [낙찰자] [낙찰가] [낙찰대금] ....(ml-auto).... [입찰내역 →]
+         * · Grid → flex 로 전환 · 각 metric 은 컨텐츠 크기로 tight fit (shrink-0)
+         * · Metric 사이 간격은 gap-3 (12px) 균일 · 값 폭이 변해도 gap 유지
+         * · 낙찰가는 "88,000" ~ "999,999" (십만원단위 수용) 자동 fit
+         * · Chip 은 w-[46px] 고정 슬롯 → 다른 chip 폭(낙찰/미낙찰/미입찰)에도 이후 요소 X 좌표 동일
+         * · 입찰내역은 `ml-auto` 로 우측 벽 밀착 · 위치는 카드 오른쪽 그대로
          * · 값 색은 상태별 palette 유지 (won/sky · lost/rose · noBid/slate)
          */}
-        <div className="grid grid-cols-[46px_88px_120px_minmax(0,1fr)] items-center gap-x-1.5 pl-1 text-[11px]">
-          <div className="flex">
+        <div className="flex items-center gap-x-3 pl-1 text-[11px]">
+          <div className="flex w-[46px] shrink-0">
             {iWon ? (
               <span className="inline-flex items-center bg-sky-600 px-1.5 py-0.5 text-[10px] font-bold text-white shadow-sm">
                 낙찰
@@ -656,11 +668,11 @@ function SettlementSubRow({
             )}
           </div>
 
-          <div className="flex min-w-0 items-center gap-1">
-            <span className="shrink-0 text-slate-500">낙찰자</span>
+          <div className="flex shrink-0 items-center gap-1">
+            <span className="text-slate-500">낙찰자</span>
             <span
               className={cn(
-                "truncate font-semibold tabular-nums",
+                "font-semibold tabular-nums",
                 iWon
                   ? "text-sky-800"
                   : iLost
@@ -672,11 +684,11 @@ function SettlementSubRow({
             </span>
           </div>
 
-          <div className="flex min-w-0 items-center gap-1">
-            <span className="shrink-0 text-slate-500">낙찰가</span>
+          <div className="flex shrink-0 items-center gap-1">
+            <span className="text-slate-500">낙찰가</span>
             <span
               className={cn(
-                "truncate font-bold tabular-nums",
+                "font-bold tabular-nums",
                 iWon
                   ? "text-sky-700"
                   : iLost
@@ -684,15 +696,17 @@ function SettlementSubRow({
                     : "text-slate-800",
               )}
             >
-              {formatWonPerKg(winningBid?.bidPrice ?? null)}
+              {winningBid?.bidPrice != null
+                ? KRW_NUMBER.format(Math.round(winningBid.bidPrice))
+                : "-"}
             </span>
           </div>
 
-          <div className="flex min-w-0 items-center gap-1">
-            <span className="shrink-0 text-slate-500">총액</span>
+          <div className="flex shrink-0 items-center gap-1">
+            <span className="text-slate-500">낙찰대금</span>
             <span
               className={cn(
-                "truncate font-bold tabular-nums",
+                "font-bold tabular-nums",
                 iWon
                   ? "text-sky-700"
                   : iLost
@@ -703,6 +717,20 @@ function SettlementSubRow({
               {totalAmount != null ? formatWon(totalAmount) : "-"}
             </span>
           </div>
+
+          {onHistoryClick ? (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onHistoryClick();
+              }}
+              className="ml-auto inline-flex shrink-0 items-center gap-0.5 whitespace-nowrap text-[11px] font-semibold text-slate-500 transition-colors hover:text-sky-700"
+            >
+              입찰내역
+              <ChevronRight className="h-3 w-3" aria-hidden />
+            </button>
+          ) : null}
         </div>
       </td>
     </tr>
@@ -713,22 +741,26 @@ const KRW_NUMBER = new Intl.NumberFormat("ko-KR");
 const BID_MASK_TOKEN = "***";
 
 /**
- * 상장번호(`yymmdd-NNN-PP`) + [업체명 · 부위 · 등급] 세로 스택.
+ * 상장번호(`yymmdd-NNN-PP`) + [등급 · 부위 · 업체명] 세로 스택.
  *
- * Typography System (v2 · A 옵션):
- *   Primary   · 12.5px bold · 부위 · 등급    → slate-900 (마감 시 slate-500)
- *   Secondary · 11px medium · 상장번호 · 업체명 → slate-500 (마감 시 slate-400)
+ * Typography System (v4 · Grade-First):
+ *   Meta line  · 11px  medium ·   상장번호        → slate-500
+ *   Main line  · 12.5px         · 등급·부위·업체명
+ *     - 등급 (leftmost anchor) · font-semibold · slate-900 (진행) / slate-600 (마감)
+ *     - 부위 (variant)         · font-medium   · slate-700 (진행) / slate-500 (마감)
+ *     - 업체 (context)         · font-medium   · slate-500 (진행) / slate-400 (마감)
  *
- * 배경:
- * - 이전엔 11 / 11.5 / 12 / 12px 4단계 · font-weight 도 semibold / bold 혼재
- * - Primary(부위·등급 · 가격 결정 핵심) 를 시각적으로 명확히 상위로 두고
- *   Secondary(참조 정보) 는 뚜렷하게 medium weight 로 톤 다운
- * - 라인 간 간격 mt-0.5 → mt-1 로 시각 계층 강화
+ * v3 → v4 재설계 이유:
+ *   1. 스캔 우선순위 반영 · 구매자는 [등급 → 부위 → 업체] 순으로 훑음
+ *      - 이전 [업체 → 부위 → 등급] 은 반대 순서 · 등급이 맨 뒤라 지연
+ *   2. 반복 노이즈 감소 · 동일 업체가 여러 행 반복 시 slate-500 로 자연 fade
+ *   3. Anchor 명확 · 등급만 semibold + slate-900 → 각 행 즉시 구분 가능
+ *      (1++A(9), 1+A, 1A, 1++B(8), 2A 등 · 볼드 앵커로 리듬 형성)
  *
  * flex-shrink 우선순위:
  *   업체명(shrink-[3]) → 부위(shrink-1) → 등급(shrink-0 · 절대 안 줄어듦)
  */
-function ListingPartGradeStack({
+export function ListingPartGradeStack({
   displayNo,
   companyName,
   partName,
@@ -741,52 +773,51 @@ function ListingPartGradeStack({
   gradeLabel: string;
   isSettled: boolean;
 }) {
+  const gradeColor = isSettled ? "text-slate-600" : "text-slate-900";
+  const partColor = isSettled ? "text-slate-500" : "text-slate-700";
+  const companyColor = isSettled ? "text-slate-400" : "text-slate-500";
+
   return (
     <div className="flex min-w-0 flex-col leading-tight">
-      <span
-        className={cn(
-          "whitespace-nowrap text-[11px] font-medium tabular-nums -tracking-[0.02em]",
-          isSettled ? "text-slate-500" : "text-slate-500",
-        )}
-      >
+      <span className="whitespace-nowrap text-[11px] font-medium tabular-nums -tracking-[0.02em] text-slate-500">
         {displayNo}
       </span>
       <div className="mt-1 flex min-w-0 items-baseline gap-1">
-        {companyName ? (
-          <>
-            <TruncatedText
-              value={companyName}
-              className={cn(
-                "min-w-0 shrink-[3] truncate text-[12.5px] font-semibold -tracking-[0.01em]",
-                isSettled ? "text-slate-600" : "text-slate-800",
-              )}
-            />
-            <span
-              className="shrink-0 text-slate-300"
-              aria-hidden
-            >
-              ·
-            </span>
-          </>
-        ) : null}
-        <TruncatedText
-          value={partName}
-          className={cn(
-            "min-w-0 truncate text-[12.5px] font-semibold -tracking-[0.01em]",
-            isSettled ? "text-slate-600" : "text-slate-800",
-          )}
-        />
-        <span className="shrink-0 text-slate-300" aria-hidden>
-          ·
-        </span>
+        {/* 등급 · leftmost anchor · semibold slate-900 · 스캔 진입점 */}
         <span
           className={cn(
             "shrink-0 whitespace-nowrap text-[12.5px] font-semibold tabular-nums -tracking-[0.01em]",
-            isSettled ? "text-slate-600" : "text-slate-800",
+            gradeColor,
           )}
         >
           {gradeLabel}
         </span>
+        <span className="shrink-0 text-slate-300" aria-hidden>
+          ·
+        </span>
+        {/* 부위 · 변형 식별자 (좌/우 등) · medium slate-700 */}
+        <TruncatedText
+          value={partName}
+          className={cn(
+            "min-w-0 truncate text-[12.5px] font-medium -tracking-[0.01em]",
+            partColor,
+          )}
+        />
+        {companyName ? (
+          <>
+            <span className="shrink-0 text-slate-300" aria-hidden>
+              ·
+            </span>
+            {/* 업체 · 컨텍스트 (반복 시 자연 fade) · medium slate-500 */}
+            <TruncatedText
+              value={companyName}
+              className={cn(
+                "min-w-0 shrink-[3] truncate text-[12.5px] font-medium -tracking-[0.01em]",
+                companyColor,
+              )}
+            />
+          </>
+        ) : null}
       </div>
     </div>
   );

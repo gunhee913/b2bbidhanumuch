@@ -13,6 +13,8 @@ export interface IndividualPartsCardProps {
   selectedPartId: string | null;
   onSelectPart: (partId: string) => void;
   onBidRequest: (partId: string) => void;
+  /** 마감된 부위 sub-row 의 "입찰내역" 링크 · 부모에서 `history` 탭 활성화 */
+  onHistoryRequest?: (partId: string) => void;
   isLoading: boolean;
   /** 일괄입찰 편집 모드 */
   bulkMode?: boolean;
@@ -41,6 +43,7 @@ export function IndividualPartsCard({
   selectedPartId,
   onSelectPart,
   onBidRequest,
+  onHistoryRequest,
   isLoading,
   bulkMode = false,
   bulkSelected,
@@ -115,6 +118,7 @@ export function IndividualPartsCard({
           selectedPartId={selectedPartId}
           onSelectPart={onSelectPart}
           onBidRequest={onBidRequest}
+          onHistoryRequest={onHistoryRequest}
           hideSettled={hideSettled}
           bulkMode={bulkMode}
           bulkSelected={bulkSelected}

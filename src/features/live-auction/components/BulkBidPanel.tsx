@@ -300,12 +300,17 @@ export function BulkBidPanel({
                 제출 후에는 낙찰 전까지 개별 수정만 가능합니다.
               </p>
             </div>
-            <div className="flex gap-1.5">
+            {/*
+             * 확인 dialog 버튼 · BidPanel 의 [입찰 변경 · 입찰취소] 페어와 동일 스펙.
+             *   - 높이 h-12 · primary text-[15px] font-bold · secondary text-[14px] font-semibold
+             *   - grid-cols-[1.6fr_1fr] · primary 가 더 넓음 (Upbit 컨벤션 · BidPanel 과 일치)
+             */}
+            <div className="grid grid-cols-[1fr_1.6fr] gap-2">
               <button
                 type="button"
                 onClick={handleCancelConfirm}
                 disabled={isSubmitting}
-                className="flex-1 h-10 border border-slate-200 bg-white text-[12px] font-bold text-slate-700 hover:border-slate-300 disabled:cursor-not-allowed disabled:opacity-40"
+                className="h-12 border border-slate-300 bg-white text-[14px] font-semibold text-slate-700 transition-colors hover:border-slate-400 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 취소
               </button>
@@ -314,7 +319,7 @@ export function BulkBidPanel({
                 onClick={handleConfirmSubmit}
                 disabled={isSubmitting}
                 className={cn(
-                  "flex-[1.4] h-10 text-[13px] font-bold transition-colors",
+                  "h-12 text-[15px] font-bold transition-colors",
                   isSubmitting
                     ? "cursor-not-allowed bg-slate-200 text-slate-500"
                     : "bg-sky-600 text-white hover:bg-sky-700",
@@ -325,12 +330,16 @@ export function BulkBidPanel({
             </div>
           </div>
         ) : (
+          /*
+           * 제출 버튼 · BidPanel primary CTA 와 동일 스펙.
+           *   h-12 · text-[15px] font-bold · bg-sky-600 · hover sky-700
+           */
           <button
             type="button"
             onClick={handleRequestSubmit}
             disabled={submitDisabled}
             className={cn(
-              "h-10 w-full text-[13px] font-bold transition-colors",
+              "h-12 w-full text-[15px] font-bold transition-colors",
               submitDisabled
                 ? "cursor-not-allowed bg-slate-200 text-slate-500"
                 : "bg-sky-600 text-white hover:bg-sky-700",

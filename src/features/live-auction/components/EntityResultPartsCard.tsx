@@ -148,7 +148,7 @@ export function EntityResultPartsCard({
                 낙찰가
               </th>
               <th className="border-b border-slate-200 px-3 py-2 text-right">
-                총 낙찰대금
+                낙찰대금
               </th>
               <th className="border-b border-slate-200 px-3 py-2 text-right">
                 낙찰자

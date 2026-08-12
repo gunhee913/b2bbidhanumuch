@@ -112,24 +112,13 @@ export function MyBidsTrigger({
     () => buildRoundStats(allRounds, bids),
     [allRounds, bids],
   );
-  const { activeTotalAmount, wonTotalAmount, grandTotalAmount, hasAny } =
-    useMemo(() => {
-      const active = stats.reduce((sum, s) => sum + s.active.amount, 0);
-      const won = stats.reduce((sum, s) => sum + s.closed.wonAmount, 0);
-      return {
-        activeTotalAmount: active,
-        wonTotalAmount: won,
-        grandTotalAmount: active + won,
-        hasAny: active > 0 || won > 0,
-      };
-    }, [stats]);
 
   const disabled = !dealerId;
 
   return (
     <div
       className={cn(
-        "pointer-events-auto w-[236px] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg shadow-slate-200/60",
+        "pointer-events-auto w-[236px] overflow-hidden rounded-[1px] border border-slate-200 bg-white shadow-lg shadow-slate-200/60",
         disabled && "opacity-70",
       )}
     >
@@ -172,68 +161,6 @@ export function MyBidsTrigger({
           ))}
         </ul>
       )}
-
-      {!disabled && hasAny ? (
-        <>
-          <div className="h-px w-full bg-slate-100" />
-          <div className="px-4 py-2.5">
-            <SummaryLine
-              label="낙찰금액 합계"
-              amount={wonTotalAmount}
-              valueClass="text-sky-700"
-            />
-            <SummaryLine
-              label="진행중 금액"
-              amount={activeTotalAmount}
-              valueClass="text-slate-700"
-            />
-            <div className="mt-1.5 border-t border-slate-100 pt-1.5">
-              <SummaryLine
-                label="낙찰금액 + 진행중"
-                amount={grandTotalAmount}
-                emphasize
-              />
-            </div>
-          </div>
-        </>
-      ) : null}
-    </div>
-  );
-}
-
-function SummaryLine({
-  label,
-  amount,
-  valueClass,
-  emphasize,
-}: {
-  label: string;
-  amount: number;
-  valueClass?: string;
-  emphasize?: boolean;
-}) {
-  const isZero = amount <= 0;
-  return (
-    <div className="flex items-baseline justify-between py-0.5">
-      <span
-        className={cn(
-          "text-[10px] font-medium",
-          emphasize ? "text-slate-700" : "text-slate-400",
-        )}
-      >
-        {label}
-      </span>
-      <span
-        className={cn(
-          "tabular-nums",
-          emphasize
-            ? "text-[14px] font-bold text-slate-900"
-            : cn("text-[12px] font-semibold", valueClass ?? "text-slate-700"),
-          isZero && "text-slate-300",
-        )}
-      >
-        {isZero ? "—" : formatWon(amount)}
-      </span>
     </div>
   );
 }

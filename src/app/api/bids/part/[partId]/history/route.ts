@@ -11,10 +11,18 @@ const supabase = getAdminClient();
  * 부위별 입찰 타임라인 조회. 오픈 최고가 옥션 정책에 따라 로그인 없이도 최고가는 공개.
  *
  * 마스킹 정책:
- *   - admin_user / company_user → 딜러 실명 + 딜러번호 노출
- *   - dealer_user               → 본인은 "나", 다른 딜러는 first_bid_at 순으로
- *                                 "딜러 A", "딜러 B", ... 익명 라벨
- *   - anonymous                 → 모든 딜러 "딜러" 로만 표시 (신원 완전 은닉)
+ *   - admin_user / company_user → 실명 + 딜러번호 노출
+ *   - dealer_user               → 본인은 "나", 그 외 참여자는 dealer_no 중간 마스킹
+ *                                 (예: 7000002 → "70***02")
+ *   - anonymous                 → 모든 참여자 "****" 로 마스킹 (신원 완전 은닉)
+ *
+ * 중간 마스킹 방식:
+ *   - 앞/뒤 각 2자리는 유지 → 사용자가 "같은 입찰자" 를 시각적으로 재인지 가능
+ *   - 중간 자릿수는 * 로 대체 → 신원 특정 방지
+ *   - dealer_no 부재 시 "****" 로 완전 마스킹
+ *
+ * 용어 정책: 도메인에서 "딜러" 대신 "입찰자" 를 사용.
+ * (내부 컬럼명 dealer_id / DB 스키마 dealer 는 legacy 유지)
  *
  * `wasTopAtTime` 은 해당 입찰이 등록될 당시 최고가였는지 여부.
  * running max 로 계산 (오래된 순 스캔 → 시점별 최고가 뒤집힘 판정).
@@ -103,23 +111,10 @@ export async function GET(
 
     const bidList = bids || [];
 
-    // 딜러별 첫 입찰 시각 매핑 → 익명 라벨 순서
-    const firstBidAtByDealer: Record<string, string> = {};
-    for (const b of bidList) {
-      if (!firstBidAtByDealer[b.dealer_id]) {
-        firstBidAtByDealer[b.dealer_id] = b.created_at;
-      }
-    }
-    const uniqueDealerIds = Object.keys(firstBidAtByDealer);
-    const otherDealerIds = uniqueDealerIds
-      .filter((id) => id !== dealerId)
-      .sort((a, b) =>
-        firstBidAtByDealer[a].localeCompare(firstBidAtByDealer[b]),
-      );
-    const anonMap: Record<string, string> = {};
-    otherDealerIds.forEach((id, idx) => {
-      anonMap[id] = anonymousDealerLabel(idx);
-    });
+    // 총 입찰자 수 계산용 · unique dealer id 집합
+    const uniqueDealerIds = Array.from(
+      new Set(bidList.map((b) => b.dealer_id as string)),
+    );
 
     // 시점별 top bid 계산 · 오래된 순 스캔하며 running max 추적
     let runningMax = 0;
@@ -146,7 +141,7 @@ export async function GET(
       } else if (isMine) {
         dealerLabel = '나';
       } else {
-        dealerLabel = anonMap[b.dealer_id] || '딜러';
+        dealerLabel = maskDealerNo(dealerInfo?.dealer_no);
       }
 
       return {
@@ -213,15 +208,24 @@ export async function GET(
 }
 
 /**
- * 익명 라벨 생성 · 26명 이하는 A~Z, 그 이상은 AA, AB, ... AZ, BA, ... 형식.
+ * dealer_no 중간 마스킹.
+ *
+ * 규칙:
+ * - null/empty            → "****"
+ * - 1~2자                 → 전체 * (예: "12" → "**")
+ * - 3~4자                 → 앞1 + 중간* + 뒤1 (예: "1234" → "1**4")
+ * - 5자 이상 (일반)       → 앞2 + 중간* + 뒤2 (예: "7000002" → "70***02")
+ *
+ * 목적:
+ * - 앞/뒤 자릿수 유지 → 사용자가 "같은 사람" 을 시각적으로 재인지 가능
+ * - 중간 마스킹 → 신원 특정 방지 (완전 은닉과 완전 노출 사이 균형)
  */
-function anonymousDealerLabel(index: number): string {
-  if (index < 0) return '딜러';
-  const A = 'A'.charCodeAt(0);
-  if (index < 26) {
-    return `딜러 ${String.fromCharCode(A + index)}`;
-  }
-  const first = Math.floor(index / 26) - 1;
-  const second = index % 26;
-  return `딜러 ${String.fromCharCode(A + first)}${String.fromCharCode(A + second)}`;
+function maskDealerNo(no: string | null | undefined): string {
+  if (!no) return '****';
+  const s = String(no).trim();
+  if (!s) return '****';
+  const len = s.length;
+  if (len <= 2) return '*'.repeat(len);
+  if (len <= 4) return `${s.slice(0, 1)}${'*'.repeat(len - 2)}${s.slice(-1)}`;
+  return `${s.slice(0, 2)}${'*'.repeat(len - 4)}${s.slice(-2)}`;
 }
