@@ -56,8 +56,9 @@ export function MainFooter({ fluid = false }: MainFooterProps) {
     },
   ];
 
+  // 바탕은 헤더·본문과 같은 canvas · 푸터만 패널색이면 페이지 끝에서 색이 한 번 튄다
   return (
-    <footer className="border-t border-line bg-surface">
+    <footer className="border-t border-line bg-canvas">
       <div
         className={cn(
           "mx-auto px-8",

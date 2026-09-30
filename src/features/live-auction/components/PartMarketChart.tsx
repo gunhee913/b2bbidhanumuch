@@ -919,8 +919,17 @@ function PriceHero({
         palette.dividerClass,
       )}
     >
-      {/* 좌 · 가격 블록 */}
-      <div className="min-w-0 shrink-0">
+      {/*
+       * 좌 · 가격 블록 · 축약형은 등락을 값 오른쪽에 눕혀 한 줄로 만든다.
+       * 조작부를 걷어낸 자리라 두 줄을 쓸 만큼 담을 게 없고, 시세 한 줄은 어디서나
+       * 「값 그리고 등락」 으로 읽힌다.
+       */}
+      <div
+        className={cn(
+          "min-w-0",
+          compact ? "flex w-full items-baseline gap-x-2.5" : "shrink-0",
+        )}
+      >
         <div className="flex items-baseline gap-1">
           <span
             className={cn(
@@ -948,11 +957,15 @@ function PriceHero({
          * 호버로 값이 바뀌어도 이 줄의 폭이 흔들리면 안 된다 · 폭이 변하면 줄바꿈
          * 임계를 넘나들며 카드 높이가 튀고, 옆 칸(사진)이 그만큼 커졌다 작아진다.
          * 자릿수가 늘어도 버티도록 바닥 폭을 주고, 날짜는 차트 축 배지에 맡긴다.
+         *
+         * 축약형은 값과 한 줄이라 그 위험이 더 크다 — 폭을 벌지 않으면 등락이 아래로
+         * 떨어져 방금 없앤 두 줄로 돌아간다. 그래서 캡션을 뺀 자리만큼만 쓴다.
          */}
         <div
+          title={compact ? COMPARE_LABEL[granularity] : undefined}
           className={cn(
             "flex items-baseline gap-2",
-            compact ? "mt-1" : "mt-1.5 min-w-[132px]",
+            compact ? "whitespace-nowrap" : "mt-1.5 min-w-[132px]",
           )}
         >
           {stats.diff !== null && stats.pct !== null ? (
@@ -981,14 +994,23 @@ function PriceHero({
               —
             </span>
           )}
-          <span
-            className={cn(
-              "text-[10.5px] leading-none tabular-nums",
-              palette.mutedTextClass,
-            )}
-          >
-            {COMPARE_LABEL[granularity]}
-          </span>
+          {/*
+           * 캡션은 기간을 고를 수 있는 곳에서만 자리값을 한다 — 축약형은 집계가 일 단위로
+           * 못박혀 있어 늘 같은 말을 되풀이하고, 좁은 레일에서 그 폭이 줄바꿈을 부른다.
+           * 눈에서만 걷어내고 읽어 주는 자리에는 남긴다 · 마우스에는 위 `title` 이 답한다.
+           */}
+          {compact ? (
+            <span className="sr-only">{COMPARE_LABEL[granularity]}</span>
+          ) : (
+            <span
+              className={cn(
+                "text-[10.5px] leading-none tabular-nums",
+                palette.mutedTextClass,
+              )}
+            >
+              {COMPARE_LABEL[granularity]}
+            </span>
+          )}
         </div>
       </div>
 

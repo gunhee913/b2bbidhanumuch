@@ -163,7 +163,10 @@ export function LiveAuctionRoom() {
 
       {/* 상장표 · 필터 · 표 · 요약이 칸막이 없는 한 섹션 */}
       <div className={sheetGridClass}>
-        <section className={cn("flex min-w-0 flex-col", SURFACE_SHELL_CLASS)}>
+        {/* 윗변은 필터 줄이 긋는다 · 화면 위에 멈춰 선 뒤에도 카드가 닫혀 보이려면 그래야 한다 */}
+        <section
+          className={cn("flex min-w-0 flex-col", SURFACE_SHELL_CLASS, "border-t-0")}
+        >
           {/* 개체 = 1행 · 행을 누르면 개체 상세로 */}
           <LiveListingSheet
             listings={listings}

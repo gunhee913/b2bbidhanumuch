@@ -38,6 +38,7 @@ import { MyBidsDrawer } from "./MyBidsDrawer";
 import { useRoundPhase, type RoundPhase } from "./RoundCountdownDial";
 import { RoundFloatingCard } from "./RoundFloatingCard";
 import { RoundPeekCard } from "./RoundPeekCard";
+import { ShortcutTooltip } from "./ShortcutTooltip";
 
 interface AuctionSideDockProps {
   currentRound: RoundInfo | null;
@@ -116,7 +117,6 @@ export function AuctionSideDock({
   }, [hideNow]);
 
   const brief = useDailyBrief(briefOnEnter ? listingDate : null, open, openTab);
-
   /* 두 카드가 같은 레일에서 겹쳐 나오지 않게 · 오늘의 상장이 먼저다 */
   const peekOpen = !open && !brief.open && (peeking || hovering);
 
@@ -188,21 +188,22 @@ export function AuctionSideDock({
           !open && "border-l border-line-soft",
         )}
       >
-        <button
-          type="button"
-          onClick={() => setOpen(!open)}
-          aria-expanded={open}
-          aria-controls="auction-side-panel"
-          aria-label={open ? "사이드 메뉴 접기" : "사이드 메뉴 펼치기"}
-          title={open ? "접기" : "펼치기"}
-          className="my-2 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-content-faint transition-colors hover:bg-surface-accent hover:text-content"
-        >
-          {open ? (
-            <ChevronsRight className="h-4 w-4" />
-          ) : (
-            <ChevronsLeft className="h-4 w-4" />
-          )}
-        </button>
+        <ShortcutTooltip label={open ? "접기" : "펼치기"} side="left">
+          <button
+            type="button"
+            onClick={() => setOpen(!open)}
+            aria-expanded={open}
+            aria-controls="auction-side-panel"
+            aria-label={open ? "사이드 메뉴 접기" : "사이드 메뉴 펼치기"}
+            className="my-2 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-content-faint transition-colors hover:bg-surface-accent hover:text-content"
+          >
+            {open ? (
+              <ChevronsRight className="h-4 w-4" />
+            ) : (
+              <ChevronsLeft className="h-4 w-4" />
+            )}
+          </button>
+        </ShortcutTooltip>
         <RoundRailItem
           phase={phase}
           active={open && tab === "round"}

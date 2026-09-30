@@ -27,7 +27,7 @@ export interface RowStateInput {
  *  - 마감 행은 옅은 slate-50 판 위로 가라앉는다 · 입찰 중인 흰 행과 "끝난 행" 을 묶음으로 가른다.
  *  - 선택 · 일괄 체크는 한 단계 더 진한 slate-100.
  *  - 낙찰 행은 흐리게 물리지 않는다. 팔린 부위가 오히려 가장 먼저 찾는 정보라
- *    배경은 진행 행과 같게 두고, 좌측 bar 와 결과 띠의 「낙찰」 칩이 표시를 맡는다.
+ *    배경은 진행 행과 같게 두고, 결과 열의 칩이 표시를 맡는다.
  *
  * 상장표 · 상세 화면의 부위 미니표 공용.
  */
@@ -44,16 +44,14 @@ export function getRowBgClass({
   return "bg-surface hover:bg-surface-muted";
 }
 
-/**
- * 좌측 3px accent bar 색 · 없으면 null.
- *  - 진행 · 내 입찰 있음 → ink · 배경 채움 없이 바 하나로만 말한다
- *  - 낙찰 · slate-300 · 끝난 행은 한 단계 물러나고, 누가 낙찰했는지는 칩이 말한다
- *  - 그 외             → null
+/*
+ * 좌측 accent bar 는 두지 않는다.
+ *
+ * 한때 내 행 왼쪽에 3px 먹색 바를 그었는데, 다크에서 `bg-inverse` 는 거의 순백이라
+ * 스무 행 중 열넷에 순백 막대가 서서 표에서 가장 밝은 것이 데이터가 아니라 여백의
+ * 장식이 됐다. 게다가 「내가 가져갔다」 는 이미 세 번 적혀 있다 — 내 입찰가에 값이
+ * 있고, 결과 열에 「내 낙찰」 칩이 있고, 낙찰자 열에 내 번호가 있다.
+ *
+ * 바가 있었던 건 한동안 결과 칩을 칠하지 않고 굵은 글자로만 뒀기 때문이다. 칩이
+ * 색을 되찾은 뒤로는 자리를 대신 맡아 줄 것이 없어 중복만 남았다.
  */
-export function getRowAccentClass({
-  isSettled,
-  hasMyBid,
-}: RowStateInput): string | null {
-  if (isSettled) return "bg-content-ghost";
-  return hasMyBid ? "bg-inverse" : null;
-}

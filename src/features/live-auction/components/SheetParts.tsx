@@ -28,14 +28,12 @@ import {
 import { getRowBgClass, getSettlementCase } from "../lib/rowState";
 import { isPartSettled, type PartsSummary } from "../lib/sheetSummary";
 import { MaskedPriceSlot, PriceSlot } from "./PriceSlot";
-import { ResultChip } from "./PartResultRow";
-import { SheetBidCell } from "./SheetBidCell";
+import { MyBidChip, ResultChip } from "./PartResultRow";
+import { CANCEL_CONFIRM_MS, SheetBidCell } from "./SheetBidCell";
 import { SortHeaderButton } from "./SortHeaderButton";
 
 export type SheetBidding = ReturnType<typeof useSheetBidding>;
 
-/** 푸터 「입찰 취소」 2단계 확인 유지 시간 */
-const CANCEL_CONFIRM_MS = 3000;
 /**
  * 2열부터 끝까지의 폭 · 「실측 내용 폭 + 좌우 여백 8px」.
  *   표 테두리·결과 구분선에 닿는 열은 바깥쪽 여백이 12px (`PART_GUTTERS`) 이라 그만큼 넓다.
@@ -91,8 +89,10 @@ function splitIntoColumns<T>(items: readonly T[], columns: number): T[][] {
  *  - 부위를 고정하면 행이 개체다 → 1열은 사진 + 접수번호
  */
 export interface SheetRowAxis {
-  /** 1열 머리글 */
+  /** 1열 머리글 · ↑/↓ 가 옮기는 것이기도 하다 */
   headLabel: string;
+  /** 고정해 둔 것 · ←/→ 가 옮긴다 · 행과 뒤집힌 짝이다 */
+  pivotLabel: string;
   /** 1열 폭(px) · 나머지 열 폭과 합쳐 비율로 환산된다 */
   headWidth: number;
   renderHead: (entry: SheetBidEntry) => ReactNode;
@@ -103,6 +103,7 @@ export interface SheetRowAxis {
 /** 개체 고정 · 행 = 부위 · 부위명 + 상장번호 두 줄 */
 export const PART_ROW_AXIS: SheetRowAxis = {
   headLabel: "부위",
+  pivotLabel: "개체",
   headWidth: 93,
   headTitle: ({ listing, part }) =>
     `${part.partName} · ${displayPartNo(listing, part)}`,
@@ -125,6 +126,7 @@ export const PART_ROW_AXIS: SheetRowAxis = {
  */
 export const LISTING_ROW_AXIS: SheetRowAxis = {
   headLabel: "개체",
+  pivotLabel: "부위",
   headWidth: 134,
   headTitle: ({ listing, part }) =>
     [part.partName, listing.listingNo, listing.companyName]
@@ -230,6 +232,8 @@ export function SheetPartGrid({
         .map((chunk, ci) => (
           <div
             key={ci}
+            /* 입찰칸 막대가 잘리는 상자 · 셀이 이 경계를 재서 위아래를 고른다 */
+            data-sheet-clip
             className="overflow-hidden border border-line bg-surface"
           >
             <table
@@ -433,6 +437,12 @@ function SheetPartRow({
                 onChange={bidding.setDraft}
                 onSubmit={() => bidding.submitOne(listing, part)}
                 onRevert={() => bidding.clearDraft(part.id)}
+                /* 칸을 클릭하면 행 onClick 이 막히므로(stopPropagation) 여기서 고른다 */
+                onFocus={onClick}
+                rowLabel={axis.headLabel}
+                pivotLabel={axis.pivotLabel}
+                onCancel={() => bidding.cancelOne(listing, part)}
+                canCancel={hasMyBid}
               />
             )}
           </td>
@@ -454,17 +464,25 @@ function SheetPartRow({
           </td>
         </>
       )}
-      <ResultCells result={result} />
+      <ResultCells result={result} hasMyBid={hasMyBid} />
     </tr>
   );
 }
 
 /**
  * 결과 · 낙찰자 · 낙찰가 · 경락대금 4열.
- * 진행 중(다음 회차 입찰 중 포함)엔 비운다 · 대기 · 유찰은 칩만 · 낙찰은 칩 + 숫자 · 내 낙찰은 칩 글자(「내 낙찰」)로 구분.
+ * 진행 중(다음 회차 입찰 중 포함)엔 비운다 · 대기 · 유찰은 칩만 · 낙찰은 칩 + 숫자.
+ * 내 결과만 색을 갖는다 · 내 낙찰 파랑 · 미낙찰 빨강 · 남의 결과는 무채색 (`CHIP_TONE` 참고).
  * 숫자는 굵기·톤을 한 단계 낮춘다 · 굵은 숫자는 입찰 구역의 「내 입찰가」 하나만 남겨 시선이 먼저 간다.
  */
-function ResultCells({ result }: { result: PartResult | null }) {
+function ResultCells({
+  result,
+  hasMyBid,
+}: {
+  result: PartResult | null;
+  /** 진행 중이면서 서버에 들어간 내 입찰이 있는가 · 결과가 나오기 전까지만 */
+  hasMyBid: boolean;
+}) {
   const isSold = isSoldResult(result);
 
   return (
@@ -472,6 +490,8 @@ function ResultCells({ result }: { result: PartResult | null }) {
       <td className={cn(PART_CELL, RESULT_GROUP_START, "text-center")}>
         {hasVisibleResult(result) ? (
           <ResultChip outcome={result.outcome} />
+        ) : hasMyBid ? (
+          <MyBidChip />
         ) : null}
       </td>
       <td

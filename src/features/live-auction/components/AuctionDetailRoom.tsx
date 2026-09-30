@@ -1,7 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import { useMeasure } from "react-use";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
+import { useLocalStorage, useMeasure } from "react-use";
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import {
@@ -11,6 +18,8 @@ import {
   ImageOff,
   Maximize2,
   Minimize2,
+  Square,
+  SquareCheckBig,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { LiveListing } from "../api";
@@ -44,6 +53,13 @@ import {
   partDetailHref,
 } from "../lib/listingHref";
 import { cameFromSheet, clearFromSheet } from "../lib/detailNavigation";
+import {
+  BID_ENTER_HINT,
+  focusBidInput,
+  focusFirstBidInput,
+  isSheetBidNav,
+} from "../lib/bidKeys";
+import { isTypingInto } from "../lib/keyboard";
 import type { SheetBidEntry } from "../hooks/useSheetBidding";
 import { AuctionSideDock } from "./AuctionSideDock";
 import { LoginGateOverlay } from "./LoginGateOverlay";
@@ -52,6 +68,7 @@ import { PartMarketChart } from "./PartMarketChart";
 import { RoomPicker } from "./RoomPicker";
 import { RoomSplitter } from "./RoomSplitter";
 import { RoomStackSplitter } from "./RoomStackSplitter";
+import { ShortcutTooltip } from "./ShortcutTooltip";
 import { ViewerMediaPane } from "./ListingViewerDialog";
 import { formatDate, formatTraceNo } from "./ListingSpecSheet";
 import { buildTraceHref } from "./ListingInfoSection";
@@ -94,32 +111,34 @@ const PHOTO_MIN_HEIGHT = 240;
 const PHOTO_STAGE_CLASS = "bg-[#1a1a1f]";
 
 /**
- * 개체 이동 화살표 · 사진이 아니라 "지금 어느 개체인가" 를 말하는 헤더에 붙는다.
+ * 고정축 이동 화살표 · picker 바로 옆에 붙어 "이걸 옆으로 옮긴다" 를 말한다.
  *
  * 그림 위에 얹으면 관습상 "다음 장" 으로 읽혀, 두 번째 사진을 보려다 개체를 벗어난다.
  * 바꾸는 대상 바로 옆에 두면 그 오해가 생길 자리가 없다.
  */
 function StepArrow({
   side,
+  noun,
   disabled,
   onClick,
   hint,
 }: {
   side: "prev" | "next";
+  /** 무엇을 옮기는가 · 개체축이면 "개체", 부위축이면 "부위" */
+  noun: string;
   disabled: boolean;
   onClick: () => void;
-  /** 넘어갈 개체 · 누르기 전에 어디로 가는지 보여 준다 */
+  /** 넘어갈 대상 이름 · 누르기 전에 어디로 가는지 보여 준다 */
   hint: string | null;
 }) {
   const Icon = side === "prev" ? ChevronLeft : ChevronRight;
-  const label = side === "prev" ? "이전 개체" : "다음 개체";
-  return (
+  const label = `${side === "prev" ? "이전" : "다음"} ${noun}`;
+  const button = (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
       aria-label={label}
-      title={hint ? `${label} · ${hint}` : label}
       className={cn(
         "inline-flex h-7 w-6 shrink-0 items-center justify-center rounded-[3px] transition-colors",
         disabled
@@ -128,6 +147,92 @@ function StepArrow({
       )}
     >
       <Icon className="h-4 w-4" strokeWidth={2.2} />
+    </button>
+  );
+  if (disabled) return button;
+
+  return (
+    <ShortcutTooltip
+      label={label}
+      shortcut={side === "prev" ? "←" : "→"}
+      title={hint}
+    >
+      {button}
+    </ShortcutTooltip>
+  );
+}
+
+/**
+ * 접수번호에 올리면 키보드로도 넘길 수 있다고 알려 준다.
+ *
+ * ←/→ 로 한 번이라도 넘겨 본 사람에게는 더 띄우지 않는다(`show`) — 이미 아는 걸
+ * 매번 덮으면 친절이 아니라 접수번호를 가리는 소음이다. 버튼 말풍선의 키 표시는 남는다.
+ * 지나가던 마우스에 튀지 않게 버튼보다 늦게 뜬다.
+ */
+function ArrowNavHint({
+  show,
+  noun,
+  children,
+}: {
+  show: boolean;
+  noun: string;
+  children: ReactNode;
+}) {
+  if (!show) return <>{children}</>;
+  return (
+    <ShortcutTooltip
+      label={`${noun} 이동`}
+      shortcut="← →"
+      title={`${BID_ENTER_HINT} · / 검색`}
+      delayDuration={500}
+    >
+      <div className="flex items-center">{children}</div>
+    </ShortcutTooltip>
+  );
+}
+
+/**
+ * 마감분 감추기 · 회차가 도는 동안 손댈 수 있는 행만 남긴다.
+ *
+ * 네모칸은 꺼져 있을 때도 그린다. 켜야 아이콘이 생기면 끈 상태에서는 그냥 글자라
+ * 누를 수 있는 것인지조차 안 보인다 — 빈 네모가 「켤 수 있다」 를 말한다.
+ *
+ * 마감된 게 하나도 없으면 아예 그리지 않는다. 눌러도 아무 일이 없는 버튼을 두면
+ * 다음에 정말 필요할 때도 믿지 않게 된다. 켠 뒤에는 몇 개를 감췄는지 그대로 적어
+ * 「숫자가 왜 줄었지」 를 되묻지 않게 한다.
+ */
+function HideSettledToggle({
+  on,
+  count,
+  onToggle,
+}: {
+  on: boolean;
+  /** 감췄거나 감출 수 있는 마감 행 수 */
+  count: number;
+  onToggle: () => void;
+}) {
+  if (count === 0 && !on) return null;
+  const Box = on ? SquareCheckBig : Square;
+  return (
+    <button
+      type="button"
+      role="checkbox"
+      aria-checked={on}
+      onClick={onToggle}
+      className={cn(
+        "inline-flex h-7 shrink-0 items-center gap-1.5 rounded-md px-2 text-[11.5px] font-semibold transition-colors",
+        on
+          ? "bg-surface-strong text-content"
+          : "text-content-soft hover:bg-surface-accent hover:text-content",
+      )}
+    >
+      <Box
+        className={cn("h-3.5 w-3.5", !on && "text-content-faint")}
+        strokeWidth={2.2}
+        aria-hidden
+      />
+      낙찰분 숨김
+      <span className="tabular-nums text-content-faint">{count}</span>
     </button>
   );
 }
@@ -223,7 +328,7 @@ export type RoomAxis =
  *
  *  - 화면 높이에 맞춰 잠근 격자 · 페이지는 스크롤하지 않고 열이 저마다 안에서 흘린다
  *  - 표가 곧 주문창이다 · 따로 주문 패널을 두면 같은 값이 두 벌이 되고 표만 좁아진다
- *  - 이전/다음(←/→)은 두 축 모두 「옆 개체」다 · 개체축은 주소를, 부위축은 행을 옮긴다
+ *  - 위아래는 표 안(행), 좌우(←/→)는 표 바깥 · 고정축을 옆으로 옮긴다
  *  - 축을 바꿔도 보던 대상은 유지된다 (등심 보다 개체별로 가면 그 개체의 등심이 열린다)
  */
 export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
@@ -262,8 +367,11 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
       ? (partGroups.find((g) => g.group === axis.group) ?? null)
       : null;
 
+  const hideSettled = useRoomLayout((state) => state.hideSettled);
+  const toggleHideSettled = useRoomLayout((state) => state.toggleHideSettled);
+
   /** 표의 행 · 개체축이면 부위들, 부위축이면 개체들 */
-  const rows = useMemo<SheetBidEntry[]>(() => {
+  const allRows = useMemo<SheetBidEntry[]>(() => {
     if (axis.kind === "listing") {
       if (!axisListing) return [];
       return [...axisListing.parts]
@@ -275,6 +383,19 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
       part,
     }));
   }, [axis.kind, axisListing, axisGroup]);
+
+  /*
+   * 표·바닥글·←/→ 이동이 모두 이 목록을 쓴다. 감춘 행으로는 넘어가지지 않아야
+   * 「눌렀는데 아무 일도 안 일어난다」 가 생기지 않는다. 합계는 감추기 전 목록으로
+   * 낸다 — 열넷 중 몇이 내 것인지는 감췄다고 달라지지 않는다.
+   */
+  const rows = useMemo(
+    () =>
+      hideSettled
+        ? allRows.filter(({ part }) => !isPartSettled(part))
+        : allRows,
+    [allRows, hideSettled],
+  );
 
   /* ── 고른 행 ─────────────────────────────────────────── */
 
@@ -325,7 +446,7 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
   /** 헤더의 등급판정 · 왼쪽 사진이 가리키는 개체 */
   const focusListing = selected?.listing ?? axisListing;
 
-  /* ── 이전/다음 개체 ───────────────────────────────────── */
+  /* ── 이전/다음 고정축 ─────────────────────────────────── */
 
   const goToListing = useCallback(
     (target: LiveListing | undefined) => {
@@ -337,47 +458,62 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
     [router, houseKey],
   );
 
-  const listingIdx = listings.findIndex((l) => l.id === axisListing?.id);
-  const rowIdx = rows.findIndex((r) => r.part.id === selected?.part.id);
+  const goToGroup = useCallback(
+    (target: PartGroupEntry | undefined) => {
+      if (!target) return;
+      router.replace(partDetailHref(target.group, { houseKey }), {
+        scroll: false,
+      });
+    },
+    [router, houseKey],
+  );
 
-  const canPrev = axis.kind === "listing" ? listingIdx > 0 : rowIdx > 0;
-  const canNext =
-    axis.kind === "listing"
-      ? listingIdx >= 0 && listingIdx < listings.length - 1
-      : rowIdx >= 0 && rowIdx < rows.length - 1;
+  const listingIdx = listings.findIndex((l) => l.id === axisListing?.id);
+  const groupIdx = partGroups.findIndex((g) => g.group === axisGroup?.group);
+
+  /*
+   * 좌우는 표 바깥, 위아래는 표 안. 예전엔 두 축 모두 ←/→ 가 「옆 개체」였는데,
+   * 부위축은 행이 이미 개체라 ↑/↓ 와 하는 일이 같았다 — 키 넷이 한 가지 일만 했다.
+   * 고정축(헤더 picker 가 가리키는 것)을 옮기게 하면 두 축 다 겹치지 않는다.
+   */
+  const pivotIdx = axis.kind === "listing" ? listingIdx : groupIdx;
+  const pivotLast =
+    (axis.kind === "listing" ? listings.length : partGroups.length) - 1;
+  const canPrev = pivotIdx > 0;
+  const canNext = pivotIdx >= 0 && pivotIdx < pivotLast;
 
   const goPrev = useCallback(() => {
     if (axis.kind === "listing") goToListing(listings[listingIdx - 1]);
-    else if (rows[rowIdx - 1]) selectRow(rows[rowIdx - 1]);
-  }, [axis.kind, goToListing, listings, listingIdx, rows, rowIdx, selectRow]);
+    else goToGroup(partGroups[groupIdx - 1]);
+  }, [
+    axis.kind,
+    goToListing,
+    goToGroup,
+    listings,
+    listingIdx,
+    partGroups,
+    groupIdx,
+  ]);
 
   const goNext = useCallback(() => {
     if (axis.kind === "listing") goToListing(listings[listingIdx + 1]);
-    else if (rows[rowIdx + 1]) selectRow(rows[rowIdx + 1]);
-  }, [axis.kind, goToListing, listings, listingIdx, rows, rowIdx, selectRow]);
+    else goToGroup(partGroups[groupIdx + 1]);
+  }, [
+    axis.kind,
+    goToListing,
+    goToGroup,
+    listings,
+    listingIdx,
+    partGroups,
+    groupIdx,
+  ]);
 
-  // ←/→ 개체 이동 · 입력칸 안에서는 글자 커서라 막는다 · Alt 를 쥐면 어디서든
-  useEffect(() => {
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
-      const el = document.activeElement;
-      // 눈금을 잡고 있으면 방향키는 너비 조절이다 (`RoomSplitter` 가 직접 받는다)
-      if (el instanceof HTMLElement && el.getAttribute("role") === "separator")
-        return;
-      const typing =
-        !e.altKey &&
-        el instanceof HTMLElement &&
-        (el.tagName === "INPUT" ||
-          el.tagName === "TEXTAREA" ||
-          el.isContentEditable);
-      if (typing) return;
-      e.preventDefault();
-      if (e.key === "ArrowLeft") goPrev();
-      else goNext();
-    };
-    window.addEventListener("keydown", handleKey);
-    return () => window.removeEventListener("keydown", handleKey);
-  }, [goPrev, goNext]);
+  const [arrowNavLearned, setArrowNavLearned] = useLocalStorage(
+    "live-auction-arrow-nav-learned",
+    false,
+  );
+  /** ←/→ 를 입찰칸 안에서 눌렀나 · 다음 개체에서 칸을 다시 잡을지 정한다 */
+  const refocusBid = useRef(false);
 
   /* ── 축 전환 · 보던 대상을 들고 넘어간다 ──────────────── */
 
@@ -402,6 +538,79 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
     },
     [axis.kind, selected, router, houseKey],
   );
+
+  // ←/→ 개체 이동 · ↓ 첫 입찰칸 · 입력칸 안에서는 글자 커서라 막는다 · Alt 를 쥐면 어디서든
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      const el = document.activeElement;
+      // 눈금을 잡고 있으면 방향키는 너비 조절이다 (`RoomSplitter` 가 직접 받는다)
+      if (el instanceof HTMLElement && el.getAttribute("role") === "separator")
+        return;
+      const typing =
+        el instanceof HTMLElement &&
+        (el.tagName === "INPUT" ||
+          el.tagName === "TEXTAREA" ||
+          el.isContentEditable);
+
+      /*
+       * 보기 축 전환 · 글을 쓰는 중이 아니면 어디서든 (고르기 중인 입찰칸 포함).
+       *
+       * 글자가 아니라 자판 자리(`code`)로 받는다. 한글 입력기가 켜져 있으면 B 자리를
+       * 눌러도 `key` 는 `ㅠ` 라 글자로만 보면 영문일 때만 먹는다 — `/` 는 입력기가
+       * 건드리지 않아 멀쩡했고 이것만 안 되던 이유가 여기 있었다.
+       */
+      if (e.code === "KeyB" || e.key === "b" || e.key === "B") {
+        if (isTypingInto(el) || e.metaKey || e.ctrlKey || e.altKey) return;
+        e.preventDefault();
+        switchAxis(axis.kind === "listing" ? "part" : "listing");
+        return;
+      }
+
+      /*
+       * ←/→ 로 개체를 훑다가 ↓ 를 누르면 그대로 입찰에 들어간다 — 개체를 고르고
+       * 마우스로 칸을 찾아 누르던 두 손 동작을 한 손으로 잇는다.
+       * 칸 안에서의 ↓ 는 다음 칸 이동이라 `handleBidKeyDown` 이 이미 맡고 있다.
+       */
+      if (e.key === "ArrowDown") {
+        if (typing) return;
+        if (focusFirstBidInput()) e.preventDefault();
+        return;
+      }
+
+      if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+      /*
+       * 고르기 중인 입찰칸에서는 ←/→ 가 고정축 이동이다. 쓰는 중이면 글자 커서라
+       * 여기까지 오지도 않는다(`handleSheetBidKeyDown` 이 막는다).
+       * 고정축을 옮기면 표가 통째로 갈리므로 새 표에서 같은 자리를 다시 잡아 준다 —
+       * 안 그러면 한 번 옮기고 포커스를 잃어 다음부터는 마우스를 잡아야 한다.
+       */
+      const inBidCell = isSheetBidNav(el);
+      if (typing && !e.altKey && !inBidCell) return;
+      e.preventDefault();
+      if (inBidCell) refocusBid.current = true;
+      if (e.key === "ArrowLeft") goPrev();
+      else goNext();
+      if (!arrowNavLearned) setArrowNavLearned(true);
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [
+    goPrev,
+    goNext,
+    arrowNavLearned,
+    setArrowNavLearned,
+    switchAxis,
+    axis.kind,
+  ]);
+
+  /* 고정축이 바뀐 뒤 · 고른 행의 입찰칸으로 · 마감돼 칸이 없으면 첫 칸으로 */
+  const selectedPartId = selected?.part.id;
+  useEffect(() => {
+    if (!refocusBid.current) return;
+    refocusBid.current = false;
+    if (selectedPartId && focusBidInput(selectedPartId)) return;
+    focusFirstBidInput();
+  }, [selectedPartId]);
 
   /* ── 주변 장치 ───────────────────────────────────────── */
 
@@ -535,15 +744,19 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
   const summary = useMemo(
     () =>
       summarizeParts(
-        rows.map((r) => r.part),
+        allRows.map((r) => r.part),
         dealerId,
       ),
-    [rows, dealerId],
+    [allRows, dealerId],
   );
   /** 표에 걸친 개체 수 · 부위축에서 좌/우가 한 마리로 합쳐진다 */
   const headCount = useMemo(
     () => new Set(rows.map((r) => r.listing.id)).size,
     [rows],
+  );
+  const allHeadCount = useMemo(
+    () => new Set(allRows.map((r) => r.listing.id)).size,
+    [allRows],
   );
   const blockReasons = useMemo(
     () => rows.map((r) => getBlockReason(r.listing)),
@@ -554,7 +767,7 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
     summary.total > 0 && summary.settledCount === summary.total;
 
   const missing = axis.kind === "listing" ? !axisListing : !axisGroup;
-  if (missing || rows.length === 0 || !focusListing) {
+  if (missing || allRows.length === 0 || !focusListing) {
     return (
       <>
         {sideDock}
@@ -747,12 +960,20 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
           {axis.kind === "listing" ? "부위" : "개체"}{" "}
           <span className="tabular-nums text-content-faint">
             {axis.kind === "listing" ? rows.length : headCount}
+            {hideSettled && summary.settledCount > 0 ? (
+              <span className="text-content-ghost">
+                /{axis.kind === "listing" ? allRows.length : allHeadCount}
+              </span>
+            ) : null}
           </span>
         </h2>
-        <div className="flex items-center gap-1.5">
-          <span className="text-[11.5px] tabular-nums text-content-soft">
-            <SheetBatchSubtotal summary={summary} />
-          </span>
+        <div className="flex items-center gap-1">
+          {/* 소계는 바닥글이 맡는다 · 머리글에도 같은 줄을 두면 한 화면에 두 번 적힌다 */}
+          <HideSettledToggle
+            on={hideSettled}
+            count={summary.settledCount}
+            onToggle={toggleHideSettled}
+          />
           {/* 머리글 여백보다 한 칸 바깥으로 · 글자 줄과 아이콘의 광학 끝선을 맞춘다 */}
           <PaneGripHandle
             label="표"
@@ -765,19 +986,37 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
         </div>
       </header>
       <div className="scrollbar-thin min-h-0 flex-1 overflow-y-auto">
-        <SheetPartGrid
-          entries={rows}
-          axis={axis.kind === "listing" ? PART_ROW_AXIS : LISTING_ROW_AXIS}
-          columns={1}
-          gridClassName="grid-cols-1"
-          dealerId={dealerId}
-          canReadBids={isAuthenticated && isDealer}
-          selectedPartId={selected?.part.id ?? null}
-          onSelectPart={selectRow}
-          bidding={sheetBidding}
-          isBlocked={({ listing }) => !!getBlockReason(listing)}
-          getPartResult={getPartResult}
-        />
+        {rows.length === 0 ? (
+          <div className="flex h-full flex-col items-center justify-center gap-2 px-6 text-center">
+            <p className="text-[13px] font-semibold text-content-mid">
+              남은 부위가 없습니다
+            </p>
+            <p className="text-[12px] text-content-faint">
+              {allRows.length}개가 모두 마감돼 숨겨졌어요
+            </p>
+            <button
+              type="button"
+              onClick={toggleHideSettled}
+              className="mt-1 h-7 rounded-md bg-surface-accent px-2.5 text-[12px] font-semibold text-content transition-colors hover:bg-surface-strong"
+            >
+              숨김 해제
+            </button>
+          </div>
+        ) : (
+          <SheetPartGrid
+            entries={rows}
+            axis={axis.kind === "listing" ? PART_ROW_AXIS : LISTING_ROW_AXIS}
+            columns={1}
+            gridClassName="grid-cols-1"
+            dealerId={dealerId}
+            canReadBids={isAuthenticated && isDealer}
+            selectedPartId={selected?.part.id ?? null}
+            onSelectPart={selectRow}
+            bidding={sheetBidding}
+            isBlocked={({ listing }) => !!getBlockReason(listing)}
+            getPartResult={getPartResult}
+          />
+        )}
       </div>
       <div className="shrink-0 border-t border-line-soft bg-surface px-3 pb-2">
         <SheetBatchFooter
@@ -820,24 +1059,26 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
         stepPrev={
           <StepArrow
             side="prev"
+            noun={axis.kind === "listing" ? "개체" : "부위"}
             disabled={!canPrev}
             onClick={goPrev}
             hint={
               axis.kind === "listing"
                 ? (listings[listingIdx - 1]?.listingNo ?? null)
-                : stepperIdentity(rows[rowIdx - 1] ?? null)
+                : (partGroups[groupIdx - 1]?.group ?? null)
             }
           />
         }
         stepNext={
           <StepArrow
             side="next"
+            noun={axis.kind === "listing" ? "개체" : "부위"}
             disabled={!canNext}
             onClick={goNext}
             hint={
               axis.kind === "listing"
                 ? (listings[listingIdx + 1]?.listingNo ?? null)
-                : stepperIdentity(rows[rowIdx + 1] ?? null)
+                : (partGroups[groupIdx + 1]?.group ?? null)
             }
           />
         }
@@ -845,11 +1086,13 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
         entityLabel={
           axis.kind === "part" ? stepperIdentity(selected ?? null) : null
         }
+        showArrowHint={!arrowNavLearned && (canPrev || canNext)}
         picker={
           axis.kind === "listing" ? (
             <RoomPicker
               label="다른 개체 선택"
               placeholder="접수번호 · 업체 · 등급 검색"
+              hotkey="/"
               title={axisListing!.listingNo}
               badge={
                 listings.length > 1
@@ -871,6 +1114,7 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
             <RoomPicker
               label="다른 부위 선택"
               placeholder="부위 검색"
+              hotkey="/"
               width={260}
               title={axisGroup!.group}
               badge={`${axisGroup!.count}`}
@@ -1021,18 +1265,23 @@ function RoomHeader({
   stepPrev,
   stepNext,
   entityLabel,
+  showArrowHint,
 }: {
   axis: RoomAxis;
   onAxisChange: (next: RoomAxis["kind"]) => void;
   /** 지금 고른 행의 개체 · 어느 축이든 이 값이 사진·등급판정을 함께 말한다 */
   listing: LiveListing;
   picker: React.ReactNode;
-  /** 개체 이동 좌우 화살표 · 개체축은 picker 를, 부위축은 접수번호를 사이에 두고 감싼다 */
+  /** 고정축 이동 좌우 화살표 · 두 축 모두 picker 를 사이에 두고 감싼다 */
   stepPrev: React.ReactNode;
   stepNext: React.ReactNode;
   /** 부위축에서만 · picker 가 부위를 가리키므로 개체는 여기서 밝힌다 */
   entityLabel: string | null;
+  /** 접수번호에 키보드 이동 안내를 붙일지 · ←/→ 를 써 본 뒤로는 끈다 */
+  showArrowHint: boolean;
 }) {
+  /** ←/→ 가 옮기는 것 · 표의 행과 뒤집힌 짝이다 */
+  const pivotNoun = axis.kind === "listing" ? "개체" : "부위";
   // 도축장은 지금 보고 있는 경매장과 늘 같다 (상장 목록이 도축장으로 걸러진다) · 빼고 날짜만
   const slaughterLine =
     [
@@ -1049,50 +1298,48 @@ function RoomHeader({
         aria-label="보기 축"
         className="mb-1.5 inline-flex items-center gap-0.5 rounded-[4px] bg-surface-strong/70 p-0.5"
       >
+        {/* 두 탭 모두 같은 말을 한다 · 알려 줄 건 「키로도 된다」 하나뿐이다 */}
         {AXIS_TABS.map(({ kind, label }) => {
           const active = kind === axis.kind;
           return (
-            <button
-              key={kind}
-              type="button"
-              role="tab"
-              aria-selected={active}
-              onClick={() => onAxisChange(kind)}
-              className={cn(
-                "h-6 rounded-[3px] px-2.5 text-[12px] font-semibold transition-colors",
-                active
-                  ? "bg-surface text-content ring-1 ring-line"
-                  : "text-content-soft hover:text-content",
-              )}
-            >
-              {label}
-            </button>
+            <ShortcutTooltip key={kind} label="키보드 이동" shortcut="B">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={active}
+                aria-keyshortcuts="b"
+                onClick={() => onAxisChange(kind)}
+                className={cn(
+                  "h-6 rounded-[3px] px-2.5 text-[12px] font-semibold transition-colors",
+                  active
+                    ? "bg-surface text-content ring-1 ring-line"
+                    : "text-content-soft hover:text-content",
+                )}
+              >
+                {label}
+              </button>
+            </ShortcutTooltip>
           );
         })}
       </div>
 
       <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
         {/*
-         * 개체축은 접수번호 picker 자체가 "지금 어느 개체인가" 라 화살표로 감싸면 되고,
-         * 부위축은 picker 가 부위를 가리키므로 접수번호를 옆에 적고 그것을 감싼다.
+         * 화살표는 늘 picker 를 감싼다 — picker 가 가리키는 것이 곧 고정축이고,
+         * ←/→ 가 옮기는 것도 그것이다. 부위축의 접수번호는 「지금 고른 행이 어느
+         * 개체인가」 를 말할 뿐이라 화살표 밖에 둔다.
          */}
-        {entityLabel === null ? (
-          <div className="flex items-center gap-0.5">
-            {stepPrev}
+        <div className="flex items-center gap-0.5">
+          {stepPrev}
+          <ArrowNavHint show={showArrowHint} noun={pivotNoun}>
             {picker}
-            {stepNext}
-          </div>
-        ) : (
-          <div className="flex items-center gap-x-5">
-            {picker}
-            <div className="flex items-center gap-0.5">
-              {stepPrev}
-              <span className="px-1 text-[13.5px] font-bold tabular-nums text-content">
-                {entityLabel}
-              </span>
-              {stepNext}
-            </div>
-          </div>
+          </ArrowNavHint>
+          {stepNext}
+        </div>
+        {entityLabel === null ? null : (
+          <span className="text-[13.5px] font-bold tabular-nums text-content">
+            {entityLabel}
+          </span>
         )}
 
         {/*

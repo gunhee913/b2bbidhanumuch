@@ -109,6 +109,28 @@ const config = {
          */
         rise: "rgb(var(--rise) / <alpha-value>)",
         fall: "rgb(var(--fall) / <alpha-value>)",
+        /**
+         * 경매 결과 칩 · 내 낙찰 · 미낙찰.
+         * 등락과 달리 채움색까지 쓰므로 두 모드에서 값이 갈려야 한다 (`globals.css` 참고).
+         */
+        won: {
+          DEFAULT: "rgb(var(--won) / <alpha-value>)",
+          surface: "rgb(var(--won-surface) / <alpha-value>)",
+        },
+        lost: {
+          DEFAULT: "rgb(var(--lost) / <alpha-value>)",
+          surface: "rgb(var(--lost-surface) / <alpha-value>)",
+        },
+        /**
+         * 입력칸 · 면(`bg-field`)과 경계(`border-field-line`)를 함께 써야 칸이 선다.
+         * 라이트는 눌러서, 다크는 띄워서 만든다 (`globals.css` 참고).
+         */
+        field: {
+          DEFAULT: "rgb(var(--field) / <alpha-value>)",
+          line: "rgb(var(--field-line) / <alpha-value>)",
+        },
+        /** 포커스 링 · 지금 쓰고 있는 자리 */
+        focus: "rgb(var(--focus) / <alpha-value>)",
         line: {
           /** 패널 외곽 (light slate-200) */
           DEFAULT: "rgb(var(--line) / <alpha-value>)",

@@ -50,6 +50,13 @@ interface RoomLayoutState {
   chartHeight: number;
   stackOrder: PaneOrder<StackPane>;
   columnOrder: PaneOrder<RoomColumn>;
+  /**
+   * 마감된 부위를 표에서 감춘다 · 남는 건 지금 입찰할 수 있는 행뿐.
+   *
+   * 크기·차례와 함께 두는 이유는 같다. 회차가 도는 동안 개체를 200두 넘기는데,
+   * 개체마다 다시 켜야 하면 켜지 않게 된다.
+   */
+  hideSettled: boolean;
   /** 같은 판을 또 누르면 원래대로 · 서로 배타적이라 한쪽을 켜면 다른 쪽은 꺼진다 */
   toggleFocus: (target: Exclude<RoomFocus, "none">) => void;
   setTableWidth: (px: number) => void;
@@ -66,6 +73,7 @@ interface RoomLayoutState {
   resetChartHeight: () => void;
   swapStackOrder: () => void;
   swapColumnOrder: () => void;
+  toggleHideSettled: () => void;
 }
 
 const clampWidth = (px: number) =>
@@ -100,6 +108,7 @@ export const useRoomLayout = create<RoomLayoutState>()(
       chartHeight: CHART_DEFAULT_HEIGHT,
       stackOrder: ["photo", "chart"],
       columnOrder: ["stack", "table"],
+      hideSettled: false,
       toggleFocus: (target) =>
         set({ focus: get().focus === target ? "none" : target }),
       setTableWidth: (px) => set({ tableWidth: clampWidth(px) }),
@@ -122,6 +131,8 @@ export const useRoomLayout = create<RoomLayoutState>()(
         set((state) => ({
           columnOrder: [state.columnOrder[1], state.columnOrder[0]],
         })),
+      toggleHideSettled: () =>
+        set((state) => ({ hideSettled: !state.hideSettled })),
     }),
     {
       name: "live-auction-room-layout",
