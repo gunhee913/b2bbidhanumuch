@@ -273,15 +273,19 @@
 .overlay-scroll {
   min-height: 0;
 }
+/*
+ * 손잡이 색은 먹색 토큰으로 · 예전엔 slate 를 못 박아 둬서 밝은 판에서는 거의 안 보이고
+ * 어두운 판에서는 흰 선처럼 떠올랐다. 명암 전환이 있는 화면에서는 토큰만 쓴다.
+ */
 .overlay-scroll .os-scrollbar {
   --os-size: 10px;
   --os-padding-perpendicular: 2px;
   --os-padding-axis: 2px;
   --os-track-border-radius: 0;
-  --os-handle-border-radius: 3px;
-  --os-handle-bg: rgba(203, 213, 225, 0.55);
-  --os-handle-bg-hover: rgba(148, 163, 184, 0.55);
-  --os-handle-bg-active: rgba(148, 163, 184, 0.7);
+  --os-handle-border-radius: 999px;
+  --os-handle-bg: rgb(var(--content-ghost) / 0.55);
+  --os-handle-bg-hover: rgb(var(--content-faint) / 0.8);
+  --os-handle-bg-active: rgb(var(--content-soft) / 0.9);
   --os-handle-min-size: 24px;
 }
 

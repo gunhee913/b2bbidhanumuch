@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useMeasure } from "react-use";
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
@@ -19,9 +19,15 @@ import { useSideDock } from "../hooks/useSideDock";
 import {
   useRoomLayout,
   useRoomLayoutHydration,
+  CHART_DEFAULT_HEIGHT,
+  CHART_MAX_HEIGHT,
+  CHART_MIN_HEIGHT,
   TABLE_MAX_WIDTH,
   TABLE_MIN_WIDTH,
+  type PaneOrder,
+  type RoomColumn,
 } from "../hooks/useRoomLayout";
+import { usePaneReorder } from "../hooks/usePaneReorder";
 import { SURFACE_SHELL_CLASS } from "../constants/surface";
 import { formatGradeLabel } from "../lib/grade";
 import {
@@ -41,9 +47,11 @@ import { cameFromSheet, clearFromSheet } from "../lib/detailNavigation";
 import type { SheetBidEntry } from "../hooks/useSheetBidding";
 import { AuctionSideDock } from "./AuctionSideDock";
 import { LoginGateOverlay } from "./LoginGateOverlay";
+import { PaneGripHandle } from "./PaneGripHandle";
 import { PartMarketChart } from "./PartMarketChart";
 import { RoomPicker } from "./RoomPicker";
 import { RoomSplitter } from "./RoomSplitter";
+import { RoomStackSplitter } from "./RoomStackSplitter";
 import { ViewerMediaPane } from "./ListingViewerDialog";
 import { formatDate, formatTraceNo } from "./ListingSpecSheet";
 import { buildTraceHref } from "./ListingInfoSection";
@@ -56,12 +64,6 @@ import {
 } from "./SheetParts";
 
 /**
- * 차트 캔버스 높이 · 여기서 깎은 만큼 그대로 위 사진이 커진다(사진 칸이 flex-1).
- * 시세선은 하루치 등락만 읽히면 되고 건수 pane 은 1/5 로 줄여 놨으니 이만큼이면 눌리지 않는다.
- */
-const CHART_HEIGHT = 216;
-
-/**
  * 시세 카드에서 캔버스를 뺀 나머지 높이 (머리글 · 기간 탭 · 시세 히어로 · 시간축).
  * 차트를 키울 때 1열 높이에서 이만큼 빼야 캔버스가 넘치지 않는다.
  */
@@ -70,8 +72,14 @@ const CHART_CARD_CHROME = 175;
 /** 1열과 2열 사이 틈 · 이 자리를 눈금(`RoomSplitter`)이 그대로 쓴다 */
 const SPLITTER_WIDTH = 8;
 
+/** 사진과 시세 사이 틈 · 이 자리를 눈금(`RoomStackSplitter`)이 그대로 쓴다 */
+const STACK_SPLITTER_HEIGHT = 8;
+
 /** 1열 최소 폭 · 사진이 이보다 좁아지면 볼 값어치가 없다 */
 const PHOTO_COLUMN_MIN_WIDTH = 460;
+
+/** 사진 판 최소 높이 · 시세를 키울 때 이만큼은 남긴다 */
+const PHOTO_MIN_HEIGHT = 240;
 
 /**
  * 사진 판 바탕 · 밝기와 무관하게 어두운 무채색으로 고정한다.
@@ -168,6 +176,29 @@ function FocusButton({
       <Icon className="h-3.5 w-3.5" strokeWidth={2.2} />
     </button>
   );
+}
+
+/**
+ * 받은 차례대로 두 판을 늘어놓고 사이에 눈금을 끼운다 · 세로 쌓기와 가로 열이 같이 쓴다.
+ *
+ * 판을 그리는 일은 부르는 쪽에 남긴다 — 순서마다 JSX 를 한 벌씩 써 두면 한쪽만 고치는
+ * 실수가 나고, `key` 를 쥔 같은 판이 자리만 바뀌어야 리액트가 상태를 이어 받는다.
+ */
+function orderPanes<P extends string>(
+  order: PaneOrder<P>,
+  panes: Record<P, ReactNode>,
+  splitter: ReactNode,
+): ReactNode[] {
+  return [panes[order[0]], splitter, panes[order[1]]];
+}
+
+/** 열 트랙도 같은 차례를 따른다 · 표는 잡아 둔 px, 1열은 남는 폭 전부 */
+function gridColumns(order: PaneOrder<RoomColumn>, tableWidth: number): string {
+  const track = (col: RoomColumn) =>
+    col === "table"
+      ? `${tableWidth}px`
+      : `minmax(${PHOTO_COLUMN_MIN_WIDTH}px,1fr)`;
+  return `${track(order[0])} ${SPLITTER_WIDTH}px ${track(order[1])}`;
 }
 
 /** 무엇을 세우고 볼 것인가 · 개체 한 마리 또는 부위 하나 */
@@ -402,7 +433,30 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
   const setTableWidth = useRoomLayout((state) => state.setTableWidth);
   const nudgeTableWidth = useRoomLayout((state) => state.nudgeTableWidth);
   const resetTableWidth = useRoomLayout((state) => state.resetTableWidth);
+  const storedChartHeight = useRoomLayout((state) => state.chartHeight);
+  const setChartHeight = useRoomLayout((state) => state.setChartHeight);
+  const nudgeChartHeight = useRoomLayout((state) => state.nudgeChartHeight);
+  const resetChartHeight = useRoomLayout((state) => state.resetChartHeight);
+  const stackOrder = useRoomLayout((state) => state.stackOrder);
+  const columnOrder = useRoomLayout((state) => state.columnOrder);
+  const swapStackOrder = useRoomLayout((state) => state.swapStackOrder);
+  const swapColumnOrder = useRoomLayout((state) => state.swapColumnOrder);
   useRoomLayoutHydration();
+
+  /* 1열 안에서 위아래로 · 그리고 두 열끼리 좌우로 · 같은 손놀림을 축만 바꿔 쓴다 */
+  const stack = usePaneReorder({
+    axis: "y",
+    order: stackOrder,
+    gap: STACK_SPLITTER_HEIGHT,
+    onSwap: swapStackOrder,
+  });
+  const column = usePaneReorder({
+    axis: "x",
+    order: columnOrder,
+    gap: SPLITTER_WIDTH,
+    onSwap: swapColumnOrder,
+  });
+  const tableOnLeft = columnOrder[0] === "table";
 
   /**
    * 저장된 너비를 지금 화면에 맞춰 깎는다.
@@ -421,12 +475,39 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
       : TABLE_MAX_WIDTH;
   const tableWidth = Math.min(storedTableWidth, maxTableWidth);
 
-  /** 차트를 키웠을 때 캔버스가 먹을 높이 · 1열 높이에서 카드 군더더기를 뺀다 */
+  /**
+   * 시세 캔버스 높이 · 너비와 같은 이유로 저장값을 지금 화면에 맞춰 깎는다.
+   *
+   * 크게 보기를 켠 동안에는 1열을 통째로 쓰므로 잡아 둔 높이를 무시한다 — 그 값은
+   * 그대로 남겨 두어 크게 보기를 끄면 눈금이 원래 자리로 돌아온다.
+   */
   const [colRef, { height: colHeight }] = useMeasure<HTMLDivElement>();
+  /* 1열은 높이를 재는 쪽과 자리를 옮기는 쪽이 같은 노드를 봐야 한다 */
+  const registerStackColumn = column.registerPane("stack");
+  const stackColumnRef = useCallback(
+    (el: HTMLDivElement | null) => {
+      colRef(el);
+      registerStackColumn(el);
+    },
+    [colRef, registerStackColumn],
+  );
+  const maxChartHeight =
+    colHeight > 0
+      ? Math.max(
+          CHART_MIN_HEIGHT,
+          Math.min(
+            CHART_MAX_HEIGHT,
+            Math.round(colHeight) -
+              CHART_CARD_CHROME -
+              PHOTO_MIN_HEIGHT -
+              STACK_SPLITTER_HEIGHT,
+          ),
+        )
+      : CHART_MAX_HEIGHT;
   const chartHeight =
     focus === "chart"
-      ? Math.max(CHART_HEIGHT, Math.round(colHeight) - CHART_CARD_CHROME)
-      : CHART_HEIGHT;
+      ? Math.max(CHART_DEFAULT_HEIGHT, Math.round(colHeight) - CHART_CARD_CHROME)
+      : Math.min(storedChartHeight, maxChartHeight);
 
   const [mediaIdx, setMediaIdx] = useState(0);
   const focusListingId = focusListing?.id;
@@ -444,6 +525,7 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
       isSchedulesLoading={scheduleLoading}
       dealerId={dealerId}
       listings={listings}
+      roundListingMap={roundData?.roundListingMap ?? {}}
       onNavigateListing={(id) => goToListing(listings.find((l) => l.id === id))}
     />
   );
@@ -502,6 +584,230 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
     selected?.part.minPrice != null
       ? { value: selected.part.minPrice, label: "최저단가" }
       : null;
+
+  /**
+   * 1열 · 사진 + 시세 · 키운 쪽이 높이를 독차지하고 다른 쪽은 자리를 비운다.
+   *
+   * 틈을 `gap` 이 아니라 눈금이 만든다 — `gap-2` 를 둔 채 사이에 눈금을 끼우면 틈이
+   * 둘이 되어 8px 이 24px 로 벌어진다. 자리를 끄는 동안에는 `translate` 가 스크롤
+   * 영역을 늘려 막대가 깜빡이므로 잠시 넘침을 잘라 둔다.
+   */
+  const stackColumn = (
+    <div
+      key="stack"
+      ref={stackColumnRef}
+      style={column.paneStyle("stack")}
+      className={cn(
+        "scrollbar-thin scrollbar-gutter-auto flex min-h-0 min-w-0 flex-col",
+        stack.dragging ? "overflow-hidden" : "overflow-y-auto",
+        column.dragging === "stack" && "relative z-30",
+        column.dragging &&
+          column.dragging !== "stack" &&
+          "transition-transform duration-200",
+      )}
+    >
+      {orderPanes(
+        stackOrder,
+        {
+          /* 그림 위에는 아무것도 얹지 않는다 · 개체 이동은 헤더 스테퍼, 장 전환은 썸네일 레일 */
+          photo:
+            focus === "chart" ? null : (
+              <section
+                key="photo"
+                ref={stack.registerPane("photo")}
+                aria-label="사진"
+                style={stack.paneStyle("photo")}
+                className={cn(
+                  "relative flex min-h-[240px] flex-1 flex-col border border-line pt-3",
+                  PHOTO_STAGE_CLASS,
+                  // 들어 올린 판 · 어두운 화면에서는 그림자가 묻혀 테두리를 같이 준다
+                  stack.dragging === "photo" &&
+                    "z-30 shadow-2xl ring-1 ring-content-soft",
+                  /*
+                   * 전환은 끄는 동안에만 건다. 자리가 바뀌는 순간에도 켜져 있으면
+                   * 판이 놓인 칸과 `translate` 가 같은 프레임에 뒤집히는 바람에,
+                   * 이미 눈앞에 있는 판이 한 번 솟았다 내려온다.
+                   */
+                  stack.dragging &&
+                    stack.dragging !== "photo" &&
+                    "transition-transform duration-200",
+                )}
+              >
+                <div className="absolute right-3 top-3 z-20 flex items-center gap-1">
+                  {focus === "none" ? (
+                    <PaneGripHandle
+                      label="사진"
+                      axis="y"
+                      tone="dark"
+                      dragging={stack.dragging === "photo"}
+                      {...stack.handleProps("photo")}
+                    />
+                  ) : null}
+                  <FocusButton
+                    on={focus === "photo"}
+                    label="사진"
+                    tone="dark"
+                    onToggle={() => toggleFocus("photo")}
+                  />
+                </div>
+                <ViewerMediaPane
+                  key={focusListing.id}
+                  listing={focusListing}
+                  mediaIdx={mediaIdx}
+                  onMediaIdxChange={setMediaIdx}
+                  className="px-3 pb-3"
+                />
+              </section>
+            ),
+          /* 차트는 캔버스 높이가 고정이라 눌리면 잘린다 · 모자라면 열이 흐른다 */
+          chart:
+            focus === "photo" ? null : (
+              <div
+                key="chart"
+                ref={stack.registerPane("chart")}
+                style={stack.paneStyle("chart")}
+                className={cn(
+                  focus === "chart" ? "min-h-0 flex-1" : "shrink-0",
+                  stack.dragging === "chart" &&
+                    "relative z-30 shadow-2xl ring-1 ring-content-soft",
+                  stack.dragging &&
+                    stack.dragging !== "chart" &&
+                    "transition-transform duration-200",
+                )}
+              >
+                <PartMarketChart
+                  partName={selected?.part.partName ?? null}
+                  listing={focusListing}
+                  referencePrice={chartReferencePrice}
+                  height={chartHeight}
+                  headerAction={
+                    /* 손잡이와 확대는 한 벌로 읽혀야 한다 · 기간 탭과는 더 떨어뜨린다 */
+                    <div className="flex items-center gap-1">
+                      {focus === "none" ? (
+                        <PaneGripHandle
+                          label="시세"
+                          axis="y"
+                          tone="card"
+                          dragging={stack.dragging === "chart"}
+                          {...stack.handleProps("chart")}
+                        />
+                      ) : null}
+                      <FocusButton
+                        on={focus === "chart"}
+                        label="시세"
+                        tone="card"
+                        onToggle={() => toggleFocus("chart")}
+                      />
+                    </div>
+                  }
+                />
+              </div>
+            ),
+        },
+        /* 두 판이 다 보일 때만 눈금이 뜻을 갖는다 */
+        focus === "none" ? (
+          <RoomStackSplitter
+            key="stack-splitter"
+            chartHeight={chartHeight}
+            chartBelow={stackOrder[0] === "photo"}
+            maxHeight={maxChartHeight}
+            onResize={(px) => setChartHeight(px, maxChartHeight)}
+            onNudge={(delta) => nudgeChartHeight(delta, maxChartHeight)}
+            onReset={resetChartHeight}
+          />
+        ) : null,
+      )}
+    </div>
+  );
+
+  /* 2열 · 표가 곧 주문창 */
+  const tablePane = (
+    <section
+      key="table"
+      ref={column.registerPane("table")}
+      aria-label={axis.kind === "listing" ? "부위" : "개체"}
+      style={column.paneStyle("table")}
+      className={cn(
+        "flex min-h-0 min-w-0 flex-col",
+        SURFACE_SHELL_CLASS,
+        column.dragging === "table" &&
+          "relative z-30 shadow-2xl ring-1 ring-content-soft",
+        column.dragging &&
+          column.dragging !== "table" &&
+          "transition-transform duration-200",
+      )}
+    >
+      <header className="flex shrink-0 items-center justify-between gap-2 border-b border-line-soft px-4 py-2.5">
+        {/*
+         * 세는 단위는 1열 머리글과 같다 · 부위축에서는 좌/우가 따로 행이라
+         * 행 수(30)와 개체 수(15)가 다르다 — 이름과 숫자가 어긋나지 않게 개체를 센다.
+         * 행 수는 아래 소계(`내 입찰 0/30`)가 말한다.
+         */}
+        <h2 className="text-[13px] font-bold text-content">
+          {axis.kind === "listing" ? "부위" : "개체"}{" "}
+          <span className="tabular-nums text-content-faint">
+            {axis.kind === "listing" ? rows.length : headCount}
+          </span>
+        </h2>
+        <div className="flex items-center gap-1.5">
+          <span className="text-[11.5px] tabular-nums text-content-soft">
+            <SheetBatchSubtotal summary={summary} />
+          </span>
+          {/* 머리글 여백보다 한 칸 바깥으로 · 글자 줄과 아이콘의 광학 끝선을 맞춘다 */}
+          <PaneGripHandle
+            label="표"
+            axis="x"
+            tone="card"
+            dragging={column.dragging === "table"}
+            className="-mr-1"
+            {...column.handleProps("table")}
+          />
+        </div>
+      </header>
+      <div className="scrollbar-thin min-h-0 flex-1 overflow-y-auto">
+        <SheetPartGrid
+          entries={rows}
+          axis={axis.kind === "listing" ? PART_ROW_AXIS : LISTING_ROW_AXIS}
+          columns={1}
+          gridClassName="grid-cols-1"
+          dealerId={dealerId}
+          canReadBids={isAuthenticated && isDealer}
+          selectedPartId={selected?.part.id ?? null}
+          onSelectPart={selectRow}
+          bidding={sheetBidding}
+          isBlocked={({ listing }) => !!getBlockReason(listing)}
+          getPartResult={getPartResult}
+        />
+      </div>
+      <div className="shrink-0 border-t border-line-soft bg-surface px-3 pb-2">
+        <SheetBatchFooter
+          batchKey={
+            axis.kind === "listing" ? axisListing!.id : `part:${axisGroup!.group}`
+          }
+          label={
+            axis.kind === "listing" ? axisListing!.listingNo : axisGroup!.group
+          }
+          entries={rows}
+          bidding={sheetBidding}
+          notice={
+            allSettled
+              ? axis.kind === "listing"
+                ? "마감된 개체입니다."
+                : "마감된 부위입니다."
+              : allBlocked
+                ? blockReasons[0]
+                : undefined
+          }
+          selected={selected}
+          selectedLabel={({ listing, part }) =>
+            axis.kind === "listing" ? part.partName : listing.listingNo
+          }
+        >
+          <SheetBatchSubtotal summary={summary} />
+        </SheetBatchFooter>
+      </div>
+    </section>
+  );
 
   return (
     <>
@@ -585,139 +891,26 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
 
       <div
         ref={gridRef}
-        className="grid min-h-0 flex-1 px-6 pb-3"
-        style={{
-          gridTemplateColumns: `minmax(${PHOTO_COLUMN_MIN_WIDTH}px,1fr) ${SPLITTER_WIDTH}px ${tableWidth}px`,
-        }}
+        className={cn(
+          "grid min-h-0 flex-1 px-6 pb-3",
+          // 열을 끄는 동안 `translate` 가 가로 스크롤을 만들지 않게 잠시 잘라 둔다
+          column.dragging && "overflow-hidden",
+        )}
+        style={{ gridTemplateColumns: gridColumns(columnOrder, tableWidth) }}
       >
-        {/* 1열 · 사진 + 시세 · 키운 쪽이 높이를 독차지하고 다른 쪽은 자리를 비운다 */}
-        <div
-          ref={colRef}
-          className="scrollbar-thin scrollbar-gutter-auto flex min-h-0 min-w-0 flex-col gap-2 overflow-y-auto"
-        >
-          {/* 그림 위에는 아무것도 얹지 않는다 · 개체 이동은 헤더 스테퍼, 장 전환은 썸네일 레일 */}
-          {focus === "chart" ? null : (
-            <section
-              aria-label="사진"
-              className={cn(
-                "relative flex min-h-[240px] flex-1 flex-col border border-line pt-3",
-                PHOTO_STAGE_CLASS,
-              )}
-            >
-              <div className="absolute right-3 top-3 z-20">
-                <FocusButton
-                  on={focus === "photo"}
-                  label="사진"
-                  tone="dark"
-                  onToggle={() => toggleFocus("photo")}
-                />
-              </div>
-              <ViewerMediaPane
-                key={focusListing.id}
-                listing={focusListing}
-                mediaIdx={mediaIdx}
-                onMediaIdxChange={setMediaIdx}
-                className="px-3 pb-3"
-              />
-            </section>
-          )}
-          {/* 차트는 캔버스 높이가 고정이라 눌리면 잘린다 · 모자라면 열이 흐른다 */}
-          {focus === "photo" ? null : (
-            <div className={focus === "chart" ? "min-h-0 flex-1" : "shrink-0"}>
-              <PartMarketChart
-                partName={selected?.part.partName ?? null}
-                listing={focusListing}
-                referencePrice={chartReferencePrice}
-                height={chartHeight}
-                headerAction={
-                  <FocusButton
-                    on={focus === "chart"}
-                    label="시세"
-                    tone="card"
-                    onToggle={() => toggleFocus("chart")}
-                  />
-                }
-              />
-            </div>
-          )}
-        </div>
-
-        <RoomSplitter
-          tableWidth={tableWidth}
-          maxWidth={maxTableWidth}
-          onResize={(px) => setTableWidth(Math.min(px, maxTableWidth))}
-          onNudge={(delta) => nudgeTableWidth(delta, maxTableWidth)}
-          onReset={resetTableWidth}
-        />
-
-        {/* 2열 · 표가 곧 주문창 */}
-        <section
-          aria-label={axis.kind === "listing" ? "부위" : "개체"}
-          className={cn("flex min-h-0 min-w-0 flex-col", SURFACE_SHELL_CLASS)}
-        >
-          <header className="flex shrink-0 items-baseline justify-between border-b border-line-soft px-4 py-2.5">
-            {/*
-             * 세는 단위는 1열 머리글과 같다 · 부위축에서는 좌/우가 따로 행이라
-             * 행 수(30)와 개체 수(15)가 다르다 — 이름과 숫자가 어긋나지 않게 개체를 센다.
-             * 행 수는 아래 소계(`내 입찰 0/30`)가 말한다.
-             */}
-            <h2 className="text-[13px] font-bold text-content">
-              {axis.kind === "listing" ? "부위" : "개체"}{" "}
-              <span className="tabular-nums text-content-faint">
-                {axis.kind === "listing" ? rows.length : headCount}
-              </span>
-            </h2>
-            <span className="text-[11.5px] tabular-nums text-content-soft">
-              <SheetBatchSubtotal summary={summary} />
-            </span>
-          </header>
-          <div className="scrollbar-thin min-h-0 flex-1 overflow-y-auto">
-            <SheetPartGrid
-              entries={rows}
-              axis={axis.kind === "listing" ? PART_ROW_AXIS : LISTING_ROW_AXIS}
-              columns={1}
-              gridClassName="grid-cols-1"
-              dealerId={dealerId}
-              canReadBids={isAuthenticated && isDealer}
-              selectedPartId={selected?.part.id ?? null}
-              onSelectPart={selectRow}
-              bidding={sheetBidding}
-              isBlocked={({ listing }) => !!getBlockReason(listing)}
-              getPartResult={getPartResult}
-            />
-          </div>
-          <div className="shrink-0 border-t border-line-soft bg-surface px-3 pb-2">
-            <SheetBatchFooter
-              batchKey={
-                axis.kind === "listing"
-                  ? axisListing!.id
-                  : `part:${axisGroup!.group}`
-              }
-              label={
-                axis.kind === "listing"
-                  ? axisListing!.listingNo
-                  : axisGroup!.group
-              }
-              entries={rows}
-              bidding={sheetBidding}
-              notice={
-                allSettled
-                  ? axis.kind === "listing"
-                    ? "마감된 개체입니다."
-                    : "마감된 부위입니다."
-                  : allBlocked
-                    ? blockReasons[0]
-                    : undefined
-              }
-              selected={selected}
-              selectedLabel={({ listing, part }) =>
-                axis.kind === "listing" ? part.partName : listing.listingNo
-              }
-            >
-              <SheetBatchSubtotal summary={summary} />
-            </SheetBatchFooter>
-          </div>
-        </section>
+        {orderPanes(
+          columnOrder,
+          { stack: stackColumn, table: tablePane },
+          <RoomSplitter
+            key="column-splitter"
+            tableWidth={tableWidth}
+            tableOnLeft={tableOnLeft}
+            maxWidth={maxTableWidth}
+            onResize={(px) => setTableWidth(Math.min(px, maxTableWidth))}
+            onNudge={(delta) => nudgeTableWidth(delta, maxTableWidth)}
+            onReset={resetTableWidth}
+          />,
+        )}
       </div>
 
       <LoginGateOverlay

@@ -16,11 +16,13 @@ import {
   Timer,
   type LucideProps,
 } from "lucide-react";
+import { OverlayScroll } from "@/components/ui/overlay-scroll";
 import { cn } from "@/lib/utils";
 import { useBidStore } from "@/stores/bidStore";
 import type { RoundSchedule } from "@/features/round-schedules/types";
 import type { RoundInfo } from "@/features/main/api";
 import type { LiveListing } from "../api";
+import { useDailyBriefing } from "../hooks/useDailyBriefing";
 import { useDeadlineTitle } from "../hooks/useDeadlineTitle";
 import { useMyBids } from "../hooks/useMyBids";
 import { useRoundPeek } from "../hooks/useRoundPeek";
@@ -31,6 +33,7 @@ import {
 } from "../hooks/useSideDock";
 import { formatGradeLabel } from "../lib/grade";
 import { AuctionSchedulePanel } from "./AuctionSchedulePanel";
+import { GradeBriefPeekCard } from "./GradeBriefPeekCard";
 import { MyBidsDrawer } from "./MyBidsDrawer";
 import { useRoundPhase, type RoundPhase } from "./RoundCountdownDial";
 import { RoundFloatingCard } from "./RoundFloatingCard";
@@ -45,6 +48,10 @@ interface AuctionSideDockProps {
   isSchedulesLoading?: boolean;
   dealerId: string | null;
   listings: LiveListing[];
+  /** 개체 → 걸린 회차 번호 · 회차별 결과에서 상장 수를 세는 기준 */
+  roundListingMap: Record<string, number[]>;
+  /** 들어오면 오늘의 상장 카드를 한 번 띄운다 · 상장표 화면에서만 */
+  briefOnEnter?: boolean;
   onNavigateListing: (listingId: string) => void;
 }
 
@@ -64,6 +71,8 @@ export function AuctionSideDock({
   isSchedulesLoading,
   dealerId,
   listings,
+  roundListingMap,
+  briefOnEnter,
   onNavigateListing,
 }: AuctionSideDockProps) {
   const open = useSideDock((s) => s.open);
@@ -101,11 +110,15 @@ export function AuctionSideDock({
 
   const { peeking, hideNow } = useRoundPeek(phase, !open);
   const [hovering, setHovering] = useState(false);
-  const peekOpen = !open && (peeking || hovering);
   const leaveRail = useCallback(() => {
     setHovering(false);
     hideNow();
   }, [hideNow]);
+
+  const brief = useDailyBrief(briefOnEnter ? listingDate : null, open, openTab);
+
+  /* 두 카드가 같은 레일에서 겹쳐 나오지 않게 · 오늘의 상장이 먼저다 */
+  const peekOpen = !open && !brief.open && (peeking || hovering);
 
   return (
     <>
@@ -119,11 +132,9 @@ export function AuctionSideDock({
           open ? "visible translate-x-0" : "invisible translate-x-[360px]",
         )}
       >
-        <div
-          className={cn(
-            "min-h-0 flex-1 overflow-y-auto py-1",
-            tab !== "round" && "hidden",
-          )}
+        <OverlayScroll
+          autoHideDelay={0}
+          className={cn("min-h-0 flex-1 py-1", tab !== "round" && "hidden")}
         >
           <RoundFloatingCard
             phase={phase}
@@ -132,17 +143,17 @@ export function AuctionSideDock({
             allRounds={allRounds}
             date={listingDate}
             isSchedulesLoading={isSchedulesLoading}
+            listings={listings}
+            roundListingMap={roundListingMap}
           />
-        </div>
+        </OverlayScroll>
 
-        <div
-          className={cn(
-            "min-h-0 flex-1 overflow-y-auto py-1",
-            tab !== "schedule" && "hidden",
-          )}
+        <OverlayScroll
+          autoHideDelay={0}
+          className={cn("min-h-0 flex-1 py-1", tab !== "schedule" && "hidden")}
         >
           <AuctionSchedulePanel listingDate={listingDate} />
-        </div>
+        </OverlayScroll>
 
         <div className={cn("min-h-0 flex-1", tab !== "myBids" && "hidden")}>
           <MyBidsDrawer
@@ -228,8 +239,51 @@ export function AuctionSideDock({
         onMouseLeave={leaveRail}
         onClick={() => openTab("round")}
       />
+
+      <GradeBriefPeekCard
+        date={listingDate}
+        open={brief.open}
+        onClose={brief.close}
+      />
     </>
   );
+}
+
+/**
+ * 오늘의 상장 브리핑 · 그날 한 번.
+ *
+ * 사이드 메뉴가 이미 펼쳐져 있으면 카드를 띄우지 않는다 — 레일 옆자리가 곧 패널 자리라
+ * 패널 위에 카드가 겹친다. 대신 일정 탭으로 넘겨 주면 같은 표가 패널 안에서 보인다.
+ */
+function useDailyBrief(
+  date: string | null,
+  dockOpen: boolean,
+  openTab: (tab: SideDockTab) => void,
+) {
+  const briefedDate = useDailyBriefing((s) => s.briefedDate);
+  const markBriefed = useDailyBriefing((s) => s.markBriefed);
+  const [hydrated, setHydrated] = useState(false);
+  const [showing, setShowing] = useState(false);
+
+  useEffect(() => {
+    void Promise.resolve(useDailyBriefing.persist.rehydrate()).then(() =>
+      setHydrated(true),
+    );
+  }, []);
+
+  useEffect(() => {
+    if (!hydrated || !date || briefedDate === date) return;
+    markBriefed(date);
+    if (dockOpen) openTab("schedule");
+    else setShowing(true);
+    // 브리핑은 들어온 그 순간 한 번만 · 이후 메뉴를 접었다 펴도 다시 뜨지 않는다
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrated, date, briefedDate]);
+
+  /* 카드를 띄운 뒤 메뉴를 펼치면 패널과 겹치므로 그때는 카드를 거둔다 */
+  const open = showing && !dockOpen;
+  const close = useCallback(() => setShowing(false), []);
+  return { open, close };
 }
 
 /**
@@ -438,51 +492,53 @@ function RecentListingsPanel({
           </p>
         </div>
       ) : (
-        <ul className="min-h-0 flex-1 overflow-y-auto px-2">
-          {rows.map(({ listing, viewedAt }) => (
-            <li key={listing.id}>
-              <button
-                type="button"
-                onClick={() => onNavigateListing(listing.id)}
-                className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition-colors hover:bg-surface-accent"
-              >
-                <span className="relative h-10 w-10 shrink-0 overflow-hidden rounded-md bg-surface-accent">
-                  {listing.images[0] ? (
-                    <Image
-                      src={listing.images[0]}
-                      alt=""
-                      fill
-                      sizes="40px"
-                      className="object-cover"
-                      unoptimized
-                    />
-                  ) : (
-                    <ImageOff className="absolute inset-0 m-auto h-4 w-4 text-content-ghost" />
-                  )}
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="flex items-baseline gap-1.5">
-                    <span className="text-[13px] font-semibold tabular-nums text-content">
-                      {listing.listingNo}
+        <OverlayScroll autoHideDelay={0} className="min-h-0 flex-1">
+          <ul className="px-2">
+            {rows.map(({ listing, viewedAt }) => (
+              <li key={listing.id}>
+                <button
+                  type="button"
+                  onClick={() => onNavigateListing(listing.id)}
+                  className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition-colors hover:bg-surface-accent"
+                >
+                  <span className="relative h-10 w-10 shrink-0 overflow-hidden rounded-md bg-surface-accent">
+                    {listing.images[0] ? (
+                      <Image
+                        src={listing.images[0]}
+                        alt=""
+                        fill
+                        sizes="40px"
+                        className="object-cover"
+                        unoptimized
+                      />
+                    ) : (
+                      <ImageOff className="absolute inset-0 m-auto h-4 w-4 text-content-ghost" />
+                    )}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-baseline gap-1.5">
+                      <span className="text-[13px] font-semibold tabular-nums text-content">
+                        {listing.listingNo}
+                      </span>
+                      <span className="text-[12px] font-medium text-content-soft">
+                        {formatGradeLabel(listing.grade, listing.marblingScore)}
+                      </span>
                     </span>
-                    <span className="text-[12px] font-medium text-content-soft">
-                      {formatGradeLabel(listing.grade, listing.marblingScore)}
+                    <span className="mt-0.5 block truncate text-[12px] text-content-faint">
+                      {listing.companyName}
                     </span>
                   </span>
-                  <span className="mt-0.5 block truncate text-[12px] text-content-faint">
-                    {listing.companyName}
+                  <span className="shrink-0 text-[11px] tabular-nums text-content-ghost">
+                    {formatDistanceToNowStrict(viewedAt, {
+                      locale: ko,
+                      addSuffix: true,
+                    })}
                   </span>
-                </span>
-                <span className="shrink-0 text-[11px] tabular-nums text-content-ghost">
-                  {formatDistanceToNowStrict(viewedAt, {
-                    locale: ko,
-                    addSuffix: true,
-                  })}
-                </span>
-              </button>
-            </li>
-          ))}
-        </ul>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </OverlayScroll>
       )}
     </>
   );

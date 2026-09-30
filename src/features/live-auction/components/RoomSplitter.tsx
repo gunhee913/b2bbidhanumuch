@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback } from "react";
 import { cn } from "@/lib/utils";
+import { usePaneResize } from "../hooks/usePaneResize";
 import {
   TABLE_DEFAULT_WIDTH,
   TABLE_MAX_WIDTH,
@@ -21,16 +22,22 @@ const KEY_STEP = 16;
  * 하나 더 세우면 나란한 선이 셋이 되고 가운데 것이 어디에도 붙지 않은 군더더기로 읽힌다.
  * 손이 닿을 때만 짧은 알약 손잡이를 띄운다 — 잡을 수 있다는 사실은 그때 알면 된다.
  *
- * 표가 오른쪽이라 눈금을 오른쪽으로 밀면 표가 좁아진다 — 그래서 `시작폭 - 이동량`.
+ * 크기를 쥐는 쪽은 언제나 표다. 1열은 남는 폭을 전부 가져가므로 둘 다 px 로 잡으면
+ * 창을 줄였을 때 합이 맞지 않는다. 표가 오른쪽이면 눈금을 오른쪽으로 밀 때 표가
+ * 좁아지고, 왼쪽으로 옮겨 놓았으면 그 반대다 — 부호만 뒤집어 손이 「가까운 판을
+ * 민다」로 읽히게 한다.
  */
 export function RoomSplitter({
   tableWidth,
+  tableOnLeft,
   maxWidth,
   onResize,
   onNudge,
   onReset,
 }: {
   tableWidth: number;
+  /** 눈금 왼쪽에 표가 있으면 참 · 표를 1열 앞으로 옮겨 놓았을 때다 */
+  tableOnLeft: boolean;
   /** 지금 화면에서 실제로 허용되는 최대 · 사이드 도크를 펴면 이 값이 줄어든다 */
   maxWidth: number;
   onResize: (px: number) => void;
@@ -38,52 +45,27 @@ export function RoomSplitter({
   onNudge: (delta: number) => void;
   onReset: () => void;
 }) {
-  const dragRef = useRef<{ startX: number; startWidth: number } | null>(null);
-  /** 끄는 동안에는 포인터가 손잡이를 벗어나도 계속 보여야 한다 (hover 로는 부족하다) */
-  const [dragging, setDragging] = useState(false);
-
-  const handlePointerDown = useCallback(
-    (e: React.PointerEvent<HTMLDivElement>) => {
-      dragRef.current = { startX: e.clientX, startWidth: tableWidth };
-      e.currentTarget.setPointerCapture(e.pointerId);
-      setDragging(true);
-      // 끄는 동안 글자가 잡히거나 커서가 판마다 바뀌면 눈금을 놓친 것처럼 보인다
-      document.body.style.cursor = "col-resize";
-      document.body.style.userSelect = "none";
-    },
-    [tableWidth],
-  );
-
-  const handlePointerMove = useCallback(
-    (e: React.PointerEvent<HTMLDivElement>) => {
-      const drag = dragRef.current;
-      if (!drag) return;
-      onResize(drag.startWidth - (e.clientX - drag.startX));
-    },
-    [onResize],
-  );
-
-  const endDrag = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    if (!dragRef.current) return;
-    dragRef.current = null;
-    setDragging(false);
-    e.currentTarget.releasePointerCapture(e.pointerId);
-    document.body.style.cursor = "";
-    document.body.style.userSelect = "";
-  }, []);
+  const { dragging, handlers } = usePaneResize({
+    size: tableWidth,
+    axis: "x",
+    direction: tableOnLeft ? 1 : -1,
+    onResize,
+  });
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLDivElement>) => {
       const step = e.shiftKey ? KEY_STEP * 4 : KEY_STEP;
-      if (e.key === "ArrowLeft") onNudge(step);
-      else if (e.key === "ArrowRight") onNudge(-step);
+      // 눈금을 왼쪽으로 옮기면 왼쪽 판이 줄고 오른쪽 판이 는다
+      const left = tableOnLeft ? -step : step;
+      if (e.key === "ArrowLeft") onNudge(left);
+      else if (e.key === "ArrowRight") onNudge(-left);
       else if (e.key === "Home" || e.key === "Enter") onReset();
       else return;
       // 방향키는 방 전체에서 개체 이동이라 눈금을 잡은 동안에는 가로채야 한다
       e.preventDefault();
       e.stopPropagation();
     },
-    [onNudge, onReset],
+    [tableOnLeft, onNudge, onReset],
   );
 
   return (
@@ -96,10 +78,7 @@ export function RoomSplitter({
       aria-valuemax={Math.min(TABLE_MAX_WIDTH, maxWidth)}
       tabIndex={0}
       title={`끌어서 너비 조절 · 두 번 누르면 ${TABLE_DEFAULT_WIDTH}px 로`}
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={endDrag}
-      onPointerCancel={endDrag}
+      {...handlers}
       onDoubleClick={onReset}
       onKeyDown={handleKeyDown}
       className={cn(

@@ -1,12 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { addMonths, format, isSameMonth, parse } from "date-fns";
 import { ko } from "date-fns/locale";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { useAuctionCalendarMonth } from "@/features/auction-days/hooks/useAuctionCalendarMonth";
 import type { AuctionDay } from "@/features/auction-days/types";
-import { useCurrentHouse } from "@/features/entry/hooks/useCurrentHouse";
 import { cn } from "@/lib/utils";
 
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"] as const;
@@ -17,6 +15,12 @@ const WEEKS = 6;
 export interface AuctionScheduleCalendarProps {
   /** yyyy-MM-dd · 지금 보고 있는 경매일 */
   listingDate: string;
+  /** 보고 있는 달의 1일 */
+  anchor: Date;
+  onAnchorChange: (next: Date) => void;
+  /** 그 달의 일정 · 아래 일자별 표와 같은 응답을 나눠 쓴다 */
+  days: AuctionDay[];
+  isLoading?: boolean;
   selected: string;
   onSelect: (date: string, day: AuctionDay | null) => void;
 }
@@ -30,23 +34,18 @@ export interface AuctionScheduleCalendarProps {
  */
 export function AuctionScheduleCalendar({
   listingDate,
+  anchor,
+  onAnchorChange,
+  days,
+  isLoading,
   selected,
   onSelect,
 }: AuctionScheduleCalendarProps) {
-  const { house } = useCurrentHouse();
-  const [anchor, setAnchor] = useState(() => startOfMonthOf(listingDate));
-  const monthKey = format(anchor, "yyyy-MM");
-
-  const { data, isLoading } = useAuctionCalendarMonth(
-    monthKey,
-    house?.name ?? null,
-  );
-
   const byDate = useMemo(() => {
     const map = new Map<string, AuctionDay>();
-    data?.days.forEach((d) => map.set(d.date, d));
+    days.forEach((d) => map.set(d.date, d));
     return map;
-  }, [data]);
+  }, [days]);
 
   const cells = useMemo(() => buildMonthGrid(anchor), [anchor]);
 
@@ -56,7 +55,7 @@ export function AuctionScheduleCalendar({
         <MonthStepButton
           label="이전 달"
           icon={ChevronLeft}
-          onClick={() => setAnchor((m) => addMonths(m, -1))}
+          onClick={() => onAnchorChange(addMonths(anchor, -1))}
         />
         <span className="text-[12px] font-bold tabular-nums text-content">
           {format(anchor, "yyyy년 M월", { locale: ko })}
@@ -64,7 +63,7 @@ export function AuctionScheduleCalendar({
         <MonthStepButton
           label="다음 달"
           icon={ChevronRight}
-          onClick={() => setAnchor((m) => addMonths(m, 1))}
+          onClick={() => onAnchorChange(addMonths(anchor, 1))}
         />
       </header>
 
@@ -217,7 +216,7 @@ function Marker({
   return <span className="h-1 w-1" aria-hidden />;
 }
 
-function startOfMonthOf(iso: string): Date {
+export function startOfMonthOf(iso: string): Date {
   const d = parse(iso, "yyyy-MM-dd", new Date());
   const base = Number.isNaN(d.getTime()) ? new Date() : d;
   return new Date(base.getFullYear(), base.getMonth(), 1);

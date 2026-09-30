@@ -3,8 +3,14 @@
 import { useEffect, useState } from "react";
 import { format, parse } from "date-fns";
 import { ko } from "date-fns/locale";
+import { useAuctionCalendarMonth } from "@/features/auction-days/hooks/useAuctionCalendarMonth";
 import type { AuctionDay } from "@/features/auction-days/types";
-import { AuctionScheduleCalendar } from "./AuctionScheduleCalendar";
+import { useCurrentHouse } from "@/features/entry/hooks/useCurrentHouse";
+import {
+  AuctionScheduleCalendar,
+  startOfMonthOf,
+} from "./AuctionScheduleCalendar";
+import { GradeListingTable } from "./GradeListingTable";
 
 export interface AuctionSchedulePanelProps {
   /** yyyy-MM-dd · 지금 보고 있는 경매일 */
@@ -20,12 +26,21 @@ export interface AuctionSchedulePanelProps {
 export function AuctionSchedulePanel({
   listingDate,
 }: AuctionSchedulePanelProps) {
+  const { house } = useCurrentHouse();
+  const [anchor, setAnchor] = useState(() => startOfMonthOf(listingDate));
   const [selected, setSelected] = useState<{
     date: string;
     day: AuctionDay | null;
   }>({ date: listingDate, day: null });
   // 경매일이 바뀌면(날짜 넘김·다른 장) 고른 날도 그날로 되돌린다
   useEffect(() => setSelected({ date: listingDate, day: null }), [listingDate]);
+
+  /* 달을 넘기는 건 패널이 쥐고, 달력은 받은 것만 그린다 */
+  const { data, isLoading } = useAuctionCalendarMonth(
+    format(anchor, "yyyy-MM"),
+    house?.name ?? null,
+  );
+  const days = data?.days ?? [];
 
   return (
     <>
@@ -37,6 +52,10 @@ export function AuctionSchedulePanel({
 
       <AuctionScheduleCalendar
         listingDate={listingDate}
+        anchor={anchor}
+        onAnchorChange={setAnchor}
+        days={days}
+        isLoading={isLoading}
         selected={selected.date}
         onSelect={(date, day) => setSelected({ date, day })}
       />
@@ -49,17 +68,10 @@ export function AuctionSchedulePanel({
         <SelectedDayLine day={selected.day} />
       </div>
 
-      <ul className="flex flex-wrap gap-x-3 gap-y-1 px-4 pb-3">
-        <LegendItem marker={<span className="h-1 w-1 rounded-full bg-inverse" />}>
-          경매
-        </LegendItem>
-        <LegendItem
-          marker={<span className="h-[1.5px] w-2 rounded-full bg-content-ghost" />}
-        >
-          휴장
-        </LegendItem>
-        <LegendItem marker={<span className="h-1 w-1" />}>미정</LegendItem>
-      </ul>
+      <GradeListingTable
+        date={selected.date}
+        className="mt-1 border-t border-line-soft pb-3 pt-3"
+      />
     </>
   );
 }
@@ -68,7 +80,7 @@ export function AuctionSchedulePanel({
 function SelectedDayLine({ day }: { day: AuctionDay | null }) {
   if (!day || day.status === "unset") {
     return (
-      <p className="mt-1 text-[12px] font-medium text-content-faint">
+      <p className="mt-1 text-[12px] font-medium text-content-soft">
         일정 미정
       </p>
     );
@@ -78,9 +90,7 @@ function SelectedDayLine({ day }: { day: AuctionDay | null }) {
     return (
       <p className="mt-1 text-[12px] font-medium text-content-soft">
         휴장
-        {day.note ? (
-          <span className="text-content-faint"> · {day.note}</span>
-        ) : null}
+        {day.note ? <span> · {day.note}</span> : null}
       </p>
     );
   }
@@ -97,30 +107,13 @@ function SelectedDayLine({ day }: { day: AuctionDay | null }) {
         </>
       ) : (
         /* 개장으로 잡혀 있지만 아직 상장이 안 올라온 날 · 회차 수라도 알려 준다 */
-        <span className="text-content-faint">
+        <span>
           경매 예정
           {day.roundCount > 0 ? ` · ${day.roundCount}회차` : null}
         </span>
       )}
-      {day.note ? <span className="text-content-faint"> · {day.note}</span> : null}
+      {day.note ? <span> · {day.note}</span> : null}
     </p>
-  );
-}
-
-function LegendItem({
-  marker,
-  children,
-}: {
-  marker: React.ReactNode;
-  children: React.ReactNode;
-}) {
-  return (
-    <li className="flex items-center gap-1.5 text-[10.5px] font-medium text-content-faint">
-      <span className="flex h-2 w-2 items-center justify-center" aria-hidden>
-        {marker}
-      </span>
-      {children}
-    </li>
   );
 }
 

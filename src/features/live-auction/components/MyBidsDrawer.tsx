@@ -12,6 +12,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import NumberFlow from "@number-flow/react";
 import { useQueryClient } from "@tanstack/react-query";
 import type { RoundInfo } from "@/features/main/api";
+import { OverlayScroll } from "@/components/ui/overlay-scroll";
 import { cn } from "@/lib/utils";
 import { useMyBids, type MyBidEntry } from "../hooks/useMyBids";
 import { useRealtimeBids } from "@/hooks/useRealtimeBids";
@@ -481,7 +482,7 @@ export function MyBidsDrawer({
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto">
+      <OverlayScroll autoHideDelay={0} className="flex-1">
         {isLoading ? (
           <div className="flex h-40 items-center justify-center text-xs text-content-faint">
             불러오는 중...
@@ -526,7 +527,7 @@ export function MyBidsDrawer({
             })}
           </ul>
         )}
-      </div>
+      </OverlayScroll>
     </>
   );
 

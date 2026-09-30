@@ -628,7 +628,8 @@ export const useBidStore = create<BidStore>()(
       isListingInfoNotificationOn: true,
       setIsListingInfoNotificationOn: (on) => set({ isListingInfoNotificationOn: on }),
       
-      isDarkMode: false,
+      // 경매장 기본값은 어두운 화면 · 고기 색을 보는 화면이라 밝은 판이 눈에 부담이 된다
+      isDarkMode: true,
       setIsDarkMode: (on) => set({ isDarkMode: on }),
       
       isScreenAwakeOn: false,
@@ -738,6 +739,20 @@ export const useBidStore = create<BidStore>()(
     }),
     {
       name: 'bid-storage-v24',
+      version: 1,
+      /*
+       * v0 → v1 · 기본값을 어두운 화면으로 바꿨다.
+       *
+       * 저장소에는 예전 기본값(`false`)이 이미 박혀 있어서, 기본값만 바꾸면 한 번이라도
+       * 들어와 본 사람에게는 영영 닿지 않는다. 그래서 이 항목만 한 번 되돌린다 —
+       * 나머지 설정(입찰 내역·알림·즐겨찾기)은 그대로 둔다.
+       */
+      migrate: (persisted, version) => {
+        if (version < 1 && persisted && typeof persisted === 'object') {
+          return { ...(persisted as Record<string, unknown>), isDarkMode: true };
+        }
+        return persisted;
+      },
       onRehydrateStorage: () => (state) => {
         if (state) {
           // 오래된 입찰 데이터 정리

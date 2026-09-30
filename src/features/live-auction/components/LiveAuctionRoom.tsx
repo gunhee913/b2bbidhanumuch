@@ -156,6 +156,8 @@ export function LiveAuctionRoom() {
         isSchedulesLoading={scheduleLoading}
         dealerId={dealerId}
         listings={listings}
+        roundListingMap={roundData?.roundListingMap ?? {}}
+        briefOnEnter
         onNavigateListing={(listingId) => openListing(listingId)}
       />
 

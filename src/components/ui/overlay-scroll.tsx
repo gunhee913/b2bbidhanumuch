@@ -24,13 +24,22 @@ import { cn } from "@/lib/utils";
  */
 type OverlayScrollProps = OverlayScrollbarsComponentProps & {
   autoHide?: "leave" | "scroll" | "move" | "never";
+  /** 숨기까지 기다리는 시간(ms) · 0 이면 커서가 벗어나는 즉시 */
+  autoHideDelay?: number;
 };
 
 export const OverlayScroll = forwardRef<
   ComponentRef<typeof OverlayScrollbarsComponent>,
   OverlayScrollProps
 >(function OverlayScroll(
-  { className, options, autoHide = "leave", children, ...rest },
+  {
+    className,
+    options,
+    autoHide = "leave",
+    autoHideDelay = 500,
+    children,
+    ...rest
+  },
   ref,
 ) {
   // OverlayScrollbars 의 options 은 `false` 일 수 있어 optional chain 후 spread.
@@ -42,11 +51,16 @@ export const OverlayScroll = forwardRef<
     <OverlayScrollbarsComponent
       ref={ref}
       className={cn("overlay-scroll", className)}
+      /*
+       * `...passedOptions` 를 먼저 편다. 뒤에 두면 위에서 애써 합쳐 둔 `scrollbars`
+       * 를 통째로 덮어써서, 넘긴 쪽이 한 항목만 바꾸려 해도 theme·autoHide 까지 날아간다.
+       */
       options={{
+        ...passedOptions,
         scrollbars: {
           theme: "os-theme-dark",
           autoHide,
-          autoHideDelay: 500,
+          autoHideDelay,
           autoHideSuspend: true,
           clickScroll: true,
           ...passedOptions?.scrollbars,
@@ -56,7 +70,6 @@ export const OverlayScroll = forwardRef<
           y: "scroll",
           ...passedOptions?.overflow,
         },
-        ...passedOptions,
       }}
       defer
       {...rest}
