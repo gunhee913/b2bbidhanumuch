@@ -46,6 +46,9 @@ export interface LiveListingSheetProps {
   companyOptions: string[];
   /** 표를 최소 폭 밑으로 누르지 않고 요약 패널을 세울 자리가 있는지 (부르는 쪽이 섹션 폭을 잰다) */
   canShowSummary: boolean;
+  /** 관심으로 찍은 것 · 접수번호 칸 맨 앞 별 */
+  favoriteIds: ReadonlySet<string>;
+  onToggleFavorite: (listingNo: string) => void;
 }
 
 /**
@@ -68,6 +71,8 @@ export function LiveListingSheet({
   onCompanyChange,
   companyOptions,
   canShowSummary,
+  favoriteIds,
+  onToggleFavorite,
 }: LiveListingSheetProps) {
   const { filterRef, filterStickyTop, headStickyTop } = useStickySheetOffsets();
 
@@ -134,6 +139,8 @@ export function LiveListingSheet({
             onHoverEntity={setHoveredId}
             entities={entities}
             onSelect={onOpenListing}
+            favoriteIds={favoriteIds}
+            onToggleFavorite={onToggleFavorite}
             isLoading={isLoading}
             emptyMessage={
               listings.length === 0

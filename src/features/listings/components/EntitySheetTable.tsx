@@ -10,7 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import Image from "next/image";
-import { ChevronRight, ImageOff } from "lucide-react";
+import { ChevronRight, ImageOff, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatGradeLabel } from "@/features/live-auction/lib/grade";
 import {
@@ -123,6 +123,15 @@ export interface EntitySheetTableProps {
   onOpenPhotos?: (entityId: string) => void;
   /** 행 hover · 옆 요약 패널이 그 개체를 따라간다 */
   onHoverEntity?: (entityId: string) => void;
+  /**
+   * 관심으로 찍은 것 · 주면 접수번호 칸 맨 앞에 별이 붙는다 (`compact` 전용).
+   * 머리글에는 아무것도 적지 않는다 — 별 하나면 무슨 열인지 이미 읽힌다.
+   *
+   * 접수번호로만 찍어 본다. 경매장에서는 부위 관심(UUID)도 같은 집합에 섞여 오는데,
+   * 생김새가 겹치지 않아 여기서는 없는 것과 같다.
+   */
+  favoriteIds?: ReadonlySet<string>;
+  onToggleFavorite?: (listingNo: string) => void;
   className?: string;
 }
 
@@ -152,6 +161,8 @@ export function EntitySheetTable({
   stickyHeadTop,
   onOpenPhotos,
   onHoverEntity,
+  favoriteIds,
+  onToggleFavorite,
   className,
 }: EntitySheetTableProps) {
   const isStickyHead = stickyHeadTop != null;
@@ -218,14 +229,14 @@ export function EntitySheetTable({
           ) : null}
           {compact ? (
             <>
-              {/* 사진 + 접수번호 한 칸 · 36 + 6 + 80 + 좌우 12 = 134px (표 980 기준) */}
-              <col className="w-[13.9%]" />
+              {/* 별 + 사진 + 접수번호 한 칸 · 18 + 36 + 6 + 80 + 좌우 12 = 152px (표 980 기준) */}
+              <col className="w-[15.7%]" />
               <col className="w-[6.9%]" />
               <col className="w-[3.8%]" />
               <col className="w-[3.8%]" />
               <col className="w-[3.6%]" />
               {/* 상장업체는 유일하게 잘려도 되는 열(`truncate`) · 남는 폭을 여기서 꾼다 */}
-              <col className="w-[8.5%]" />
+              <col className="w-[6.7%]" />
               {QUALITY_WIDTHS.compact.map((w, i) => (
                 <col key={i} className={w} />
               ))}
@@ -334,6 +345,14 @@ export function EntitySheetTable({
                 setLightbox(entity);
               }}
               opensDetail={!!onOpenPhotos}
+              favorited={
+                favoriteIds ? favoriteIds.has(entity.listingNo) : null
+              }
+              onToggleFavorite={
+                onToggleFavorite
+                  ? () => onToggleFavorite(entity.listingNo)
+                  : undefined
+              }
               renderSummary={renderSummary}
               renderExpanded={renderExpanded}
             />
@@ -369,6 +388,8 @@ function EntityRows({
   onHover,
   onOpenPhotos,
   opensDetail,
+  favorited,
+  onToggleFavorite,
   renderSummary,
   renderExpanded,
 }: {
@@ -384,6 +405,9 @@ function EntityRows({
   onToggle: () => void;
   onHover?: () => void;
   onOpenPhotos: () => void;
+  /** `null` 이면 관심을 쓰지 않는 화면 · 별 자체를 그리지 않는다 */
+  favorited: boolean | null;
+  onToggleFavorite?: () => void;
   renderSummary: (entity: SheetEntity) => ReactNode;
   renderExpanded?: (
     entity: SheetEntity,
@@ -467,6 +491,13 @@ function EntityRows({
         {compact ? (
           <td className={cn(SHEET_CELL, dense)}>
             <span className="flex items-center gap-1.5">
+              {favorited != null && onToggleFavorite ? (
+                <FavoriteStar
+                  on={favorited}
+                  listingNo={entity.listingNo}
+                  onToggle={onToggleFavorite}
+                />
+              ) : null}
               {thumb}
               <span className="font-bold -tracking-[0.02em] text-content">
                 {entity.listingNo}
@@ -556,6 +587,56 @@ function EntityRows({
         </tr>
       ) : null}
     </Fragment>
+  );
+}
+
+/**
+ * 관심 별 · 접수번호 칸 맨 앞.
+ *
+ * 열을 따로 세우지 않았다. 세우면 머리글 한 칸이 비고, 빈 머리글은 「여기 뭔가 빠졌나」로
+ * 읽힌다. 접수번호 칸 맨 앞에 두면 칸 폭이 고정이라 별이 세로로 저절로 줄을 맞춘다.
+ *
+ * 이 표에서 색을 쓰는 자리는 여기뿐이다. 스무 줄이 넘는 무채색 표에서 찍어 둔 개체를
+ * 찾아내는 게 별이 할 일인데, 무채색으로 두면 바로 옆 접수번호(`text-content` 굵게)와
+ * 같은 색이라 채워도 티가 안 난다 — 훑다가 걸리라고 만든 표식이 훑어서는 안 보였다.
+ *
+ * 하트가 아니라 별인 건 나머지 화면과 맞추기 위해서다 (`/auction` · `/` 의 관심 버튼도
+ * 별이다). 하트는 「좋아요」 로 읽혀서, 값을 재고 담아 두는 화면과는 결이 다르다.
+ */
+function FavoriteStar({
+  on,
+  listingNo,
+  onToggle,
+}: {
+  on: boolean;
+  listingNo: string;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={on}
+      aria-label={`${listingNo} 관심`}
+      title={on ? "관심에서 빼기" : "관심에 담기"}
+      /* 행을 누르면 개체 상세로 간다 · 별은 그 길을 타면 안 된다 */
+      onClick={(e) => {
+        e.stopPropagation();
+        onToggle();
+      }}
+      className={cn(
+        "inline-flex h-5 w-5 shrink-0 items-center justify-center rounded transition-colors",
+        "active:scale-[0.9]",
+        on
+          ? "text-fav"
+          : "text-content-ghost hover:bg-surface-accent hover:text-fav/70",
+      )}
+    >
+      <Star
+        className={cn("h-3.5 w-3.5", on && "fill-current")}
+        strokeWidth={2.2}
+        aria-hidden
+      />
+    </button>
   );
 }
 

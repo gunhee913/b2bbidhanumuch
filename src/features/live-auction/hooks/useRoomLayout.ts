@@ -60,16 +60,8 @@ interface RoomLayoutState {
   /** 같은 판을 또 누르면 원래대로 · 서로 배타적이라 한쪽을 켜면 다른 쪽은 꺼진다 */
   toggleFocus: (target: Exclude<RoomFocus, "none">) => void;
   setTableWidth: (px: number) => void;
-  /**
-   * 지금 너비에서 `delta` 만큼 · 방향키용.
-   * 누르는 족족 직전 값에서 더해야 한다 — 바깥에서 읽은 값으로 계산하면 연타·키 반복 때
-   * 같은 값을 여러 번 덮어써서 몇 칸을 눌러도 한 칸만 움직인다.
-   */
-  nudgeTableWidth: (delta: number, max: number) => void;
   resetTableWidth: () => void;
   setChartHeight: (px: number, max: number) => void;
-  /** 지금 높이에서 `delta` 만큼 · 방향키용 · 이유는 `nudgeTableWidth` 와 같다 */
-  nudgeChartHeight: (delta: number, max: number) => void;
   resetChartHeight: () => void;
   swapStackOrder: () => void;
   swapColumnOrder: () => void;
@@ -112,16 +104,8 @@ export const useRoomLayout = create<RoomLayoutState>()(
       toggleFocus: (target) =>
         set({ focus: get().focus === target ? "none" : target }),
       setTableWidth: (px) => set({ tableWidth: clampWidth(px) }),
-      nudgeTableWidth: (delta, max) =>
-        set((state) => ({
-          tableWidth: Math.min(max, clampWidth(state.tableWidth + delta)),
-        })),
       resetTableWidth: () => set({ tableWidth: TABLE_DEFAULT_WIDTH }),
       setChartHeight: (px, max) => set({ chartHeight: clampHeight(px, max) }),
-      nudgeChartHeight: (delta, max) =>
-        set((state) => ({
-          chartHeight: clampHeight(state.chartHeight + delta, max),
-        })),
       resetChartHeight: () => set({ chartHeight: CHART_DEFAULT_HEIGHT }),
       swapStackOrder: () =>
         set((state) => ({

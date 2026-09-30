@@ -41,12 +41,27 @@ export function RoomPicker<T>({
   placeholder,
   label,
   width = 340,
+  titleWidth,
+  badgeChars,
   hotkey,
 }: {
   /** 지금 고정된 축 이름 · 접수번호 또는 부위명 */
   title: string;
   /** 제목 옆 작은 숫자 · `2/15` 또는 건수 */
   badge?: string | null;
+  /**
+   * 제목 칸 바닥 너비(px) · 축을 넘겨도 양옆 화살표가 제자리에 있게 한다.
+   * 이름 길이가 들쭉날쭉한 축(부위)에만 준다. 접수번호처럼 자릿수가 늘 같으면
+   * 필요 없다. 바닥이지 천장이 아니라 더 긴 이름이 오면 잘리지 않고 늘어난다.
+   */
+  titleWidth?: number;
+  /**
+   * 뱃지가 가장 길 때의 글자 수 · `1/160` 에서 `160/160` 으로 바뀌면 그만큼 밀린다.
+   * tabular 숫자는 자릿수가 곧 너비라 `ch` 로 잡는다. Pretendard 는 tabular 숫자가
+   * `1ch`(기본 0 너비)보다 2% 남짓 넓어 자릿수당 0.1px 쯤 모자라지만, 눈에 닿는
+   * 차이가 아니고 `/` 가 든 형태는 빗금이 훨씬 좁아 오히려 남는다.
+   */
+  badgeChars?: number;
   items: T[];
   keyOf: (item: T) => string;
   isCurrent: (item: T) => boolean;
@@ -151,11 +166,17 @@ export function RoomPicker<T>({
         aria-label={label}
         className="-mx-2 flex items-center gap-2 rounded px-2 py-1 transition-colors hover:bg-surface-muted"
       >
-        <span className="whitespace-nowrap text-[22px] font-bold leading-none tabular-nums -tracking-[0.02em] text-content">
+        <span
+          style={{ minWidth: titleWidth }}
+          className="whitespace-nowrap text-center text-[22px] font-bold leading-none tabular-nums -tracking-[0.02em] text-content"
+        >
           {title}
         </span>
         {badge ? (
-          <span className="text-[12px] font-medium tabular-nums text-content-faint">
+          <span
+            style={{ minWidth: badgeChars ? `${badgeChars}ch` : undefined }}
+            className="text-left text-[12px] font-medium tabular-nums text-content-faint"
+          >
             {badge}
           </span>
         ) : null}

@@ -1,16 +1,8 @@
 "use client";
 
-import { useCallback } from "react";
 import { cn } from "@/lib/utils";
 import { usePaneResize } from "../hooks/usePaneResize";
-import {
-  TABLE_DEFAULT_WIDTH,
-  TABLE_MAX_WIDTH,
-  TABLE_MIN_WIDTH,
-} from "../hooks/useRoomLayout";
-
-/** 방향키 한 번에 옮기는 폭 · Shift 를 누르면 네 배 */
-const KEY_STEP = 16;
+import { TABLE_DEFAULT_WIDTH } from "../hooks/useRoomLayout";
 
 /**
  * 1열(사진·시세)과 2열(표) 사이 눈금.
@@ -26,23 +18,21 @@ const KEY_STEP = 16;
  * 창을 줄였을 때 합이 맞지 않는다. 표가 오른쪽이면 눈금을 오른쪽으로 밀 때 표가
  * 좁아지고, 왼쪽으로 옮겨 놓았으면 그 반대다 — 부호만 뒤집어 손이 「가까운 판을
  * 민다」로 읽히게 한다.
+ *
+ * 손으로만 잡는다. 예전에는 눈금에 포커스가 가고 방향키로도 폭이 움직였는데, 한 번
+ * 끌고 나면 포커스가 눈금에 남아 그 뒤로 누르는 ←/→ 가 개체 이동이 아니라 폭 조절로
+ * 갔다. 방향키는 이 방에서 개체를 넘기는 키다 — 눈금이 그걸 가져가면 안 된다.
  */
 export function RoomSplitter({
   tableWidth,
   tableOnLeft,
-  maxWidth,
   onResize,
-  onNudge,
   onReset,
 }: {
   tableWidth: number;
   /** 눈금 왼쪽에 표가 있으면 참 · 표를 1열 앞으로 옮겨 놓았을 때다 */
   tableOnLeft: boolean;
-  /** 지금 화면에서 실제로 허용되는 최대 · 사이드 도크를 펴면 이 값이 줄어든다 */
-  maxWidth: number;
   onResize: (px: number) => void;
-  /** 방향키용 · 지금 너비 기준 증감이라 연타해도 값이 밀리지 않는다 */
-  onNudge: (delta: number) => void;
   onReset: () => void;
 }) {
   const { dragging, handlers } = usePaneResize({
@@ -52,40 +42,18 @@ export function RoomSplitter({
     onResize,
   });
 
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLDivElement>) => {
-      const step = e.shiftKey ? KEY_STEP * 4 : KEY_STEP;
-      // 눈금을 왼쪽으로 옮기면 왼쪽 판이 줄고 오른쪽 판이 는다
-      const left = tableOnLeft ? -step : step;
-      if (e.key === "ArrowLeft") onNudge(left);
-      else if (e.key === "ArrowRight") onNudge(-left);
-      else if (e.key === "Home" || e.key === "Enter") onReset();
-      else return;
-      // 방향키는 방 전체에서 개체 이동이라 눈금을 잡은 동안에는 가로채야 한다
-      e.preventDefault();
-      e.stopPropagation();
-    },
-    [tableOnLeft, onNudge, onReset],
-  );
-
   return (
     <div
       role="separator"
       aria-orientation="vertical"
       aria-label="사진·시세와 표 사이 너비"
-      aria-valuenow={tableWidth}
-      aria-valuemin={TABLE_MIN_WIDTH}
-      aria-valuemax={Math.min(TABLE_MAX_WIDTH, maxWidth)}
-      tabIndex={0}
       title={`끌어서 너비 조절 · 두 번 누르면 ${TABLE_DEFAULT_WIDTH}px 로`}
       {...handlers}
       onDoubleClick={onReset}
-      onKeyDown={handleKeyDown}
       className={cn(
         "group relative cursor-col-resize touch-none select-none",
         // 틈은 8px 이지만 잡는 자리는 좌우로 4px 씩 넓힌다
         "before:absolute before:-inset-x-1 before:inset-y-0 before:content-['']",
-        "focus-visible:outline-none",
       )}
     >
       {/*
@@ -107,7 +75,7 @@ export function RoomSplitter({
           "transition-[background-color,opacity] duration-150",
           dragging
             ? "bg-content-soft"
-            : "bg-content-ghost opacity-70 group-hover:bg-content-faint group-hover:opacity-100 group-focus-visible:bg-content-faint group-focus-visible:opacity-100",
+            : "bg-content-ghost opacity-70 group-hover:bg-content-faint group-hover:opacity-100",
         )}
       />
     </div>

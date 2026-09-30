@@ -10,6 +10,7 @@ import { SURFACE_SHELL_CLASS } from "../constants/surface";
 import { LoginGateOverlay } from "./LoginGateOverlay";
 import { SUMMARY_PANEL_MIN_ROOM } from "./SheetSummaryPanel";
 import { useAuctionRoom } from "../hooks/useAuctionRoom";
+import { useAuctionFavorites } from "../hooks/useAuctionFavorites";
 import { HOUSE_QUERY_KEY, HOUSE_STORAGE_KEY } from "@/features/entry/constants";
 import { useCurrentHouse } from "@/features/entry/hooks/useCurrentHouse";
 import { listingDetailHref } from "../lib/listingHref";
@@ -120,6 +121,23 @@ export function LiveAuctionRoom() {
   const [gradeFilter, setGradeFilter] = useState("");
   const [companyFilter, setCompanyFilter] = useState("");
 
+  /*
+   * 관심은 딜러 단위로 공유된다 · 로그인 전에는 담을 곳이 없으니 로그인부터 받는다.
+   * 이 화면에서 찍는 건 개체(접수번호)뿐이지만, 사이드 메뉴의 부위 목록에서 빼는 것도
+   * 같은 손잡이를 탄다 — 그래서 접수번호가 아니라 그냥 `id` 를 받는다.
+   */
+  const favorites = useAuctionFavorites(listingDate);
+  const toggleFavorite = useCallback(
+    (id: string) => {
+      if (!dealerId) {
+        setLoginPromptOpen(true);
+        return;
+      }
+      favorites.toggle(id);
+    },
+    [dealerId, favorites, setLoginPromptOpen],
+  );
+
   /** 개체 상세로 · 상장표에서 왔다는 표식을 남겨 뒤로가기가 표로 돌아오게 한다 */
   const openListing = useCallback(
     (listingId: string, partNo?: number | null) => {
@@ -159,6 +177,8 @@ export function LiveAuctionRoom() {
         roundListingMap={roundData?.roundListingMap ?? {}}
         briefOnEnter
         onNavigateListing={(listingId) => openListing(listingId)}
+        favoriteIds={favorites.ids}
+        onToggleFavorite={toggleFavorite}
       />
 
       {/* 상장표 · 필터 · 표 · 요약이 칸막이 없는 한 섹션 */}
@@ -179,6 +199,8 @@ export function LiveAuctionRoom() {
             onCompanyChange={setCompanyFilter}
             companyOptions={companyOptions}
             canShowSummary={showSummary}
+            favoriteIds={favorites.ids}
+            onToggleFavorite={toggleFavorite}
           />
         </section>
       </div>

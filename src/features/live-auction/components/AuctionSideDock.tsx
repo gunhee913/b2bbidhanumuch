@@ -1,6 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type ComponentType } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ComponentType,
+  type ReactNode,
+} from "react";
 import Image from "next/image";
 import { formatDistanceToNowStrict } from "date-fns";
 import { ko } from "date-fns/locale";
@@ -9,6 +17,7 @@ import {
   ChevronsLeft,
   ChevronsRight,
   ClipboardList,
+  Star,
   History,
   ImageOff,
   Moon,
@@ -26,7 +35,10 @@ import { useDailyBriefing } from "../hooks/useDailyBriefing";
 import { useDeadlineTitle } from "../hooks/useDeadlineTitle";
 import { useMyBids } from "../hooks/useMyBids";
 import { useRoundPeek } from "../hooks/useRoundPeek";
+import { isDeadlineTier } from "../lib/deadline";
+import { usePaneResize } from "../hooks/usePaneResize";
 import {
+  FAV_SECTION_MIN_HEIGHT,
   SIDE_DOCK_WIDE_QUERY,
   useSideDock,
   type SideDockTab,
@@ -53,7 +65,11 @@ interface AuctionSideDockProps {
   roundListingMap: Record<string, number[]>;
   /** 들어오면 오늘의 상장 카드를 한 번 띄운다 · 상장표 화면에서만 */
   briefOnEnter?: boolean;
-  onNavigateListing: (listingId: string) => void;
+  /** `partNo` 를 주면 그 부위를 집어 놓고 연다 · 관심 부위 줄이 쓴다 */
+  onNavigateListing: (listingId: string, partNo?: number | null) => void;
+  /** 관심으로 찍은 것 · 개체는 접수번호, 부위는 UUID · 상장표·부위 표와 같은 목록을 본다 */
+  favoriteIds: ReadonlySet<string>;
+  onToggleFavorite: (id: string) => void;
 }
 
 /**
@@ -75,6 +91,8 @@ export function AuctionSideDock({
   roundListingMap,
   briefOnEnter,
   onNavigateListing,
+  favoriteIds,
+  onToggleFavorite,
 }: AuctionSideDockProps) {
   const open = useSideDock((s) => s.open);
   const tab = useSideDock((s) => s.tab);
@@ -171,6 +189,20 @@ export function AuctionSideDock({
         <div
           className={cn(
             "flex min-h-0 flex-1 flex-col",
+            tab !== "favorites" && "hidden",
+          )}
+        >
+          <FavoritesPanel
+            listings={listings}
+            favoriteIds={favoriteIds}
+            onToggleFavorite={onToggleFavorite}
+            onNavigateListing={onNavigateListing}
+          />
+        </div>
+
+        <div
+          className={cn(
+            "flex min-h-0 flex-1 flex-col",
             tab !== "recent" && "hidden",
           )}
         >
@@ -222,6 +254,12 @@ export function AuctionSideDock({
           listingDate={listingDate}
           active={open && tab === "myBids"}
           onClick={() => toggleTab("myBids")}
+        />
+        <RailItem
+          icon={Star}
+          label="관심"
+          active={open && tab === "favorites"}
+          onClick={() => toggleTab("favorites")}
         />
         <RailItem
           icon={History}
@@ -340,6 +378,8 @@ interface RailItemProps {
   onClick: () => void;
   badge?: number;
   labelClassName?: string;
+  /** 아이콘 상자를 덮어쓴다 · 마감 임박처럼 칸 전체가 말해야 할 때 (`cn` 이 뒤를 이긴다) */
+  iconClassName?: string;
   onMouseEnter?: () => void;
   onMouseLeave?: () => void;
 }
@@ -352,6 +392,7 @@ function RailItem({
   onClick,
   badge,
   labelClassName,
+  iconClassName,
   onMouseEnter,
   onMouseLeave,
 }: RailItemProps) {
@@ -370,6 +411,7 @@ function RailItem({
           active
             ? "bg-surface-strong text-content"
             : "text-content-soft group-hover:bg-surface-accent group-hover:text-content",
+          iconClassName,
         )}
       >
         <Icon className="h-[18px] w-[18px]" strokeWidth={1.9} />
@@ -392,7 +434,20 @@ function RailItem({
   );
 }
 
-/** 회차 · 진행 중이면 라벨 자리에 남은 시간 · 접혀 있어도 마감까지 얼마인지 보인다 */
+/**
+ * 회차 · 진행 중이면 라벨 자리에 남은 시간 · 접혀 있어도 마감까지 얼마인지 보인다.
+ *
+ * 세는 동안에는 이 칸이 레일에서 제일 또렷해야 한다. 접어 두면 화면에 남는 건 이 42px
+ * 뿐이고, 그때 알아야 하는 건 「몇 초 남았나」 하나다. 그런데 평소 라벨색(`content-faint`)을
+ * 그대로 쓰고 있어서, 정작 세는 동안이 일정·최근 본과 똑같이 흐렸다.
+ *
+ * 단계 색은 카드(`CountdownDigits`)가 정한 규칙을 그대로 따른다 — 주의·직전을 시세 빨강
+ * 하나로 묶고 그 전까지는 본문색. 여기서만 주황·장미로 갈라 놓았더니 같은 시간을 두 화면이
+ * 다른 색으로 말하고 있었다.
+ *
+ * 마지막 30초에는 글자만으로 부족해 아이콘 상자까지 물들이고 숨을 쉰다. 12px 글자 하나가
+ * 색을 바꾸는 것보다 32px 덩어리가 통째로 변하는 편이 곁눈으로 잡힌다.
+ */
 function RoundRailItem({
   phase,
   active,
@@ -407,6 +462,7 @@ function RoundRailItem({
   onMouseLeave: () => void;
 }) {
   const isLive = phase.kind === "live";
+  const urgent = isLive && isDeadlineTier(phase.tier);
   return (
     <RailItem
       icon={Timer}
@@ -416,9 +472,12 @@ function RoundRailItem({
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
       labelClassName={cn(
-        isLive && "font-semibold",
-        isLive && phase.tier === "warning" && "text-orange-500",
-        isLive && phase.tier === "critical" && "text-rose-500",
+        isLive && "text-[13px] font-bold",
+        isLive && (urgent ? "text-rise" : "text-content"),
+      )}
+      iconClassName={cn(
+        urgent && "bg-rise/10 text-rise",
+        isLive && phase.tier === "critical" && "animate-pulse-soft",
       )}
     />
   );
@@ -446,6 +505,311 @@ function MyBidsRailItem({
       onClick={onClick}
       badge={pendingCount}
     />
+  );
+}
+
+/**
+ * 관심 · 위 칸은 개체, 아래 칸은 부위. 사이 눈금을 끌어 몫을 나눈다.
+ *
+ * 둘을 한 목록에 섞지 않은 건 고르는 결이 다르기 때문이다. 개체는 「이 소를 볼까」 고,
+ * 부위는 「이 등심을 얼마에 넣을까」 다. 섞어 놓으면 접수번호 하나에 부위 여섯이 딸려
+ * 붙어 개체가 묻힌다. 나눠 두면 각자 제 순서(접수번호 순)로 줄을 서고, 어느 쪽을 더
+ * 보는 날이냐에 따라 눈금만 옮기면 된다.
+ *
+ * 목록은 딜러 단위로 공유되고 상장일이 바뀌면 그날 것만 남는다. 양쪽 다 오늘 상장에
+ * 실제로 있는 것만 걸러 쓴다 — 담아 둔 뒤 상장이 내려가면 열 곳이 없는 줄이 된다.
+ */
+function FavoritesPanel({
+  listings,
+  favoriteIds,
+  onToggleFavorite,
+  onNavigateListing,
+}: {
+  listings: LiveListing[];
+  favoriteIds: ReadonlySet<string>;
+  onToggleFavorite: (id: string) => void;
+  onNavigateListing: (listingId: string, partNo?: number | null) => void;
+}) {
+  const topHeight = useSideDock((s) => s.favTopHeight);
+  const setTopHeight = useSideDock((s) => s.setFavTopHeight);
+  const resetTopHeight = useSideDock((s) => s.resetFavTopHeight);
+  const splitRef = useRef<HTMLDivElement>(null);
+
+  /* 차례는 찍은 순서가 아니라 접수번호 순이다. 찍은 순서로 두면 같은 개체가 상장표에서는
+     위쪽, 여기서는 아래쪽에 있어 두 목록을 번갈아 볼 때 눈이 자꾸 길을 잃는다. */
+  const listingRows = useMemo(
+    () =>
+      listings
+        .filter((l) => favoriteIds.has(l.listingNo))
+        .sort((a, b) => a.listingNo.localeCompare(b.listingNo)),
+    [listings, favoriteIds],
+  );
+
+  const partRows = useMemo(
+    () =>
+      listings
+        .flatMap((listing) =>
+          listing.parts
+            .filter((part) => favoriteIds.has(part.id))
+            .map((part) => ({ listing, part })),
+        )
+        .sort(
+          (a, b) =>
+            a.listing.listingNo.localeCompare(b.listing.listingNo) ||
+            a.part.partNo - b.part.partNo,
+        ),
+    [listings, favoriteIds],
+  );
+
+  /* 끌어 온 px 를 그대로 믿지 않는다 · 아래 칸 몫은 지금 패널 높이를 재야 나온다 */
+  const resize = useCallback(
+    (px: number) => {
+      const total = splitRef.current?.clientHeight ?? 0;
+      const ceiling = total
+        ? total - FAV_SECTION_MIN_HEIGHT
+        : Number.POSITIVE_INFINITY;
+      setTopHeight(Math.min(px, ceiling));
+    },
+    [setTopHeight],
+  );
+
+  return (
+    <div ref={splitRef} className="flex min-h-0 flex-1 flex-col">
+      <section
+        /*
+         * 창을 줄이면 저장해 둔 px 가 패널보다 커질 수 있다. 그때 아래 칸이 0 이 되지
+         * 않게 CSS 가 먼저 막는다 — 다시 늘리면 원래 높이로 돌아온다.
+         */
+        style={{
+          height: topHeight,
+          maxHeight: `calc(100% - ${FAV_SECTION_MIN_HEIGHT}px)`,
+        }}
+        className="flex min-h-0 shrink-0 flex-col"
+      >
+        <FavoriteSectionHead label="개체" count={listingRows.length} unit="두" />
+        {listingRows.length === 0 ? (
+          <FavoriteEmpty text="상장표 접수번호 옆 별을 누르면 모여요" />
+        ) : (
+          <OverlayScroll autoHideDelay={0} className="min-h-0 flex-1">
+            <ul className="px-2 pb-1">
+              {listingRows.map((listing) => (
+                <li key={listing.id}>
+                  <FavoriteRow
+                    image={listing.images[0] ?? null}
+                    title={
+                      <>
+                        <span className="text-[13px] font-semibold tabular-nums text-content">
+                          {listing.listingNo}
+                        </span>
+                        <span className="text-[12px] font-medium text-content-soft">
+                          {formatGradeLabel(
+                            listing.grade,
+                            listing.marblingScore,
+                          )}
+                        </span>
+                      </>
+                    }
+                    subtitle={listing.companyName}
+                    onOpen={() => onNavigateListing(listing.id)}
+                    onRemove={() => onToggleFavorite(listing.listingNo)}
+                    removeLabel={`${listing.listingNo} 관심에서 빼기`}
+                  />
+                </li>
+              ))}
+            </ul>
+          </OverlayScroll>
+        )}
+      </section>
+
+      <FavoriteSplitHandle
+        height={topHeight}
+        onResize={resize}
+        onReset={resetTopHeight}
+      />
+
+      <section className="flex min-h-0 flex-1 flex-col">
+        <FavoriteSectionHead label="부위" count={partRows.length} unit="개" />
+        {partRows.length === 0 ? (
+          <FavoriteEmpty text="부위 표 맨 앞 별을 누르면 모여요" />
+        ) : (
+          <OverlayScroll autoHideDelay={0} className="min-h-0 flex-1">
+            <ul className="px-2 pb-1">
+              {partRows.map(({ listing, part }) => (
+                <li key={part.id}>
+                  <FavoriteRow
+                    image={listing.images[0] ?? null}
+                    title={
+                      <>
+                        <span className="truncate text-[13px] font-semibold text-content">
+                          {part.partName}
+                        </span>
+                        <span className="shrink-0 text-[12px] font-medium tabular-nums text-content-soft">
+                          {listing.listingNo}
+                        </span>
+                      </>
+                    }
+                    subtitle={[
+                      formatGradeLabel(listing.grade, listing.marblingScore),
+                      part.weight ? `${part.weight.toFixed(1)}kg` : null,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
+                    /* 개체까지만 가지 않고 그 부위를 집어 놓고 연다 */
+                    onOpen={() => onNavigateListing(listing.id, part.partNo)}
+                    onRemove={() => onToggleFavorite(part.id)}
+                    removeLabel={`${listing.listingNo} ${part.partName} 관심에서 빼기`}
+                  />
+                </li>
+              ))}
+            </ul>
+          </OverlayScroll>
+        )}
+      </section>
+    </div>
+  );
+}
+
+function FavoriteSectionHead({
+  label,
+  count,
+  unit,
+}: {
+  label: string;
+  count: number;
+  unit: string;
+}) {
+  return (
+    <header className="flex shrink-0 items-baseline justify-between gap-2 px-4 pb-1.5 pt-2.5">
+      <h2 className="text-[13px] font-bold text-content">{label}</h2>
+      {count > 0 ? (
+        <span className="text-[12px] font-medium tabular-nums text-content-faint">
+          {count}
+          {unit}
+        </span>
+      ) : null}
+    </header>
+  );
+}
+
+/** 빈 칸은 한 줄로만 · 두 칸이 높이를 나눠 쓰는 자리라 안내가 길면 목록보다 커진다 */
+function FavoriteEmpty({ text }: { text: string }) {
+  return (
+    <div className="flex min-h-0 flex-1 items-center justify-center px-5 text-center">
+      <p className="text-[12px] text-content-faint">{text}</p>
+    </div>
+  );
+}
+
+/** 관심 목록 한 줄 · 눌러서 개체로 가고, 오른쪽 별로 뺀다 (개체·부위가 같은 껍데기를 쓴다) */
+function FavoriteRow({
+  image,
+  title,
+  subtitle,
+  onOpen,
+  onRemove,
+  removeLabel,
+}: {
+  image: string | null;
+  title: ReactNode;
+  subtitle: string;
+  onOpen: () => void;
+  onRemove: () => void;
+  removeLabel: string;
+}) {
+  return (
+    <div className="group flex items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-surface-accent">
+      <button
+        type="button"
+        onClick={onOpen}
+        className="flex min-w-0 flex-1 items-center gap-3 text-left"
+      >
+        <span className="relative h-10 w-10 shrink-0 overflow-hidden rounded-md bg-surface-accent">
+          {image ? (
+            <Image
+              src={image}
+              alt=""
+              fill
+              sizes="40px"
+              className="object-cover"
+              unoptimized
+            />
+          ) : (
+            <ImageOff className="absolute inset-0 m-auto h-4 w-4 text-content-ghost" />
+          )}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="flex items-baseline gap-1.5">{title}</span>
+          <span className="mt-0.5 block truncate text-[12px] text-content-faint">
+            {subtitle}
+          </span>
+        </span>
+      </button>
+      {/* 담은 자리에서 바로 뺀다 · 빼러 표까지 돌아가게 하지 않는다 */}
+      <button
+        type="button"
+        onClick={onRemove}
+        aria-label={removeLabel}
+        title="관심에서 빼기"
+        className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-fav transition-colors hover:bg-surface-strong active:scale-[0.9]"
+      >
+        <Star className="h-4 w-4 fill-current" aria-hidden />
+      </button>
+    </div>
+  );
+}
+
+/**
+ * 개체와 부위 사이 눈금 · 방 안 눈금(`RoomStackSplitter`)과 같은 손놀림, 304px 판용.
+ *
+ * 저 둘과 달리 실선을 함께 둔다. 방에서는 판끼리 테두리가 있어 틈만으로 경계가 읽히지만
+ * 여기는 같은 바탕에 목록 두 개가 이어져 있어, 선이 없으면 끌 수 있다는 것 이전에
+ * 나뉘어 있다는 것부터 안 보인다.
+ */
+function FavoriteSplitHandle({
+  height,
+  onResize,
+  onReset,
+}: {
+  height: number;
+  onResize: (px: number) => void;
+  onReset: () => void;
+}) {
+  const { dragging, handlers } = usePaneResize({
+    size: height,
+    axis: "y",
+    direction: 1,
+    onResize,
+  });
+
+  return (
+    <div
+      role="separator"
+      aria-orientation="horizontal"
+      aria-label="개체와 부위 사이 높이"
+      title="끌어서 높이 조절 · 두 번 누르면 처음으로"
+      {...handlers}
+      onDoubleClick={onReset}
+      className={cn(
+        "group relative mx-3 h-2 shrink-0 cursor-row-resize touch-none select-none",
+        // 8px 틈이 그대로 손잡이다 · 잡는 자리만 위아래 3px 씩 넓힌다
+        "before:absolute before:-inset-y-[3px] before:inset-x-0 before:content-['']",
+      )}
+    >
+      <span
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-line-soft"
+      />
+      <span
+        aria-hidden
+        className={cn(
+          "pointer-events-none absolute left-1/2 top-1/2 h-[3px] w-9 -translate-x-1/2 -translate-y-1/2 rounded-full",
+          "transition-[background-color,opacity] duration-150",
+          dragging
+            ? "bg-content-soft"
+            : "bg-content-ghost opacity-70 group-hover:bg-content-faint group-hover:opacity-100",
+        )}
+      />
+    </div>
   );
 }
 

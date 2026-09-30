@@ -90,8 +90,11 @@ export function SheetFilterBar({
  * 1++(9)와 1+를 오가며 견주는 동안 드롭다운은 매번 두 번 누르게 만든다.
  *
  * 라벨을 따로 적지 않는다 · `1++(9)` 는 그 자체로 등급 말고 달리 읽히지 않는다.
+ *
+ * 부위별 방(`AuctionDetailRoom`)도 같은 탭을 쓴다 — 같은 일을 하는 줄이 화면마다 다르게
+ * 생기면 안 되고, 등급 목록은 한 군데서만 늘어나야 한다.
  */
-function GradeFilterTabs({
+export function GradeFilterTabs({
   value,
   onChange,
 }: {

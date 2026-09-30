@@ -137,19 +137,6 @@ export function usePaneReorder<P extends string>({
     [onSwap],
   );
 
-  const handleKeyDown = useCallback(
-    (pane: P) => (e: React.KeyboardEvent<HTMLElement>) => {
-      const toHead = axis === "x" ? "ArrowLeft" : "ArrowUp";
-      const toTail = axis === "x" ? "ArrowRight" : "ArrowDown";
-      if (e.key !== toHead && e.key !== toTail) return;
-      e.preventDefault();
-      // 방향키는 방 전체에서 개체 이동이라 손잡이를 쥔 동안에는 가로채야 한다
-      e.stopPropagation();
-      if ((e.key === toHead) !== (order[0] === pane)) onSwap();
-    },
-    [axis, order, onSwap],
-  );
-
   /** 끄는 동안 자리가 바뀐 모습을 미리 보여 준다 */
   const willSwap = drag != null && offset * drag.toward > drag.threshold;
 
@@ -178,7 +165,6 @@ export function usePaneReorder<P extends string>({
       onPointerMove: handlePointerMove,
       onPointerUp: endDrag,
       onPointerCancel: endDrag,
-      onKeyDown: handleKeyDown(pane),
     }),
   };
 }

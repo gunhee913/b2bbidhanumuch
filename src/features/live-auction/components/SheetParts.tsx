@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import Image from "next/image";
-import { ImageOff, Loader2, RotateCcw } from "lucide-react";
+import { ImageOff, Loader2, RotateCcw, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   SHEET_CELL,
@@ -36,13 +36,25 @@ export type SheetBidding = ReturnType<typeof useSheetBidding>;
 
 /**
  * 2열부터 끝까지의 폭 · 「실측 내용 폭 + 좌우 여백 8px」.
- *   표 테두리·결과 구분선에 닿는 열은 바깥쪽 여백이 12px (`PART_GUTTERS`) 이라 그만큼 넓다.
+ *   결과 구분선·표 오른쪽 테두리에 닿는 열은 바깥쪽 여백이 12px (`PART_GUTTERS`) 이라 그만큼 넓다.
  * 비율로 환산해 쓰므로 표가 넓어져도 한 열만 벌어지지 않는다
  * (한 열만 auto 로 두면 그 열 혼자 늘어나 부위↔중량 사이가 뜬다).
  *
  * 1열 폭은 축이 정한다(`SheetRowAxis.headWidth`) — 개체축 행은 사진을 물고 있어 더 넓다.
  */
-const TRAILING_COLUMN_WIDTHS = [48, 65, 65, 76, 37, 58, 72, 76] as const;
+const TRAILING_COLUMN_WIDTHS = [48, 65, 65, 76, 37, 44, 64, 76] as const;
+/**
+ * 1열 맨 앞 관심 별이 먹는 폭 · 별(18) + 뒤 간격(8) − 테두리 여백에서 돌려받은(4).
+ *
+ * 이만큼을 **낙찰자와 낙찰가에서 꿔 왔다**(58→44 · 72→64). 표 전체 합을 그대로 두려고
+ * 그랬다 — `table-fixed` 라 합이 늘면 나머지가 전부 같은 비율로 줄고, 그러면 폭이 제일
+ * 빠듯한 「내 입찰가」 칸(입력칸 `min-w-[58px]`)이 표를 최소 폭으로 좁혔을 때 숫자를 문다.
+ * 돈 넣는 칸이 별 하나 때문에 좁아지면 안 된다.
+ *
+ * 꿔 준 두 열은 여유가 있던 쪽이다. 낙찰자는 매참인 번호 네댓 자를 11px 로 찍고, 낙찰가는
+ * kg 단가라 여섯 자를 넘지 않는다. 둘 다 마감 뒤에만 차는 열이라 입찰 중에는 아예 비어 있다.
+ */
+const FAV_SLOT_WIDTH = 22;
 const PART_COLUMN_COUNT = TRAILING_COLUMN_WIDTHS.length + 1;
 /** 결과 열 묶음이 시작하는 열 인덱스 · 앞 5열은 대상·내 입찰 */
 const RESULT_COLUMN_START = 5;
@@ -65,9 +77,14 @@ const PART_ROW_HEIGHT = "h-[41px]";
 /**
  * 세로선에 닿는 쪽만 여백을 넓힌다 · 표 좌우 테두리와 결과 구분선.
  * `nth-child(5)` = 결과 구분선 바로 왼쪽 열(내 경락대금) · `RESULT_COLUMN_START` 와 함께 움직인다.
+ *
+ * 왼쪽만 12px 이 아니라 8px 이다. 이 여백은 글자가 테두리에 닿지 말라고 둔 것인데, 1열
+ * 맨 앞에 온 건 글자가 아니라 관심 별이고 아이콘은 제 상자 안에 이미 여백을 물고 있다.
+ * 12px 을 그대로 두면 별 왼쪽만 넓고 오른쪽(사진·부위명과의 사이)은 좁아, 별이 제 칸에
+ * 선 게 아니라 사진에 붙은 장식처럼 보였다. 여기서 던 4px 은 별 뒤 간격이 받는다.
  */
 const PART_GUTTERS = cn(
-  "[&_td:first-child]:pl-3 [&_th:first-child]:pl-3",
+  "[&_td:first-child]:pl-2 [&_th:first-child]:pl-2",
   "[&_td:nth-child(5)]:pr-3 [&_th:nth-child(5)]:pr-3",
   "[&_td:last-child]:pr-3 [&_th:last-child]:pr-3",
 );
@@ -104,7 +121,7 @@ export interface SheetRowAxis {
 export const PART_ROW_AXIS: SheetRowAxis = {
   headLabel: "부위",
   pivotLabel: "개체",
-  headWidth: 93,
+  headWidth: 93 + FAV_SLOT_WIDTH,
   headTitle: ({ listing, part }) =>
     `${part.partName} · ${displayPartNo(listing, part)}`,
   renderHead: ({ listing, part }) => (
@@ -120,14 +137,20 @@ export const PART_ROW_AXIS: SheetRowAxis = {
 };
 
 /**
- * 부위 고정 · 행 = 개체 · 사진 옆에 접수번호 + 등급·업체.
- * 같은 개체의 좌/우가 나란히 오므로 접수번호 옆에 쪽을 붙인다 — 안 붙이면
- * 똑같은 번호가 두 줄 연달아 놓여 어느 쪽에 값을 넣는지 알 수 없다.
+ * 부위 고정 · 행 = 개체 · 사진 옆에 등급·업체(위) + 접수번호(아래).
+ *
+ * 부위가 고정이라 이 표에서 값을 가르는 건 고기의 질과 파는 곳이다. 접수번호는 어느
+ * 줄인지 짚을 때만 쓰는 이름표라, 굵게 위에 두면 매번 등급을 찾아 한 줄 내려다봐야 한다.
+ * 개체축(`PART_ROW_AXIS`)이 부위명을 위에 두는 것과 같은 규칙이다 — 위에는 고를 때 보는
+ * 것, 아래에는 고르고 나서 확인하는 것.
+ *
+ * 좌/우는 접수번호 옆에 붙여 내린다. 같은 개체의 좌/우가 나란히 오는데 이때 윗줄
+ * (등급·업체)이 완전히 같아서, 두 줄을 가르는 건 아랫줄 하나뿐이다.
  */
 export const LISTING_ROW_AXIS: SheetRowAxis = {
   headLabel: "개체",
   pivotLabel: "부위",
-  headWidth: 134,
+  headWidth: 134 + FAV_SLOT_WIDTH,
   headTitle: ({ listing, part }) =>
     [part.partName, listing.listingNo, listing.companyName]
       .filter(Boolean)
@@ -153,17 +176,24 @@ export const LISTING_ROW_AXIS: SheetRowAxis = {
         )}
       </span>
       <span className="block min-w-0">
-        <span className="flex items-baseline gap-1 truncate text-[12px] font-semibold leading-[14px] text-content">
-          {listing.listingNo}
-          {extractSide(part.partName) ? (
-            <span className="shrink-0 text-[10px] font-bold text-content-soft">
-              {extractSide(part.partName)}
+        <span className="flex items-baseline gap-1 text-[12px] leading-[14px]">
+          <span className="shrink-0 font-bold text-content">
+            {formatGradeLabel(listing.grade, listing.marblingScore)}
+          </span>
+          {/* 업체명은 이 칸에서 유일하게 잘려도 되는 것 · 등급은 잘리면 다른 등급이 된다 */}
+          {listing.companyName ? (
+            <span className="min-w-0 truncate text-[11px] font-medium text-content-soft">
+              {listing.companyName}
             </span>
           ) : null}
         </span>
-        <span className="block truncate text-[10px] leading-[11px] -tracking-[0.02em] text-content-faint">
-          {formatGradeLabel(listing.grade, listing.marblingScore)}
-          {listing.companyName ? ` · ${listing.companyName}` : ""}
+        <span className="flex items-baseline gap-1 text-[10px] leading-[11px] -tracking-[0.02em] text-content-faint">
+          <span className="truncate tabular-nums">{listing.listingNo}</span>
+          {extractSide(part.partName) ? (
+            <span className="shrink-0 font-bold text-content-soft">
+              {extractSide(part.partName)}
+            </span>
+          ) : null}
         </span>
       </span>
     </span>
@@ -195,6 +225,9 @@ export interface SheetPartGridProps {
   isBlocked: (entry: SheetBidEntry) => boolean;
   /** 결과 열(결과·낙찰자·낙찰가·경락대금) · null 이면 아직 결과를 말할 단계가 아니다 */
   getPartResult: (listing: LiveListing, part: LivePart) => PartResult | null;
+  /** 관심으로 찍은 것 · 부위는 UUID 로 찍어 본다 (개체 접수번호가 섞여 있어도 무해하다) */
+  favoriteIds: ReadonlySet<string>;
+  onToggleFavorite: (partId: string) => void;
 }
 
 /**
@@ -219,6 +252,8 @@ export function SheetPartGrid({
   bidding,
   isBlocked,
   getPartResult,
+  favoriteIds,
+  onToggleFavorite,
 }: SheetPartGridProps) {
   const chunks = splitIntoColumns(entries, columns);
   const rowsPerColumn = chunks[0]?.length ?? 0;
@@ -286,6 +321,8 @@ export function SheetPartGrid({
                     bidding={bidding}
                     disabled={isBlocked(entry)}
                     result={getPartResult(entry.listing, entry.part)}
+                    favorited={favoriteIds.has(entry.part.id)}
+                    onToggleFavorite={() => onToggleFavorite(entry.part.id)}
                   />
                 ))}
                 {Array.from({ length: rowsPerColumn - chunk.length }).map(
@@ -331,6 +368,8 @@ function SheetPartRow({
   bidding,
   disabled,
   result,
+  favorited,
+  onToggleFavorite,
 }: {
   entry: SheetBidEntry;
   axis: SheetRowAxis;
@@ -341,6 +380,8 @@ function SheetPartRow({
   bidding: SheetBidding;
   disabled: boolean;
   result: PartResult | null;
+  favorited: boolean;
+  onToggleFavorite: () => void;
 }) {
   const { listing, part } = entry;
   const myBid = dealerId
@@ -368,7 +409,15 @@ function SheetPartRow({
       )}
     >
       <td title={axis.headTitle(entry)} className={cn(PART_CELL, "text-left")}>
-        {axis.renderHead(entry)}
+        {/* 별 좌우 여백을 같게 · 왼쪽 8(`PART_GUTTERS`) + 오른쪽 8 이라 가운데 선다 */}
+        <span className="flex items-center gap-2">
+          <PartFavoriteStar
+            on={favorited}
+            label={axis.headTitle(entry)}
+            onToggle={onToggleFavorite}
+          />
+          <span className="min-w-0 flex-1">{axis.renderHead(entry)}</span>
+        </span>
       </td>
       <td className={cn(PART_CELL, "text-right text-content-mid")}>
         {part.weight && part.weight > 0 ? (
@@ -475,6 +524,52 @@ function SheetPartRow({
  * 내 결과만 색을 갖는다 · 내 낙찰 파랑 · 미낙찰 빨강 · 남의 결과는 무채색 (`CHIP_TONE` 참고).
  * 숫자는 굵기·톤을 한 단계 낮춘다 · 굵은 숫자는 입찰 구역의 「내 입찰가」 하나만 남겨 시선이 먼저 간다.
  */
+/**
+ * 부위 관심 별 · 1열 맨 앞.
+ *
+ * 상장표(`EntitySheetTable`)의 별과 같은 자리·같은 색이다. 개체를 찍던 손이 부위에서도
+ * 같은 데를 찾게 하려는 것이라, 크기만 이 표의 행 높이(41px)에 맞춰 한 치수 줄였다.
+ *
+ * 행을 누르면 그 부위가 선택되고 입찰칸으로 초점이 간다. 별은 그 길을 타면 안 된다 —
+ * 담아 두려고 눌렀는데 입력칸이 열리면 다음 키 입력이 엉뚱한 데로 들어간다.
+ */
+function PartFavoriteStar({
+  on,
+  label,
+  onToggle,
+}: {
+  on: boolean;
+  /** 부위명 · 상장번호 · 읽어 주는 이름에 그대로 쓴다 */
+  label: string;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={on}
+      aria-label={`${label} 관심`}
+      title={on ? "관심에서 빼기" : "관심에 담기"}
+      onClick={(e) => {
+        e.stopPropagation();
+        onToggle();
+      }}
+      className={cn(
+        "inline-flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded transition-colors",
+        "active:scale-[0.9]",
+        on
+          ? "text-fav"
+          : "text-content-ghost hover:bg-surface-accent hover:text-fav/70",
+      )}
+    >
+      <Star
+        className={cn("h-3.5 w-3.5", on && "fill-current")}
+        strokeWidth={2.2}
+        aria-hidden
+      />
+    </button>
+  );
+}
+
 function ResultCells({
   result,
   hasMyBid,

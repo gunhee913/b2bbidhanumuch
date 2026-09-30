@@ -3,7 +3,12 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
-export type SideDockTab = "round" | "schedule" | "myBids" | "recent";
+export type SideDockTab =
+  | "round"
+  | "schedule"
+  | "myBids"
+  | "favorites"
+  | "recent";
 
 export interface RecentListing {
   listingId: string;
@@ -15,6 +20,14 @@ export interface RecentListing {
 /** 최근 본 개체 보관 한도 · 하루 상장이 200두 안팎이라 한 화면 스크롤로 훑을 만큼만 */
 const RECENT_LIMIT = 30;
 
+/**
+ * 관심 패널 두 칸(개체·부위)이 각각 지켜야 할 최소 높이 · 제목줄 + 한 줄.
+ * 한 칸을 끝까지 접을 수 있게 두면 나머지 한 칸만 남아, 둘로 나눈 뜻이 사라진다.
+ */
+export const FAV_SECTION_MIN_HEIGHT = 96;
+/** 위 칸 기본 높이 · 제목줄 + 개체 네 줄 · 나머지는 부위가 가져간다 */
+export const FAV_TOP_DEFAULT_HEIGHT = 268;
+
 interface SideDockState {
   open: boolean;
   tab: SideDockTab;
@@ -23,6 +36,13 @@ interface SideDockState {
   /** 내 입찰 탭을 특정 회차로 걸러 열 때 · 회차 행·마감 토스트에서 들어온다 */
   myBidsRoundId: string | null;
   recent: RecentListing[];
+  /**
+   * 관심 패널 위 칸(개체) 높이 px · 아래 칸(부위)은 남는 만큼 가져간다.
+   *
+   * 크기를 쥐는 쪽을 하나로 정해 둬야 창 높이가 바뀔 때 합이 어긋나지 않는다 —
+   * 방 안 눈금이 시세 높이만 쥐는 것과 같은 이유다.
+   */
+  favTopHeight: number;
   /** 아이콘 클릭 · 이미 열린 그 탭이면 접고, 아니면 그 탭으로 편다 */
   toggleTab: (tab: SideDockTab) => void;
   /** 토글 없이 항상 편다 · 토스트 액션처럼 "보여 줘" 가 분명한 경로 */
@@ -31,6 +51,9 @@ interface SideDockState {
   applyDefaultOpen: (open: boolean) => void;
   pushRecent: (entry: Omit<RecentListing, "viewedAt">) => void;
   clearRecent: () => void;
+  /** 위 칸 높이 · 아래 칸 몫은 끄는 쪽에서 재서 넘긴다 */
+  setFavTopHeight: (px: number) => void;
+  resetFavTopHeight: () => void;
 }
 
 /**
@@ -48,6 +71,7 @@ export const useSideDock = create<SideDockState>()(
       hasChosen: false,
       myBidsRoundId: null,
       recent: [],
+      favTopHeight: FAV_TOP_DEFAULT_HEIGHT,
       toggleTab: (tab) => {
         const { open, tab: current } = get();
         if (open && current === tab) {
@@ -83,16 +107,20 @@ export const useSideDock = create<SideDockState>()(
         });
       },
       clearRecent: () => set({ recent: [] }),
+      setFavTopHeight: (px) =>
+        set({ favTopHeight: Math.max(FAV_SECTION_MIN_HEIGHT, Math.round(px)) }),
+      resetFavTopHeight: () => set({ favTopHeight: FAV_TOP_DEFAULT_HEIGHT }),
     }),
     {
       name: "live-auction-side-dock",
       storage: createJSONStorage(() => localStorage),
       skipHydration: true,
-      partialize: ({ open, tab, hasChosen, recent }) => ({
+      partialize: ({ open, tab, hasChosen, recent, favTopHeight }) => ({
         open,
         tab,
         hasChosen,
         recent,
+        favTopHeight,
       }),
     },
   ),

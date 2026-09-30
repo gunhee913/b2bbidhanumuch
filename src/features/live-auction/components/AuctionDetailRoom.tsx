@@ -18,12 +18,14 @@ import {
   ImageOff,
   Maximize2,
   Minimize2,
+  RotateCcw,
   Square,
   SquareCheckBig,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { LiveListing } from "../api";
 import { useAuctionRoom } from "../hooks/useAuctionRoom";
+import { useAuctionFavorites } from "../hooks/useAuctionFavorites";
 import { useSideDock } from "../hooks/useSideDock";
 import {
   useRoomLayout,
@@ -38,9 +40,10 @@ import {
 } from "../hooks/useRoomLayout";
 import { usePaneReorder } from "../hooks/usePaneReorder";
 import { SURFACE_SHELL_CLASS } from "../constants/surface";
-import { formatGradeLabel } from "../lib/grade";
+import { formatGradeLabel, matchesGradeFilter } from "../lib/grade";
+import { CompactFilterPill } from "./CompactFilterPill";
+import { GradeFilterTabs } from "./SheetFilterBar";
 import {
-  extractSide,
   groupPartsByName,
   toPartGroupName,
   type PartGroupEntry,
@@ -91,6 +94,15 @@ const SPLITTER_WIDTH = 8;
 
 /** 사진과 시세 사이 틈 · 이 자리를 눈금(`RoomStackSplitter`)이 그대로 쓴다 */
 const STACK_SPLITTER_HEIGHT = 8;
+
+/**
+ * 부위 이름 칸 바닥 너비 · 부위를 넘겨도 화살표가 제자리에 있게 한다.
+ *
+ * 이름이 「족」 한 글자부터 「토시·제비」 다섯 글자까지라, 그냥 두면 넘길 때마다
+ * 오른쪽 화살표와 그 뒤 품질정보가 통째로 61px 씩 밀린다. 2026-09-30 부위 20종을
+ * Pretendard 22px Bold 로 실측한 최댓값(80.1px)을 올림한 값이다.
+ */
+const PART_TITLE_WIDTH = 81;
 
 /** 1열 최소 폭 · 사진이 이보다 좁아지면 볼 값어치가 없다 */
 const PHOTO_COLUMN_MIN_WIDTH = 460;
@@ -237,17 +249,16 @@ function HideSettledToggle({
   );
 }
 
-/** 접수번호(+좌/우) 한 줄 · 부위축 스테퍼가 가리키는 개체를 적는다 */
-function stepperIdentity(entry: SheetBidEntry | null): string | null {
-  if (!entry) return null;
-  const side = extractSide(entry.part.partName);
-  return side ? `${entry.listing.listingNo} ${side}` : entry.listing.listingNo;
-}
-
 /**
  * 크게 보기 토글 · 사진과 시세 카드가 각자 제 우측 위에 하나씩 단다.
  *
  * 켠 판만 남고 다른 판은 자리를 비우므로, 남은 판의 버튼이 곧 되돌리기 버튼이 된다.
+ *
+ * 평소에는 면이 없고 글자색만 있다 · 손이 닿을 때와 켜져 있을 때만 면이 든다.
+ * 바로 옆 `PaneGripHandle` 과 같은 규칙이라 둘이 한 벌로 읽힌다 — 사진 쪽만 늘 면을
+ * 깔고 있었더니 손잡이는 떠 있고 확대만 눌려 있는 것처럼 보였고, 정작 켜도 달라지는
+ * 게 없어 지금 크게 보는 중인지는 아이콘 모양으로만 알 수 있었다.
+ *
  * `tone` 은 얹히는 바탕 · 사진은 먹색 위, 시세는 카드 위라 같은 회색을 쓸 수 없다.
  */
 function FocusButton({
@@ -272,7 +283,9 @@ function FocusButton({
       className={cn(
         "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-[3px] transition-colors",
         tone === "dark"
-          ? "bg-white/10 text-white/70 backdrop-blur-md hover:bg-white/20 hover:text-white"
+          ? on
+            ? "bg-white/15 text-white ring-1 ring-white/25"
+            : "text-white/45 hover:bg-white/15 hover:text-white/85"
           : on
             ? "bg-surface text-content ring-1 ring-line"
             : "text-content-soft hover:bg-surface-strong hover:text-content",
@@ -370,8 +383,8 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
   const hideSettled = useRoomLayout((state) => state.hideSettled);
   const toggleHideSettled = useRoomLayout((state) => state.toggleHideSettled);
 
-  /** 표의 행 · 개체축이면 부위들, 부위축이면 개체들 */
-  const allRows = useMemo<SheetBidEntry[]>(() => {
+  /** 축이 주는 날것의 행 · 개체축이면 부위들, 부위축이면 개체들 */
+  const groupRows = useMemo<SheetBidEntry[]>(() => {
     if (axis.kind === "listing") {
       if (!axisListing) return [];
       return [...axisListing.parts]
@@ -383,6 +396,50 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
       part,
     }));
   }, [axis.kind, axisListing, axisGroup]);
+
+  /*
+   * 등급·업체 거르개 · 부위축에서만 쓴다.
+   *
+   * 개체축은 한 마리의 부위들이라 등급도 업체도 행마다 같다 — 걸러 봐야 전부 남거나
+   * 전부 사라진다. 그래서 개체축에서는 아예 적용하지 않는다. 축을 오갈 때 값을 지우지
+   * 않는 건, 부위를 ←/→ 로 넘겨 가며 같은 등급만 훑는 게 이 화면의 주된 쓰임이기 때문이다.
+   */
+  const [gradeFilter, setGradeFilter] = useState("");
+  const [companyFilter, setCompanyFilter] = useState("");
+  const filterable = axis.kind === "part";
+  const filtered = filterable && (!!gradeFilter || !!companyFilter);
+  const resetFilters = useCallback(() => {
+    setGradeFilter("");
+    setCompanyFilter("");
+  }, []);
+  /** 이 축에서 한 행이 무엇인가 · 머리글·빈 화면이 같은 말을 쓰게 한다 */
+  const rowNoun = axis.kind === "listing" ? "부위" : "개체";
+
+  /** 업체 후보는 거르기 전 목록에서 뽑는다 · 고를 때마다 후보가 줄면 되돌릴 길이 막힌다 */
+  const companyOptions = useMemo(() => {
+    const set = new Set<string>();
+    groupRows.forEach(({ listing }) => {
+      if (listing.companyName) set.add(listing.companyName);
+    });
+    return Array.from(set).sort();
+  }, [groupRows]);
+
+  /*
+   * 거른 목록이 곧 이 화면의 「전부」다 — 행 수 · 개체 수 · 소계 · 일괄 입찰이 모두
+   * 여기서 나온다. 1++(9)만 보고 있는데 소계가 걸러지기 전 스무 마리를 말하면,
+   * 그 숫자를 믿고 일괄 입찰을 누르는 사람이 생긴다.
+   */
+  const allRows = useMemo<SheetBidEntry[]>(() => {
+    if (!filterable || (!gradeFilter && !companyFilter)) return groupRows;
+    return groupRows.filter(
+      ({ listing }) =>
+        matchesGradeFilter(
+          gradeFilter,
+          listing.grade,
+          listing.marblingScore,
+        ) && (!companyFilter || listing.companyName === companyFilter),
+    );
+  }, [groupRows, filterable, gradeFilter, companyFilter]);
 
   /*
    * 표·바닥글·←/→ 이동이 모두 이 목록을 쓴다. 감춘 행으로는 넘어가지지 않아야
@@ -448,12 +505,17 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
 
   /* ── 이전/다음 고정축 ─────────────────────────────────── */
 
+  /** `partNo` 를 주면 그 부위를 집어 놓고 연다 · 관심 부위에서 들어올 때 */
   const goToListing = useCallback(
-    (target: LiveListing | undefined) => {
+    (target: LiveListing | undefined, partNo?: number | null) => {
       if (!target) return;
-      router.replace(listingDetailHref(target.listingNo, { houseKey }), {
-        scroll: false,
-      });
+      router.replace(
+        listingDetailHref(target.listingNo, {
+          houseKey,
+          part: partNo != null ? String(partNo).padStart(2, "0") : null,
+        }),
+        { scroll: false },
+      );
     },
     [router, houseKey],
   );
@@ -543,9 +605,6 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       const el = document.activeElement;
-      // 눈금을 잡고 있으면 방향키는 너비 조절이다 (`RoomSplitter` 가 직접 받는다)
-      if (el instanceof HTMLElement && el.getAttribute("role") === "separator")
-        return;
       const typing =
         el instanceof HTMLElement &&
         (el.tagName === "INPUT" ||
@@ -640,11 +699,9 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
   const toggleFocus = useRoomLayout((state) => state.toggleFocus);
   const storedTableWidth = useRoomLayout((state) => state.tableWidth);
   const setTableWidth = useRoomLayout((state) => state.setTableWidth);
-  const nudgeTableWidth = useRoomLayout((state) => state.nudgeTableWidth);
   const resetTableWidth = useRoomLayout((state) => state.resetTableWidth);
   const storedChartHeight = useRoomLayout((state) => state.chartHeight);
   const setChartHeight = useRoomLayout((state) => state.setChartHeight);
-  const nudgeChartHeight = useRoomLayout((state) => state.nudgeChartHeight);
   const resetChartHeight = useRoomLayout((state) => state.resetChartHeight);
   const stackOrder = useRoomLayout((state) => state.stackOrder);
   const columnOrder = useRoomLayout((state) => state.columnOrder);
@@ -724,6 +781,22 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
     setMediaIdx(0);
   }, [focusListingId]);
 
+  /*
+   * 관심 · 상장표와 같은 목록을 본다 · 담을 곳이 없으면 로그인부터 받는다.
+   * 개체는 접수번호, 부위는 UUID 로 들어온다 — 여기서는 갈라 볼 일 없이 그대로 넘긴다.
+   */
+  const favorites = useAuctionFavorites(listingDate);
+  const toggleFavorite = useCallback(
+    (id: string) => {
+      if (!dealerId) {
+        setLoginPromptOpen(true);
+        return;
+      }
+      favorites.toggle(id);
+    },
+    [dealerId, favorites, setLoginPromptOpen],
+  );
+
   const sideDock = (
     <AuctionSideDock
       currentRound={currentRound}
@@ -735,7 +808,14 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
       dealerId={dealerId}
       listings={listings}
       roundListingMap={roundData?.roundListingMap ?? {}}
-      onNavigateListing={(id) => goToListing(listings.find((l) => l.id === id))}
+      onNavigateListing={(id, partNo) =>
+        goToListing(
+          listings.find((l) => l.id === id),
+          partNo,
+        )
+      }
+      favoriteIds={favorites.ids}
+      onToggleFavorite={toggleFavorite}
     />
   );
 
@@ -754,10 +834,19 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
     () => new Set(rows.map((r) => r.listing.id)).size,
     [rows],
   );
-  const allHeadCount = useMemo(
-    () => new Set(allRows.map((r) => r.listing.id)).size,
-    [allRows],
+  /**
+   * 거르기 전 개체 수 · 머리글 분모.
+   *
+   * 감추기와 거르개 둘 다 표를 줄이는데, 분모가 둘 중 하나만 되돌린 수면 「4/6」 처럼
+   * 아무도 모르는 숫자가 나온다. 분모는 언제나 이 부위(개체)에 원래 있던 전부다.
+   */
+  const groupHeadCount = useMemo(
+    () => new Set(groupRows.map((r) => r.listing.id)).size,
+    [groupRows],
   );
+  const shownCount = axis.kind === "listing" ? rows.length : headCount;
+  const totalCount =
+    axis.kind === "listing" ? groupRows.length : groupHeadCount;
   const blockReasons = useMemo(
     () => rows.map((r) => getBlockReason(r.listing)),
     [rows, getBlockReason],
@@ -766,8 +855,13 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
   const allSettled =
     summary.total > 0 && summary.settledCount === summary.total;
 
+  /*
+   * 「찾을 수 없습니다」 는 상장에 정말 없을 때만이다 · 거르기 전 목록(`groupRows`)으로 판단한다.
+   * 걸러서 0이 된 것뿐인데 이 화면이 뜨면, 등급 하나 눌렀다가 방이 통째로 사라진 것처럼
+   * 보이고 거르개조차 같이 없어져 되돌릴 길이 막힌다 — 그건 표 안 빈 화면이 맡는다.
+   */
   const missing = axis.kind === "listing" ? !axisListing : !axisGroup;
-  if (missing || allRows.length === 0 || !focusListing) {
+  if (missing || groupRows.length === 0 || !focusListing) {
     return (
       <>
         {sideDock}
@@ -923,9 +1017,7 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
             key="stack-splitter"
             chartHeight={chartHeight}
             chartBelow={stackOrder[0] === "photo"}
-            maxHeight={maxChartHeight}
             onResize={(px) => setChartHeight(px, maxChartHeight)}
-            onNudge={(delta) => nudgeChartHeight(delta, maxChartHeight)}
             onReset={resetChartHeight}
           />
         ) : null,
@@ -938,7 +1030,7 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
     <section
       key="table"
       ref={column.registerPane("table")}
-      aria-label={axis.kind === "listing" ? "부위" : "개체"}
+      aria-label={rowNoun}
       style={column.paneStyle("table")}
       className={cn(
         "flex min-h-0 min-w-0 flex-col",
@@ -950,24 +1042,53 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
           "transition-transform duration-200",
       )}
     >
-      <header className="flex shrink-0 items-center justify-between gap-2 border-b border-line-soft px-4 py-2.5">
+      <header className="flex shrink-0 items-center gap-2 border-b border-line-soft px-4 py-2.5">
         {/*
          * 세는 단위는 1열 머리글과 같다 · 부위축에서는 좌/우가 따로 행이라
          * 행 수(30)와 개체 수(15)가 다르다 — 이름과 숫자가 어긋나지 않게 개체를 센다.
          * 행 수는 아래 소계(`내 입찰 0/30`)가 말한다.
          */}
-        <h2 className="text-[13px] font-bold text-content">
-          {axis.kind === "listing" ? "부위" : "개체"}{" "}
+        <h2 className="shrink-0 text-[13px] font-bold text-content">
+          {rowNoun}{" "}
           <span className="tabular-nums text-content-faint">
-            {axis.kind === "listing" ? rows.length : headCount}
-            {hideSettled && summary.settledCount > 0 ? (
-              <span className="text-content-ghost">
-                /{axis.kind === "listing" ? allRows.length : allHeadCount}
-              </span>
+            {shownCount}
+            {shownCount < totalCount ? (
+              <span className="text-content-ghost">/{totalCount}</span>
             ) : null}
           </span>
         </h2>
-        <div className="flex items-center gap-1">
+        {/*
+         * 거르개는 세는 줄 바로 오른쪽 · 「개체 20」 이 거른 뒤의 수라, 무엇을 걸렀는지가
+         * 그 숫자 옆에 붙어 있어야 둘을 한 번에 읽는다.
+         *
+         * 넘칠 때는 자르지 않고 민다. 표를 최소 폭(640)까지 좁혀도 584px 이라 들어가지만,
+         * 글꼴이 바뀌면 달라질 수 있는 셈이다 — 그때 손잡이가 밖으로 밀려나는 것보다
+         * 이 줄만 옆으로 밀리는 편이 낫다.
+         */}
+        {filterable ? (
+          <div className="scrollbar-thin flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto">
+            <GradeFilterTabs value={gradeFilter} onChange={setGradeFilter} />
+            <CompactFilterPill
+              label="업체"
+              value={companyFilter}
+              onChange={setCompanyFilter}
+              options={companyOptions}
+              valueOnlyWhenActive
+              className={cn(!companyOptions.length && "opacity-60")}
+            />
+            {filtered ? (
+              <button
+                type="button"
+                onClick={resetFilters}
+                title="필터 초기화"
+                className="inline-flex h-7 shrink-0 items-center px-1 text-content-soft transition-colors hover:text-content"
+              >
+                <RotateCcw className="h-3 w-3" aria-hidden />
+              </button>
+            ) : null}
+          </div>
+        ) : null}
+        <div className="ml-auto flex shrink-0 items-center gap-1">
           {/* 소계는 바닥글이 맡는다 · 머리글에도 같은 줄을 두면 한 화면에 두 번 적힌다 */}
           <HideSettledToggle
             on={hideSettled}
@@ -987,19 +1108,24 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
       </header>
       <div className="scrollbar-thin min-h-0 flex-1 overflow-y-auto">
         {rows.length === 0 ? (
+          /* 비어 있는 까닭이 둘이라 되돌리는 단추도 둘이다 · 엉뚱한 걸 눌러도 안 풀린다 */
           <div className="flex h-full flex-col items-center justify-center gap-2 px-6 text-center">
             <p className="text-[13px] font-semibold text-content-mid">
-              남은 부위가 없습니다
+              {allRows.length === 0
+                ? `조건에 맞는 ${rowNoun}가 없습니다`
+                : `남은 ${rowNoun}가 없습니다`}
             </p>
             <p className="text-[12px] text-content-faint">
-              {allRows.length}개가 모두 마감돼 숨겨졌어요
+              {allRows.length === 0
+                ? `${groupRows.length}개 중 등급·업체에 걸리는 것이 없어요`
+                : `${allRows.length}개가 모두 마감돼 숨겨졌어요`}
             </p>
             <button
               type="button"
-              onClick={toggleHideSettled}
+              onClick={allRows.length === 0 ? resetFilters : toggleHideSettled}
               className="mt-1 h-7 rounded-md bg-surface-accent px-2.5 text-[12px] font-semibold text-content transition-colors hover:bg-surface-strong"
             >
-              숨김 해제
+              {allRows.length === 0 ? "필터 초기화" : "숨김 해제"}
             </button>
           </div>
         ) : (
@@ -1015,6 +1141,8 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
             bidding={sheetBidding}
             isBlocked={({ listing }) => !!getBlockReason(listing)}
             getPartResult={getPartResult}
+            favoriteIds={favorites.ids}
+            onToggleFavorite={toggleFavorite}
           />
         )}
       </div>
@@ -1084,7 +1212,7 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
         }
         /* 부위축은 picker 가 부위를 가리키므로 "지금 어느 개체인가" 를 따로 적는다 */
         entityLabel={
-          axis.kind === "part" ? stepperIdentity(selected ?? null) : null
+          axis.kind === "part" ? (selected?.listing.listingNo ?? null) : null
         }
         showArrowHint={!arrowNavLearned && (canPrev || canNext)}
         picker={
@@ -1099,6 +1227,8 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
                   ? `${listingIdx + 1}/${listings.length}`
                   : null
               }
+              /* `160/160` 이 가장 길다 · 분자·분모 자릿수 + 빗금 한 칸 */
+              badgeChars={String(listings.length).length * 2 + 1}
               items={listings}
               keyOf={(l) => l.id}
               isCurrent={(l) => l.id === axisListing!.id}
@@ -1117,7 +1247,10 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
               hotkey="/"
               width={260}
               title={axisGroup!.group}
+              titleWidth={PART_TITLE_WIDTH}
               badge={`${axisGroup!.count}`}
+              /* 한 부위의 개체 수는 방 전체 개체 수를 넘지 않는다 */
+              badgeChars={String(listings.length).length}
               items={partGroups}
               keyOf={(g) => g.group}
               isCurrent={(g) => g.group === axisGroup!.group}
@@ -1149,9 +1282,7 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
             key="column-splitter"
             tableWidth={tableWidth}
             tableOnLeft={tableOnLeft}
-            maxWidth={maxTableWidth}
             onResize={(px) => setTableWidth(Math.min(px, maxTableWidth))}
-            onNudge={(delta) => nudgeTableWidth(delta, maxTableWidth)}
             onReset={resetTableWidth}
           />,
         )}
@@ -1343,32 +1474,50 @@ function RoomHeader({
         )}
 
         {/*
-         * 값 18개 · 토스증권 종목 헤더처럼 두 줄(9열)로 세운다.
-         * 열 안에서는 라벨 왼쪽 · 값 오른쪽 — 값의 오른쪽 끝이 맞아 세로로 훑힌다.
+         * 값 18개 · 왼쪽에서 오른쪽으로 읽히는 차례대로 흘려 담고, 자리가 모자라면
+         * 다음 줄로 넘어간다.
          *
-         * 간격은 열 사이(20px) > 라벨·값 사이(8px) 순서를 지킨다. 이 순서가 뒤집히면
-         * 값이 제 라벨이 아니라 옆 열의 라벨에 붙어 읽힌다. 사이드 메뉴를 펴도 두 줄을
-         * 지키려고 좁힌 것이지만, 원래 12px 이던 라벨·값 사이를 더 줄인 덕에 짝이
-         * 오히려 또렷해졌다 — 깎을 곳은 열 사이가 아니라 짝 안쪽이었다.
+         * **격자가 아니라 흐름인 이유.** 열을 고정하면 세로로 만난 두 짝이 서로 폭을
+         * 끌어당긴다. 「이력 002-0023-4567-8」 아래위로 「상장업체 건화」 가 놓이면
+         * 좁은 쪽이 넓은 쪽만큼 늘어나, 라벨과 값 사이가 손가락 두 마디씩 벌어졌다.
+         * 아무 사이도 아닌 두 값이 서로의 폭을 정하고 있었던 셈이다. 흘려 담으면
+         * 짝마다 제 글자만큼만 쓰고, 덕분에 한 줄에 더 들어가 사이드 메뉴를 펴도
+         * 줄 수가 그대로다.
+         *
+         * `min-w-0 flex-1` 은 이 덩어리가 통째로 접수번호 아래로 떨어지지 않게 한다.
+         * 좁아지면 덩어리가 내려가는 게 아니라 안에서 낱개가 넘어가야 한다.
+         *
+         * 줄은 **상장업체 앞에서** 끊는다. 윗줄은 이 소가 무엇이고 얼마짜리이며 어디서
+         * 왔는가(축종·성별·등급·개월 → 도축·도체중·경락단가 → 이력), 아랫줄은 그걸 누가
+         * 어떻게 다뤘는가(가공 → 등급판정 세부)다. 흐르는 대로 두면 경계가 창 너비에
+         * 따라 매번 다른 곳에 생겨서, 같은 화면을 봐도 어제와 다르게 읽힌다.
+         * 등급판정 일곱은 붙여 둔다 — 하나씩 보는 값이 아니라 한 덩어리로 훑는 값이라,
+         * 사이에 다른 것이 끼면 어디까지가 판정 결과인지 경계가 사라진다.
+         *
+         * 이력이 윗줄 끝에 있는 건 길이 때문이기도 하다. 165px 짜리라 아랫줄에 두면
+         * 두 줄이 874/1070 으로 기울어, 좁은 창에서 혼자 셋째 줄로 밀려났다. 위로
+         * 올리니 874/905 로 맞아떨어진다. 개체를 가리키는 값이라 자리도 어색하지 않다.
+         *
+         * 간격은 짝 사이(16px) > 라벨·값 사이(6px) 순서를 지킨다. 이 순서가 뒤집히면
+         * 값이 제 라벨이 아니라 옆 짝의 라벨에 붙어 읽힌다.
          */}
-        <dl className="grid grid-flow-col grid-rows-2 gap-x-5 gap-y-1.5">
-          <Stat label="축종" value={listing.breed} />
-          <Stat label="성별" value={listing.gender} />
-          <Stat label="개월" value={listing.monthAge} />
-          <Stat label="상장업체" value={listing.companyName} />
+        <dl className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-4 gap-y-1.5">
+          <Stat label="축종" value={listing.breed} w={SPEC_FLOOR.breed} />
+          <Stat label="성별" value={listing.gender} w={SPEC_FLOOR.gender} />
           <Stat
             label="등급"
             value={formatGradeLabel(listing.grade, listing.marblingScore)}
+            w={SPEC_FLOOR.grade}
+            strong
           />
-          <Stat label="근내지방" value={listing.marblingScore} />
-          <Stat label="육색" value={listing.meatColor} />
-          <Stat label="지방색" value={listing.fatColor} />
-          <Stat label="조직도" value={listing.texture} />
-          <Stat label="성숙도" value={listing.maturity} />
-          <Stat label="등지방두께" value={listing.backFat} unit="mm" />
-          <Stat label="등심면적" value={listing.eyeMuscle} unit="㎠" />
-          <Stat label="도체중" value={listing.carcassWeight} unit="kg" />
-          <Stat label="가공중량" value={listing.processWeight} unit="kg" />
+          <Stat label="개월" value={listing.monthAge} w={SPEC_FLOOR.monthAge} />
+          <Stat label="도축" value={slaughterLine} w={SPEC_FLOOR.slaughter} />
+          <Stat
+            label="도체중"
+            value={listing.carcassWeight}
+            unit="kg"
+            w={SPEC_FLOOR.carcassWeight}
+          />
           <Stat
             label="경락단가"
             value={
@@ -1377,20 +1526,22 @@ function RoomHeader({
                 : null
             }
             unit="원"
+            w={SPEC_FLOOR.unitPrice}
           />
-          <Stat label="도축" value={slaughterLine} />
-          <Stat label="가공" value={formatDate(listing.processDate)} />
-          {/* 번호 자체가 조회 링크다 · 옆에 「이력조회」를 또 두면 열이 그만큼 넓어진다 */}
-          <div className="flex items-baseline gap-2">
-            <dt className="shrink-0 text-[11.5px] font-medium text-content-faint">
+          {/* 번호 자체가 조회 링크다 · 옆에 「이력조회」를 또 두면 그만큼 넓어진다 */}
+          <div className="flex shrink-0 items-baseline gap-1.5">
+            <dt className="text-[11.5px] font-medium text-content-faint">
               이력
             </dt>
-            <dd className="ml-auto text-[13.5px] font-semibold leading-none">
+            <dd
+              style={{ minWidth: SPEC_FLOOR.trace }}
+              className="text-[13.5px] font-semibold leading-none"
+            >
               <a
                 href={buildTraceHref(listing.traceNo)}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 tabular-nums text-content underline decoration-line underline-offset-[3px] hover:decoration-content"
+                className="inline-flex items-center gap-1 tabular-nums text-content-mid underline decoration-line underline-offset-[3px] hover:text-content hover:decoration-content"
               >
                 {formatTraceNo(listing.traceNo)}
                 <ExternalLink
@@ -1400,31 +1551,152 @@ function RoomHeader({
               </a>
             </dd>
           </div>
+
+          {/*
+           * 줄바꿈 하나 · 폭을 다 차지하고 높이는 0 이라 다음 짝부터 아랫줄로 간다.
+           * `dl` 의 자식은 dt·dd 이거나 그 둘을 감싼 div 여야 해서, 줄마다 div 로
+           * 묶는 대신 빈 칸을 하나 끼웠다.
+           */}
+          <span aria-hidden className="h-0 w-full" />
+
+          <Stat
+            label="상장업체"
+            value={listing.companyName}
+            w={SPEC_FLOOR.company}
+          />
+          <Stat
+            label="가공"
+            value={formatDate(listing.processDate)}
+            w={SPEC_FLOOR.processDate}
+          />
+          <Stat
+            label="가공중량"
+            value={listing.processWeight}
+            unit="kg"
+            w={SPEC_FLOOR.processWeight}
+          />
+          <Stat
+            label="근내지방"
+            value={listing.marblingScore}
+            w={SPEC_FLOOR.marbling}
+            strong
+          />
+          <Stat
+            label="육색"
+            value={listing.meatColor}
+            w={SPEC_FLOOR.meatColor}
+            strong
+          />
+          <Stat
+            label="지방색"
+            value={listing.fatColor}
+            w={SPEC_FLOOR.fatColor}
+            strong
+          />
+          <Stat
+            label="조직도"
+            value={listing.texture}
+            w={SPEC_FLOOR.texture}
+            strong
+          />
+          <Stat
+            label="성숙도"
+            value={listing.maturity}
+            w={SPEC_FLOOR.maturity}
+            strong
+          />
+          <Stat
+            label="등지방두께"
+            value={listing.backFat}
+            unit="mm"
+            w={SPEC_FLOOR.backFat}
+            strong
+          />
+          <Stat
+            label="등심면적"
+            value={listing.eyeMuscle}
+            unit="㎠"
+            w={SPEC_FLOOR.eyeMuscle}
+            strong
+          />
         </dl>
       </div>
     </header>
   );
 }
 
+/**
+ * 값칸 바닥 너비(px) · 접수번호를 넘겨도 라벨이 제자리에 있게 한다.
+ *
+ * 값마다 글자 수가 달라서, 바닥이 없으면 「9」 에서 「123,000」 으로 바뀌는 순간
+ * 그 뒤가 통째로 밀린다. 한 개체당 흔들림을 다 더하면 238px 였다 — 옆 값을 읽으려던
+ * 눈이 매번 새로 찾아야 했다는 뜻이다. 그래서 가장 넓은 값만큼 미리 자리를 잡아 둔다.
+ *
+ * 숫자는 2026-09-30 상장 693건을 Pretendard 로 실측한 최댓값(단위 포함, 강조 칸은
+ * 16px Bold 기준)이다. 천장이 아니라 바닥이라 이보다 긴 값이 와도 잘리지 않고 늘어난다.
+ * 다만 늘어나는 순간 그 값에서만 다시 흔들리므로, 데이터 폭이 달라지면 다시 잰다.
+ */
+const SPEC_FLOOR = {
+  breed: 24,
+  gender: 24,
+  grade: 63,
+  monthAge: 18,
+  slaughter: 131,
+  carcassWeight: 41,
+  unitPrice: 64,
+  company: 62,
+  processDate: 75,
+  processWeight: 40,
+  marbling: 11,
+  meatColor: 11,
+  fatColor: 11,
+  texture: 8,
+  maturity: 10,
+  backFat: 39,
+  eyeMuscle: 51,
+  trace: 136,
+} as const;
+
 function Stat({
   label,
   value,
   unit,
+  w,
+  strong,
 }: {
   label: string;
   value: number | string | null | undefined;
   unit?: string;
+  /** 값칸 바닥 너비 · `SPEC_FLOOR` 에서 가져온다 */
+  w: number;
+  /**
+   * 등급판정이 매긴 값 · 값을 정하는 건 결국 이것들이라 한눈에 잡혀야 한다.
+   *
+   * 크기(16 대 13.5) · 굵기(700 대 600) · 밝기(17.4:1 대 12.0:1) 를 한꺼번에
+   * 움직인다. 한 축만 건드려서는 안 보였다 — 크기만 1.5px 올렸을 때는 나머지가
+   * 모두 같은 밝기·같은 굵기라 그냥 묻혔다. 도드라지려면 바탕이 먼저 물러나야 한다.
+   */
+  strong?: boolean;
 }) {
   const empty = value === null || value === undefined || value === "";
   return (
-    <div className="flex items-baseline gap-2">
-      <dt className="shrink-0 text-[11.5px] font-medium text-content-faint">
+    <div className="flex shrink-0 items-baseline gap-1.5">
+      <dt
+        className={cn(
+          "text-[11.5px] font-medium",
+          strong ? "text-content-soft" : "text-content-faint",
+        )}
+      >
         {label}
       </dt>
       <dd
+        style={{ minWidth: w }}
         className={cn(
-          "ml-auto text-[13.5px] font-semibold leading-none tabular-nums",
-          empty ? "text-content-ghost" : "text-content",
+          "leading-none tabular-nums",
+          strong
+            ? "text-[16px] font-bold text-content"
+            : "text-[13.5px] font-semibold text-content-mid",
+          empty && "text-content-ghost",
         )}
       >
         {empty ? "-" : value}

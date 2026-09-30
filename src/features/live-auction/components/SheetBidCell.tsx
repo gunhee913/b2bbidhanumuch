@@ -49,9 +49,8 @@ const PRESSABLE = "active:scale-[0.9] active:opacity-40";
  */
 const SOFT = "transition-[color,background-color] duration-75";
 
-/** 막대 높이 + 셀과의 사이 · 취소 줄이 붙으면 한 줄만큼 더 든다 */
+/** 막대 높이(버튼 줄 + 안내 줄) + 셀과의 사이 · 위가 이만큼 안 비면 아래로 편다 */
 const POPOVER_SPACE = 56;
-const POPOVER_SPACE_WITH_CANCEL = 84;
 
 /** 취소를 한 번 더 물어보는 시간 · 지나면 없던 일이 된다 */
 export const CANCEL_CONFIRM_MS = 3000;
@@ -63,7 +62,7 @@ export const CANCEL_CONFIRM_MS = 3000;
  * 머리글까지 덮지 않도록 상자 위끝과 머리글 아래끝 중 낮은 쪽을 천장으로 삼는다 —
  * 스크롤로 머리글이 올라가 버리면 상자 위끝이 이긴다.
  */
-function hasRoomAbove(input: HTMLInputElement, needed: number): boolean {
+function hasRoomAbove(input: HTMLInputElement): boolean {
   const clip = input.closest("[data-sheet-clip]");
   if (!clip) return true;
   const head = clip.querySelector("thead");
@@ -71,7 +70,7 @@ function hasRoomAbove(input: HTMLInputElement, needed: number): boolean {
     clip.getBoundingClientRect().top,
     head?.getBoundingClientRect().bottom ?? 0,
   );
-  return input.getBoundingClientRect().top - ceiling >= needed;
+  return input.getBoundingClientRect().top - ceiling >= POPOVER_SPACE;
 }
 export interface SheetBidCellProps {
   partId: string;
@@ -99,7 +98,10 @@ export interface SheetBidCellProps {
 /**
  * 상장표 인라인 입찰 셀 · 엑셀형.
  *
- *  - 폭은 입력 상한인 6자리(`109,100`)에 맞춘다 · 원/kg 단가는 십만 단위를 넘지 않는다
+ *  - 폭은 열이 정한다 · 상한은 열을 넘지 않을 만큼만 열어 두고 남는 폭은 칸이 다 쓴다.
+ *    상한을 62px 로 못 박아 두었더니 표를 넓혀 열에 자리가 남아도 칸은 그대로여서,
+ *    십만 원대(`100,100`)에서 끝자리가 잘렸다 — 6자리 `999,999` 는 12px 에서 50px 다
+ *    (`PRICE_SLOT_WIDTH`). 굵은 글씨라 그보다 조금 더 들고, 안쪽 여백은 4px 로 줄였다.
  *  - 엑셀처럼 고르기/쓰기 두 모드 · 키 계약은 `handleSheetBidKeyDown` 이 갖는다
  *  - 포커스 시 우측에 `+1 +10 +100 +1,000` 미니 스텝
  *
@@ -173,15 +175,6 @@ export function SheetBidCell({
   }, [confirmingCancel]);
   useEffect(() => {
     if (!focused || !canCancel) setConfirmingCancel(false);
-  }, [focused, canCancel]);
-
-  // 막대 안에서 입찰을 넣으면 취소 줄이 붙어 한 줄 자란다 · 위 여유를 다시 잰다
-  useEffect(() => {
-    const el = inputRef.current;
-    if (!focused || !el) return;
-    setFlipDown(
-      !hasRoomAbove(el, canCancel ? POPOVER_SPACE_WITH_CANCEL : POPOVER_SPACE),
-    );
   }, [focused, canCancel]);
 
   const text = value != null && value > 0 ? NUMBER_FORMATTER.format(value) : "";
@@ -276,6 +269,43 @@ export function SheetBidCell({
               );
             })}
             <span className="mx-0.5 w-px shrink-0 bg-line" aria-hidden />
+            {/*
+             * 「초기화」 바로 옆이 자리다. 초기화는 내가 고치던 초안을 버리는 것이고
+             * (서버 값은 그대로), 취소는 서버에 들어간 입찰을 무르는 것이다 — 이름만
+             * 놓고는 둘이 같은 말로 읽혀서, 붙여 놓고 테두리로 갈라야 차이가 보인다.
+             * 「입찰」 과는 떼어 놓는다 · 제일 자주 누르는 것과 제일 무른 수 없는 것이
+             * 맞닿아 있으면 오클릭이 곧 사고다.
+             *
+             * 결과 열에 넣지 않은 이유는 따로다. 그 열은 37px 이라 자리도 없지만,
+             * 무엇보다 읽는 열이라 버튼이 하나도 없다 — 스무 줄에 취소가 스무 개 뜬다.
+             * 여기는 포커스된 한 줄에만 떠서 화면에 늘 하나뿐이다.
+             */}
+            {canCancel && onCancel ? (
+              <button
+                type="button"
+                tabIndex={-1}
+                disabled={state.pending}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => {
+                  if (!confirmingCancel) {
+                    setConfirmingCancel(true);
+                    return;
+                  }
+                  setConfirmingCancel(false);
+                  onCancel();
+                }}
+                className={cn(
+                  PRESSABLE,
+                  SOFT,
+                  "mr-0.5 h-6 whitespace-nowrap rounded border px-1.5 text-[10.5px] font-semibold disabled:opacity-50",
+                  confirmingCancel
+                    ? "border-rose-500 bg-rose-500 text-white"
+                    : "border-line text-content-soft hover:border-rose-300 hover:text-rose-600",
+                )}
+              >
+                {confirmingCancel ? "취소 확인" : "입찰취소"}
+              </button>
+            ) : null}
             <button
               type="button"
               tabIndex={-1}
@@ -305,50 +335,13 @@ export function SheetBidCell({
               입찰
             </button>
           </div>
-          {/*
-           * 「초기화」 와 나란히 두는 게 요점이다. 초기화는 내가 고치던 초안을 버리는
-           * 것이고(서버 값은 그대로), 취소는 서버에 들어간 입찰을 무르는 것이다 —
-           * 이름만 놓고는 둘이 같은 말로 읽혀서, 붙여 놓고 갈라야 차이가 보인다.
-           *
-           * 결과 열에 넣지 않은 이유도 같다. 그 열은 37px 이라 자리도 없지만, 무엇보다
-           * 읽는 열이라 버튼이 하나도 없다. 스무 줄에 취소 버튼이 스무 개 뜨면 오클릭이
-           * 곧 사고다 — 여기는 포커스된 한 줄에만 떠서 화면에 늘 하나뿐이다.
-           */}
-          {canCancel && onCancel ? (
-            <div className="mt-0.5 flex justify-end border-t border-line pt-0.5">
-              <button
-                type="button"
-                tabIndex={-1}
-                disabled={state.pending}
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => {
-                  if (!confirmingCancel) {
-                    setConfirmingCancel(true);
-                    return;
-                  }
-                  setConfirmingCancel(false);
-                  onCancel();
-                }}
-                className={cn(
-                  PRESSABLE,
-                  SOFT,
-                  "h-6 whitespace-nowrap rounded border px-2 text-[10.5px] font-semibold disabled:opacity-50",
-                  confirmingCancel
-                    ? "border-rose-500 bg-rose-500 text-white"
-                    : "border-line text-content-soft hover:border-rose-300 hover:text-rose-600",
-                )}
-              >
-                {confirmingCancel ? "한 번 더 눌러 취소" : "입찰취소"}
-              </button>
-            </div>
-          ) : null}
           {/* 지금 어느 모드인지와, 그 모드에서 살아 있는 키 · 커서만으로는 약하다 */}
           <p className="whitespace-nowrap px-1 pb-0.5 pt-1 text-[10px] font-medium text-content-faint">
             {bidModeHint(mode, rowLabel, pivotLabel)}
           </p>
         </div>
       ) : null}
-      <div className="relative w-full min-w-[58px] max-w-[62px]">
+      <div className="relative w-full min-w-[58px] max-w-[76px]">
         <input
           ref={inputRef}
           {...{ [BID_INPUT_ATTR]: partId, [BID_MODE_ATTR]: mode }}
@@ -365,12 +358,7 @@ export function SheetBidCell({
             const pointer = byPointer.current;
             byPointer.current = false;
             setFocused(true);
-            setFlipDown(
-              !hasRoomAbove(
-                e.currentTarget,
-                canCancel ? POPOVER_SPACE_WITH_CANCEL : POPOVER_SPACE,
-              ),
-            );
+            setFlipDown(!hasRoomAbove(e.currentTarget));
             setMode(pointer ? "edit" : "nav");
             // 키보드로 들어오면 값을 통째로 골라 둔다 · 숫자를 누르면 그대로 갈린다
             if (!pointer) e.currentTarget.select();
@@ -395,7 +383,7 @@ export function SheetBidCell({
             })
           }
           className={cn(
-            "h-7 w-full rounded-[5px] border bg-field px-1.5 text-right text-[12px] font-bold tabular-nums -tracking-[0.01em] text-content outline-none transition-colors",
+            "h-7 w-full rounded-[5px] border bg-field px-1 text-right text-[12px] font-bold tabular-nums -tracking-[0.02em] text-content outline-none transition-colors",
             "focus:border-focus focus:ring-2 focus:ring-focus/30",
             "disabled:cursor-not-allowed disabled:border-transparent disabled:bg-transparent disabled:text-content-faint",
             state.error

@@ -121,6 +121,8 @@ const config = {
           DEFAULT: "rgb(var(--lost) / <alpha-value>)",
           surface: "rgb(var(--lost-surface) / <alpha-value>)",
         },
+        /** 관심 별 · 무채색 표에서 찍어 둔 것을 집어내는 단 하나의 색 · 결과보다는 조용하게 */
+        fav: "rgb(var(--fav) / <alpha-value>)",
         /**
          * 입력칸 · 면(`bg-field`)과 경계(`border-field-line`)를 함께 써야 칸이 선다.
          * 라이트는 눌러서, 다크는 띄워서 만든다 (`globals.css` 참고).
