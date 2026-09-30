@@ -16,11 +16,13 @@ import {
 import { useDealerPartners } from "../hooks/useDealerPartners";
 import type { AssignmentInfo } from "../types";
 import {
-  DeliveryHeader,
-  type DeliveryStatusFilter,
-} from "./DeliveryHeader";
-import { DeliverySummary } from "./DeliverySummary";
-import { DeliveryTable } from "./DeliveryTable";
+  computeEntityProgress,
+  groupPartsByEntity,
+  summarizeDirty,
+} from "../lib/groupByEntity";
+import { DeliveryHeader } from "./DeliveryHeader";
+import { DeliveryProgress } from "./DeliveryProgress";
+import { DeliveryEntityList } from "./DeliveryEntityList";
 import { SaveBar } from "./SaveBar";
 
 const initialPeriod = () => {
@@ -32,22 +34,20 @@ const initialPeriod = () => {
 /**
  * `/delivery` 배송지시 페이지 본문.
  *
- * - 로그인한 딜러의 낙찰 부위 조회 + 거래처 배정 편집
- * - dirty 상태 로컬 관리 · 상단 SaveBar 로 일괄 저장
+ * - 로그인한 딜러의 낙찰 부위를 개체(상장) 단위로 묶어 보여주고 거래처 배정을 편집
+ * - dirty 상태 로컬 관리 · 상단 SaveBar 로 일괄 저장 (저장 전 거래처별 요약 노출)
  * - Realtime 배정 변경 시 자동 갱신
  */
 export function DeliveryPageContent() {
   const { data: session, status } = useSession();
-  const dealerId =
-    session?.dealer?.id ?? session?.employee?.dealerId ?? null;
-  const dealerName =
-    session?.dealer?.name ?? session?.employee?.name ?? "중도매인";
+  const dealerId = session?.dealer?.id ?? session?.employee?.dealerId ?? null;
+  const dealerName = session?.dealer?.name ?? session?.employee?.name ?? "중도매인";
   const queryClient = useQueryClient();
 
   const [period, setPeriod] = useState(initialPeriod);
   const [searchPeriod, setSearchPeriod] = useState(period);
-  const [statusFilter, setStatusFilter] =
-    useState<DeliveryStatusFilter>("all");
+  const [partFilter, setPartFilter] = useState("");
+  const [hideDone, setHideDone] = useState(false);
 
   const partsQuery = useWinningParts({
     dealerId,
@@ -68,60 +68,71 @@ export function DeliveryPageContent() {
     enabled: !!dealerId,
   });
 
-  const parts = useMemo(
-    () => partsQuery.data?.winningParts ?? [],
-    [partsQuery.data],
-  );
+  const parts = useMemo(() => partsQuery.data?.winningParts ?? [], [partsQuery.data]);
   const savedAssignments = useMemo<Record<string, AssignmentInfo>>(
     () => assignmentsQuery.data?.assignments ?? {},
     [assignmentsQuery.data],
   );
-  const partners = partnersQuery.data?.partners ?? [];
+  const partners = useMemo(() => partnersQuery.data?.partners ?? [], [partnersQuery.data]);
 
-  const filteredParts = useMemo(() => {
-    if (statusFilter === "all") return parts;
-    return parts.filter((p) => {
-      const assigned = !!savedAssignments[p.partId];
-      return statusFilter === "assigned" ? assigned : !assigned;
-    });
-  }, [parts, savedAssignments, statusFilter]);
+  const partOptions = useMemo(
+    () => Array.from(new Set(parts.map((p) => p.partName))).sort((a, b) => a.localeCompare(b, "ko-KR")),
+    [parts],
+  );
 
-  const summary = useMemo(() => {
-    let assigned = 0;
+  const progress = useMemo(() => {
+    const entities = groupPartsByEntity(parts);
+    let entityDone = 0;
+    let partSaved = 0;
+    let partPending = 0;
     let totalAmount = 0;
-    for (const p of parts) {
-      if (savedAssignments[p.partId]) assigned++;
-      totalAmount += p.bidAmount;
+    let totalWeight = 0;
+    for (const e of entities) {
+      const p = computeEntityProgress(e, savedAssignments, dirty);
+      if (p.done) entityDone++;
+      partSaved += p.saved;
+      partPending += p.pending;
+      totalAmount += e.totalAmount;
+      totalWeight += e.totalWeight;
     }
     return {
-      totalCount: parts.length,
-      assignedCount: assigned,
-      unassignedCount: parts.length - assigned,
+      entityTotal: entities.length,
+      entityDone,
+      partTotal: parts.length,
+      partSaved,
+      partPending,
       totalAmount,
+      totalWeight,
     };
-  }, [parts, savedAssignments]);
+  }, [parts, savedAssignments, dirty]);
 
   const dirtyCount = Object.keys(dirty).length;
+  const dirtySummary = useMemo(
+    () =>
+      summarizeDirty(dirty, parts, (id) => partners.find((p) => p.id === id)?.name ?? "거래처"),
+    [dirty, parts, partners],
+  );
 
   const handleSearch = useCallback(() => {
     setSearchPeriod(period);
   }, [period]);
 
-  const handleChangeStatus = useCallback((next: DeliveryStatusFilter) => {
-    setStatusFilter(next);
+  const handleChangePartner = useCallback((partId: string, partnerId: string | null) => {
+    setDirty((prev) => {
+      const next = { ...prev };
+      if (partnerId === null) delete next[partId];
+      else next[partId] = partnerId;
+      return next;
+    });
   }, []);
 
-  const handleChangePartner = useCallback(
-    (partId: string, partnerId: string | null) => {
-      setDirty((prev) => {
-        const next = { ...prev };
-        if (partnerId === null) delete next[partId];
-        else next[partId] = partnerId;
-        return next;
-      });
-    },
-    [],
-  );
+  const handleApplyAll = useCallback((partIds: string[], partnerId: string) => {
+    setDirty((prev) => {
+      const next = { ...prev };
+      for (const id of partIds) next[id] = partnerId;
+      return next;
+    });
+  }, []);
 
   const handleReset = useCallback(() => {
     setDirty({});
@@ -132,17 +143,17 @@ export function DeliveryPageContent() {
     if (dirtyCount === 0) return;
     setSaveError(null);
     try {
-      await saveMutation.mutateAsync({
-        assignments: dirty,
-        assignedBy: dealerName,
-      });
+      await saveMutation.mutateAsync({ assignments: dirty, assignedBy: dealerName });
       setDirty({});
     } catch (e) {
-      setSaveError(
-        e instanceof Error ? e.message : "저장에 실패했습니다.",
-      );
+      setSaveError(e instanceof Error ? e.message : "저장에 실패했습니다.");
     }
   }, [dirty, dirtyCount, saveMutation, dealerName]);
+
+  const handleRefresh = useCallback(() => {
+    partsQuery.refetch();
+    assignmentsQuery.refetch();
+  }, [partsQuery, assignmentsQuery]);
 
   useEffect(() => {
     setDirty({});
@@ -156,9 +167,9 @@ export function DeliveryPageContent() {
     return (
       <>
         <MainHeader />
-        <main className="mx-auto min-h-[calc(100vh-64px)] w-full max-w-[1240px] bg-slate-50/40 px-8 py-16">
-          <div className="h-6 w-32 animate-pulse rounded bg-slate-100" />
-          <div className="mt-6 h-64 animate-pulse rounded bg-slate-100" />
+        <main className="mx-auto min-h-[calc(100vh-48px)] w-full max-w-[1360px] min-[1700px]:max-w-[1600px] bg-canvas px-8 py-16">
+          <div className="h-6 w-32 animate-pulse rounded bg-surface-accent" />
+          <div className="mt-6 h-64 animate-pulse rounded bg-surface-accent" />
         </main>
         <MainFooter />
       </>
@@ -169,8 +180,8 @@ export function DeliveryPageContent() {
     return (
       <>
         <MainHeader />
-        <main className="min-h-[calc(100vh-64px)] bg-slate-50/40">
-          <div className="mx-auto w-full max-w-[1240px] px-8 py-12">
+        <main className="min-h-[calc(100vh-48px)] bg-canvas">
+          <div className="mx-auto w-full max-w-[1360px] min-[1700px]:max-w-[1600px] px-8 py-12">
             <LoginGateCard pageLabel="배송지시" requireDealer />
           </div>
         </main>
@@ -179,32 +190,33 @@ export function DeliveryPageContent() {
     );
   }
 
-  const isLoading =
-    partsQuery.isLoading ||
-    assignmentsQuery.isLoading ||
-    partnersQuery.isLoading;
+  const isLoading = partsQuery.isLoading || assignmentsQuery.isLoading || partnersQuery.isLoading;
+  const isRefreshing = partsQuery.isFetching || assignmentsQuery.isFetching;
 
   const fetchError =
-    partsQuery.error?.message ||
-    assignmentsQuery.error?.message ||
-    partnersQuery.error?.message ||
-    null;
+    partsQuery.error?.message || assignmentsQuery.error?.message || partnersQuery.error?.message || null;
 
   return (
     <>
       <MainHeader />
-      <main className="min-h-[calc(100vh-64px)] bg-slate-50/40">
+      <main className="min-h-[calc(100vh-48px)] bg-canvas">
         <DeliveryHeader
           startDate={period.startDate}
           endDate={period.endDate}
           onChangePeriod={setPeriod}
           onSearch={handleSearch}
-          statusFilter={statusFilter}
-          onChangeStatus={handleChangeStatus}
+          partOptions={partOptions}
+          partFilter={partFilter}
+          onPartFilterChange={setPartFilter}
+          hideDone={hideDone}
+          onHideDoneChange={setHideDone}
+          isRefreshing={isRefreshing}
+          onRefresh={handleRefresh}
         />
-        <div className="mx-auto w-full max-w-[1240px] px-8 py-6">
+        <div className="mx-auto w-full max-w-[1360px] min-[1700px]:max-w-[1600px] px-8 py-6">
           <SaveBar
             dirtyCount={dirtyCount}
+            summary={dirtySummary}
             submitting={saveMutation.isPending}
             onSave={handleSave}
             onReset={handleReset}
@@ -217,22 +229,19 @@ export function DeliveryPageContent() {
             </div>
           ) : null}
 
-          <DeliverySummary
-            totalCount={summary.totalCount}
-            assignedCount={summary.assignedCount}
-            unassignedCount={summary.unassignedCount}
-            totalAmount={summary.totalAmount}
-            isLoading={isLoading}
-          />
+          <DeliveryProgress {...progress} isLoading={isLoading} />
 
-          <div className="mt-4">
-            <DeliveryTable
-              parts={filteredParts}
+          <div className="mt-5">
+            <DeliveryEntityList
+              parts={parts}
               partners={partners}
               savedAssignments={savedAssignments}
               dirtyAssignments={dirty}
-              onChange={handleChangePartner}
+              partFilter={partFilter}
+              hideDone={hideDone}
               isLoading={isLoading}
+              onChangePart={handleChangePartner}
+              onApplyAll={handleApplyAll}
             />
           </div>
         </div>

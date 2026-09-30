@@ -13,8 +13,12 @@ const supabase = getAdminClient();
  *   days:     조회 일수 (default 7, max 730)
  *
  * Response:
- *   { series: { date, avg, min, max, count }[], partName, grade, days }
+ *   { series: { date, avg, min, max, count, listed }[], partName, grade, days }
+ *   - count  : 낙찰 건수 (가격 통계의 분모)
+ *   - listed : 마감(closed/completed)된 상장의 부위 건수 · 낙찰률 = count / listed
+ *              진행 중(auction/approved) 상장은 아직 결과가 없으므로 listed 에 넣지 않는다
  */
+const SETTLED_STATUSES = new Set(["closed", "completed"]);
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -54,15 +58,17 @@ export async function GET(request: NextRequest) {
         part_name,
         bid_price,
         weight,
+        winning_dealer_id,
+        is_included,
         cattle_listings!inner (
           listing_date,
           grade,
-          marbling_score
+          marbling_score,
+          status
         )
       `,
       )
-      .not("winning_dealer_id", "is", null)
-      .not("bid_price", "is", null)
+      .eq("is_included", true)
       .gte("cattle_listings.listing_date", sinceDateStr)
       .ilike("cattle_listings.grade", `${qualityGrade}%`);
 
@@ -81,28 +87,26 @@ export async function GET(request: NextRequest) {
     interface DailyAccumulator {
       sum: number;
       count: number;
+      listed: number;
       min: number;
       max: number;
     }
     const dailyMap = new Map<string, DailyAccumulator>();
+
+    type ListingJoin = {
+      listing_date: string | null;
+      grade: string | null;
+      status: string | null;
+    };
 
     for (const row of data ?? []) {
       const rawName = (row.part_name as string | null) ?? "";
       const baseName = rawName.replace(/\(좌\)|\(우\)/g, "").trim();
       if (baseName !== targetPart) continue;
 
-      const price = row.bid_price as number | null;
-      if (!price || price <= 0) continue;
-
       const listingRaw = row.cattle_listings as unknown as
-        | {
-            listing_date: string | null;
-            grade: string | null;
-          }
-        | {
-            listing_date: string | null;
-            grade: string | null;
-          }[]
+        | ListingJoin
+        | ListingJoin[]
         | null;
       const listing = Array.isArray(listingRaw) ? listingRaw[0] : listingRaw;
       const date = listing?.listing_date;
@@ -116,16 +120,25 @@ export async function GET(request: NextRequest) {
         if (suffix !== yieldFilter) continue;
       }
 
+      const price = row.bid_price as number | null;
+      const isWon = !!row.winning_dealer_id && !!price && price > 0;
+      const isSettled = SETTLED_STATUSES.has(listing?.status ?? "");
+      if (!isWon && !isSettled) continue;
+
       const acc = dailyMap.get(date) ?? {
         sum: 0,
         count: 0,
+        listed: 0,
         min: Infinity,
         max: -Infinity,
       };
-      acc.sum += price;
-      acc.count += 1;
-      acc.min = Math.min(acc.min, price);
-      acc.max = Math.max(acc.max, price);
+      if (isSettled) acc.listed += 1;
+      if (isWon) {
+        acc.sum += price;
+        acc.count += 1;
+        acc.min = Math.min(acc.min, price);
+        acc.max = Math.max(acc.max, price);
+      }
       dailyMap.set(date, acc);
     }
 
@@ -136,6 +149,7 @@ export async function GET(request: NextRequest) {
       min: number | null;
       max: number | null;
       count: number;
+      listed: number;
     }[] = [];
 
     for (let i = days - 1; i >= 0; i--) {
@@ -143,13 +157,14 @@ export async function GET(request: NextRequest) {
       d.setDate(d.getDate() - i);
       const dateStr = d.toISOString().split("T")[0];
       const acc = dailyMap.get(dateStr);
-      if (acc) {
+      if (acc && acc.count > 0) {
         series.push({
           date: dateStr,
           avg: Math.round(acc.sum / acc.count),
           min: acc.min,
           max: acc.max,
           count: acc.count,
+          listed: acc.listed,
         });
       } else {
         series.push({
@@ -158,6 +173,7 @@ export async function GET(request: NextRequest) {
           min: null,
           max: null,
           count: 0,
+          listed: acc?.listed ?? 0,
         });
       }
     }

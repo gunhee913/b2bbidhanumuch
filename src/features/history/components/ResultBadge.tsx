@@ -10,7 +10,7 @@ const STATUS_CONFIG: Record<
 > = {
   active: {
     label: "진행중",
-    className: "bg-slate-800 text-white",
+    className: "bg-inverse text-inverse-content",
   },
   won: {
     label: "낙찰",
@@ -18,14 +18,14 @@ const STATUS_CONFIG: Record<
   },
   lost: {
     label: "미낙찰",
-    className: "bg-slate-200 text-slate-600",
+    className: "bg-rose-100 text-rose-700",
   },
 };
 
 /**
  * 경매내역 테이블 상태 배지 · 진행중 / 낙찰 / 미낙찰 세 가지 상태 지원.
  * - 브랜드 sky-600 solid 로 낙찰을 강조 (라이브 경매 낙찰 chip 과 통일)
- * - 미낙찰은 무채색 slate 로 톤 다운
+ * - 미낙찰은 경매장 테이블의 미낙찰 rose 틴트와 같은 톤
  * - 진행중은 slate-800 solid 로 action-needed 상기
  */
 export function StatusBadge({ status }: { status: BidStatus }) {
@@ -33,7 +33,7 @@ export function StatusBadge({ status }: { status: BidStatus }) {
   return (
     <span
       className={cn(
-        "inline-flex h-5 items-center px-1.5 text-[10px] font-bold leading-none",
+        "inline-flex h-5 w-[44px] items-center justify-center text-[10px] font-bold leading-none",
         className,
       )}
     >

@@ -1,4 +1,4 @@
-@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css');
+@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css");
 @import "overlayscrollbars/overlayscrollbars.css";
 
 @tailwind base;
@@ -7,86 +7,137 @@
 
 @layer base {
   :root {
-    /* HanuMuch 브랜드 컬러 시스템 */
+    /* 브랜드 컬러 시스템 · 먹색(ink) 모노톤 · 금색(gold)은 /main 로고·하이라이트 전용 */
     --background: 0 0% 100%;
-    --foreground: 0 0% 6.7%; /* #111111 - hm-secondary */
+    --foreground: 240 10% 10%; /* #17171c - ink */
     --card: 0 0% 100%;
-    --card-foreground: 0 0% 6.7%;
+    --card-foreground: 240 10% 10%;
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 6.7%;
-    
-    /* Primary: HanuMuch Red */
-    --primary: 0 100% 38.4%; /* #c40000 */
+    --popover-foreground: 240 10% 10%;
+
+    /* Primary: Ink */
+    --primary: 240 10% 10%; /* #17171c */
     --primary-foreground: 0 0% 100%;
-    
+
     /* Secondary: Neutral Gray */
-    --secondary: 0 0% 96.1%; /* #f5f5f5 */
-    --secondary-foreground: 0 0% 6.7%; /* #111111 */
-    
+    --secondary: 240 6% 95%; /* #f1f1f4 */
+    --secondary-foreground: 240 10% 10%;
+
     /* Muted: Light Gray */
-    --muted: 0 0% 96.1%; /* #f5f5f5 */
-    --muted-foreground: 0 0% 45.1%; /* #737373 */
-    
-    /* Accent: Outline Gray */
-    --accent: 0 0% 86.3%; /* #dcdcdc */
-    --accent-foreground: 0 0% 6.7%; /* #111111 */
-    
+    --muted: 240 6% 95%; /* #f1f1f4 */
+    --muted-foreground: 240 4% 46%; /* #71717a */
+
+    /* Accent: hover 배경 */
+    --accent: 240 6% 95%; /* #f1f1f4 */
+    --accent-foreground: 240 10% 10%;
+
     /* Status Colors */
-    --destructive: 0 100% 38.4%; /* Primary Red for errors */
+    --destructive: 347 77% 50%; /* #e11d48 - rose-600 */
     --destructive-foreground: 0 0% 100%;
-    
+
     /* Borders & Inputs */
-    --border: 0 0% 89.8%; /* #e5e5e5 */
-    --input: 0 0% 89.8%; /* #e5e5e5 */
-    --ring: 0 100% 38.4%; /* #c40000 for focus */
-    
+    --border: 240 6% 90%; /* #e3e3e7 */
+    --input: 240 6% 90%;
+    --ring: 240 10% 10%; /* ink */
+
     /* Layout */
     --radius: 0.75rem; /* 12px as per design guide */
-    
-    /* Chart Colors (Neutral + Primary variations) */
-    --chart-1: 0 100% 38.4%; /* Primary Red */
+
+    /*
+     * 경매장 서피스 토큰 · tailwind.config.ts 의 canvas/surface/line/content 가 읽는다.
+     * rgb 채널 표기 · `bg-surface/60` 같은 투명도 수식어를 쓰기 위함.
+     *
+     * 중성 먹색 계단 · 파랑이 섞인 slate 를 걷어냈다. 고기 사진 옆에서 색을 재는 화면이라
+     * 바탕에 색기가 돌면 붉은 살색과 마블링 흰색이 실제와 다르게 읽힌다.
+     */
+    --canvas: 245 245 247; /* #f5f5f7 */
+    --surface: 255 255 255; /* white */
+    --surface-muted: 250 250 251; /* #fafafb */
+    --surface-accent: 242 242 245; /* #f2f2f5 */
+    --line: 226 226 231; /* #e2e2e7 */
+    --line-soft: 238 238 242; /* #eeeef2 */
+    --content: 23 23 28; /* #17171c · 먹색 */
+    --content-mid: 61 61 70; /* #3d3d46 */
+    --content-soft: 110 110 122; /* #6e6e7a */
+    --content-faint: 148 148 160; /* #9494a0 */
+    --content-ghost: 200 200 209; /* #c8c8d1 */
+    --surface-strong: 228 228 233; /* #e4e4e9 */
+    --inverse: 23 23 28; /* 먹색 */
+    --on-inverse: 255 255 255;
+    --rise: 240 68 82; /* #f04452 · 상승 */
+    --fall: 49 130 246; /* #3182f6 · 하락 */
+
+    /* Chart Colors (Gold + Neutral) */
+    --chart-1: 222 47% 11%; /* ink */
     --chart-2: 0 0% 45.1%; /* Neutral 500 */
     --chart-3: 0 0% 25.1%; /* Neutral 700 */
     --chart-4: 0 0% 15.3%; /* Neutral 800 */
-    --chart-5: 0 0% 9.0%; /* Neutral 900 */
+    --chart-5: 0 0% 9%; /* Neutral 900 */
   }
 
   /* 다크모드 컬러 시스템 */
   .dark {
-    --background: 220 13% 10%; /* #17191c - 다크 배경 */
-    --foreground: 0 0% 93%; /* #ededed - 밝은 텍스트 */
-    --card: 220 13% 13%; /* #1e2024 - 카드 배경 */
-    --card-foreground: 0 0% 93%;
-    --popover: 220 13% 13%;
-    --popover-foreground: 0 0% 93%;
-    
-    /* Primary: HanuMuch Red (다크모드에서 약간 밝게) */
-    --primary: 0 100% 45%; /* #e60000 */
-    --primary-foreground: 0 0% 100%;
-    
+    --background: 240 10% 10%; /* #17171c - 다크 배경 */
+    --foreground: 0 0% 95%; /* #f2f2f5 - 밝은 텍스트 */
+    --card: 240 9% 12%; /* #1e1e24 - 카드 배경 */
+    --card-foreground: 0 0% 95%;
+    --popover: 240 9% 12%;
+    --popover-foreground: 0 0% 95%;
+
+    /* Primary: 다크 배경에선 먹색 대신 밝은 면 */
+    --primary: 240 10% 96%; /* #f4f4f6 */
+    --primary-foreground: 240 10% 10%;
+
     /* Secondary: Dark Gray */
-    --secondary: 220 13% 18%; /* #282b30 */
-    --secondary-foreground: 0 0% 93%;
-    
+    --secondary: 240 8% 16%; /* #26262c */
+    --secondary-foreground: 0 0% 95%;
+
     /* Muted: Darker Gray */
-    --muted: 220 13% 18%;
-    --muted-foreground: 0 0% 60%; /* #999999 */
-    
+    --muted: 240 8% 16%;
+    --muted-foreground: 240 5% 62%; /* #9898a3 */
+
     /* Accent: Dark Outline */
-    --accent: 220 13% 25%; /* #3a3f47 */
-    --accent-foreground: 0 0% 93%;
-    
+    --accent: 240 7% 23%; /* #363640 */
+    --accent-foreground: 0 0% 95%;
+
     /* Status Colors */
-    --destructive: 0 100% 50%; /* 더 밝은 빨강 */
+    --destructive: 350 89% 60%; /* #f43f5e - rose-500 */
     --destructive-foreground: 0 0% 100%;
-    
+
     /* Borders & Inputs */
-    --border: 220 13% 22%; /* #32363c */
-    --input: 220 13% 22%;
-    --ring: 0 100% 50%;
-    
+    --border: 240 8% 20%; /* #2f2f37 */
+    --input: 240 8% 20%;
+    --ring: 240 10% 96%;
+
+    /*
+     * 경매장 서피스 토큰 · 다크.
+     * 캔버스를 패널보다 한 단계 더 어둡게 둬서, 라이트에서 연회색 바탕 위에 흰 패널이
+     * 떠 보이던 구조가 그대로 뒤집힌 채 유지된다 (패널 경계를 선이 아니라 색차로 읽는다).
+     */
+    --canvas: 15 15 18; /* #0f0f12 */
+    --surface: 23 23 28; /* #17171c · 개체 뷰어 레일과 같은 값 */
+    --surface-muted: 30 30 36; /* #1e1e24 */
+    --surface-accent: 38 38 45; /* #26262d */
+    --line: 43 43 51; /* #2b2b33 */
+    --line-soft: 33 33 40; /* #212128 */
+    --content: 242 242 245; /* #f2f2f5 */
+    --content-mid: 203 203 211; /* #cbcbd3 */
+    /*
+     * 먹색 바탕에서는 회색이 빨리 죽는다 · 라이트의 계단을 그대로 뒤집으면
+     * 보조 라벨이 3.7:1 로 떨어져 본문 기준(4.5:1)에 못 미친다. 한 단계씩 밝혀 둔다.
+     */
+    --content-soft: 152 152 163; /* 6.1:1 */
+    --content-faint: 141 141 152; /* 5.4:1 */
+    --content-ghost: 102 102 113; /* placeholder 전용 */
+    --surface-strong: 47 47 56; /* #2f2f38 */
+    --inverse: 229 229 234; /* 밝은 면이 곧 강조 */
+    --on-inverse: 23 23 28;
+    /* 먹색 바탕에서는 라이트 값이 잠긴다 · 채도를 유지한 채 한 톤만 밝힌다 */
+    --rise: 245 84 96; /* #f55460 */
+    --fall: 77 146 247; /* #4d92f7 */
+
     /* Chart Colors (다크모드용) */
-    --chart-1: 0 100% 50%;
+    --chart-1: 210 40% 98%;
     --chart-2: 0 0% 60%;
     --chart-3: 0 0% 50%;
     --chart-4: 0 0% 40%;
@@ -97,39 +148,53 @@
 @layer base {
   * {
     @apply border-border;
-    font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard Variable", Pretendard, Roboto, "Noto Sans KR", "Segoe UI", "Malgun Gothic", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+    font-family:
+      var(--font-pretendard),
+      "Pretendard Variable",
+      Pretendard,
+      -apple-system,
+      BlinkMacSystemFont,
+      "Apple SD Gothic Neo",
+      Roboto,
+      "Noto Sans KR",
+      "Segoe UI",
+      "Malgun Gothic",
+      "Apple Color Emoji",
+      "Segoe UI Emoji",
+      "Segoe UI Symbol",
+      sans-serif;
   }
   body {
     @apply bg-background text-foreground;
   }
 
-  /* 스크롤바 스타일 - 라이트모드 */
+  /*
+   * 스크롤바 · 홈은 비우고 막대만 남긴다.
+   *
+   * 트랙에 색을 깔면 스크롤이 필요 없는 순간에도 화면 가장자리마다 회색 띠가 하나씩
+   * 생겨, 내용이 아닌 것이 판을 가른다. 트랙은 투명으로 두고 막대만 옅게 띄운 뒤
+   * 손이 닿을 때 진해지게 한다 — 있는지 없는지는 잡으려 할 때 알면 된다.
+   */
   ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+    width: 10px;
+    height: 10px;
   }
-  ::-webkit-scrollbar-track {
-    background: #f5f5f5;
+  ::-webkit-scrollbar-track,
+  ::-webkit-scrollbar-corner {
+    background: transparent;
   }
   ::-webkit-scrollbar-thumb,
-  ::-webkit-scrollbar-thumb:hover,
   ::-webkit-scrollbar-thumb:active,
   ::-webkit-scrollbar-thumb:window-inactive {
     background-image: none !important;
-    background-color: #d4d4d4 !important;
-    border-radius: 4px;
+    /* 막대 폭은 6px · 나머지 4px 는 투명 테두리로 띄워 판 끝에 붙지 않게 한다 */
+    background-color: rgb(var(--content-ghost) / 0.55) !important;
+    border: 2px solid transparent !important;
+    background-clip: content-box !important;
+    border-radius: 999px;
   }
-
-  /* 스크롤바 스타일 - 다크모드 */
-  .dark ::-webkit-scrollbar-track {
-    background: #1e2024;
-  }
-  .dark ::-webkit-scrollbar-thumb,
-  .dark ::-webkit-scrollbar-thumb:hover,
-  .dark ::-webkit-scrollbar-thumb:active,
-  .dark ::-webkit-scrollbar-thumb:window-inactive {
-    background-image: none !important;
-    background-color: #3a3f47 !important;
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: rgb(var(--content-faint) / 0.8) !important;
   }
 }
 
@@ -144,28 +209,53 @@
    */
   .scrollbar-thin {
     scrollbar-gutter: stable;
-    scrollbar-width: thin;
-    scrollbar-color: #d4d4d4 transparent;
+  }
+  /*
+   * 스크롤바 자리를 미리 비워 두지 않는다.
+   *
+   * `stable` 은 스크롤이 생겨도 내용이 밀리지 않게 8px 을 늘 잡아 두는데, 실제로 넘치는
+   * 일이 없는 판에서는 그 8px 이 카드 오른쪽에 빈 띠로 남는다. 옆에 눈금을 세우면
+   * 눈금이 그 빈 띠만큼 오른쪽으로 밀려, 가운데 잡은 손잡이가 가운데로 보이지 않는다.
+   */
+  .scrollbar-gutter-auto {
+    scrollbar-gutter: auto;
+  }
+  /*
+   * `scrollbar-width` 는 Firefox 전용으로 둔다.
+   * Chrome 121+ 은 이 속성을 읽는 순간 `::-webkit-scrollbar` 규칙을 통째로 버리고
+   * `thin` 의 제 기본값(11px)을 쓴다 — 아래 6px 이 먹지 않아 오히려 전역 8px 보다 굵어졌다.
+   */
+  @supports (-moz-appearance: none) {
+    .scrollbar-thin {
+      scrollbar-width: thin;
+      scrollbar-color: rgb(var(--content-ghost) / 0.55) transparent;
+    }
   }
   .scrollbar-thin::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+    width: 8px;
+    height: 8px;
     background: transparent;
   }
-  .scrollbar-thin::-webkit-scrollbar-track {
+  .scrollbar-thin::-webkit-scrollbar-track,
+  .scrollbar-thin::-webkit-scrollbar-corner {
     background: transparent;
   }
+  /*
+   * 색은 먹색 토큰을 투명도와 함께 쓴다 — 예전엔 `#d4d4d4` 로 못 박혀 있어서
+   * 어두운 판에서 막대만 흰 선처럼 떠 표를 가르는 세로선으로 읽혔다.
+   */
   .scrollbar-thin::-webkit-scrollbar-thumb,
-  .scrollbar-thin::-webkit-scrollbar-thumb:hover,
   .scrollbar-thin::-webkit-scrollbar-thumb:active,
   .scrollbar-thin::-webkit-scrollbar-thumb:window-inactive {
     background-image: none !important;
-    background-color: #d4d4d4 !important;
+    background-color: rgb(var(--content-ghost) / 0.5) !important;
     border: 2px solid transparent !important;
     background-clip: content-box !important;
-    border-radius: 3px;
+    border-radius: 999px;
   }
-
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background-color: rgb(var(--content-faint) / 0.75) !important;
+  }
 }
 
 /*
@@ -199,17 +289,17 @@
  * 실시간 가격 변화 · row flash 애니메이션 · Upbit / Bithumb 시세판 표준.
  *
  * 구현: box-shadow inset 으로 row 전체를 tint 하고 900ms 에 걸쳐 fade-out.
- * background-color 를 건드리지 않아 base row bg (bg-white / bg-sky-50 / ...) 와 충돌 없음.
+ * background-color 를 건드리지 않아 base row bg (bg-white / bg-slate-100 / ...) 와 충돌 없음.
  *
- * `up`   · 최고가 상승 → sky (누군가 더 높게 입찰)
+ * `up`   · 값 증가 → 옅은 먹색 워시
  * `down` · 최고가 하락 → rose (희귀 · 취소/롤백 등)
  */
 @keyframes flash-up {
   0% {
-    box-shadow: inset 0 0 0 9999px rgba(56, 189, 248, 0.18);
+    box-shadow: inset 0 0 0 9999px rgba(23, 23, 28, 0.08);
   }
   100% {
-    box-shadow: inset 0 0 0 9999px rgba(56, 189, 248, 0);
+    box-shadow: inset 0 0 0 9999px rgba(23, 23, 28, 0);
   }
 }
 @keyframes flash-down {
@@ -233,7 +323,8 @@
  * 여기서는 0.85 까지만 감소해 "urgent 하되 읽을 수 있음" 유지.
  */
 @keyframes pulse-soft {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 1;
   }
   50% {
@@ -332,4 +423,81 @@
   border-width: 2px 2px 0 0 !important;
   width: 8px !important;
   height: 8px !important;
+}
+
+/*
+ * sonner · 닫기 X 를 카드 안쪽 우상단으로 · hover/focus 시만 노출.
+ *
+ * `unset` 으로는 옮겨지지 않는다. 커스텀 속성에서 `unset` 은 「선언을 지운다」가 아니라
+ * 「상속값을 쓴다」라서, 토스터에 걸려 있는 `0` 을 그대로 물려받는다. 그러면
+ * `left: 0` 과 `right: 0` 이 동시에 서고 폭이 고정된 버튼은 LTR 에서 left 를 따라가
+ * 왼쪽 위에 붙은 채 카드 밖으로 5px 튀어나온다 — 잘린 것처럼 보이던 게 이것이다.
+ * 비켜나게 하려면 `auto` 여야 한다.
+ */
+[data-sonner-toast][data-styled="true"] {
+  --toast-close-button-start: auto;
+  --toast-close-button-end: 0;
+  --toast-close-button-transform: translate(-10px, 10px);
+}
+
+/*
+ * 기본 토스트 카드.
+ *
+ * `data-styled="true"` 로 좁히는 게 핵심이다. `toast.custom`(입찰 영수증 · 회차 마감)은
+ * 제 카드를 직접 그리므로, 껍데기를 모든 토스트에 걸면 카드 안에 카드가 생긴다.
+ * 모서리는 본문 패널(2px)보다 둥글게 — 바닥에 붙은 판이 아니라 잠깐 떠 있다 사라지는 것.
+ *
+ * 앞에 `[data-sonner-toaster]` 를 두어 명시도를 한 단계 올린다. sonner 는 같은 선택자로
+ * 같은 속성을 선언하고 제 스타일을 런타임에 `<head>` 끝에 꽂으므로, 명시도가 같으면
+ * 순서로 밀려 이 규칙이 통째로 죽는다.
+ */
+[data-sonner-toaster] [data-sonner-toast][data-styled="true"] {
+  padding: 14px 36px 14px 16px;
+  border-radius: 10px;
+  border: 1px solid rgb(var(--line));
+  background: rgb(var(--surface));
+  color: rgb(var(--content));
+  box-shadow:
+    0 8px 28px -6px rgb(0 0 0 / 0.18),
+    0 2px 8px -4px rgb(0 0 0 / 0.1);
+}
+[data-sonner-toast][data-styled="true"] [data-close-button] {
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+[data-sonner-toast][data-styled="true"]:hover [data-close-button],
+[data-sonner-toast][data-styled="true"] [data-close-button]:focus-visible {
+  opacity: 1;
+}
+
+/* 경매내역 · 부분육 상장내역 인쇄 · body.print-daily-listings 동안 [data-print-root] 섹션만 A4 가로로 출력 */
+@media print {
+  body.print-daily-listings {
+    background: #fff;
+  }
+  body.print-daily-listings > * {
+    display: none !important;
+  }
+  body.print-daily-listings [data-print-root] {
+    display: block !important;
+    border: 0 !important;
+  }
+  /* 섹션을 감싸는 조상들은 보이되 레이아웃만 풀어 준다 */
+  body.print-daily-listings :has([data-print-root]) {
+    display: block !important;
+    height: auto !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    background: #fff !important;
+  }
+  body.print-daily-listings
+    :has([data-print-root])
+    > :not(:has([data-print-root])):not([data-print-root]) {
+    display: none !important;
+  }
+  body.print-daily-listings .print-hidden {
+    display: none !important;
+  }
 }

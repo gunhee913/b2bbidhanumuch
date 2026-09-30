@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminClient } from '@/lib/supabase-admin';
+import { resolveViewer } from '@/lib/resolve-viewer';
 
 const supabase = getAdminClient();
 
@@ -262,7 +263,61 @@ export async function PUT(
   }
 }
 
-// DELETE: 입찰 삭제 (관리자용)
+const CANCEL_ERRORS: Record<string, { error: string; status: number }> = {
+  NOT_FOUND: { error: '입찰을 찾을 수 없습니다.', status: 404 },
+  FORBIDDEN: { error: '본인 입찰만 취소할 수 있습니다.', status: 403 },
+  SETTLED: { error: '이미 낙찰이 확정된 부위입니다.', status: 409 },
+  NOT_OPEN: { error: '회차 진행 중에만 입찰을 취소할 수 있습니다.', status: 400 },
+};
+
+/**
+ * 매참인 본인 입찰 취소 · cancel_bid RPC.
+ * 소유권·회차 진행 중·미마감 검증과 삭제·감사 로그·is_top_bid 재계산을 부위 row lock 안에서 처리한다.
+ */
+async function cancelOwnBid(request: NextRequest, bidId: string) {
+  const viewer = await resolveViewer(request);
+  if (!viewer.dealerId) {
+    return NextResponse.json({ error: '로그인이 필요합니다.' }, { status: 401 });
+  }
+
+  const { data, error } = await supabase.rpc('cancel_bid', {
+    p_bid_id: bidId,
+    p_dealer_id: viewer.dealerId,
+    p_performed_by: viewer.dealerId,
+  });
+
+  if (error) {
+    console.error('입찰 취소 RPC 오류:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  const result = data as {
+    ok: boolean;
+    code?: string;
+    bidId?: string;
+    partId?: string;
+    bidPrice?: number;
+    bidAmount?: number;
+  };
+
+  if (!result?.ok) {
+    const mapped = CANCEL_ERRORS[result?.code ?? ''] ?? {
+      error: '입찰 취소 중 오류가 발생했습니다.',
+      status: 400,
+    };
+    return NextResponse.json({ error: mapped.error, code: result?.code }, { status: mapped.status });
+  }
+
+  return NextResponse.json({
+    message: '입찰이 취소되었습니다.',
+    deletedId: result.bidId,
+    partId: result.partId,
+    bidPrice: result.bidPrice,
+    bidAmount: result.bidAmount,
+  });
+}
+
+// DELETE: 관리자 삭제(isAdmin + 비밀번호) 또는 매참인 본인 취소
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -280,16 +335,13 @@ export async function DELETE(
       performedBy = body?.performedBy || null;
     } catch {}
 
-    if (isAdmin) {
-      const pwError = verifyAdminPassword(adminPassword);
-      if (pwError) {
-        return NextResponse.json({ error: pwError }, { status: 403 });
-      }
-    } else {
-      const auctionError = await checkAuctionOpen(id);
-      if (auctionError) {
-        return NextResponse.json({ error: auctionError }, { status: 400 });
-      }
+    if (!isAdmin) {
+      return cancelOwnBid(request, id);
+    }
+
+    const pwError = verifyAdminPassword(adminPassword);
+    if (pwError) {
+      return NextResponse.json({ error: pwError }, { status: 403 });
     }
 
     const { data: existingBid, error: fetchError } = await supabase
@@ -320,7 +372,7 @@ export async function DELETE(
       auction_id: existingBid.auction_id,
       part_id: existingBid.part_id,
       dealer_id: existingBid.dealer_id,
-      action_type: isAdmin ? 'delete' : 'dealer_cancel',
+      action_type: 'delete',
       old_bid_price: existingBid.bid_price,
       new_bid_price: null,
       old_bid_amount: existingBid.bid_amount,

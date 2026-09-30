@@ -70,10 +70,10 @@ export function LiveAuctionSection() {
 
 
   return (
-    <section id="live" className="bg-white py-14">
-      <div className="mx-auto max-w-[1240px] px-8">
+    <section id="live" className="bg-surface py-14">
+      <div className="mx-auto max-w-[1360px] min-[1700px]:max-w-[1600px] px-8">
         <div className="mb-8 flex items-center justify-between gap-4">
-          <h2 className="text-2xl font-bold text-slate-900">
+          <h2 className="text-2xl font-bold text-content">
             실시간 경매 내역
           </h2>
           <div className="flex flex-wrap items-center gap-2">
@@ -98,7 +98,7 @@ export function LiveAuctionSection() {
           </div>
         </div>
 
-        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div className="overflow-hidden rounded-xl border border-line bg-surface shadow-sm">
           <table className="w-full table-fixed text-sm">
             <colgroup>
               <col className="w-[12%]" />
@@ -112,36 +112,36 @@ export function LiveAuctionSection() {
               <col className="w-[11%]" />
               <col className="w-[10%]" />
             </colgroup>
-            <thead className="bg-slate-50 text-xs font-semibold text-slate-600">
+            <thead className="bg-surface-muted text-xs font-semibold text-content-mid">
               <tr>
-                <th className="border-b border-slate-200 px-4 py-3 text-center">
+                <th className="border-b border-line px-4 py-3 text-center">
                   경락일시
                 </th>
-                <th className="border-b border-slate-200 px-4 py-3 text-center">
+                <th className="border-b border-line px-4 py-3 text-center">
                   상장업체명
                 </th>
-                <th className="border-b border-slate-200 px-4 py-3 text-center">
+                <th className="border-b border-line px-4 py-3 text-center">
                   축종
                 </th>
-                <th className="border-b border-slate-200 px-4 py-3 text-center">
+                <th className="border-b border-line px-4 py-3 text-center">
                   성별
                 </th>
-                <th className="border-b border-slate-200 px-4 py-3 text-center">
+                <th className="border-b border-line px-4 py-3 text-center">
                   등급
                 </th>
-                <th className="border-b border-slate-200 px-4 py-3 text-center">
+                <th className="border-b border-line px-4 py-3 text-center">
                   품목
                 </th>
-                <th className="border-b border-slate-200 px-4 py-3 text-center">
+                <th className="border-b border-line px-4 py-3 text-center">
                   중량
                 </th>
-                <th className="border-b border-slate-200 px-4 py-3 text-center">
+                <th className="border-b border-line px-4 py-3 text-center">
                   경락단가
                 </th>
-                <th className="border-b border-slate-200 px-4 py-3 text-center">
+                <th className="border-b border-line px-4 py-3 text-center">
                   총경락금액
                 </th>
-                <th className="border-b border-slate-200 px-4 py-3 text-center">
+                <th className="border-b border-line px-4 py-3 text-center">
                   도축장명
                 </th>
               </tr>
@@ -161,12 +161,12 @@ export function LiveAuctionSection() {
                 <col className="w-[11%]" />
                 <col className="w-[10%]" />
               </colgroup>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-line-soft">
                 {isLoading ? (
                   <tr>
                     <td
                       colSpan={10}
-                      className="px-4 py-10 text-center text-slate-400"
+                      className="px-4 py-10 text-center text-content-faint"
                     >
                       불러오는 중...
                     </td>
@@ -175,7 +175,7 @@ export function LiveAuctionSection() {
                   <tr>
                     <td
                       colSpan={10}
-                      className="px-4 py-10 text-center text-slate-400"
+                      className="px-4 py-10 text-center text-content-faint"
                     >
                       최근 경매 내역이 없습니다.
                     </td>
@@ -184,42 +184,42 @@ export function LiveAuctionSection() {
                   <tr>
                     <td
                       colSpan={10}
-                      className="px-4 py-10 text-center text-slate-400"
+                      className="px-4 py-10 text-center text-content-faint"
                     >
                       필터에 해당하는 경매 내역이 없습니다.
                     </td>
                   </tr>
                 ) : (
                   filtered.map((r) => (
-                    <tr key={r.id} className="hover:bg-slate-50">
-                      <td className="px-4 py-3 whitespace-nowrap text-center text-slate-600">
+                    <tr key={r.id} className="hover:bg-surface-muted">
+                      <td className="px-4 py-3 whitespace-nowrap text-center text-content-mid">
                         {formatSettledAt(r.settledAt)}
                       </td>
-                      <td className="px-4 py-3 truncate text-center text-slate-700">
+                      <td className="px-4 py-3 truncate text-center text-content-mid">
                         {r.companyName || "-"}
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-center text-slate-700">
+                      <td className="px-4 py-3 whitespace-nowrap text-center text-content-mid">
                         {r.breed || "-"}
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-center text-slate-700">
+                      <td className="px-4 py-3 whitespace-nowrap text-center text-content-mid">
                         {r.gender || "-"}
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-center tabular-nums font-semibold text-slate-800">
+                      <td className="px-4 py-3 whitespace-nowrap text-center tabular-nums font-semibold text-content">
                         {r.grade || "-"}
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-center font-medium text-slate-800">
+                      <td className="px-4 py-3 whitespace-nowrap text-center font-medium text-content">
                         {r.partName || "-"}
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-right tabular-nums text-slate-700">
+                      <td className="px-4 py-3 whitespace-nowrap text-right tabular-nums text-content-mid">
                         {formatWeight(r.weight)}
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-right tabular-nums text-slate-700">
+                      <td className="px-4 py-3 whitespace-nowrap text-right tabular-nums text-content-mid">
                         {formatPrice(r.bidPrice)}
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-right tabular-nums font-semibold text-slate-900">
+                      <td className="px-4 py-3 whitespace-nowrap text-right tabular-nums font-semibold text-content">
                         {formatAmount(r.bidAmount)}
                       </td>
-                      <td className="px-4 py-3 truncate text-center text-slate-500">
+                      <td className="px-4 py-3 truncate text-center text-content-soft">
                         {r.slaughterHouse || "-"}
                       </td>
                     </tr>

@@ -44,7 +44,7 @@ function AuctionDetailContent({ params }: PageProps) {
   const { data: listingData, isLoading: listingLoading, error: listingError, refetch: refetchListing } = useListingByNo(resolvedParams.id);
 
   // 실시간 입찰 변경 구독
-  const handleBidChange = useCallback((payload?: { partId: string; bidPrice: number; dealerId: string }) => {
+  const handleBidChange = useCallback(() => {
     refetchListing();
   }, [refetchListing]);
   
@@ -925,7 +925,7 @@ function AuctionDetailContent({ params }: PageProps) {
   // 로딩 상태 (에러 시에도 폴백 데이터로 표시하므로 에러 화면 제거)
   if (listingLoading) {
     return (
-      <div className="fixed inset-0 bg-white dark:bg-gray-900 flex items-center justify-center z-[9999]">
+      <div className="fixed inset-0 bg-surface dark:bg-gray-900 flex items-center justify-center z-[9999]">
         <div className="text-center">
           <div className="w-8 h-8 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin mx-auto mb-3"></div>
           <p className="text-gray-500 dark:text-gray-400 text-sm">상장 정보를 불러오는 중...</p>
@@ -937,10 +937,10 @@ function AuctionDetailContent({ params }: PageProps) {
   // DB 조회 실패 시 폴백 데이터 사용 (에러 화면 대신 기본 데이터로 표시)
 
   return (
-    <div className="fixed inset-0 bg-white flex justify-center items-center z-[9999] overflow-hidden">
-      <div className="w-full md:flex md:justify-center md:items-center bg-white">
+    <div className="fixed inset-0 bg-surface flex justify-center items-center z-[9999] overflow-hidden">
+      <div className="w-full md:flex md:justify-center md:items-center bg-surface">
           <div 
-            className="w-full md:max-w-md md:w-[500px] bg-white dark:bg-gray-900 md:shadow-2xl relative overflow-hidden flex flex-col transition-colors" 
+            className="w-full md:max-w-md md:w-[500px] bg-surface dark:bg-gray-900 md:shadow-2xl relative overflow-hidden flex flex-col transition-colors" 
             style={{
               height: 'calc(var(--vh, 1vh) * 100)',
               scrollbarWidth: 'none', 
@@ -954,9 +954,9 @@ function AuctionDetailContent({ params }: PageProps) {
             `}</style>
             
             {/* 메인 콘텐츠 */}
-            <div className="flex-1 min-h-0 overflow-y-auto bg-white dark:bg-gray-900 transition-colors">
+            <div className="flex-1 min-h-0 overflow-y-auto bg-surface dark:bg-gray-900 transition-colors">
               {/* 헤더 */}
-              <div className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-20 transition-colors">
+              <div className="bg-surface dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-20 transition-colors">
                 {/* 1줄: 뒤로가기 + 회차정보 + 관심 */}
                 <div className="flex items-center justify-between px-3 pt-2 pb-1">
                   <button
@@ -1074,7 +1074,7 @@ function AuctionDetailContent({ params }: PageProps) {
                       key={index}
                       onClick={() => setCurrentImageIndex(index)}
                       className={`w-2 h-2 rounded-full transition-colors ${
-                        currentImageIndex === index ? 'bg-white' : 'bg-white/50'
+                        currentImageIndex === index ? 'bg-surface' : 'bg-white/50'
                       }`}
                       aria-label={`이미지 ${index + 1}로 이동`}
                     />
@@ -1106,12 +1106,12 @@ function AuctionDetailContent({ params }: PageProps) {
               </div>
 
               {/* 버튼 영역 (항상 고정) */}
-              <div className="px-3 pt-2 pb-2 bg-white dark:bg-gray-900 flex items-center justify-end gap-2 transition-colors">
+              <div className="px-3 pt-2 pb-2 bg-surface dark:bg-gray-900 flex items-center justify-end gap-2 transition-colors">
                 <a
                   href="https://aunit.mtrace.go.kr/mtracesearch/cattleNoSearch.do?btsProgNo=0109008401&btsActionMethod=SELECT&cattleNo=002189438539"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="px-3 py-1.5 text-xs font-bold rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center gap-1"
+                  className="px-3 py-1.5 text-xs font-bold rounded border border-gray-300 dark:border-gray-600 bg-surface dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center gap-1"
                 >
                   축산물 이력정보
                   <ExternalLink className="w-3 h-3" />
@@ -1135,7 +1135,7 @@ function AuctionDetailContent({ params }: PageProps) {
                     className="overflow-hidden"
                   >
                     {/* 1행: 축종, 성별, 등급, 개월령, 이력번호 */}
-                    <div className="mx-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded overflow-hidden">
+                    <div className="mx-3 bg-surface dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded overflow-hidden">
                       <table className="w-full text-[13px]">
                         <thead>
                           <tr className="bg-gray-100/80 dark:bg-gray-700/80 border-b border-gray-200 dark:border-gray-600">
@@ -1159,7 +1159,7 @@ function AuctionDetailContent({ params }: PageProps) {
                     </div>
 
                     {/* 2행: 등지방, 등심면적, 근내지방, 육색, 지방색, 조직감, 성숙도 */}
-                    <div className="mx-3 mt-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded overflow-hidden">
+                    <div className="mx-3 mt-2 bg-surface dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded overflow-hidden">
                       <table className="w-full text-[13px]">
                         <thead>
                           <tr className="bg-gray-100/80 dark:bg-gray-700/80 border-b border-gray-200 dark:border-gray-600">
@@ -1187,7 +1187,7 @@ function AuctionDetailContent({ params }: PageProps) {
                     </div>
 
                     {/* 3행: 도축장, 도축번호, 도체중, 상장업체, 가공일, 가공중량 */}
-                    <div className="mx-3 mt-2 mb-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded overflow-hidden">
+                    <div className="mx-3 mt-2 mb-2 bg-surface dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded overflow-hidden">
                       <table className="w-full text-[13px]">
                         <thead>
                           <tr className="bg-gray-100/80 dark:bg-gray-700/80 border-b border-gray-200 dark:border-gray-600">
@@ -1266,7 +1266,7 @@ function AuctionDetailContent({ params }: PageProps) {
                               className={`grid px-2 py-3 border-b border-gray-100 dark:border-gray-800 transition-colors ${
                                 hasBid
                                   ? 'bg-red-50/50 dark:bg-red-900/20'
-                                  : 'bg-white dark:bg-gray-900'
+                                  : 'bg-surface dark:bg-gray-900'
                               }`}
                               style={{gridTemplateColumns: '1fr 0.7fr 1fr 1fr 1fr 0.7fr'}}
                             >
@@ -1315,8 +1315,8 @@ function AuctionDetailContent({ params }: PageProps) {
                             key={`active-${index}`}
                             className={`grid px-2 py-3 border-b border-gray-100 dark:border-gray-800 transition-colors ${
                               hasBid
-                                ? 'bg-blue-50/50 dark:bg-blue-900/30'
-                                : 'bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800'
+                                ? 'bg-surface dark:bg-gray-900'
+                                : 'bg-surface dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800'
                             }`}
                             style={{gridTemplateColumns: '1fr 0.7fr 1fr 1fr 0.6fr 0.6fr'}}
                           >
@@ -1358,7 +1358,7 @@ function AuctionDetailContent({ params }: PageProps) {
                                     setBidPrice(myBidPrice ? myBidPrice.toString() : '');
                                     setShowBidSheet(true);
                                   }}
-                                  className="px-1.5 py-1 text-[11px] font-medium text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 rounded hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors"
+                                  className="px-1.5 py-1 text-[11px] font-medium text-content-mid dark:text-content-ghost border border-line dark:border-slate-700 rounded hover:bg-surface-muted dark:hover:bg-inverse transition-colors"
                                 >
                                   변경
                                 </button>
@@ -1427,8 +1427,8 @@ function AuctionDetailContent({ params }: PageProps) {
                         key={`settled-${index}`}
                         className={`grid px-2 py-3 border-b border-gray-100 dark:border-gray-800 transition-colors ${
                           isMyWin
-                            ? 'bg-blue-50/50 dark:bg-blue-900/30'
-                            : 'bg-white dark:bg-gray-900'
+                            ? 'bg-surface dark:bg-gray-900'
+                            : 'bg-surface dark:bg-gray-900'
                         }`}
                         style={{gridTemplateColumns: '1fr 0.7fr 1fr 1fr 1fr 0.7fr'}}
                       >
@@ -1452,7 +1452,7 @@ function AuctionDetailContent({ params }: PageProps) {
                         </div>
                         <div className="flex items-center justify-center">
                           {myBidPrice ? (
-                            <span className={`text-[13px] font-medium ${isMyWin ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'}`}>
+                            <span className={`text-[13px] font-medium ${isMyWin ? 'text-content font-semibold dark:text-slate-100' : 'text-gray-500 dark:text-gray-400'}`}>
                               {myBidPrice.toLocaleString()}
                             </span>
                           ) : (
@@ -1461,7 +1461,7 @@ function AuctionDetailContent({ params }: PageProps) {
                         </div>
                         <div className="flex items-center justify-center">
                           {isMyWin ? (
-                            <span className="px-1.5 py-0.5 text-[11px] font-medium text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/50 rounded">낙찰</span>
+                            <span className="px-1.5 py-0.5 text-[11px] font-medium bg-surface-strong text-content-mid rounded">낙찰</span>
                           ) : myBidPrice ? (
                             <span className="px-1.5 py-0.5 text-[11px] font-medium text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900/50 rounded">미낙찰</span>
                           ) : (
@@ -1499,7 +1499,7 @@ function AuctionDetailContent({ params }: PageProps) {
                     animate={{ y: 0 }}
                     exit={{ y: '100%' }}
                     transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                    className="absolute bottom-0 left-0 right-0 bg-white dark:bg-gray-900 rounded-t-2xl shadow-2xl max-h-[70vh] overflow-y-auto z-[100] transition-colors">
+                    className="absolute bottom-0 left-0 right-0 bg-surface dark:bg-gray-900 rounded-t-2xl shadow-2xl max-h-[70vh] overflow-y-auto z-[100] transition-colors">
                   {/* 핸들 */}
                   <div className="flex justify-center pt-3 pb-2">
                     <div className="w-10 h-1 bg-gray-300 dark:bg-gray-600 rounded-full" />
@@ -1566,7 +1566,7 @@ function AuctionDetailContent({ params }: PageProps) {
                             const partData = partsData.find((p: any) => p.part === selectedPart);
                             return `최저단가 ${(partData?.minPrice || baseMinPrices[selectedPart] || 50000).toLocaleString()}`;
                           })() : '0'}
-                          className="w-full px-4 py-3.5 pr-12 text-right text-xl font-bold border border-gray-200 dark:border-gray-700 rounded focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500 focus:border-gray-400 dark:focus:border-gray-500 bg-white dark:bg-gray-800 text-black dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500"
+                          className="w-full px-4 py-3.5 pr-12 text-right text-xl font-bold border border-gray-200 dark:border-gray-700 rounded focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500 focus:border-gray-400 dark:focus:border-gray-500 bg-surface dark:bg-gray-800 text-black dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500"
                         />
                         <div className="absolute right-4 top-1/2 transform -translate-y-1/2 text-sm text-gray-400 dark:text-gray-500">
                           원
@@ -1641,7 +1641,7 @@ function AuctionDetailContent({ params }: PageProps) {
         {/* 입찰 확인 다이얼로그 */}
         {showBidDialog && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[10000] p-4">
-            <div className="bg-white dark:bg-gray-900 rounded w-full max-w-md mx-4 transition-colors">
+            <div className="bg-surface dark:bg-gray-900 rounded w-full max-w-md mx-4 transition-colors">
               {/* 다이얼로그 헤더 */}
               <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
                 <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">입찰 내용을 확인해 주세요</h3>
@@ -1722,7 +1722,7 @@ function AuctionDetailContent({ params }: PageProps) {
         {/* 빠른 재입찰 금액 설정 다이얼로그 */}
         {showQuickReBidEdit && (
           <div className="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white dark:bg-gray-900 rounded-lg max-w-sm w-full p-5 transition-colors">
+            <div className="bg-surface dark:bg-gray-900 rounded-lg max-w-sm w-full p-5 transition-colors">
               <h3 className="text-lg font-bold mb-4 text-gray-900 dark:text-gray-100">빠른 재입찰 금액 설정</h3>
               
               <div className="mb-4">
@@ -1741,7 +1741,7 @@ function AuctionDetailContent({ params }: PageProps) {
                       setTempQuickReBidAmount('');
                     }}
                     placeholder="증액할 금액을 입력하세요"
-                    className="w-full px-3 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                    className="w-full px-3 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 bg-surface dark:bg-gray-800 text-gray-900 dark:text-gray-100"
                   />
                   <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400 text-sm">원</span>
                 </div>
@@ -1756,7 +1756,7 @@ function AuctionDetailContent({ params }: PageProps) {
                     setShowQuickReBidEdit(false);
                     setTempQuickReBidAmount(quickReBidAmount.toLocaleString());
                   }}
-                  className="flex-1 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-2 border-gray-300 dark:border-gray-600 py-2 rounded-lg font-bold hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                  className="flex-1 bg-surface dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-2 border-gray-300 dark:border-gray-600 py-2 rounded-lg font-bold hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                 >
                   취소
                 </button>
@@ -1775,7 +1775,7 @@ function AuctionDetailContent({ params }: PageProps) {
         {/* 재입찰 다이얼로그 */}
         {showReBidDialog && selectedBid && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white dark:bg-gray-900 rounded-lg max-w-md w-full p-5 transition-colors">
+            <div className="bg-surface dark:bg-gray-900 rounded-lg max-w-md w-full p-5 transition-colors">
               <h3 className="text-lg font-bold mb-4 text-gray-900 dark:text-gray-100">재입찰 확인</h3>
               
               <div className="mb-4 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
@@ -1812,7 +1812,7 @@ function AuctionDetailContent({ params }: PageProps) {
                         setCustomBidPrice('');
                       }}
                       placeholder={`최소 ${(selectedBid.topBidPrice + 100).toLocaleString()}원 이상`}
-                      className="w-full px-3 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                      className="w-full px-3 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 bg-surface dark:bg-gray-800 text-gray-900 dark:text-gray-100"
                     />
                     <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400 text-sm">원/kg</span>
                   </div>
@@ -1831,7 +1831,7 @@ function AuctionDetailContent({ params }: PageProps) {
                     setSelectedBid(null);
                     setCustomBidPrice('');
                   }}
-                  className="flex-1 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-2 border-gray-300 dark:border-gray-600 py-2 rounded-lg font-bold hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                  className="flex-1 bg-surface dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-2 border-gray-300 dark:border-gray-600 py-2 rounded-lg font-bold hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                 >
                   취소
                 </button>
@@ -1863,7 +1863,7 @@ function AuctionDetailContent({ params }: PageProps) {
           }`}>
             <div className={`px-4 py-3 rounded-lg shadow-lg flex items-center space-x-2 ${
               toastType === 'success' 
-                ? 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-100' 
+                ? 'bg-surface dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-100' 
                 : 'bg-gray-800 dark:bg-gray-700 text-white'
             }`}>
               <div className="flex-shrink-0">
@@ -1887,7 +1887,7 @@ function AuctionDetailContent({ params }: PageProps) {
 
 function LoadingFallback() {
   return (
-    <div className="fixed inset-0 bg-white dark:bg-gray-900 flex items-center justify-center">
+    <div className="fixed inset-0 bg-surface dark:bg-gray-900 flex items-center justify-center">
       <span className="text-gray-500 dark:text-gray-400">로딩 중...</span>
     </div>
   );

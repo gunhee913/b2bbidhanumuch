@@ -139,7 +139,7 @@ function MainPageContent() {
   }, { enabled: activeDateLoaded });
   
   // 실시간 입찰 변경 구독
-  const handleBidChange = useCallback((payload?: { partId: string; bidPrice: number; dealerId: string }) => {
+  const handleBidChange = useCallback(() => {
     refetchListings();
   }, [refetchListings]);
   

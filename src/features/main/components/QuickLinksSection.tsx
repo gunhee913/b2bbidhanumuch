@@ -45,16 +45,16 @@ const LINKS: QuickLink[] = [
 
 export function QuickLinksSection() {
   return (
-    <section className="bg-slate-50 py-14">
-      <div className="mx-auto max-w-[1240px] px-8">
+    <section className="bg-surface-muted py-14">
+      <div className="mx-auto max-w-[1360px] min-[1700px]:max-w-[1600px] px-8">
         <div className="mb-8 text-center">
           <p className="mb-1 text-xs font-bold uppercase tracking-widest text-sky-700">
             Quick Access
           </p>
-          <h2 className="text-2xl font-bold text-slate-900">
+          <h2 className="text-2xl font-bold text-content">
             역할별 바로가기
           </h2>
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="mt-1 text-sm text-content-soft">
             해당 계정으로 로그인하여 서비스를 이용하세요.
           </p>
         </div>
@@ -66,7 +66,7 @@ export function QuickLinksSection() {
               <Link
                 key={link.href}
                 href={link.href}
-                className="group flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
+                className="group flex flex-col overflow-hidden rounded-xl border border-line bg-surface shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
               >
                 <div
                   className={`h-1.5 w-full bg-gradient-to-r ${link.accent}`}
@@ -77,13 +77,13 @@ export function QuickLinksSection() {
                   >
                     <Icon className="h-6 w-6" />
                   </div>
-                  <h3 className="text-lg font-bold text-slate-900">
+                  <h3 className="text-lg font-bold text-content">
                     {link.title}
                   </h3>
-                  <p className="mt-2 flex-1 text-sm leading-relaxed text-slate-600">
+                  <p className="mt-2 flex-1 text-sm leading-relaxed text-content-mid">
                     {link.description}
                   </p>
-                  <span className="mt-6 inline-flex items-center gap-1 text-sm font-semibold text-slate-800 group-hover:text-sky-700">
+                  <span className="mt-6 inline-flex items-center gap-1 text-sm font-semibold text-content group-hover:text-sky-700">
                     {link.cta} <span aria-hidden>→</span>
                   </span>
                 </div>

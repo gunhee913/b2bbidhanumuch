@@ -7,7 +7,7 @@ export type PriceFlashDirection = "up" | "down" | null;
 /**
  * 값 변화 감지 → 짧은 flash pulse 트리거 훅.
  *
- * 사용처: 오픈 최고가 (topBid.bidPrice) 실시간 갱신 시 row 강조.
+ * 사용처: 사이드바 입찰 건수 · 낙찰대금 등 마감 후 집계값 갱신 시 강조.
  * - null → 값 : flash 없음 (initial mount)
  * - 값 → 다른 값 : "up"/"down" flash · 지정 duration 후 자동 해제
  *

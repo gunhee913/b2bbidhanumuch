@@ -36,6 +36,8 @@ export interface WinningPart {
   slaughterDate: string;
   processDate: string;
   processWeight: number;
+  /** 개체 사진 (상장 등록 시 업로드) · 없으면 빈 배열 */
+  images: string[];
   companyName: string;
 }
 

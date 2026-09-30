@@ -87,10 +87,7 @@ export function groupPartsByName(listings: LiveListing[]): PartGroupEntry[] {
     const items = bucket.get(group);
     if (!items || items.length === 0) continue;
     items.sort((a, b) => {
-      const byNo = a.listing.listingNo.localeCompare(
-        b.listing.listingNo,
-        "ko",
-      );
+      const byNo = a.listing.listingNo.localeCompare(b.listing.listingNo, "ko");
       if (byNo !== 0) return byNo;
       // 같은 접수번호(같은 개체) 내에서는 좌 → 우 → null 순.
       return sideRank(a.side) - sideRank(b.side);

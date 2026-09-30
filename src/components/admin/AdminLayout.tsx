@@ -120,7 +120,9 @@ const menuItems = [
     subItems: [
       { title: '정산 설정', href: '/admin/settlements/settings' },
       { title: '문자/알림 설정', href: '/admin/settings/notifications' },
+      { title: '경매 일정 설정', href: '/admin/settings/auction-calendar' },
       { title: '경매 예정시간 설정', href: '/admin/settings/round-schedule' },
+      { title: '부위 대표이미지 설정', href: '/admin/settings/part-images' },
     ],
   },
 ];

@@ -76,15 +76,15 @@ export function MarketPartSummaryTable({
   const hasData = sortedRows.length > 0;
 
   return (
-    <section className="overflow-x-auto border border-slate-200 bg-white">
-      <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 bg-slate-50/50 px-4 py-2">
+    <section className="overflow-x-auto border border-line bg-surface">
+      <div className="flex flex-wrap items-center gap-2 border-b border-line bg-slate-50/50 px-4 py-2">
         <CompactFilterPill
           label="등급"
           value={gradeFilter}
           onChange={onChangeGradeFilter}
           options={GRADE_FILTER_OPTIONS}
         />
-        <span className="ml-auto whitespace-nowrap text-[11px] tabular-nums text-slate-500">
+        <span className="ml-auto whitespace-nowrap text-[11px] tabular-nums text-content-soft">
           낙찰 {totalCount}건
         </span>
       </div>
@@ -103,24 +103,24 @@ export function MarketPartSummaryTable({
           <col className="w-[260px]" />
           <col className="w-[344px]" />
         </colgroup>
-        <thead className="bg-slate-50 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+        <thead className="bg-surface-muted text-[11px] font-semibold uppercase tracking-wider text-content-soft">
           <tr>
-            <th className="border-b border-slate-200 px-3 py-2.5 text-center">
+            <th className="border-b border-line px-3 py-2.5 text-center">
               부위
             </th>
-            <th className="border-b border-slate-200 px-3 py-2.5 text-center">
+            <th className="border-b border-line px-3 py-2.5 text-center">
               등급
             </th>
-            <th className="border-b border-slate-200 px-3 py-2.5 text-center">
+            <th className="border-b border-line px-3 py-2.5 text-center">
               낙찰건수
             </th>
-            <th className="border-b border-slate-200 px-3 py-2.5 text-center">
+            <th className="border-b border-line px-3 py-2.5 text-center">
               중량
             </th>
-            <th className="border-b border-slate-200 px-3 py-2.5 text-center">
+            <th className="border-b border-line px-3 py-2.5 text-center">
               단가
             </th>
-            <th className="border-b border-slate-200 px-3 py-2.5 text-center">
+            <th className="border-b border-line px-3 py-2.5 text-center">
               낙찰금
             </th>
           </tr>
@@ -174,17 +174,17 @@ function SummaryRow({
   return (
     <tr
       className={cn(
-        "border-b border-slate-100 transition-colors hover:bg-slate-50/60",
-        isPartBoundary && "border-t border-slate-200",
+        "border-b border-line-soft transition-colors hover:bg-slate-50/60",
+        isPartBoundary && "border-t border-line",
       )}
     >
-      <td className="whitespace-nowrap px-3 py-3 text-center align-middle text-[13px] font-semibold text-slate-900">
+      <td className="whitespace-nowrap px-3 py-3 text-center align-middle text-[13px] font-semibold text-content">
         {showPart ? row.partName : ""}
       </td>
-      <td className="whitespace-nowrap px-3 py-3 text-center align-middle text-[12px] font-semibold tabular-nums text-slate-800">
+      <td className="whitespace-nowrap px-3 py-3 text-center align-middle text-[12px] font-semibold tabular-nums text-content">
         {row.grade}
       </td>
-      <td className="whitespace-nowrap px-3 py-3 text-center align-middle text-[12.5px] font-semibold tabular-nums text-slate-700">
+      <td className="whitespace-nowrap px-3 py-3 text-center align-middle text-[12.5px] font-semibold tabular-nums text-content-mid">
         {row.count}건
       </td>
       <MetricCell
@@ -223,8 +223,8 @@ function MetricCell({
     tone === "brand"
       ? "text-[13.5px] font-bold text-sky-700"
       : tone === "strong"
-        ? "text-[13.5px] font-bold text-slate-900"
-        : "text-[13px] font-semibold text-slate-800";
+        ? "text-[13.5px] font-bold text-content"
+        : "text-[13px] font-semibold text-content";
 
   return (
     <td className="whitespace-nowrap px-3 py-3 text-center align-middle">
@@ -232,7 +232,7 @@ function MetricCell({
         {primary}
       </div>
       {range ? (
-        <div className="mt-0.5 text-[10.5px] tabular-nums leading-tight text-slate-400">
+        <div className="mt-0.5 text-[10.5px] tabular-nums leading-tight text-content-faint">
           {range}
         </div>
       ) : null}
@@ -270,7 +270,7 @@ function EmptyRow({
     <tr>
       <td
         colSpan={colSpan}
-        className="px-4 py-16 text-center text-[13px] text-slate-400"
+        className="px-4 py-16 text-center text-[13px] text-content-faint"
       >
         {message}
       </td>
@@ -282,9 +282,9 @@ function SkeletonRows({ colSpan, rows }: { colSpan: number; rows: number }) {
   return (
     <>
       {Array.from({ length: rows }).map((_, i) => (
-        <tr key={i} className="border-b border-slate-100">
+        <tr key={i} className="border-b border-line-soft">
           <td colSpan={colSpan} className="px-3 py-4">
-            <div className="h-4 w-full animate-pulse rounded bg-slate-100" />
+            <div className="h-4 w-full animate-pulse rounded bg-surface-accent" />
           </td>
         </tr>
       ))}

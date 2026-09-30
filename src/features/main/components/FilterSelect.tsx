@@ -48,7 +48,7 @@ export function FilterSelect({
           "h-9 w-[168px] shrink-0 gap-2 rounded-lg border px-3 text-xs shadow-sm transition-colors focus:ring-2 focus:ring-offset-0",
           isActive
             ? "border-sky-500 bg-sky-50 text-sky-700 hover:border-sky-500 focus:ring-sky-200"
-            : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 focus:ring-slate-200",
+            : "border-line bg-surface text-content-mid hover:border-line focus:ring-line",
           className,
         )}
       >
@@ -56,7 +56,7 @@ export function FilterSelect({
           <span
             className={cn(
               "shrink-0 text-[11px] font-medium tracking-tight",
-              isActive ? "text-sky-600/70" : "text-slate-400",
+              isActive ? "text-sky-600/70" : "text-content-faint",
             )}
           >
             {label}
@@ -73,18 +73,18 @@ export function FilterSelect({
         </span>
       </SelectTrigger>
       <SelectContent
-        className="min-w-[180px] rounded-lg border-slate-200 shadow-xl"
+        className="min-w-[180px] rounded-lg border-line shadow-xl"
         align="end"
       >
         {allowAll ? (
           <>
             <SelectItem
               value={ALL_SENTINEL}
-              className="text-slate-500 focus:text-slate-700"
+              className="text-content-soft focus:text-content-mid"
             >
               {allLabel}
             </SelectItem>
-            <SelectSeparator className="bg-slate-100" />
+            <SelectSeparator className="bg-surface-accent" />
           </>
         ) : null}
         {options.map((opt) => (

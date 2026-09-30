@@ -47,6 +47,7 @@ export async function GET(request: NextRequest) {
           slaughter_date,
           process_date,
           process_weight,
+          images,
           company_id,
           closed_at,
           companies (
@@ -118,6 +119,7 @@ export async function GET(request: NextRequest) {
         slaughterDate: listing?.slaughter_date || '',
         processDate: listing?.process_date || '',
         processWeight: Number(listing?.process_weight || 0),
+        images: Array.isArray(listing?.images) ? listing.images : [],
         companyName: listing?.companies?.name || '',
       };
     });

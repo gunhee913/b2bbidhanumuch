@@ -1,68 +1,80 @@
 "use client";
 
-import { PeriodFilter } from "@/features/history/components/PeriodFilter";
+import { RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-export type DeliveryStatusFilter = "all" | "assigned" | "unassigned";
+import { PeriodFilter } from "@/features/history/components/PeriodFilter";
+import { CompactFilterPill } from "@/features/live-auction/components/CompactFilterPill";
 
 export interface DeliveryHeaderProps {
   startDate: string;
   endDate: string;
   onChangePeriod: (next: { startDate: string; endDate: string }) => void;
   onSearch: () => void;
-  statusFilter: DeliveryStatusFilter;
-  onChangeStatus: (next: DeliveryStatusFilter) => void;
+  partOptions: readonly string[];
+  partFilter: string;
+  onPartFilterChange: (v: string) => void;
+  hideDone: boolean;
+  onHideDoneChange: (v: boolean) => void;
+  isRefreshing: boolean;
+  onRefresh: () => void;
 }
 
-const STATUS_TABS: { key: DeliveryStatusFilter; label: string }[] = [
-  { key: "all", label: "전체" },
-  { key: "unassigned", label: "미등록" },
-  { key: "assigned", label: "등록완료" },
-];
-
 /**
- * 배송지시 페이지 상단 · 제목 + 기간 필터 + 상태 필터.
- * 필터 값은 부모(`DeliveryPageContent`)가 관리.
+ * 배송지시 상단 · 조회기간 + 부위 필터 + 배정 완료 숨김 + 새로고침.
+ * 상태 탭(전체/미배정/배정)은 개체 카드의 진행 표시로 대체 → 제거.
  */
 export function DeliveryHeader({
   startDate,
   endDate,
   onChangePeriod,
   onSearch,
-  statusFilter,
-  onChangeStatus,
+  partOptions,
+  partFilter,
+  onPartFilterChange,
+  hideDone,
+  onHideDoneChange,
+  isRefreshing,
+  onRefresh,
 }: DeliveryHeaderProps) {
   return (
-    <div className="border-b border-slate-200 bg-white">
-      <div className="mx-auto w-full max-w-[1240px] px-8 pb-4 pt-6">
-        <div className="flex flex-wrap items-center gap-3">
-          <PeriodFilter
-            startDate={startDate}
-            endDate={endDate}
-            onChange={onChangePeriod}
-            onSearch={onSearch}
-            className="flex-1 min-w-[420px]"
+    <div className="border-b border-line bg-surface">
+      <div className="mx-auto flex w-full max-w-[1360px] min-[1700px]:max-w-[1600px] flex-wrap items-center justify-between gap-3 px-8 pb-4 pt-6">
+      <div className="flex flex-wrap items-center gap-3">
+        <PeriodFilter
+          startDate={startDate}
+          endDate={endDate}
+          onChange={onChangePeriod}
+          onSearch={onSearch}
+          className="min-w-[420px]"
+        />
+        <CompactFilterPill
+          label="부위"
+          value={partFilter}
+          onChange={onPartFilterChange}
+          options={partOptions}
+          allLabel="전체 부위"
+          valueOnlyWhenActive
+        />
+        <label className="inline-flex h-7 cursor-pointer select-none items-center gap-1.5 text-[12px] text-content-mid">
+          <input
+            type="checkbox"
+            checked={hideDone}
+            onChange={(e) => onHideDoneChange(e.target.checked)}
+            className="h-3.5 w-3.5 accent-sky-600"
           />
-        </div>
+          배정 완료 숨기기
+        </label>
+      </div>
 
-        <div className="mt-3 flex items-center gap-1">
-          {STATUS_TABS.map((t) => (
-            <button
-              key={t.key}
-              type="button"
-              onClick={() => onChangeStatus(t.key)}
-              className={cn(
-                "inline-flex h-8 items-center rounded-md border px-3 text-[12px] font-bold transition-colors",
-                statusFilter === t.key
-                  ? "border-sky-500 bg-sky-50 text-sky-700"
-                  : "border-slate-200 bg-white text-slate-600 hover:border-slate-300",
-              )}
-              aria-pressed={statusFilter === t.key}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
+      <button
+        type="button"
+        onClick={onRefresh}
+        disabled={isRefreshing}
+        className="inline-flex h-7 items-center gap-1.5 border border-line bg-surface px-2.5 text-[12px] font-semibold text-content-mid transition-colors hover:border-line hover:text-content disabled:opacity-60"
+      >
+        <RefreshCw className={cn("h-3.5 w-3.5", isRefreshing && "animate-spin")} />
+        새로고침
+      </button>
       </div>
     </div>
   );

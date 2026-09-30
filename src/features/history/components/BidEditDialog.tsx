@@ -106,17 +106,17 @@ export function BidEditDialog({ bid, onClose, onSaved }: BidEditDialogProps) {
       onClick={onClose}
     >
       <div
-        className="w-full max-w-[440px] overflow-hidden rounded-lg bg-white shadow-2xl"
+        className="w-full max-w-[440px] overflow-hidden rounded-lg bg-surface shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <header className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+        <header className="flex items-center justify-between border-b border-line-soft px-5 py-4">
           <div>
             <div className="text-[11px] font-semibold uppercase tracking-wider text-sky-600">
               입찰 변경
             </div>
-            <div className="mt-0.5 text-[15px] font-bold tabular-nums text-slate-900">
+            <div className="mt-0.5 text-[15px] font-bold tabular-nums text-content">
               {bid.listingNo || bid.entityListingNo}
-              <span className="mx-1.5 text-slate-300">·</span>
+              <span className="mx-1.5 text-content-ghost">·</span>
               {bid.partName}
             </div>
           </div>
@@ -124,13 +124,13 @@ export function BidEditDialog({ bid, onClose, onSaved }: BidEditDialogProps) {
             type="button"
             onClick={onClose}
             aria-label="닫기"
-            className="inline-flex h-8 w-8 items-center justify-center rounded text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+            className="inline-flex h-8 w-8 items-center justify-center rounded text-content-faint hover:bg-surface-accent hover:text-content-mid"
           >
             <X className="h-4 w-4" />
           </button>
         </header>
 
-        <div className="grid grid-cols-3 gap-3 border-b border-slate-100 px-5 py-3">
+        <div className="grid grid-cols-3 gap-3 border-b border-line-soft px-5 py-3">
           <InfoCell label="등급" value={gradeLabel} />
           <InfoCell label="중량" value={formatWeightKg(bid.weight)} />
           <InfoCell
@@ -140,7 +140,7 @@ export function BidEditDialog({ bid, onClose, onSaved }: BidEditDialogProps) {
         </div>
 
         <div className="px-5 py-4">
-          <label className="text-[11px] font-semibold text-slate-500">
+          <label className="text-[11px] font-semibold text-content-soft">
             내 입찰가 (원/kg)
           </label>
           <div className="mt-2 flex items-center gap-2">
@@ -150,15 +150,15 @@ export function BidEditDialog({ bid, onClose, onSaved }: BidEditDialogProps) {
               value={priceText}
               onChange={(e) => handleChange(e.target.value)}
               className={cn(
-                "h-11 flex-1 rounded border bg-white px-3 text-right text-[16px] font-bold tabular-nums outline-none focus:border-sky-500",
+                "h-11 flex-1 rounded border bg-surface px-3 text-right text-[16px] font-bold tabular-nums outline-none focus:border-sky-500",
                 isBelowMin
                   ? "border-amber-400 text-amber-700"
-                  : "border-slate-200 text-slate-900",
+                  : "border-line text-content",
               )}
               maxLength={9}
               placeholder="0"
             />
-            <span className="text-[12px] font-semibold text-slate-500">원</span>
+            <span className="text-[12px] font-semibold text-content-soft">원</span>
           </div>
 
           <div className="mt-2 grid grid-cols-4 gap-1.5">
@@ -167,7 +167,7 @@ export function BidEditDialog({ bid, onClose, onSaved }: BidEditDialogProps) {
                 key={d}
                 type="button"
                 onClick={() => adjust(d)}
-                className="h-8 rounded border border-slate-200 bg-white text-[11px] font-bold text-slate-700 transition-colors hover:border-sky-400 hover:bg-sky-50 hover:text-sky-700"
+                className="h-8 rounded border border-line bg-surface text-[11px] font-bold text-content-mid transition-colors hover:border-sky-400 hover:bg-sky-50 hover:text-sky-700"
               >
                 {d > 0 ? `+${KRW.format(d)}` : `${KRW.format(d)}`}
               </button>
@@ -180,20 +180,20 @@ export function BidEditDialog({ bid, onClose, onSaved }: BidEditDialogProps) {
             </div>
           ) : null}
           {isSameAsCurrent ? (
-            <div className="mt-2 text-[11px] font-semibold text-slate-500">
+            <div className="mt-2 text-[11px] font-semibold text-content-soft">
               현재 입찰가와 동일합니다.
             </div>
           ) : null}
 
-          <div className="mt-4 flex items-baseline justify-between border-t border-slate-100 pt-3">
-            <span className="text-[12px] font-semibold text-slate-500">
+          <div className="mt-4 flex items-baseline justify-between border-t border-line-soft pt-3">
+            <span className="text-[12px] font-semibold text-content-soft">
               총 입찰금액
             </span>
-            <span className="text-[16px] font-extrabold tabular-nums text-slate-900">
+            <span className="text-[16px] font-extrabold tabular-nums text-content">
               {formatWon(totalAmount)}
             </span>
           </div>
-          <div className="mt-0.5 text-right text-[11px] text-slate-400">
+          <div className="mt-0.5 text-right text-[11px] text-content-faint">
             {priceNumber > 0 ? formatWonPerKg(priceNumber) : "-"} ×{" "}
             {formatWeightKg(bid.weight)}
           </div>
@@ -205,11 +205,11 @@ export function BidEditDialog({ bid, onClose, onSaved }: BidEditDialogProps) {
           ) : null}
         </div>
 
-        <footer className="flex items-center gap-2 border-t border-slate-100 px-5 py-3">
+        <footer className="flex items-center gap-2 border-t border-line-soft px-5 py-3">
           <button
             type="button"
             onClick={onClose}
-            className="h-10 flex-1 rounded border border-slate-200 bg-white text-[13px] font-bold text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50"
+            className="h-10 flex-1 rounded border border-line bg-surface text-[13px] font-bold text-content-mid transition-colors hover:border-line hover:bg-surface-muted"
           >
             취소
           </button>
@@ -233,10 +233,10 @@ export function BidEditDialog({ bid, onClose, onSaved }: BidEditDialogProps) {
 function InfoCell({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+      <div className="text-[10px] font-semibold uppercase tracking-wider text-content-faint">
         {label}
       </div>
-      <div className="mt-0.5 text-[13px] font-bold text-slate-900">
+      <div className="mt-0.5 text-[13px] font-bold text-content">
         {value}
       </div>
     </div>

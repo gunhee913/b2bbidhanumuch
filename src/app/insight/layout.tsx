@@ -19,6 +19,6 @@ export default function InsightLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <div className="min-w-[1280px] bg-slate-50 text-slate-900">{children}</div>
+    <div className="min-w-[1280px] bg-surface-muted text-content">{children}</div>
   );
 }

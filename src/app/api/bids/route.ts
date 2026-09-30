@@ -1,11 +1,12 @@
 import { getAdminClient } from '@/lib/supabase-admin';
 import { NextRequest, NextResponse } from 'next/server';
 import { resolveAuth } from '@/lib/resolve-auth';
-import { MIN_BID_INCREMENT } from '@/features/live-auction/constants/bidding';
+import { resolveViewer } from '@/lib/resolve-viewer';
 
 const supabase = getAdminClient();
 
 // GET: 입찰 목록 조회
+// 비공개 입찰 정책 · 관리자/출품업체는 전체 조회, 매참인은 본인 입찰(dealerId=본인)만 조회 가능.
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -14,6 +15,22 @@ export async function GET(request: NextRequest) {
     const dealerId = searchParams.get('dealerId');
     const isWinning = searchParams.get('isWinning');
     const listingId = searchParams.get('listingId');
+
+    const viewer = await resolveViewer(request);
+    if (!viewer.canViewAllBids) {
+      if (!viewer.dealerId) {
+        return NextResponse.json(
+          { error: '로그인이 필요합니다.' },
+          { status: 401 }
+        );
+      }
+      if (dealerId !== viewer.dealerId) {
+        return NextResponse.json(
+          { error: '본인 입찰만 조회할 수 있습니다.' },
+          { status: 403 }
+        );
+      }
+    }
 
     let query = supabase
       .from('bids')
@@ -26,7 +43,6 @@ export async function GET(request: NextRequest) {
         bid_amount,
         rank,
         is_winning,
-        is_top_bid,
         created_at,
         auctions:auction_id (
           round_no
@@ -166,7 +182,8 @@ export async function POST(request: NextRequest) {
         listing_id,
         cattle_listings (
           id,
-          status
+          status,
+          slaughter_house
         )
       `)
       .eq('id', partId)
@@ -192,6 +209,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: '입찰 가능한 상태가 아닙니다. 승인된 상장에만 입찰할 수 있습니다.' },
         { status: 400 }
+      );
+    }
+
+    // 소속 공판장 검사 · 중도매인에 공판장이 지정돼 있으면 그 공판장 상장만 입찰 가능 (RPC 에서도 재검사)
+    const { data: dealerRow } = await supabase
+      .from('dealers')
+      .select('slaughter_house')
+      .eq('id', finalDealerId)
+      .maybeSingle();
+    const dealerHouse = dealerRow?.slaughter_house ?? null;
+    const listingHouse = (part.cattle_listings as any)?.slaughter_house ?? null;
+    if (dealerHouse && listingHouse !== dealerHouse) {
+      return NextResponse.json(
+        { error: `소속 공판장(${dealerHouse}) 상장만 입찰할 수 있습니다.`, code: 'HOUSE_MISMATCH' },
+        { status: 403 }
       );
     }
 
@@ -255,13 +287,12 @@ export async function POST(request: NextRequest) {
       .eq('dealer_id', finalDealerId)
       .maybeSingle();
 
-    // 오픈 최고가 · place_bid RPC 로 원자적 처리 (SELECT FOR UPDATE 락 + min_increment 검증)
+    // 비공개 입찰 · place_bid RPC 로 원자적 처리 (부위 row lock + min_price 검증 + upsert)
     const { data: rpcData, error: rpcError } = await supabase.rpc('place_bid', {
       p_part_id: partId,
       p_dealer_id: finalDealerId,
       p_bid_price: bidPrice,
       p_auction_id: resolvedAuctionId,
-      p_min_increment: MIN_BID_INCREMENT,
     });
 
     if (rpcError) {
@@ -273,8 +304,6 @@ export async function POST(request: NextRequest) {
       ok: boolean;
       code?: string;
       minPrice?: number;
-      currentTop?: number;
-      nextMin?: number;
       bidId?: string;
       bidAmount?: number;
       isUpdate?: boolean;
@@ -292,13 +321,10 @@ export async function POST(request: NextRequest) {
             code: result.code,
             minPrice: result.minPrice,
           }, { status: 400 });
-        case 'OUTBID':
-          return NextResponse.json({
-            error: `타 매참인이 이미 ${result.currentTop?.toLocaleString()}원/kg 으로 입찰했습니다. 최소 ${result.nextMin?.toLocaleString()}원/kg 이상 필요합니다.`,
-            code: result.code,
-            currentTop: result.currentTop,
-            nextMin: result.nextMin,
-          }, { status: 409 });
+        case 'SETTLED':
+          return NextResponse.json({ error: '이미 낙찰이 확정된 부위입니다.', code: result.code }, { status: 409 });
+        case 'HOUSE_MISMATCH':
+          return NextResponse.json({ error: '소속 공판장 상장만 입찰할 수 있습니다.', code: result.code }, { status: 403 });
         default:
           return NextResponse.json({ error: '입찰 처리 중 오류가 발생했습니다.', code: result?.code }, { status: 400 });
       }
@@ -327,7 +353,6 @@ export async function POST(request: NextRequest) {
       dealer_id: finalDealerId,
       bid_price: bidPrice,
       bid_amount: result.bidAmount ?? 0,
-      is_top_bid: true,
       isUpdate: !!result.isUpdate,
       message: result.isUpdate ? '입찰가가 수정되었습니다.' : '입찰이 등록되었습니다.',
     }, { status: result.isUpdate ? 200 : 201 });

@@ -1,0 +1,59 @@
+import { cn } from "@/lib/utils";
+
+/** 마감 후 내 결과 · won(내가 낙찰) · lost(입찰했으나 밀림) · noBid(참여 안 함) */
+export type SettlementCase = "won" | "lost" | "noBid";
+
+export function getSettlementCase(
+  myBid: { isWinning?: boolean } | null,
+): SettlementCase {
+  if (myBid?.isWinning) return "won";
+  if (myBid) return "lost";
+  return "noBid";
+}
+
+export interface RowStateInput {
+  isSettled: boolean;
+  settlementCase: SettlementCase;
+  /** 진행 중 · 내 입찰 존재 */
+  hasMyBid: boolean;
+  isSelected: boolean;
+  bulkMode?: boolean;
+  bulkChecked?: boolean;
+}
+
+/**
+ * 경매 테이블 행 배경 · "상태" 와 "위치" 를 색 계열로 분리.
+ *
+ *  - 마감 행은 옅은 slate-50 판 위로 가라앉는다 · 입찰 중인 흰 행과 "끝난 행" 을 묶음으로 가른다.
+ *  - 선택 · 일괄 체크는 한 단계 더 진한 slate-100.
+ *  - 낙찰 행은 흐리게 물리지 않는다. 팔린 부위가 오히려 가장 먼저 찾는 정보라
+ *    배경은 진행 행과 같게 두고, 좌측 bar 와 결과 띠의 「낙찰」 칩이 표시를 맡는다.
+ *
+ * 상장표 · 상세 화면의 부위 미니표 공용.
+ */
+export function getRowBgClass({
+  isSettled,
+  isSelected,
+  bulkMode = false,
+  bulkChecked = false,
+}: RowStateInput): string {
+  if (isSelected || (!isSettled && bulkMode && bulkChecked)) {
+    return "bg-surface-accent hover:bg-surface-accent";
+  }
+  if (isSettled) return "bg-surface-muted hover:bg-surface-accent";
+  return "bg-surface hover:bg-surface-muted";
+}
+
+/**
+ * 좌측 3px accent bar 색 · 없으면 null.
+ *  - 진행 · 내 입찰 있음 → ink · 배경 채움 없이 바 하나로만 말한다
+ *  - 낙찰 · slate-300 · 끝난 행은 한 단계 물러나고, 누가 낙찰했는지는 칩이 말한다
+ *  - 그 외             → null
+ */
+export function getRowAccentClass({
+  isSettled,
+  hasMyBid,
+}: RowStateInput): string | null {
+  if (isSettled) return "bg-content-ghost";
+  return hasMyBid ? "bg-inverse" : null;
+}

@@ -1,18 +1,29 @@
 import { getAdminClient } from '@/lib/supabase-admin';
 import { NextRequest, NextResponse } from 'next/server';
+import { resolveViewer } from '@/lib/resolve-viewer';
 
 const supabase = getAdminClient();
 
 /**
  * GET /api/bids/highest?partIds=uuid1,uuid2,...
  *
- * 여러 부위의 현재 최고가 조회. 오픈 최고가 경매 정책상 로그인 여부와 무관하게
- * 최고가는 공개된다. 부위별 최고가는 `is_top_bid=true` row 를 조회해 O(1) 로 얻는다.
+ * 여러 부위의 현재 최고가 조회 · **관리자/출품업체 전용**.
+ *
+ * 비공개 입찰 정책상 진행 중 회차의 최고가는 매참인·비로그인에게 노출하지 않는다.
+ * 권한이 없으면 403 을 반환한다.
  *
  * 응답: `{ [partId]: number }` (해당 부위에 아직 입찰이 없으면 키 자체가 빠짐)
  */
 export async function GET(request: NextRequest) {
   try {
+    const viewer = await resolveViewer(request);
+    if (!viewer.canViewAllBids) {
+      return NextResponse.json(
+        { error: '진행 중 회차의 최고가는 공개되지 않습니다.' },
+        { status: 403 },
+      );
+    }
+
     const { searchParams } = new URL(request.url);
     const partIdsParam = searchParams.get('partIds');
 
@@ -30,16 +41,19 @@ export async function GET(request: NextRequest) {
       .from('bids')
       .select('part_id, bid_price')
       .in('part_id', partIds)
-      .eq('is_top_bid', true);
+      .order('bid_price', { ascending: false });
 
     if (error) {
       console.error('최고 입찰가 조회 오류:', error);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
+    // bid_price DESC 정렬이므로 부위별 첫 등장 row 가 최고가
     const highestBids: Record<string, number> = {};
     (bids || []).forEach((bid: any) => {
-      highestBids[bid.part_id] = bid.bid_price;
+      if (highestBids[bid.part_id] === undefined) {
+        highestBids[bid.part_id] = bid.bid_price;
+      }
     });
 
     return NextResponse.json(highestBids);

@@ -39,7 +39,7 @@ export function ListingInfoSection({
           </SpecCell>
           <SpecCell label="축종 / 성별">
             <span>{listing.breed || "-"}</span>
-            <span className="mx-1 text-slate-300">·</span>
+            <span className="mx-1 text-content-ghost">·</span>
             <span>{listing.gender || "-"}</span>
           </SpecCell>
           <SpecCell label="등급" emphasis>
@@ -111,7 +111,6 @@ export function ListingInfoSection({
           </SpecCell>
         </div>
       </Section>
-
     </div>
   );
 }
@@ -129,8 +128,8 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section className="border-b border-slate-100 py-3 first:pt-0 last:border-b-0">
-      <h3 className="mb-2.5 border-b border-slate-200 pb-1.5 text-[11px] font-bold -tracking-[0.01em] text-slate-900">
+    <section className="border-b border-line-soft py-3 first:pt-0 last:border-b-0">
+      <h3 className="mb-2.5 border-b border-line-soft pb-1.5 text-[11px] font-bold -tracking-[0.01em] text-content">
         {title}
       </h3>
       {children}
@@ -141,7 +140,7 @@ function Section({
 /**
  * 텍스트 · 혼합값 셀. (개체정보 · 도축정보 · 가공정보)
  * - 라벨/값 모두 좌측 정렬 → 세로 스캔 쉬움
- * - emphasis: sky-600 · 17px · font-extrabold
+ * - emphasis: ink · 18px · font-bold
  */
 function SpecCell({
   label,
@@ -154,12 +153,12 @@ function SpecCell({
 }) {
   return (
     <div className="flex min-w-0 flex-col gap-1">
-      <span className="truncate text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400">
+      <span className="truncate text-[10px] font-semibold uppercase tracking-[0.08em] text-content-faint">
         {label}
       </span>
       <span
         className={cn(
-          "min-h-[16px] whitespace-nowrap leading-none text-slate-900",
+          "min-h-[16px] whitespace-nowrap leading-none text-content",
           emphasis ? "text-[14px] font-extrabold" : "text-[13px] font-bold",
         )}
       >
@@ -186,17 +185,17 @@ function NumericCell({
 }) {
   return (
     <div className="flex min-w-0 flex-col items-center gap-1">
-      <span className="truncate text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400">
+      <span className="truncate text-[10px] font-semibold uppercase tracking-[0.08em] text-content-faint">
         {label}
       </span>
       <span
         className={cn(
           "whitespace-nowrap leading-none tabular-nums",
           value == null
-            ? "text-[15px] font-bold text-slate-300"
+            ? "text-[15px] font-bold text-content-ghost"
             : emphasis
-              ? "text-[18px] font-extrabold text-slate-900"
-              : "text-[15px] font-bold text-slate-900",
+              ? "text-[18px] font-extrabold text-content"
+              : "text-[15px] font-bold text-content",
         )}
       >
         {value ?? "-"}
@@ -209,7 +208,7 @@ function NumericCell({
 /** 값 뒤에 붙는 단위 표기 (원/kg, mm, cm² 등). */
 function UnitSuffix({ children }: { children: React.ReactNode }) {
   return (
-    <span className="ml-0.5 text-[10px] font-medium text-slate-400">
+    <span className="ml-0.5 text-[10px] font-medium text-content-faint">
       {children}
     </span>
   );
@@ -220,27 +219,54 @@ function UnitSuffix({ children }: { children: React.ReactNode }) {
  * - 이력번호가 있으면 해당 개체 조회로 이동
  * - 이력번호가 없거나 짧으면 mtrace 검색 페이지로 이동 (사용자가 직접 입력 가능)
  */
-export function TraceInfoLink({
-  traceNo,
-}: {
-  traceNo: string | null | undefined;
-}) {
+/** 축산물이력제 조회 URL · 이력번호가 짧으면 검색 첫 화면으로 보낸다 */
+export function buildTraceHref(traceNo: string | null | undefined): string {
   const raw = (traceNo || "").replace(/[^0-9]/g, "");
   const digits = raw.length > 0 && !raw.startsWith("002") ? `002${raw}` : raw;
-  const href =
-    digits.length >= 10
-      ? `https://www.mtrace.go.kr/mtracesearch/cattleNoSearch.do?cattleNo=${digits}`
-      : "https://www.mtrace.go.kr/mtracesearch/cattleNoSearch.do";
+  return digits.length >= 10
+    ? `https://www.mtrace.go.kr/mtracesearch/cattleNoSearch.do?cattleNo=${digits}`
+    : "https://www.mtrace.go.kr/mtracesearch/cattleNoSearch.do";
+}
+
+export function TraceInfoLink({
+  traceNo,
+  compact = false,
+  asText = false,
+}: {
+  traceNo: string | null | undefined;
+  /** 좁은 정의 목록 행에 인라인으로 붙일 때 · h-6 · `이력정보` 짧은 라벨 */
+  compact?: boolean;
+  /** 테두리 버튼 대신 텍스트 링크 · 값 행 안에서 튀지 않게 */
+  asText?: boolean;
+}) {
+  const href = buildTraceHref(traceNo);
+
+  if (asText) {
+    return (
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex shrink-0 items-center gap-0.5 text-[11px] font-semibold text-content underline decoration-slate-300 underline-offset-2 hover:decoration-ink"
+      >
+        이력조회
+        <ExternalLink className="h-3 w-3" />
+      </a>
+    );
+  }
 
   return (
     <a
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      className="inline-flex h-7 shrink-0 items-center gap-1 rounded-md border border-slate-200 bg-white px-2 text-[11px] font-semibold text-slate-600 transition-colors hover:border-sky-400 hover:bg-sky-50 hover:text-sky-700"
+      className={cn(
+        "inline-flex shrink-0 items-center gap-1 rounded-md border border-line bg-surface font-semibold text-content-mid transition-colors hover:border-slate-400 hover:bg-surface-muted hover:text-content",
+        compact ? "h-6 px-1.5 text-[10.5px]" : "h-7 px-2 text-[11px]",
+      )}
     >
       <ExternalLink className="h-3 w-3" />
-      축산물 이력정보
+      {compact ? "이력정보" : "축산물 이력정보"}
     </a>
   );
 }
@@ -249,7 +275,7 @@ export function TraceInfoLink({
  * 국내 축산물 이력번호는 `002-XXXX-XXXX-X` 형식(국가코드 002 = 한국).
  * DB 값이 `002-` 접두어가 없으면 표시 시점에 붙여 준다.
  */
-function formatTraceNo(traceNo: string | null | undefined): string {
+export function formatTraceNo(traceNo: string | null | undefined): string {
   if (!traceNo) return "-";
   const trimmed = traceNo.trim();
   if (trimmed.startsWith("002-") || trimmed.startsWith("002 ")) {

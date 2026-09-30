@@ -105,9 +105,11 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // 이미 중도매인으로 로그인한 상태에서 중도매인 로그인 페이지 접근
+  // 이미 중도매인으로 로그인한 상태에서 중도매인 로그인 페이지 접근 → 원래 가려던 곳(없으면 경매장)
   if (isDealerAuthPath && isAuthenticated && userType === 'dealer_user') {
-    return NextResponse.redirect(new URL('/', request.url));
+    const callbackUrl = request.nextUrl.searchParams.get('callbackUrl');
+    const target = callbackUrl && callbackUrl.startsWith('/') ? callbackUrl : '/auction/live';
+    return NextResponse.redirect(new URL(target, request.url));
   }
 
   return NextResponse.next();

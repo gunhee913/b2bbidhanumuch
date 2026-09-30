@@ -4,6 +4,7 @@ import { use } from "react";
 import { MainHeader } from "@/features/main/components/MainHeader";
 import { MainFooter } from "@/features/main/components/MainFooter";
 import { LiveAuctionRoom } from "@/features/live-auction/components/LiveAuctionRoom";
+import { useSideDockInsetClass } from "@/features/live-auction/components/AuctionSideDock";
 
 interface AuctionLiveDetailPageProps {
   params: Promise<{ slug: string }>;
@@ -21,14 +22,15 @@ export default function AuctionLiveDetailPage({
 }: AuctionLiveDetailPageProps) {
   // slug 는 하위 호환을 위해 소비만 하고 사용하지 않는다.
   use(params);
+  const sideDockInsetClass = useSideDockInsetClass();
 
   return (
-    <>
-      <MainHeader />
-      <main className="min-h-[calc(100vh-64px)] bg-slate-50 pb-12">
+    <div className={sideDockInsetClass}>
+      <MainHeader fluid />
+      <main className="min-h-[calc(100vh-48px)] bg-canvas pb-12">
         <LiveAuctionRoom />
       </main>
-      <MainFooter />
-    </>
+      <MainFooter fluid />
+    </div>
   );
 }

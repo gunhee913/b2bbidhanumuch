@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createPureClient } from '@/lib/supabase/server';
 import bcrypt from 'bcryptjs';
+import { SLAUGHTER_HOUSES } from '@/constants/slaughterHouses';
 
 const SALT_ROUNDS = 10;
+const VALID_HOUSES: readonly string[] = SLAUGHTER_HOUSES;
 
 // GET: 모든 중도매인 조회
 export async function GET() {
@@ -52,6 +54,7 @@ export async function GET() {
         businessNo: row.business_no,
         phone: row.phone,
         address: row.address,
+        slaughterHouse: row.slaughter_house ?? null,
         status: row.status,
         createdAt: row.created_at,
         lastLoginAt: row.last_login_at,
@@ -70,10 +73,13 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { dealerNo, name, representativeName, businessNo, phone, password, auctionPassword, address, status } = body;
+    const { dealerNo, name, representativeName, businessNo, phone, password, auctionPassword, address, slaughterHouse, status } = body;
 
     if (!dealerNo || !name || !phone || !password || !auctionPassword) {
       return NextResponse.json({ error: '필수 항목을 입력해주세요.' }, { status: 400 });
+    }
+    if (slaughterHouse && !VALID_HOUSES.includes(slaughterHouse)) {
+      return NextResponse.json({ error: '알 수 없는 공판장입니다.' }, { status: 400 });
     }
 
     const supabase = await createPureClient();
@@ -92,6 +98,7 @@ export async function POST(request: NextRequest) {
         password_hash: passwordHash,
         auction_password_hash: auctionPasswordHash,
         address: address || null,
+        slaughter_house: slaughterHouse || null,
         status: status || 'active',
       })
       .select()
@@ -119,6 +126,7 @@ export async function POST(request: NextRequest) {
       businessNo: data.business_no,
       phone: data.phone,
       address: data.address,
+      slaughterHouse: data.slaughter_house ?? null,
       status: data.status,
       createdAt: data.created_at,
       lastLoginAt: data.last_login_at,

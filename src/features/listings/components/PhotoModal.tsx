@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import React, { useState, useRef, useCallback } from 'react';
-import { X, Printer, Plus, Trash2, ImageIcon, Upload } from 'lucide-react';
-import { CertificateData } from '@/features/listings/types';
+import React, { useState, useRef, useCallback } from "react";
+import { X, Printer, Plus, Trash2, ImageIcon, Upload } from "lucide-react";
+import { CertificateData } from "@/features/listings/types";
 
 export interface PhotoModalData {
   id: string;
@@ -25,12 +25,20 @@ interface PhotoModalProps {
   }) => Promise<void>;
 }
 
-export default function PhotoModal({ data, editable = false, onClose, onSave }: PhotoModalProps) {
+export default function PhotoModal({
+  data,
+  editable = false,
+  onClose,
+  onSave,
+}: PhotoModalProps) {
   const [enlargedImage, setEnlargedImage] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editImages, setEditImages] = useState<string[]>(data.images);
-  const [editSlaughterCert, setEditSlaughterCert] = useState<CertificateData | null>(data.slaughterCert);
-  const [editGradeCert, setEditGradeCert] = useState<CertificateData | null>(data.gradeCert);
+  const [editSlaughterCert, setEditSlaughterCert] =
+    useState<CertificateData | null>(data.slaughterCert);
+  const [editGradeCert, setEditGradeCert] = useState<CertificateData | null>(
+    data.gradeCert,
+  );
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -59,29 +67,32 @@ export default function PhotoModal({ data, editable = false, onClose, onSave }: 
     setEditGradeCert(data.gradeCert);
   };
 
-  const uploadImages = useCallback(async (files: FileList): Promise<string[]> => {
-    const base64Promises = Array.from(files).map(
-      (file) =>
-        new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result as string);
-          reader.onerror = reject;
-          reader.readAsDataURL(file);
-        })
-    );
+  const uploadImages = useCallback(
+    async (files: FileList): Promise<string[]> => {
+      const base64Promises = Array.from(files).map(
+        (file) =>
+          new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+          }),
+      );
 
-    const base64Images = await Promise.all(base64Promises);
+      const base64Images = await Promise.all(base64Promises);
 
-    const res = await fetch('/api/upload', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ images: base64Images, folder: 'listings' }),
-    });
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ images: base64Images, folder: "listings" }),
+      });
 
-    if (!res.ok) throw new Error('업로드 실패');
-    const result = await res.json();
-    return result.urls;
-  }, []);
+      if (!res.ok) throw new Error("업로드 실패");
+      const result = await res.json();
+      return result.urls;
+    },
+    [],
+  );
 
   const handleAddImages = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -92,10 +103,10 @@ export default function PhotoModal({ data, editable = false, onClose, onSave }: 
       const urls = await uploadImages(files);
       setEditImages((prev) => [...prev, ...urls]);
     } catch {
-      alert('이미지 업로드에 실패했습니다.');
+      alert("이미지 업로드에 실패했습니다.");
     } finally {
       setIsUploading(false);
-      if (imageInputRef.current) imageInputRef.current.value = '';
+      if (imageInputRef.current) imageInputRef.current.value = "";
     }
   };
 
@@ -105,26 +116,37 @@ export default function PhotoModal({ data, editable = false, onClose, onSave }: 
 
   const handleCertUpload = async (
     e: React.ChangeEvent<HTMLInputElement>,
-    type: 'slaughter' | 'grade'
+    type: "slaughter" | "grade",
   ) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     setIsUploading(true);
     try {
-      const urls = await uploadImages(Object.assign([file], { length: 1, item: () => file }) as unknown as FileList);
+      const urls = await uploadImages(
+        Object.assign([file], {
+          length: 1,
+          item: () => file,
+        }) as unknown as FileList,
+      );
       const url = urls[0];
       if (!url) return;
 
-      const certData: CertificateData = { fileName: file.name, fileData: url, fileType: file.type };
-      if (type === 'slaughter') setEditSlaughterCert(certData);
+      const certData: CertificateData = {
+        fileName: file.name,
+        fileData: url,
+        fileType: file.type,
+      };
+      if (type === "slaughter") setEditSlaughterCert(certData);
       else setEditGradeCert(certData);
     } catch {
-      alert('증명서 업로드에 실패했습니다.');
+      alert("증명서 업로드에 실패했습니다.");
     } finally {
       setIsUploading(false);
-      if (type === 'slaughter' && slaughterCertInputRef.current) slaughterCertInputRef.current.value = '';
-      if (type === 'grade' && gradeCertInputRef.current) gradeCertInputRef.current.value = '';
+      if (type === "slaughter" && slaughterCertInputRef.current)
+        slaughterCertInputRef.current.value = "";
+      if (type === "grade" && gradeCertInputRef.current)
+        gradeCertInputRef.current.value = "";
     }
   };
 
@@ -139,7 +161,7 @@ export default function PhotoModal({ data, editable = false, onClose, onSave }: 
       });
       setIsEditing(false);
     } catch {
-      alert('저장에 실패했습니다.');
+      alert("저장에 실패했습니다.");
     } finally {
       setIsSaving(false);
     }
@@ -154,10 +176,15 @@ export default function PhotoModal({ data, editable = false, onClose, onSave }: 
           {/* 헤더 */}
           <div className="flex items-center justify-between p-4 border-b border-gray-100 shrink-0">
             <div>
-              <h3 className="text-lg font-bold text-gray-900">상장 사진 / 증명서</h3>
+              <h3 className="text-lg font-bold text-gray-900">
+                상장 사진 / 증명서
+              </h3>
               <p className="text-sm text-gray-500">{subtitle}</p>
             </div>
-            <button onClick={onClose} className="p-2 hover:bg-gray-100 transition-colors">
+            <button
+              onClick={onClose}
+              className="p-2 hover:bg-gray-100 transition-colors"
+            >
               <X className="w-5 h-5 text-gray-500" />
             </button>
           </div>
@@ -167,7 +194,9 @@ export default function PhotoModal({ data, editable = false, onClose, onSave }: 
             {/* 상장 사진 */}
             <div className="mb-6">
               <div className="flex items-center justify-between mb-3">
-                <h4 className="text-sm font-semibold text-gray-700">상장 사진</h4>
+                <h4 className="text-sm font-semibold text-gray-700">
+                  상장 사진
+                </h4>
                 {isEditing && (
                   <button
                     type="button"
@@ -176,7 +205,7 @@ export default function PhotoModal({ data, editable = false, onClose, onSave }: 
                     className="flex items-center gap-1 px-3 py-1 text-xs font-medium text-blue-600 border border-blue-300 hover:bg-blue-50 disabled:opacity-50 transition-colors"
                   >
                     <Plus className="w-3 h-3" />
-                    {isUploading ? '업로드 중...' : '사진 추가'}
+                    {isUploading ? "업로드 중..." : "사진 추가"}
                   </button>
                 )}
                 <input
@@ -192,7 +221,9 @@ export default function PhotoModal({ data, editable = false, onClose, onSave }: 
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                   {images.map((img, index) => (
                     <div key={index} className="relative group">
-                      <p className="text-xs font-medium text-gray-600 text-center mb-1">사진 {index + 1}</p>
+                      <p className="text-xs font-medium text-gray-600 text-center mb-1">
+                        사진 {index + 1}
+                      </p>
                       <div
                         className="relative cursor-pointer overflow-hidden border border-gray-200 hover:border-gray-400 transition-colors"
                         onClick={() => !isEditing && setEnlargedImage(img)}
@@ -221,19 +252,25 @@ export default function PhotoModal({ data, editable = false, onClose, onSave }: 
               ) : (
                 <div className="text-center py-8 border border-dashed border-gray-300 bg-gray-50">
                   <ImageIcon className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-                  <p className="text-sm text-gray-400">등록된 사진이 없습니다.</p>
+                  <p className="text-sm text-gray-400">
+                    등록된 사진이 없습니다.
+                  </p>
                 </div>
               )}
             </div>
 
             {/* 증명서 */}
             <div>
-              <h4 className="text-sm font-semibold text-gray-700 mb-3">증명서</h4>
+              <h4 className="text-sm font-semibold text-gray-700 mb-3">
+                증명서
+              </h4>
               <div className="grid grid-cols-2 gap-6">
                 {/* 도축검사증명서 */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <p className="text-xs font-medium text-gray-600">도축검사증명서</p>
+                    <p className="text-xs font-medium text-gray-600">
+                      도축검사증명서
+                    </p>
                     {isEditing && (
                       <div className="flex gap-1">
                         <button
@@ -242,7 +279,7 @@ export default function PhotoModal({ data, editable = false, onClose, onSave }: 
                           disabled={isUploading}
                           className="text-[10px] text-blue-600 hover:underline disabled:opacity-50"
                         >
-                          {slaughterCert ? '교체' : '등록'}
+                          {slaughterCert ? "교체" : "등록"}
                         </button>
                         {slaughterCert && (
                           <button
@@ -261,7 +298,7 @@ export default function PhotoModal({ data, editable = false, onClose, onSave }: 
                     type="file"
                     accept="image/*"
                     className="hidden"
-                    onChange={(e) => handleCertUpload(e, 'slaughter')}
+                    onChange={(e) => handleCertUpload(e, "slaughter")}
                   />
                   {slaughterCert?.fileData ? (
                     <div
@@ -275,9 +312,7 @@ export default function PhotoModal({ data, editable = false, onClose, onSave }: 
                       />
                     </div>
                   ) : (
-                    <div
-                      className="w-full h-40 border border-dashed border-gray-300 flex items-center justify-center bg-gray-50"
-                    >
+                    <div className="w-full h-40 border border-dashed border-gray-300 flex items-center justify-center bg-gray-50">
                       {isEditing ? (
                         <button
                           type="button"
@@ -297,7 +332,9 @@ export default function PhotoModal({ data, editable = false, onClose, onSave }: 
                 {/* 등급판정확인서 */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <p className="text-xs font-medium text-gray-600">등급판정확인서</p>
+                    <p className="text-xs font-medium text-gray-600">
+                      등급판정확인서
+                    </p>
                     {isEditing && (
                       <div className="flex gap-1">
                         <button
@@ -306,7 +343,7 @@ export default function PhotoModal({ data, editable = false, onClose, onSave }: 
                           disabled={isUploading}
                           className="text-[10px] text-blue-600 hover:underline disabled:opacity-50"
                         >
-                          {gradeCert ? '교체' : '등록'}
+                          {gradeCert ? "교체" : "등록"}
                         </button>
                         {gradeCert && (
                           <button
@@ -325,7 +362,7 @@ export default function PhotoModal({ data, editable = false, onClose, onSave }: 
                     type="file"
                     accept="image/*"
                     className="hidden"
-                    onChange={(e) => handleCertUpload(e, 'grade')}
+                    onChange={(e) => handleCertUpload(e, "grade")}
                   />
                   {gradeCert?.fileData ? (
                     <div
@@ -339,9 +376,7 @@ export default function PhotoModal({ data, editable = false, onClose, onSave }: 
                       />
                     </div>
                   ) : (
-                    <div
-                      className="w-full h-40 border border-dashed border-gray-300 flex items-center justify-center bg-gray-50"
-                    >
+                    <div className="w-full h-40 border border-dashed border-gray-300 flex items-center justify-center bg-gray-50">
                       {isEditing ? (
                         <button
                           type="button"
@@ -394,7 +429,7 @@ export default function PhotoModal({ data, editable = false, onClose, onSave }: 
                     disabled={isSaving || isUploading}
                     className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 transition-colors disabled:opacity-50"
                   >
-                    {isSaving ? '저장 중...' : '저장'}
+                    {isSaving ? "저장 중..." : "저장"}
                   </button>
                 </>
               )}
@@ -418,7 +453,10 @@ export default function PhotoModal({ data, editable = false, onClose, onSave }: 
           className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80"
           onClick={() => setEnlargedImage(null)}
         >
-          <div className="relative mx-4 max-w-4xl max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="relative mx-4 max-w-4xl max-h-[90vh]"
+            onClick={(e) => e.stopPropagation()}
+          >
             <img
               src={enlargedImage}
               alt="확대 이미지"
@@ -428,7 +466,7 @@ export default function PhotoModal({ data, editable = false, onClose, onSave }: 
               <button
                 type="button"
                 onClick={() => {
-                  const printWindow = window.open('', '_blank');
+                  const printWindow = window.open("", "_blank");
                   if (!printWindow) return;
                   printWindow.document.write(`
                     <html>

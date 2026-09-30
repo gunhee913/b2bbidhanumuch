@@ -14,7 +14,7 @@ export interface PartnerComboboxProps {
 }
 
 /**
- * 배송지시 테이블 셀 안에서 사용하는 거래처 선택 combobox.
+ * 배송지시 개체 카드 안에서 사용하는 거래처 선택 combobox.
  *
  * - 자동완성: 거래처명 / 사업자번호 부분일치
  * - 딜러 담당 거래처만 리스트로 전달됨 (부모에서 `useDealerPartners` 로 필터링)
@@ -71,33 +71,33 @@ export function PartnerCombobox({
         onClick={() => !disabled && setOpen((v) => !v)}
         disabled={disabled}
         className={cn(
-          "inline-flex h-8 w-full items-center justify-between gap-1 rounded border px-2 text-[12px] transition-colors",
+          "inline-flex h-7 w-full items-center justify-between gap-1 border px-2 text-[12px] transition-colors",
           disabled
-            ? "cursor-not-allowed border-slate-100 bg-slate-50 text-slate-500"
+            ? "cursor-not-allowed border-line-soft bg-surface-muted text-content-soft"
             : selected
-              ? "border-sky-300 bg-sky-50 text-sky-800 hover:border-sky-400"
-              : "border-slate-200 bg-white text-slate-500 hover:border-slate-300",
+              ? "border-amber-300 bg-amber-50 text-amber-900 hover:border-amber-400"
+              : "border-line bg-surface text-content-soft hover:border-line",
         )}
       >
         <span className="min-w-0 truncate text-left font-semibold">
           {label}
         </span>
         {!disabled ? (
-          <ChevronDown className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+          <ChevronDown className="h-3.5 w-3.5 shrink-0 text-content-faint" />
         ) : null}
       </button>
 
       {open && !disabled ? (
-        <div className="absolute z-30 mt-1 w-[260px] overflow-hidden rounded-md border border-slate-200 bg-white shadow-xl">
-          <div className="flex items-center gap-1.5 border-b border-slate-100 px-2 py-1.5">
-            <Search className="h-3.5 w-3.5 text-slate-400" />
+        <div className="absolute z-30 mt-1 w-[260px] overflow-hidden rounded-md border border-line bg-surface shadow-xl">
+          <div className="flex items-center gap-1.5 border-b border-line-soft px-2 py-1.5">
+            <Search className="h-3.5 w-3.5 text-content-faint" />
             <input
               type="text"
               autoFocus
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="거래처명, 사업자번호로 검색"
-              className="h-6 flex-1 border-none bg-transparent p-0 text-[12px] outline-none placeholder:text-slate-400"
+              className="h-6 flex-1 border-none bg-transparent p-0 text-[12px] outline-none placeholder:text-content-faint"
             />
           </div>
           <ul className="max-h-[280px] overflow-y-auto py-1">
@@ -117,7 +117,7 @@ export function PartnerCombobox({
               </li>
             ) : null}
             {filtered.length === 0 ? (
-              <li className="px-3 py-4 text-center text-[11px] text-slate-400">
+              <li className="px-3 py-4 text-center text-[11px] text-content-faint">
                 검색 결과가 없습니다.
               </li>
             ) : (
@@ -131,14 +131,14 @@ export function PartnerCombobox({
                       setQuery("");
                     }}
                     className={cn(
-                      "flex w-full flex-col items-start gap-0.5 px-3 py-1.5 text-left hover:bg-slate-50",
-                      value === p.id && "bg-sky-50",
+                      "flex w-full flex-col items-start gap-0.5 px-3 py-1.5 text-left hover:bg-surface-muted",
+                      value === p.id && "bg-amber-50",
                     )}
                   >
-                    <span className="text-[12px] font-bold text-slate-900">
+                    <span className="text-[12px] font-bold text-content">
                       {p.name}
                     </span>
-                    <span className="text-[10px] tabular-nums text-slate-400">
+                    <span className="text-[10px] tabular-nums text-content-faint">
                       {p.partnerNo}
                       {p.representative ? ` · ${p.representative}` : ""}
                     </span>

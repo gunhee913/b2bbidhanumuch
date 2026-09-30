@@ -34,10 +34,10 @@ export function LoginGateCard({ pageLabel, requireDealer }: LoginGateCardProps) 
       <div className="flex h-14 w-14 items-center justify-center rounded-full bg-sky-50">
         <Lock className="h-6 w-6 text-sky-600" strokeWidth={1.75} />
       </div>
-      <h2 className="mt-5 text-center text-[18px] font-bold text-slate-900">
+      <h2 className="mt-5 text-center text-[18px] font-bold text-content">
         {title}
       </h2>
-      <p className="mt-2 text-center text-[13px] leading-relaxed text-slate-500">
+      <p className="mt-2 text-center text-[13px] leading-relaxed text-content-soft">
         {description}
       </p>
       <div className="mt-6 flex items-center gap-2">
@@ -49,7 +49,7 @@ export function LoginGateCard({ pageLabel, requireDealer }: LoginGateCardProps) 
         </Link>
         <Link
           href="/signup"
-          className="inline-flex h-10 items-center rounded-md border border-slate-200 bg-white px-5 text-[13px] font-semibold text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50"
+          className="inline-flex h-10 items-center rounded-md border border-line bg-surface px-5 text-[13px] font-semibold text-content-mid transition-colors hover:border-line hover:bg-surface-muted"
         >
           회원가입
         </Link>

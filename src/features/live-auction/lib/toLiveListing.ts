@@ -9,17 +9,16 @@ import type { LiveListing, LivePart, LivePartBid } from "../api";
  * 주요 변환:
  * 1. `company: { id, name, companyNo }` → `companyName`, `companyNo` (flat)
  * 2. 각 part 의 `highestBid` (마스킹) + `myBid` → `allBids: LivePartBid[]` 재구성
- *    - `PartsTable` 은 `allBids.some(b => b.rank != null)` 로 마감 여부 판정
- *    - 낙찰 확정된 개체는 최소 1개 이상의 rank-부여 bid 가 있어야 SettlementSubRow 표시
- * 3. 내 dealerId 를 넘겨받으면 · myBid 를 `dealerId` 로 태그 → `PartsTable` 이
+ *    - 표는 `allBids.some(b => b.rank != null)` 로 마감 여부를 판정한다
+ *    - 낙찰 확정된 개체는 최소 1개 이상의 rank-부여 bid 가 있어야 낙찰자·낙찰가 표시
+ * 3. 내 dealerId 를 넘겨받으면 · myBid 를 `dealerId` 로 태그 → 표가
  *    `myBidsByPart` 를 정확히 매핑할 수 있음
  */
 export function toLiveListingFromByNo(
   raw: LivByNoResponse,
   dealerId?: string | null,
 ): LiveListing {
-  const isSettledStatus =
-    raw.status === "closed" || raw.status === "completed";
+  const isSettledStatus = raw.status === "closed" || raw.status === "completed";
 
   const parts: LivePart[] = (raw.parts || []).map((p) => {
     const allBids: LivePartBid[] = [];
@@ -29,7 +28,7 @@ export function toLiveListingFromByNo(
     if (p.highestBid) {
       allBids.push({
         id: `winner-${p.id}`,
-        // 내가 낙찰자면 · dealerId 로 태그해서 PartsTable 이 `won` 케이스 인식
+        // 내가 낙찰자면 · dealerId 로 태그해서 표가 `won` 케이스 인식
         dealerId: myBidIsWinning ? dealerId || "self-winner" : "other",
         dealerNo: p.highestBid.dealerNo || "",
         dealerName: "",
@@ -57,14 +56,14 @@ export function toLiveListingFromByNo(
       });
     }
 
-    // 마감 상태인데 입찰 자체가 없는 경우 · rank 부여할 대상이 없어 SettlementSubRow 미표시
+    // 마감 상태인데 입찰 자체가 없는 경우 · rank 부여할 대상이 없어 유찰로 처리된다
     // (유찰이지만 아무도 입찰 안 함) · 이 케이스는 UI 에서 자연스럽게 "-" 처리됨
 
     // 회차 결정 · 낙찰가가 있으면 낙찰 회차, 없으면 내 입찰 회차, 그 외 null
-    const roundNo =
-      p.highestBid?.roundNo ?? p.myBid?.roundNo ?? null;
+    const roundNo = p.highestBid?.roundNo ?? p.myBid?.roundNo ?? null;
 
-    // 오픈 최고가 · 서버 topBid 를 우선 사용, 없으면 highestBid 로 폴백.
+    // 비공개 입찰 · 서버 topBid 는 마감 후에만 채워진다 (진행 중 null).
+    // highestBid 역시 서버가 마감 후에만 내려주므로 폴백으로 사용해도 유출은 없다.
     const topBid = p.topBid
       ? {
           bidPrice: p.topBid.bidPrice,
@@ -118,6 +117,8 @@ export function toLiveListingFromByNo(
     processDate: raw.processDate,
     processWeight: raw.processWeight,
     images: raw.images || [],
+    hasGradeCert: !!raw.gradeCert,
+    hasSlaughterCert: !!raw.slaughterCert,
     status: (raw.status || "closed") as LiveListing["status"],
     companyId: raw.companyId || raw.company?.id || "",
     companyName: raw.company?.name || "",
@@ -155,6 +156,8 @@ export interface LivByNoResponse {
   processDate: string | null;
   processWeight: number | null;
   images: string[] | null;
+  gradeCert?: { fileName: string } | null;
+  slaughterCert?: { fileName: string } | null;
   status: string;
   company: { id: string; name: string; companyNo?: string } | null;
   parts: Array<{

@@ -126,11 +126,11 @@ export function PeriodFilter({
   return (
     <div
       className={cn(
-        "flex flex-wrap items-center gap-2 border border-slate-200 bg-white px-3 py-2",
+        "flex flex-wrap items-center gap-2 border border-line bg-surface px-3 py-2",
         className,
       )}
     >
-      <span className="text-[11px] font-semibold text-slate-500">
+      <span className="text-[11px] font-semibold text-content-soft">
         조회기간
       </span>
 
@@ -145,8 +145,8 @@ export function PeriodFilter({
               className={cn(
                 "inline-flex h-7 items-center border px-2.5 text-[11px] font-semibold transition-colors",
                 isActive
-                  ? "border-slate-900 bg-slate-900 text-white"
-                  : "border-slate-200 bg-white text-slate-600 hover:border-sky-300 hover:text-sky-700",
+                  ? "border-inverse bg-inverse text-inverse-content"
+                  : "border-line bg-surface text-content-mid hover:border-sky-300 hover:text-sky-700",
               )}
             >
               {p.label}
@@ -155,26 +155,26 @@ export function PeriodFilter({
         })}
       </div>
 
-      <span className="mx-1 h-4 w-px bg-slate-200" aria-hidden />
+      <span className="mx-1 h-4 w-px bg-surface-strong" aria-hidden />
 
       <input
         type="date"
         value={startDate}
         onChange={(e) => onChange({ startDate: e.target.value, endDate })}
-        className="h-7 border border-slate-200 bg-white px-2 text-[12px] tabular-nums text-slate-700 outline-none focus:border-sky-500"
+        className="h-7 border border-line bg-surface px-2 text-[12px] tabular-nums text-content-mid outline-none focus:border-sky-500"
       />
-      <span className="text-[12px] text-slate-400">~</span>
+      <span className="text-[12px] text-content-faint">~</span>
       <input
         type="date"
         value={endDate}
         onChange={(e) => onChange({ startDate, endDate: e.target.value })}
-        className="h-7 border border-slate-200 bg-white px-2 text-[12px] tabular-nums text-slate-700 outline-none focus:border-sky-500"
+        className="h-7 border border-line bg-surface px-2 text-[12px] tabular-nums text-content-mid outline-none focus:border-sky-500"
       />
       {onSearch ? (
         <button
           type="button"
           onClick={onSearch}
-          className="inline-flex h-7 items-center bg-slate-900 px-3 text-[11px] font-bold text-white transition-colors hover:bg-slate-800"
+          className="inline-flex h-7 items-center bg-inverse px-3 text-[11px] font-bold text-inverse-content transition-colors hover:bg-inverse"
         >
           조회
         </button>

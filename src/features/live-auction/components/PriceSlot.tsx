@@ -19,40 +19,40 @@ import { cn } from "@/lib/utils";
  * - Upbit/Bithumb/Toss 시세판 표준 · 자릿수마다 spring 으로 부드럽게 전환
  * - `regular` (최저단가 · 정적) 은 animate={false} 로 opt-out 권장
  *
- * 톤 (모든 원/kg 셀에서 공통 사용):
- * - "regular"  · 최저단가(참고 정보)                 → slate-800 · medium (dark tone 유지, 굵기만 완화)
- * - "muted"    · 마감 후 최저단가/현재가격 (dim)     → slate-600 · medium (읽을 수 있는 dim, 라이브 대비 완화만)
- * - "primary"  · 현재가격 · 남의 최고가              → slate-900 bold (테이블 내 최대 contrast)
- * - "mine"     · 현재가격 · 내가 최고가              → sky-700 bold
- * - "won"      · 낙찰 후 내 입찰가                  → sky-700 bold
- * - "lost"     · 미낙찰 후 내 입찰가                → rose-700 bold (row 배경 rose 와 통일)
+ * 톤 (모든 원/kg 셀에서 공통 사용) · ink 는 라이브 상태(mine) 전용:
+ * - "regular"  · 최저단가(참고 정보)                 → slate-800 · medium
+ * - "muted"    · 마감 후 보조 숫자                    → slate-600 · medium
+ * - "faint"    · 마감 후 최저단가 (기준가는 끝나면 참고값) → slate-400 · medium
+ * - "primary"  · 강조 숫자                            → slate-900 bold
+ * - "mine"     · 진행 중 내 입찰가                    → ink bold
+ * - "won"      · 낙찰 후 내 입찰가 (= 낙찰가)          → slate-900 bold (결과는 칩이 말한다)
+ * - "lost"     · 미낙찰 후 내 입찰가                  → slate-500 medium
+ *
+ * 크기 · 12px · 6자리 "999,999"(50px) 가 잘리지 않는 슬롯. 단위 「원」은 슬롯 밖에 붙는다.
  */
-export const PRICE_SLOT_WIDTH = "w-[46px]";
+export const PRICE_SLOT_WIDTH = "w-[50px]";
 
 const NUMBER_FORMATTER = new Intl.NumberFormat("ko-KR");
 
 export type PriceTone =
-  | "regular"
-  | "muted"
-  | "primary"
-  | "mine"
-  | "won"
-  | "lost";
+  "regular" | "muted" | "faint" | "primary" | "mine" | "won" | "lost";
 
 function toneToClass(tone: PriceTone): string {
   switch (tone) {
     case "regular":
-      return "font-medium text-slate-800";
+      return "font-medium text-content";
     case "muted":
-      return "font-medium text-slate-600";
+      return "font-medium text-content-mid";
+    case "faint":
+      return "font-medium text-content-faint";
     case "primary":
-      return "font-bold text-slate-900";
+      return "font-bold text-content";
     case "mine":
-      return "font-bold text-sky-700";
+      return "font-bold text-content";
     case "won":
-      return "font-bold text-sky-700";
+      return "font-bold text-content";
     case "lost":
-      return "font-bold text-rose-700";
+      return "font-medium text-content-soft";
   }
 }
 
@@ -62,18 +62,23 @@ function toneToClass(tone: PriceTone): string {
  * - regular/muted         : 정적 (최저단가/settled) → 불필요
  */
 function isLiveTone(tone: PriceTone): boolean {
-  return tone === "primary" || tone === "mine" || tone === "won" || tone === "lost";
+  return (
+    tone === "primary" || tone === "mine" || tone === "won" || tone === "lost"
+  );
 }
 
 export function PriceSlot({
   value,
   tone,
   animate,
+  unit = "원",
 }: {
   value: number | null | undefined;
   tone: PriceTone;
   /** 명시적 opt-in/out. 미지정 시 라이브 톤(primary/mine/won/lost) 만 자동 애니메이션. */
   animate?: boolean;
+  /** 숫자 뒤 단위 · 슬롯 밖에 흐리게 붙어 자릿수 정렬을 해치지 않는다. `null` 이면 숨김 */
+  unit?: string | null;
 }) {
   const isValid =
     value !== null &&
@@ -85,7 +90,7 @@ export function PriceSlot({
     return (
       <span
         className={cn(
-          "inline-block text-right text-xs text-slate-300",
+          "inline-block text-right text-xs text-content-ghost",
           PRICE_SLOT_WIDTH,
         )}
       >
@@ -103,19 +108,31 @@ export function PriceSlot({
     toneToClass(tone),
   );
 
-  if (!shouldAnimate) {
-    return <span className={commonClass}>{NUMBER_FORMATTER.format(rounded)}</span>;
-  }
-
   return (
-    <NumberFlow
-      value={rounded}
-      locales="ko-KR"
-      format={{ useGrouping: true }}
-      className={commonClass}
-      willChange
-      respectMotionPreference
-    />
+    <>
+      {shouldAnimate ? (
+        <NumberFlow
+          value={rounded}
+          locales="ko-KR"
+          format={{ useGrouping: true }}
+          className={commonClass}
+          willChange
+          respectMotionPreference
+        />
+      ) : (
+        <span className={commonClass}>{NUMBER_FORMATTER.format(rounded)}</span>
+      )}
+      {unit ? <PriceUnit unit={unit} /> : null}
+    </>
+  );
+}
+
+/** 가격 단위 · 되풀이되는 글자라 숫자보다 흐리고 작게 */
+function PriceUnit({ unit }: { unit: string }) {
+  return (
+    <span className="pl-0.5 text-[11px] font-medium text-content-faint">
+      {unit}
+    </span>
   );
 }
 

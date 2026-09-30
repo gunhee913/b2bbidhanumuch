@@ -13,6 +13,8 @@ export interface DealerRow {
   password_hash: string;
   auction_password_hash: string;
   address: string | null;
+  /** 소속 공판장 · 마스터 문자열("농협 음성") · NULL = 미지정(입찰 제한 없음) */
+  slaughter_house: string | null;
   status: 'active' | 'inactive';
   created_at: string;
   last_login_at: string | null;
@@ -41,6 +43,8 @@ export interface Dealer {
   businessNo: string | null;
   phone: string;
   address: string | null;
+  /** 소속 공판장 · 이 공판장 상장만 입찰 가능 · null = 미지정 */
+  slaughterHouse: string | null;
   status: 'active' | 'inactive';
   createdAt: string;
   lastLoginAt: string | null;
@@ -70,6 +74,7 @@ export interface CreateDealerInput {
   password: string;
   auctionPassword: string;
   address?: string;
+  slaughterHouse?: string | null;
   status?: 'active' | 'inactive';
 }
 
@@ -93,6 +98,7 @@ export interface UpdateDealerInput {
   password?: string;
   auctionPassword?: string;
   address?: string;
+  slaughterHouse?: string | null;
   status?: 'active' | 'inactive';
 }
 
@@ -121,6 +127,7 @@ export function toDealerFromRow(row: DealerRow): Dealer {
     businessNo: row.business_no,
     phone: row.phone,
     address: row.address,
+    slaughterHouse: row.slaughter_house ?? null,
     status: row.status,
     createdAt: row.created_at,
     lastLoginAt: row.last_login_at,

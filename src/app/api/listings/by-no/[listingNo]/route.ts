@@ -1,10 +1,11 @@
 import { getAdminClient } from '@/lib/supabase-admin';
 import { NextRequest, NextResponse } from 'next/server';
-import { resolveAuth } from '@/lib/resolve-auth';
+import { resolveViewer } from '@/lib/resolve-viewer';
 
 const supabase = getAdminClient();
 
 // GET: 상장번호로 상장 조회
+// 비공개 입찰 정책 · 관리자/출품업체는 전체, 그 외는 마감 전까지 내 입찰만 노출.
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ listingNo: string }> }
@@ -64,24 +65,18 @@ export async function GET(
       listing.cattle_parts.sort((a: any, b: any) => a.part_no - b.part_no);
     }
 
-    // 세션에서 userType 확인
-    const auth = await resolveAuth(request);
-    console.log('[listings/by-no] auth result:', auth ? { dealerId: auth.dealerId, userType: auth.userType } : 'null');
-    console.log('[listings/by-no] request authorization header:', request.headers.get('authorization')?.substring(0, 30) + '...');
-    const userType = auth?.userType as string | undefined;
-    const isAdmin = userType === 'admin_user';
+    // 세션에서 열람 권한 확인
+    const viewer = await resolveViewer(request);
+    const canViewAllBids = viewer.canViewAllBids;
     const candidateDealerIds = new Set<string>();
-    if (auth?.dealerId) candidateDealerIds.add(auth.dealerId);
+    if (viewer.dealerId) candidateDealerIds.add(viewer.dealerId);
 
-    // fallback: 쿼리 파라미터 dealerId (resolveAuth 실패 시 사용)
+    // fallback: 쿼리 파라미터 dealerId (세션 판정 실패 시 사용)
     const { searchParams } = new URL(request.url);
     const queryDealerId = searchParams.get('dealerId');
-    if (!auth?.dealerId && queryDealerId) {
+    if (!viewer.dealerId && queryDealerId) {
       candidateDealerIds.add(queryDealerId);
-      console.log('[listings/by-no] using fallback dealerId from query:', queryDealerId);
     }
-
-    console.log('[listings/by-no] candidateDealerIds:', Array.from(candidateDealerIds), 'isAdmin:', isAdmin);
 
     // 각 부위의 입찰 현황 조회 · auction_id 를 함께 가져와 회차 매핑용으로 사용
     const partIds = (listing.cattle_parts || []).map((p: any) => p.id);
@@ -100,7 +95,6 @@ export async function GET(
           bid_price,
           bid_amount,
           is_winning,
-          is_top_bid,
           rank,
           created_at,
           dealers (
@@ -150,7 +144,6 @@ export async function GET(
           bidPrice: bid.bid_price,
           bidAmount: bid.bid_amount,
           isWinning: !!bid.is_winning,
-          isTopBid: !!bid.is_top_bid,
           rank: bid.rank ?? null,
           createdAt: bid.created_at,
           auctionId: bid.auction_id || null,
@@ -214,18 +207,18 @@ export async function GET(
           bidAt: part.bid_at,
         };
 
-        if (isAdmin) {
-          const highestBid = partBids.length > 0 ? partBids[0] : null;
-          const topRow =
-            partBids.find((b: any) => b.isTopBid) ?? highestBid;
+        // 정렬이 bid_price DESC, created_at ASC 이므로 첫 row 가 최고가(=마감 후 낙찰가)
+        const highestBid = partBids.length > 0 ? partBids[0] : null;
+
+        if (canViewAllBids) {
           return {
             ...basePartData,
             bidCount: partBids.length,
             highestBid,
-            topBid: topRow
+            topBid: highestBid
               ? {
-                  bidPrice: topRow.bidPrice,
-                  bidAt: topRow.createdAt,
+                  bidPrice: highestBid.bidPrice,
+                  bidAt: highestBid.createdAt,
                   isMine: false,
                 }
               : null,
@@ -241,22 +234,18 @@ export async function GET(
         const isSettled =
           ['completed', 'closed'].includes(listing.status) ||
           partBids.some((b: any) => b.rank != null);
-        // 오픈 최고가 · 현재 최고가 row (매참인 정보 제외 · 딜러에게 노출)
-        const topRow =
-          partBids.find((b: any) => b.isTopBid) ??
-          (partBids.length > 0 ? partBids[0] : null);
-        const topBid = topRow
-          ? {
-              bidPrice: topRow.bidPrice,
-              bidAt: topRow.createdAt,
-              isMine: !!myBid && topRow.id === myBid.id,
-            }
-          : null;
-        const highestBid = partBids.length > 0 ? partBids[0] : null;
+
+        // 비공개 입찰 · 마감 전에는 타 매참인 가격을 전혀 노출하지 않는다
+        const topBid =
+          isSettled && highestBid
+            ? {
+                bidPrice: highestBid.bidPrice,
+                bidAt: highestBid.createdAt,
+                isMine: !!myBid && highestBid.id === myBid.id,
+              }
+            : null;
         const myBidIsWinning = !!myBid?.isWinning;
         const hasWinner = partBids.some((b: any) => b.isWinning);
-
-        console.log(`[listings/by-no] part ${part.part_name}: bids=${partBids.length}, myBid=${myBid ? JSON.stringify({dealerId: myBid.dealerId, bidPrice: myBid.bidPrice, isWinning: myBid.isWinning}) : 'null'}, hasWinner=${hasWinner}, topPrice=${topBid?.bidPrice ?? null}`);
 
         return {
           ...basePartData,
@@ -279,7 +268,6 @@ export async function GET(
                 bidPrice: myBid.bidPrice,
                 bidAmount: myBid.bidAmount,
                 isWinning: myBidIsWinning,
-                isTopBid: !!myBid.isTopBid,
                 roundNo: myBid.roundNo ?? null,
               }
             : null,

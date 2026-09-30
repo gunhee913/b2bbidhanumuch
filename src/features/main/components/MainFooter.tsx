@@ -1,9 +1,11 @@
 "use client";
 
-import Link from "next/link";
 import Image from "next/image";
+import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { fetchCompanyInfo } from "@/features/main/api";
+import { Wordmark } from "@/components/brand/Wordmark";
+import { cn } from "@/lib/utils";
 
 const LOGO_SRC = "/cyber_symbol%203.gif";
 
@@ -16,13 +18,18 @@ const FALLBACK = {
   name: "농협 경제지주",
   representative: "안병우",
   address: "서울특별시 중구 새문안로 16",
-  phone: "1544-0000",
-  businessHours: "평일 09:00 ~ 18:00 (주말·공휴일 휴무)",
+  phone: "02-2080-6480",
+  businessHours: "09:00 - 18:00",
   businessNumber: "000-00-00000",
   email: "support@nh-auction.co.kr",
 };
 
-export function MainFooter() {
+interface MainFooterProps {
+  /** 좌우 폭 제한 없이 화면 끝까지 · 헤더와 같은 값을 줘야 좌우 끝이 맞는다 */
+  fluid?: boolean;
+}
+
+export function MainFooter({ fluid = false }: MainFooterProps) {
   const { data: info } = useQuery({
     queryKey: ["main", "company-info"],
     queryFn: fetchCompanyInfo,
@@ -50,8 +57,13 @@ export function MainFooter() {
   ];
 
   return (
-    <footer className="border-t border-slate-200 bg-white">
-      <div className="mx-auto max-w-[1240px] px-8">
+    <footer className="border-t border-line bg-surface">
+      <div
+        className={cn(
+          "mx-auto px-8",
+          !fluid && "max-w-[1360px] min-[1700px]:max-w-[1600px]",
+        )}
+      >
         <nav className="py-3">
           <ul className="flex flex-wrap items-center gap-x-6 gap-y-2">
             {topLinks.map((link) => (
@@ -60,8 +72,8 @@ export function MainFooter() {
                   href={link.href}
                   className={
                     link.strong
-                      ? "text-[13px] font-bold text-slate-900 transition-colors hover:text-slate-700"
-                      : "text-[13px] font-medium text-slate-600 transition-colors hover:text-slate-900"
+                      ? "text-[13px] font-bold text-content transition-colors hover:text-content-mid"
+                      : "text-[13px] font-medium text-content-mid transition-colors hover:text-content"
                   }
                 >
                   {link.label}
@@ -71,33 +83,31 @@ export function MainFooter() {
           </ul>
         </nav>
 
-        <div className="border-t border-slate-200 py-8">
+        <div className="border-t border-line py-8">
           <div className="flex flex-col gap-6 md:flex-row md:items-start md:gap-10">
             <div className="flex shrink-0 items-center gap-3">
-              <div className="relative h-8 w-8 shrink-0">
+              <div className="relative h-6 w-6 shrink-0">
                 <Image
                   src={LOGO_SRC}
-                  alt="부분육 온라인경매 로고"
+                  alt="농협부분육경매 로고"
                   fill
-                  sizes="32px"
+                  sizes="24px"
                   className="object-contain grayscale"
                   unoptimized
                 />
               </div>
               <div className="h-7 w-px bg-slate-300" aria-hidden />
               <div className="flex flex-col gap-0.5">
-                <span className="text-[16px] font-extrabold leading-none tracking-tight text-slate-800">
-                  부분육 온라인경매
-                </span>
-                <span className="text-[10.5px] font-semibold leading-none text-slate-500">
+                <Wordmark height={15} className="text-content" />
+                <span className="text-[10.5px] font-semibold leading-none text-content-soft">
                   <span>NH</span>
-                  <span className="mx-1.5 text-slate-300">·</span>
+                  <span className="mx-1.5 text-content-ghost">·</span>
                   Online Auction
                 </span>
               </div>
             </div>
 
-            <div className="min-w-0 flex-1 text-[12px] leading-[1.9] text-slate-500">
+            <div className="min-w-0 flex-1 text-[12px] leading-[1.9] text-content-soft">
               <div className="flex flex-wrap items-center gap-x-2">
                 <InfoItem label="상호" value={name} />
                 <FooterDivider />
@@ -118,7 +128,7 @@ export function MainFooter() {
                   value={
                     <>
                       <span className="tabular-nums">{phone}</span>
-                      <span className="ml-1.5 text-slate-400">({hours})</span>
+                      <span className="ml-1.5 text-content-faint">({hours})</span>
                     </>
                   }
                 />
@@ -128,7 +138,7 @@ export function MainFooter() {
                   value={
                     <a
                       href={`mailto:${email}`}
-                      className="transition-colors hover:text-slate-800"
+                      className="transition-colors hover:text-content"
                     >
                       {email}
                     </a>
@@ -136,7 +146,7 @@ export function MainFooter() {
                 />
               </div>
 
-              <p className="mt-4 text-[11.5px] text-slate-400">
+              <p className="mt-4 text-[11.5px] text-content-faint">
                 Copyright &copy; 2024-{new Date().getFullYear()} 부분육
                 온라인경매. All rights reserved.
               </p>
@@ -159,8 +169,8 @@ function InfoItem({
 }) {
   return (
     <span className="whitespace-nowrap">
-      <span className="text-slate-400">{label} : </span>
-      <span className={valueClassName ? `text-slate-700 ${valueClassName}` : "text-slate-700"}>
+      <span className="text-content-faint">{label} : </span>
+      <span className={valueClassName ? `text-content-mid ${valueClassName}` : "text-content-mid"}>
         {value}
       </span>
     </span>
@@ -169,7 +179,7 @@ function InfoItem({
 
 function FooterDivider() {
   return (
-    <span className="hidden text-slate-300 md:inline" aria-hidden>
+    <span className="hidden text-content-ghost md:inline" aria-hidden>
       |
     </span>
   );

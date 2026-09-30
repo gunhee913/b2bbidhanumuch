@@ -408,7 +408,7 @@ function AuctionPageContent() {
   }, { enabled: activeDateReady });
   
   // 실시간 입찰 변경 구독
-  const handleBidChange = useCallback((payload?: { partId: string; bidPrice: number; dealerId: string }) => {
+  const handleBidChange = useCallback(() => {
     refetchListings();
   }, [refetchListings]);
   
@@ -721,10 +721,10 @@ function AuctionPageContent() {
   }, []);
 
   return (
-    <div className="fixed inset-0 bg-white flex justify-center items-center z-[9999] overflow-hidden">
-      <div className="w-full md:flex md:justify-center md:items-center bg-white">
+    <div className="fixed inset-0 bg-surface flex justify-center items-center z-[9999] overflow-hidden">
+      <div className="w-full md:flex md:justify-center md:items-center bg-surface">
           <div 
-            className="w-full md:max-w-md md:w-[500px] bg-white dark:bg-gray-900 md:shadow-2xl relative overflow-hidden flex flex-col transition-colors" 
+            className="w-full md:max-w-md md:w-[500px] bg-surface dark:bg-gray-900 md:shadow-2xl relative overflow-hidden flex flex-col transition-colors" 
             style={{
               height: 'calc(var(--vh, 1vh) * 100)',
               scrollbarWidth: 'none', 
@@ -738,10 +738,10 @@ function AuctionPageContent() {
             `}</style>
             
             {/* 메인 콘텐츠 */}
-            <div className="flex-1 min-h-0 overflow-y-auto bg-white dark:bg-gray-900 transition-colors">
+            <div className="flex-1 min-h-0 overflow-y-auto bg-surface dark:bg-gray-900 transition-colors">
               {/* 섹션 제목 - 부위별 상세에서는 숨김 */}
               {!(activeTab === 'part' && selectedPartId) && (
-                <div className="px-4 pt-4 pb-2 bg-white dark:bg-gray-900 flex flex-col gap-1 transition-colors">
+                <div className="px-4 pt-4 pb-2 bg-surface dark:bg-gray-900 flex flex-col gap-1 transition-colors">
                   <div className="flex items-center justify-between">
                     <h2 className="text-base font-bold text-gray-900 dark:text-gray-100">{getTodayFormatted()} 경매</h2>
                     <div className="flex items-center gap-1.5">
@@ -764,7 +764,7 @@ function AuctionPageContent() {
               {activeTab === 'individual' ? (
                 <>
                   {/* 필터 섹션 - 다중 선택 */}
-                  <div className="px-4 py-3 bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 filter-dropdown transition-colors">
+                  <div className="px-4 py-3 bg-surface dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 filter-dropdown transition-colors">
                     <div className="flex items-center gap-2.5 flex-wrap">
                       {/* 등급 필터 */}
                       <div className="relative">
@@ -780,7 +780,7 @@ function AuctionPageContent() {
                           <ChevronDown className={`h-4 w-4 transition-transform ${openDropdown === 'indGrade' ? 'rotate-180' : ''}`} />
                         </button>
                         {openDropdown === 'indGrade' && (
-                          <div className="absolute top-full left-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-20 min-w-[130px]">
+                          <div className="absolute top-full left-0 mt-1 bg-surface dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-20 min-w-[130px]">
                             <button
                               onClick={(e) => { e.stopPropagation(); setSelectedGrades([]); setOpenDropdown(null); }}
                               className={`flex items-center justify-between w-full text-left px-4 py-2.5 text-[13px] hover:bg-gray-50 dark:hover:bg-gray-700 rounded-t-lg ${
@@ -824,7 +824,7 @@ function AuctionPageContent() {
                         {openDropdown === 'indCompany' && (() => {
                           const indCompanyOptions = Array.from(new Set(products.map(p => p.company)));
                           return (
-                            <div className="absolute top-full left-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-20 min-w-[130px]">
+                            <div className="absolute top-full left-0 mt-1 bg-surface dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-20 min-w-[130px]">
                               <button
                                 onClick={(e) => { e.stopPropagation(); setSelectedCompanies([]); setOpenDropdown(null); }}
                                 className={`flex items-center justify-between w-full text-left px-4 py-2.5 text-[13px] hover:bg-gray-50 dark:hover:bg-gray-700 rounded-t-lg ${
@@ -868,7 +868,7 @@ function AuctionPageContent() {
                     ) : (
                       filteredProducts.map((product) => (
                         <Link key={product.id} href={`/auction/${product.id}`} className="block">
-                          <div className="bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700 p-3 mb-3 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
+                          <div className="bg-surface dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700 p-3 mb-3 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
                             <div className="flex gap-3">
                               {/* 상품 이미지 */}
                               <div className="flex-shrink-0">
@@ -885,10 +885,10 @@ function AuctionPageContent() {
                               <div className="flex-1 min-w-0 flex flex-col justify-center">
                                 <div className="flex items-start justify-between mb-2">
                                   <div className="flex flex-wrap gap-0.5">
-                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300">
+                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-surface dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300">
                                       {product.type}
                                     </span>
-                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300">
+                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-surface dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300">
                                       {formatGrade(product.grade, (product as any).marblingScore)}
                                     </span>
                                   </div>
@@ -923,7 +923,7 @@ function AuctionPageContent() {
               ) : selectedPartId && selectedPart ? (
                 <>
                   {/* 부위별 상세 목록 헤더 - sticky */}
-                  <div className="px-3 h-12 bg-white dark:bg-gray-900 sticky top-0 z-30 flex items-center transition-colors">
+                  <div className="px-3 h-12 bg-surface dark:bg-gray-900 sticky top-0 z-30 flex items-center transition-colors">
                     <button
                       onClick={handleBackToPartList}
                       className="p-1 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
@@ -959,7 +959,7 @@ function AuctionPageContent() {
                   
 
                   {/* 부위별 필터 - 다중 선택 */}
-                  <div className="px-4 py-3 bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 filter-dropdown transition-colors">
+                  <div className="px-4 py-3 bg-surface dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 filter-dropdown transition-colors">
                     <div className="flex items-center gap-2.5 flex-wrap">
                       {/* 등급 필터 */}
                       <div className="relative">
@@ -975,7 +975,7 @@ function AuctionPageContent() {
                           <ChevronDown className={`h-4 w-4 transition-transform ${openDropdown === 'partGrade' ? 'rotate-180' : ''}`} />
                         </button>
                         {openDropdown === 'partGrade' && (
-                          <div className="absolute top-full left-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-20 min-w-[130px]">
+                          <div className="absolute top-full left-0 mt-1 bg-surface dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-20 min-w-[130px]">
                             <button
                               onClick={(e) => { e.stopPropagation(); setPartFilterGrades([]); setOpenDropdown(null); }}
                               className={`flex items-center justify-between w-full text-left px-4 py-2.5 text-[13px] hover:bg-gray-50 dark:hover:bg-gray-700 rounded-t-lg ${
@@ -1019,7 +1019,7 @@ function AuctionPageContent() {
                         {openDropdown === 'partCompany' && (() => {
                           const partCompanyOptions = Array.from(new Set((selectedPartId && partProducts[selectedPartId] ? partProducts[selectedPartId] : []).map((p: any) => p.company).filter(Boolean)));
                           return (
-                            <div className="absolute top-full left-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-20 min-w-[130px]">
+                            <div className="absolute top-full left-0 mt-1 bg-surface dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-20 min-w-[130px]">
                               <button
                                 onClick={(e) => { e.stopPropagation(); setPartFilterCompanies([]); setOpenDropdown(null); }}
                                 className={`flex items-center justify-between w-full text-left px-4 py-2.5 text-[13px] hover:bg-gray-50 dark:hover:bg-gray-700 rounded-t-lg ${
@@ -1093,8 +1093,8 @@ function AuctionPageContent() {
                             <div 
                               className={`grid px-2 py-3 border-b border-gray-100 dark:border-gray-800 cursor-pointer transition-colors items-center ${
                                 hasBid 
-                                  ? 'bg-blue-50/50 dark:bg-blue-900/30' 
-                                  : 'bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800'
+                                  ? 'bg-surface dark:bg-gray-900' 
+                                  : 'bg-surface dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800'
                               }`}
                               style={{gridTemplateColumns: '0.6fr 1.1fr 0.6fr 0.85fr 1.1fr 0.5fr 0.5fr 0.35fr'}}
                               onClick={() => {
@@ -1158,7 +1158,7 @@ function AuctionPageContent() {
                                     }}
                                     className={`px-1.5 py-1 text-[11px] font-medium rounded transition-colors ${
                                       canBidPart
-                                        ? 'text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 hover:bg-blue-50 dark:hover:bg-blue-900/30'
+                                        ? 'text-content-mid dark:text-content-ghost border border-line dark:border-slate-700 hover:bg-surface-muted dark:hover:bg-inverse'
                                         : 'text-gray-400 dark:text-gray-500 border border-gray-200 dark:border-gray-700'
                                     }`}
                                   >
@@ -1286,7 +1286,7 @@ function AuctionPageContent() {
                                                 setExpandedImageIndex(prev => ({ ...prev, [product.id]: index }));
                                               }}
                                               className={`w-2 h-2 rounded-full transition-colors ${
-                                                (expandedImageIndex[product.id] || 0) === index ? 'bg-white' : 'bg-white/50'
+                                                (expandedImageIndex[product.id] || 0) === index ? 'bg-surface' : 'bg-white/50'
                                               }`}
                                             />
                                           ))}
@@ -1376,7 +1376,7 @@ function AuctionPageContent() {
                                   {/* 개체정보 패널 - 3줄 테이블 형식 */}
                                   <div className="px-3 py-3 border-t border-gray-200 dark:border-gray-700">
                                     {/* 1행: 축종, 성별, 등급, 개월령, 이력번호 */}
-                                    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded overflow-hidden mb-2">
+                                    <div className="bg-surface dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded overflow-hidden mb-2">
                                       <table className="w-full text-[13px]">
                                         <thead>
                                           <tr className="bg-gray-100/80 dark:bg-gray-700/80 border-b border-gray-200 dark:border-gray-600">
@@ -1400,7 +1400,7 @@ function AuctionPageContent() {
                                     </div>
 
                                     {/* 2행: 등지방, 등심면적, 근내지방, 육색, 지방색, 조직감, 성숙도 */}
-                                    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded overflow-hidden mb-2">
+                                    <div className="bg-surface dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded overflow-hidden mb-2">
                                       <table className="w-full text-[13px]">
                                         <thead>
                                           <tr className="bg-gray-100/80 dark:bg-gray-700/80 border-b border-gray-200 dark:border-gray-600">
@@ -1428,7 +1428,7 @@ function AuctionPageContent() {
                                     </div>
 
                                     {/* 3행: 도축장, 도축번호, 도체중, 상장업체, 가공일, 가공중량 */}
-                                    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded overflow-hidden">
+                                    <div className="bg-surface dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded overflow-hidden">
                                       <table className="w-full text-[13px]">
                                         <thead>
                                           <tr className="bg-gray-100/80 dark:bg-gray-700/80 border-b border-gray-200 dark:border-gray-600">
@@ -1455,12 +1455,12 @@ function AuctionPageContent() {
                                   </div>
                                   
                                   {/* 개체정보 버튼 & 축산물 이력정보 - 맨 아래 */}
-                                  <div className="px-3 py-3 border-t border-gray-200 bg-white flex items-center gap-2">
+                                  <div className="px-3 py-3 border-t border-gray-200 bg-surface flex items-center gap-2">
                                     <a
                                       href="https://aunit.mtrace.go.kr/mtracesearch/cattleNoSearch.do?btsProgNo=0109008401&btsActionMethod=SELECT&cattleNo=002189438539"
                                       target="_blank"
                                       rel="noopener noreferrer"
-                                      className="px-3 py-1.5 text-xs font-bold rounded border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-1"
+                                      className="px-3 py-1.5 text-xs font-bold rounded border border-gray-300 bg-surface text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-1"
                                       onClick={(e) => e.stopPropagation()}
                                     >
                                       축산물 이력정보
@@ -1495,7 +1495,7 @@ function AuctionPageContent() {
                                           }, 300);
                                         }
                                       }}
-                                      className="px-3 py-1.5 text-xs font-bold rounded border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 transition-colors"
+                                      className="px-3 py-1.5 text-xs font-bold rounded border border-gray-300 bg-surface text-gray-700 hover:bg-gray-50 transition-colors"
                                     >
                                       개체정보 닫기
                                     </button>
@@ -1542,7 +1542,7 @@ function AuctionPageContent() {
                             <div
                               key={product.id}
                               className={`grid px-2 py-3 border-b border-gray-100 dark:border-gray-800 items-center ${
-                                isMyWin ? 'bg-blue-50/50 dark:bg-blue-900/20' : 'bg-white dark:bg-gray-900'
+                                isMyWin ? 'bg-surface dark:bg-gray-900' : 'bg-surface dark:bg-gray-900'
                               }`}
                               style={{gridTemplateColumns: '0.6fr 1fr 0.6fr 0.9fr 0.9fr 0.9fr 0.6fr 0.35fr'}}
                             >
@@ -1567,7 +1567,7 @@ function AuctionPageContent() {
                               </div>
                               <div className="text-center flex items-center justify-center">
                                 {isMyWin ? (
-                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300">
+                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-surface-strong text-content-mid">
                                     낙찰
                                   </span>
                                 ) : product.myBid?.bidPrice ? (
@@ -1606,7 +1606,7 @@ function AuctionPageContent() {
             {/* 빠른 재입찰 금액 수정 모달 */}
               {showQuickReBidEdit && (
               <div className="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-[10000] p-4">
-                <div className="bg-white rounded-lg max-w-sm w-full p-5">
+                <div className="bg-surface rounded-lg max-w-sm w-full p-5">
                   <h3 className="text-lg font-bold mb-4">빠른 재입찰 금액 설정</h3>
                   
                   <div className="mb-4">
@@ -1625,7 +1625,7 @@ function AuctionPageContent() {
                           setTempQuickReBidAmount('');
                         }}
                         placeholder="증액할 금액을 입력하세요"
-                        className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 bg-white text-gray-900"
+                        className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 bg-surface text-gray-900"
                       />
                       <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">원</span>
                     </div>
@@ -1640,7 +1640,7 @@ function AuctionPageContent() {
                         setShowQuickReBidEdit(false);
                         setTempQuickReBidAmount(quickReBidAmount.toLocaleString());
                       }}
-                      className="flex-1 bg-white text-gray-700 border-2 border-gray-300 py-2 rounded-lg font-bold hover:bg-gray-50"
+                      className="flex-1 bg-surface text-gray-700 border-2 border-gray-300 py-2 rounded-lg font-bold hover:bg-gray-50"
                       >
                         취소
                       </button>
@@ -1682,7 +1682,7 @@ function AuctionPageContent() {
                     animate={{ y: 0 }}
                     exit={{ y: '100%' }}
                     transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                    className="absolute bottom-0 left-0 right-0 bg-white dark:bg-gray-900 rounded-t-2xl shadow-2xl max-h-[70vh] overflow-y-auto z-[100] transition-colors"
+                    className="absolute bottom-0 left-0 right-0 bg-surface dark:bg-gray-900 rounded-t-2xl shadow-2xl max-h-[70vh] overflow-y-auto z-[100] transition-colors"
                   >
                     {/* 핸들 */}
                     <div className="flex justify-center pt-3 pb-2">
@@ -1744,7 +1744,7 @@ function AuctionPageContent() {
                               const value = e.target.value.replace(/,/g, '').replace(/[^0-9]/g, '');
                               setPartBidPrice(value ? parseInt(value) : 0);
                             }}
-                            className="w-full px-4 py-3.5 pr-12 text-right text-xl font-bold border border-gray-200 dark:border-gray-700 rounded focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500 focus:border-gray-400 dark:focus:border-gray-500 bg-white dark:bg-gray-800 text-black dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500"
+                            className="w-full px-4 py-3.5 pr-12 text-right text-xl font-bold border border-gray-200 dark:border-gray-700 rounded focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500 focus:border-gray-400 dark:focus:border-gray-500 bg-surface dark:bg-gray-800 text-black dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500"
                             placeholder={selectedProduct ? `최저단가 ${(selectedProduct.price || 0).toLocaleString()}` : '0'}
                           />
                           <div className="absolute right-4 top-1/2 transform -translate-y-1/2 text-sm text-gray-400 dark:text-gray-500">
@@ -1814,7 +1814,7 @@ function AuctionPageContent() {
             {/* 부위별 입찰 확인 다이얼로그 */}
             {showPartBidDialog && selectedProduct && (
               <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[10000] p-4">
-                <div className="bg-white dark:bg-gray-900 rounded w-full max-w-md mx-4 transition-colors">
+                <div className="bg-surface dark:bg-gray-900 rounded w-full max-w-md mx-4 transition-colors">
                   {/* 다이얼로그 헤더 */}
                   <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
                     <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">입찰 내용을 확인해 주세요</h3>
@@ -1959,7 +1959,7 @@ function AuctionPageContent() {
           }`}>
             <div className={`px-4 py-3 rounded-lg shadow-lg flex items-center space-x-2 ${
               toastType === 'success' 
-                ? 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-100' 
+                ? 'bg-surface dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-100' 
                 : 'bg-gray-800 dark:bg-gray-700 text-white'
             }`}>
               <div className="flex-shrink-0">
@@ -1983,7 +1983,7 @@ function AuctionPageContent() {
 
 export default function AuctionPage() {
   return (
-    <Suspense fallback={<div className="flex items-center justify-center min-h-screen bg-white dark:bg-gray-900"><div className="text-gray-500 dark:text-gray-400">로딩 중...</div></div>}>
+    <Suspense fallback={<div className="flex items-center justify-center min-h-screen bg-surface dark:bg-gray-900"><div className="text-gray-500 dark:text-gray-400">로딩 중...</div></div>}>
       <AuctionPageContent />
     </Suspense>
   );

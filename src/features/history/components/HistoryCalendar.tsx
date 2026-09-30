@@ -13,13 +13,28 @@ import {
   startOfWeek,
   subMonths,
 } from "date-fns";
+import { ko } from "date-fns/locale";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 const WEEK_LABELS = ["일", "월", "화", "수", "목", "금", "토"];
 
 const KRW_FORMATTER = new Intl.NumberFormat("ko-KR");
 const formatKrw = (value: number) => `${KRW_FORMATTER.format(value)}원`;
+
+/**
+ * 셀용 축약 금액 · 1만 이상은 만 단위 반올림 (`16,773,418` → `1,677만`).
+ * 좌측 400px 레일의 57px 셀에 들어가야 하므로 5~6자로 제한 · 풀 금액은 title 툴팁.
+ */
+const formatCompactKrw = (value: number) =>
+  value >= 10_000
+    ? `${KRW_FORMATTER.format(Math.round(value / 10_000))}만`
+    : KRW_FORMATTER.format(value);
 
 /**
  * 낙찰금액 강도 히트맵 · 4단계 slate 톤.
@@ -29,37 +44,32 @@ type HeatLevel = 0 | 1 | 2 | 3 | 4;
 
 const HEAT_STYLE: Record<
   HeatLevel,
-  { bg: string; hover: string; text: string; subText: string }
+  { bg: string; hover: string; text: string }
 > = {
   0: {
-    bg: "bg-white",
-    hover: "hover:bg-slate-50",
-    text: "text-slate-900",
-    subText: "text-slate-500",
+    bg: "bg-surface",
+    hover: "hover:bg-surface-muted",
+    text: "text-content",
   },
   1: {
-    bg: "bg-slate-100",
-    hover: "hover:bg-slate-200",
-    text: "text-slate-900",
-    subText: "text-slate-500",
+    bg: "bg-surface-accent",
+    hover: "hover:bg-surface-strong",
+    text: "text-content",
   },
   2: {
     bg: "bg-slate-300",
     hover: "hover:bg-slate-400",
-    text: "text-slate-900",
-    subText: "text-slate-600",
+    text: "text-content",
   },
   3: {
     bg: "bg-slate-500",
     hover: "hover:bg-slate-600",
     text: "text-white",
-    subText: "text-white/85",
   },
   4: {
-    bg: "bg-slate-800",
-    hover: "hover:bg-slate-900",
+    bg: "bg-inverse",
+    hover: "hover:bg-inverse",
     text: "text-white",
-    subText: "text-white/85",
   },
 };
 
@@ -78,7 +88,15 @@ export interface CalendarDayStat {
   wonCount: number;
   lostCount: number;
   wonAmount: number;
+  /** 진행중 입찰 수 · 오늘만 0 이 아닐 수 있다 */
+  activeCount: number;
+  /** 그날 참여한 회차 수 */
+  roundCount: number;
 }
+
+/** 셀 hover 카드를 띄울지 · 낙찰/미낙찰/진행중 중 하나라도 있으면 참여한 날 */
+const hasParticipation = (stat: CalendarDayStat | undefined): stat is CalendarDayStat =>
+  !!stat && stat.wonCount + stat.lostCount + stat.activeCount > 0;
 
 export interface HistoryCalendarProps {
   cursor: Date;
@@ -96,6 +114,8 @@ export interface HistoryCalendarProps {
  * - 요일 컬러: 헤더에만 (일/토), 셀 안 날짜는 무채색 통일
  * - 미낙찰 · "낙찰" 라벨 등 부가 정보 제거 → 카운트 + 금액만 노출
  * - 선택 강조: 다크셀 white, 라이트셀 slate-900 outline
+ * - 좌측 400px 레일용 미니 캘린더 · 셀 52px · 셀 안에는 만 단위 금액만
+ * - 건수·미낙찰·진행중·회차 등 상세는 hover 카드(`DayHoverCard`)로
  */
 export function HistoryCalendar({
   cursor,
@@ -110,43 +130,36 @@ export function HistoryCalendar({
     return eachDayOfInterval({ start, end });
   }, [cursor]);
 
-  const monthSummary = useMemo(() => {
-    let wonCount = 0;
-    let lostCount = 0;
-    let wonAmount = 0;
-    let wonAmountMax = 0;
+  /** 히트맵 기준값 · 이 달 최대 일별 낙찰금액 */
+  const wonAmountMax = useMemo(() => {
+    let max = 0;
     for (const day of gridDays) {
       if (!isSameMonth(day, cursor)) continue;
-      const key = format(day, "yyyy-MM-dd");
-      const s = stats[key];
-      if (!s) continue;
-      wonCount += s.wonCount;
-      lostCount += s.lostCount;
-      wonAmount += s.wonAmount;
-      if (s.wonAmount > wonAmountMax) wonAmountMax = s.wonAmount;
+      const s = stats[format(day, "yyyy-MM-dd")];
+      if (s && s.wonAmount > max) max = s.wonAmount;
     }
-    return { wonCount, lostCount, wonAmount, wonAmountMax };
+    return max;
   }, [gridDays, cursor, stats]);
 
   return (
-    <div className="border border-slate-200 bg-white">
-      <header className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
+    <div className="border border-line bg-surface">
+      <header className="flex items-center justify-between border-b border-line px-4 py-3">
         <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={() => onChangeCursor(subMonths(cursor, 1))}
-            className="inline-flex h-8 w-8 items-center justify-center border border-slate-200 bg-white text-slate-500 transition-colors hover:border-slate-300 hover:text-slate-800"
+            className="inline-flex h-8 w-8 items-center justify-center border border-line bg-surface text-content-soft transition-colors hover:border-line hover:text-content"
             aria-label="이전 달"
           >
             <ChevronLeft className="h-4 w-4" />
           </button>
-          <span className="text-[15px] font-extrabold tabular-nums text-slate-900">
+          <span className="min-w-[64px] text-center text-[14px] font-extrabold tabular-nums text-content">
             {format(cursor, "yyyy.MM")}
           </span>
           <button
             type="button"
             onClick={() => onChangeCursor(addMonths(cursor, 1))}
-            className="inline-flex h-8 w-8 items-center justify-center border border-slate-200 bg-white text-slate-500 transition-colors hover:border-slate-300 hover:text-slate-800"
+            className="inline-flex h-8 w-8 items-center justify-center border border-line bg-surface text-content-soft transition-colors hover:border-line hover:text-content"
             aria-label="다음 달"
           >
             <ChevronRight className="h-4 w-4" />
@@ -157,35 +170,14 @@ export function HistoryCalendar({
               onChangeCursor(new Date());
               onSelectDate(format(new Date(), "yyyy-MM-dd"));
             }}
-            className="ml-1 inline-flex h-8 items-center border border-slate-200 bg-white px-3 text-[11px] font-bold text-slate-700 transition-colors hover:border-sky-400 hover:bg-sky-50 hover:text-sky-700"
+            className="ml-1 inline-flex h-8 items-center border border-line bg-surface px-3 text-[11px] font-bold text-content-mid transition-colors hover:border-sky-400 hover:bg-sky-50 hover:text-sky-700"
           >
             오늘
           </button>
         </div>
-
-        <div className="flex items-center gap-5 text-[11px] tabular-nums">
-          <SummaryItem
-            label="낙찰"
-            value={`${monthSummary.wonCount}건`}
-            emphasis
-          />
-          <SummaryItem
-            label="미낙찰"
-            value={`${monthSummary.lostCount}건`}
-          />
-          <SummaryItem
-            label="낙찰금액"
-            value={
-              monthSummary.wonAmount > 0
-                ? formatKrw(monthSummary.wonAmount)
-                : "-"
-            }
-            emphasis
-          />
-        </div>
       </header>
 
-      <div className="grid grid-cols-[repeat(7,minmax(0,1fr))] border-b border-slate-200 bg-slate-50/60">
+      <div className="grid grid-cols-[repeat(7,minmax(0,1fr))] border-b border-line bg-slate-50/60">
         {WEEK_LABELS.map((label, i) => (
           <div
             key={label}
@@ -195,7 +187,7 @@ export function HistoryCalendar({
                 ? "text-rose-400"
                 : i === 6
                   ? "text-sky-500"
-                  : "text-slate-500",
+                  : "text-content-soft",
             )}
           >
             {label}
@@ -211,7 +203,7 @@ export function HistoryCalendar({
           const isSelected = selectedDate === key;
 
           const heatLevel: HeatLevel = inMonth
-            ? computeHeatLevel(stat?.wonAmount ?? 0, monthSummary.wonAmountMax)
+            ? computeHeatLevel(stat?.wonAmount ?? 0, wonAmountMax)
             : 0;
           const heat = HEAT_STYLE[heatLevel];
           const isDarkCell = heatLevel >= 3;
@@ -219,12 +211,12 @@ export function HistoryCalendar({
             inMonth && stat && stat.wonCount > 0 && stat.wonAmount > 0;
 
           const dayNumberColor = !inMonth
-            ? "text-slate-300"
+            ? "text-content-ghost"
             : isDarkCell
               ? "text-white"
-              : "text-slate-800";
+              : "text-content";
 
-          return (
+          const cell = (
             <button
               key={key}
               type="button"
@@ -232,7 +224,7 @@ export function HistoryCalendar({
                 onSelectDate(selectedDate === key ? null : key)
               }
               className={cn(
-                "relative flex h-[104px] min-w-0 flex-col items-stretch overflow-hidden border-b border-r border-slate-100 px-2.5 pb-2 pt-2 text-left transition-colors",
+                "relative flex h-[52px] min-w-0 flex-col items-stretch overflow-hidden border-b border-r border-line-soft px-1.5 pb-1 pt-1 text-left transition-colors",
                 heat.bg,
                 heat.hover,
                 !inMonth && "bg-slate-50/30",
@@ -242,12 +234,17 @@ export function HistoryCalendar({
                 ],
               )}
               aria-pressed={isSelected}
+              aria-label={
+                hasData
+                  ? `${format(day, "M월 d일")} · 낙찰 ${stat.wonCount}건 · ${formatKrw(stat.wonAmount)}`
+                  : format(day, "M월 d일")
+              }
             >
               {/* 상단 · 날짜 번호 + today 뱃지 */}
               <div className="flex items-center justify-between">
                 <span
                   className={cn(
-                    "text-[12.5px] font-bold tabular-nums",
+                    "text-[11.5px] font-bold tabular-nums leading-none",
                     dayNumberColor,
                   )}
                 >
@@ -256,46 +253,41 @@ export function HistoryCalendar({
                 {isToday(day) ? (
                   <span
                     className={cn(
-                      "text-[9px] font-bold uppercase tracking-wider",
-                      isDarkCell ? "text-white/90" : "text-sky-600",
+                      "h-1.5 w-1.5 rounded-full",
+                      isDarkCell ? "bg-surface" : "bg-sky-500",
                     )}
-                  >
-                    today
-                  </span>
+                    aria-label="오늘"
+                  />
                 ) : null}
               </div>
 
-              {/* 우하단 · 낙찰금액 (primary, 강조) + 건수 (secondary) */}
+              {/* 우하단 · 낙찰금액만 · 건수 등 상세는 hover 카드 */}
               {hasData ? (
-                <div className="mt-auto flex flex-col items-end gap-1 leading-tight">
-                  <span
-                    className={cn(
-                      "max-w-full truncate text-[14px] font-extrabold tabular-nums leading-none",
-                      heat.text,
-                    )}
-                    title={formatKrw(stat.wonAmount)}
-                  >
-                    {formatKrw(stat.wonAmount)}
-                  </span>
-                  <span
-                    className={cn(
-                      "flex items-baseline gap-0.5 text-[11px] font-semibold tabular-nums leading-none",
-                      heat.subText,
-                    )}
-                  >
-                    <span>{stat.wonCount}</span>
-                    <span
-                      className={cn(
-                        "text-[10px] font-medium",
-                        isDarkCell ? "text-white/70" : "text-slate-400",
-                      )}
-                    >
-                      건
-                    </span>
-                  </span>
-                </div>
+                <span
+                  className={cn(
+                    "mt-auto self-end whitespace-nowrap text-[11px] font-extrabold tabular-nums leading-none -tracking-[0.02em]",
+                    heat.text,
+                  )}
+                >
+                  {formatCompactKrw(stat.wonAmount)}
+                </span>
               ) : null}
             </button>
+          );
+
+          if (!inMonth || !hasParticipation(stat)) return cell;
+
+          return (
+            <Tooltip key={key} delayDuration={150}>
+              <TooltipTrigger asChild>{cell}</TooltipTrigger>
+              <TooltipContent
+                side="top"
+                sideOffset={6}
+                className="rounded-md border border-line bg-surface p-0 text-content shadow-xl"
+              >
+                <DayHoverCard day={day} stat={stat} />
+              </TooltipContent>
+            </Tooltip>
           );
         })}
       </div>
@@ -304,29 +296,59 @@ export function HistoryCalendar({
 }
 
 /**
- * 헤더의 월 요약 지표.
- * 컬러 dot 을 제거하고 라벨:값 텍스트 만으로 간결하게 표현.
+ * 셀 hover 카드 · `9.17 (목)` / 낙찰 · 미낙찰 · 진행중 · 회차 / 낙찰금액 풀 숫자.
+ * 셀에서 뺀 건수 정보를 여기서 전부 보여준다.
  */
-function SummaryItem({
+function DayHoverCard({ day, stat }: { day: Date; stat: CalendarDayStat }) {
+  return (
+    <div className="min-w-[168px] px-3 py-2.5 text-left -tracking-[0.01em]">
+      <div className="flex items-baseline justify-between gap-3">
+        <span className="text-[12px] font-extrabold tabular-nums text-content">
+          {format(day, "M.d (EEE)", { locale: ko })}
+        </span>
+        {stat.roundCount > 0 ? (
+          <span className="text-[10.5px] font-medium tabular-nums text-content-faint">
+            {stat.roundCount}회차
+          </span>
+        ) : null}
+      </div>
+
+      <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-[11.5px] tabular-nums">
+        <HoverStat label="낙찰" value={`${stat.wonCount}건`} dot="bg-sky-500" />
+        <HoverStat label="미낙찰" value={`${stat.lostCount}건`} dot="bg-rose-300" />
+        {stat.activeCount > 0 ? (
+          <HoverStat label="진행중" value={`${stat.activeCount}건`} dot="bg-inverse" />
+        ) : null}
+      </dl>
+
+      {stat.wonAmount > 0 ? (
+        <div className="mt-2 flex items-baseline justify-between border-t border-line-soft pt-2">
+          <span className="text-[10.5px] font-medium text-content-faint">낙찰금액</span>
+          <span className="text-[12.5px] font-extrabold tabular-nums text-content">
+            {formatKrw(stat.wonAmount)}
+          </span>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function HoverStat({
   label,
   value,
-  emphasis = false,
+  dot,
 }: {
   label: string;
   value: string;
-  emphasis?: boolean;
+  dot: string;
 }) {
   return (
-    <span className="inline-flex items-baseline gap-1.5">
-      <span className="text-slate-400">{label}</span>
-      <span
-        className={cn(
-          "font-bold",
-          emphasis ? "text-slate-900" : "text-slate-500",
-        )}
-      >
-        {value}
-      </span>
-    </span>
+    <>
+      <dt className="flex items-center gap-1.5 font-medium text-content-soft">
+        <span className={cn("h-1.5 w-1.5 shrink-0", dot)} aria-hidden />
+        {label}
+      </dt>
+      <dd className="text-right font-bold text-content">{value}</dd>
+    </>
   );
 }

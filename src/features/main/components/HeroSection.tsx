@@ -11,7 +11,7 @@ export function HeroSection() {
     <>
       <section
         id="hero"
-        className="relative w-full overflow-hidden border-b border-slate-200 bg-gradient-to-br from-slate-50 via-white to-sky-50"
+        className="relative w-full overflow-hidden border-b border-line bg-gradient-to-br from-slate-50 via-white to-sky-50"
       >
         <div
           className="pointer-events-none absolute -right-24 top-1/2 h-[520px] w-[520px] -translate-y-1/2 rounded-full bg-sky-100/60 blur-3xl"
@@ -41,7 +41,7 @@ function HeroNoticeStrip() {
 
   return (
     <div className="relative">
-      <div className="mx-auto max-w-[1240px] px-8">
+      <div className="mx-auto max-w-[1360px] min-[1700px]:max-w-[1600px] px-8">
         <div className="relative grid grid-cols-2">
           <span
             className="pointer-events-none absolute left-1/2 top-1/2 h-4 w-px -translate-x-1/2 -translate-y-1/2 bg-slate-300"
@@ -77,10 +77,10 @@ function NoticeRow({
   if (placeholder) {
     return (
       <div className="flex items-center gap-4 py-4 text-[14px]">
-        <span className="w-16 shrink-0 font-semibold text-slate-500">
+        <span className="w-16 shrink-0 font-semibold text-content-soft">
           {label}
         </span>
-        <span className="flex-1 text-slate-400">{placeholder}</span>
+        <span className="flex-1 text-content-faint">{placeholder}</span>
       </div>
     );
   }
@@ -88,10 +88,10 @@ function NoticeRow({
   if (isLoading) {
     return (
       <div className="flex items-center gap-4 py-4 text-[14px]">
-        <span className="w-16 shrink-0 font-semibold text-slate-500">
+        <span className="w-16 shrink-0 font-semibold text-content-soft">
           {label}
         </span>
-        <span className="flex-1 text-slate-400">불러오는 중...</span>
+        <span className="flex-1 text-content-faint">불러오는 중...</span>
       </div>
     );
   }
@@ -99,10 +99,10 @@ function NoticeRow({
   if (!notice) {
     return (
       <div className="flex items-center gap-4 py-4 text-[14px]">
-        <span className="w-16 shrink-0 font-semibold text-slate-500">
+        <span className="w-16 shrink-0 font-semibold text-content-soft">
           {label}
         </span>
-        <span className="flex-1 text-slate-400">
+        <span className="flex-1 text-content-faint">
           등록된 공지사항이 없습니다.
         </span>
       </div>
@@ -116,18 +116,18 @@ function NoticeRow({
       href={`/notice/${notice.id}`}
       className="group flex items-center gap-4 py-4 text-[14px]"
     >
-      <span className="w-16 shrink-0 font-semibold text-slate-500">
+      <span className="w-16 shrink-0 font-semibold text-content-soft">
         {label}
       </span>
       {notice.isPinned && (
-        <span className="inline-flex shrink-0 items-center rounded bg-slate-100 px-1.5 py-0.5 text-[11px] font-semibold text-slate-600">
+        <span className="inline-flex shrink-0 items-center rounded bg-surface-accent px-1.5 py-0.5 text-[11px] font-semibold text-content-mid">
           중요
         </span>
       )}
-      <span className="flex-1 truncate text-slate-800 transition-colors group-hover:text-sky-700">
+      <span className="flex-1 truncate text-content transition-colors group-hover:text-sky-700">
         {notice.title}
       </span>
-      <span className="shrink-0 text-slate-500">{date}</span>
+      <span className="shrink-0 text-content-soft">{date}</span>
     </Link>
   );
 }
@@ -143,9 +143,9 @@ function formatDate(iso: string) {
 function FloatingPromotionCard() {
   return (
     <div className="fixed right-4 top-28 z-30">
-      <div className="relative w-[200px] rounded-2xl bg-white p-5 shadow-xl shadow-slate-300/40 ring-1 ring-slate-100">
+      <div className="relative w-[200px] rounded-2xl bg-surface p-5 shadow-xl shadow-slate-300/40 ring-1 ring-line-soft">
         <div className="text-center">
-          <h3 className="text-[15px] font-bold leading-[1.35] text-slate-900">
+          <h3 className="text-[15px] font-bold leading-[1.35] text-content">
             매참인 모집
             <br />
             지금 신청하세요
@@ -158,13 +158,13 @@ function FloatingPromotionCard() {
           </div>
         </div>
 
-        <div className="my-4 h-px w-full bg-slate-200" />
+        <div className="my-4 h-px w-full bg-surface-strong" />
 
         <div className="flex items-center justify-between">
-          <span className="text-[11px] font-medium text-slate-500">
+          <span className="text-[11px] font-medium text-content-soft">
             문의전화
           </span>
-          <span className="text-[13px] font-bold tracking-tight text-slate-900">
+          <span className="text-[13px] font-bold tracking-tight text-content">
             031-123-4567
           </span>
         </div>

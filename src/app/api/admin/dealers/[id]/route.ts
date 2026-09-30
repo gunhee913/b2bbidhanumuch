@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createPureClient } from '@/lib/supabase/server';
 import bcrypt from 'bcryptjs';
+import { SLAUGHTER_HOUSES } from '@/constants/slaughterHouses';
 
 const SALT_ROUNDS = 10;
+const VALID_HOUSES: readonly string[] = SLAUGHTER_HOUSES;
 
 // PATCH: 중도매인 수정
 export async function PATCH(
@@ -12,7 +14,11 @@ export async function PATCH(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { name, representativeName, businessNo, phone, password, auctionPassword, address, status } = body;
+    const { name, representativeName, businessNo, phone, password, auctionPassword, address, slaughterHouse, status } = body;
+
+    if (slaughterHouse !== undefined && slaughterHouse !== null && slaughterHouse !== '' && !VALID_HOUSES.includes(slaughterHouse)) {
+      return NextResponse.json({ error: '알 수 없는 공판장입니다.' }, { status: 400 });
+    }
 
     const supabase = await createPureClient();
 
@@ -22,6 +28,7 @@ export async function PATCH(
     if (businessNo !== undefined) updateData.business_no = businessNo;
     if (phone !== undefined) updateData.phone = phone;
     if (address !== undefined) updateData.address = address;
+    if (slaughterHouse !== undefined) updateData.slaughter_house = slaughterHouse || null;
     if (status !== undefined) updateData.status = status;
 
     if (password) {
@@ -57,6 +64,7 @@ export async function PATCH(
       businessNo: data.business_no,
       phone: data.phone,
       address: data.address,
+      slaughterHouse: data.slaughter_house ?? null,
       status: data.status,
       createdAt: data.created_at,
       lastLoginAt: data.last_login_at,

@@ -35,16 +35,16 @@ export interface LivePartBid {
   bidAt: string | null;
   rank: number | null;
   isWinning: boolean;
-  /** 현재 최고가 여부 · 오픈 최고가 경매에서 O(1) 조회용. */
-  isTopBid?: boolean;
+  /** 이 입찰이 걸린 회차 번호 · 결과 행의 `n회차` · 회차 미연결 데이터는 null */
+  roundNo?: number | null;
 }
 
 /**
- * 오픈 최고가 경매 · 부위별 현재 최고가.
+ * 비공개 입찰 · 부위별 최고가(=마감 후 낙찰가) 요약.
  *
- * 진행 중 회차에서 딜러 뷰에 노출되는 최소 정보(가격 + 시각 + 내 소유 여부).
- * 매참인 신원(`dealerNo`/`dealerName`)은 회차 마감 후에만 `highestBid` /
- * `allBids` 를 통해 공개된다.
+ * 진행 중 회차에서는 서버가 매참인·비로그인에게 **null** 로 내려준다.
+ * 회차 마감(rank 확정) 후에만 가격·시각·내 소유 여부가 채워진다.
+ * 관리자/출품업체 뷰에서는 진행 중에도 채워진다 (운영·검수 목적).
  */
 export interface LivePartTopBid {
   bidPrice: number;
@@ -62,13 +62,13 @@ export interface LivePart {
   bidCount: number;
   /**
    * 최고 입찰 상세 (매참인 정보 포함).
-   * 딜러 뷰의 진행 중 회차에서는 매참인 익명성 정책상 `null` 로 마스킹된다.
-   * 회차 마감 후 또는 관리자/출품업체 뷰에서만 노출.
+   * 진행 중 회차에서는 비공개 입찰 정책상 관리자/출품업체 외 `null`.
+   * 회차 마감 후에는 낙찰 정보로 공개된다.
    */
   highestBid: LivePartBid | null;
   /**
-   * 오픈 최고가 · 진행 중 회차에서도 모든 매참인이 볼 수 있는 최고가.
-   * 매참인 신원은 포함하지 않는다.
+   * 최고가 요약 · 진행 중에는 관리자/출품업체 외 `null` (비공개 입찰).
+   * 마감 후에는 낙찰가로 채워진다.
    */
   topBid: LivePartTopBid | null;
   allBids: LivePartBid[];
@@ -104,12 +104,28 @@ export interface LiveListing {
   processDate: string | null;
   processWeight: number | null;
   images: string[];
+  /** 등급판정확인서 스캔본 존재 여부 · 파일은 `fetchListingCerts` 로 지연 로드 */
+  hasGradeCert: boolean;
+  /** 도축검사증명서 스캔본 존재 여부 */
+  hasSlaughterCert: boolean;
   status: "approved" | "auction" | "closed" | "completed";
   companyId: string;
   companyName: string;
   companyNo?: string;
   companyCeo?: string;
   parts: LivePart[];
+}
+
+/** 증명서 스캔본 · `{fileName, fileData(스토리지 URL 또는 data URL), fileType}` */
+export interface ListingCertificate {
+  fileName: string;
+  fileData: string;
+  fileType: string;
+}
+
+export interface ListingCertsResponse {
+  gradeCert: ListingCertificate | null;
+  slaughterCert: ListingCertificate | null;
 }
 
 export interface LiveListingsResponse {
@@ -132,6 +148,15 @@ async function getJson<T>(url: string): Promise<T> {
   return (await res.json()) as T;
 }
 
+/** 증명서 스캔본 지연 로드 · 상세 패널 개체정보 탭이 열릴 때만 */
+export async function fetchListingCerts(
+  listingId: string,
+): Promise<ListingCertsResponse> {
+  return await getJson<ListingCertsResponse>(
+    `/api/listings/${encodeURIComponent(listingId)}/certs`,
+  );
+}
+
 export async function fetchLiveSummary(
   date?: string,
 ): Promise<LiveSummaryResponse> {
@@ -152,7 +177,8 @@ export async function fetchLiveListings(
   params: FetchLiveListingsParams = {},
 ): Promise<LiveListingsResponse> {
   const search = new URLSearchParams();
-  if (params.slaughterHouse) search.set("slaughter_house", params.slaughterHouse);
+  if (params.slaughterHouse)
+    search.set("slaughter_house", params.slaughterHouse);
   if (params.listingDate) search.set("listingDate", params.listingDate);
   const qs = search.toString();
   return await getJson<LiveListingsResponse>(
@@ -180,7 +206,10 @@ export interface PartPriceSeriesPoint {
   avg: number | null;
   min: number | null;
   max: number | null;
+  /** 낙찰 건수 */
   count: number;
+  /** 상장 건수 (마감된 상장 기준) · 낙찰률 = count / listed */
+  listed: number;
 }
 
 export interface PartPriceSeriesResponse {
@@ -210,61 +239,5 @@ export async function fetchPartPriceSeries(
   if (params.yieldGrade) search.set("yield", params.yieldGrade);
   return await getJson<PartPriceSeriesResponse>(
     `/api/market/part-price-series?${search.toString()}`,
-  );
-}
-
-/**
- * 부위별 입찰내역 (Bid History) · 타임라인 + 통계.
- *
- * 딜러 시점: 본인은 "나", 다른 딜러는 익명 라벨 (딜러 A/B/C, first_bid_at 순).
- * 관리자/출품업체 시점: 딜러 실명 + dealer_no 노출.
- *
- * `wasTopAtTime` 은 이 입찰이 등록될 당시 최고가였는지 여부 (running max 판정).
- */
-export interface BidHistoryEntry {
-  id: string;
-  dealerLabel: string;
-  /** 딜러 뷰에서는 null (마스킹) · 관리자/출품업체 뷰에서만 노출 */
-  dealerNo: string | null;
-  dealerName: string | null;
-  isMine: boolean;
-  bidPrice: number;
-  bidAmount: number;
-  bidAt: string;
-  /** 등록 당시 최고가였는가 (경신 이벤트 판정) */
-  wasTopAtTime: boolean;
-  /** 현재 시점에서 최고가인가 */
-  isCurrentTop: boolean;
-}
-
-export interface BidHistoryResponse {
-  partId: string;
-  partName: string;
-  listingNo: string;
-  listingPartNo: string | null;
-  grade: string;
-  marblingScore: number | null;
-  weight: number | null;
-  minPrice: number | null;
-  stats: {
-    totalBids: number;
-    totalDealers: number;
-    /** 최고가가 갱신된 횟수 (초기 입찰 포함) */
-    topBidUpdates: number;
-  };
-  currentTop: {
-    bidPrice: number;
-    bidAt: string;
-    isMine: boolean;
-  } | null;
-  /** 최신순 (created_at DESC) 정렬된 타임라인 */
-  history: BidHistoryEntry[];
-}
-
-export async function fetchBidHistory(
-  partId: string,
-): Promise<BidHistoryResponse> {
-  return await getJson<BidHistoryResponse>(
-    `/api/bids/part/${encodeURIComponent(partId)}/history`,
   );
 }

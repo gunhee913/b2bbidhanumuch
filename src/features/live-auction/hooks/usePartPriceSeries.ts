@@ -1,10 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import {
-  fetchPartPriceSeries,
-  type PartPriceSeriesResponse,
-} from "../api";
+import { fetchPartPriceSeries, type PartPriceSeriesResponse } from "../api";
 
 export interface UsePartPriceSeriesParams {
   partName: string;

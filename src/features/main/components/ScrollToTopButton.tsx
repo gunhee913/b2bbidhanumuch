@@ -28,7 +28,7 @@ export function ScrollToTopButton() {
       onClick={handleClick}
       aria-label="맨 위로 이동"
       className={cn(
-        "fixed bottom-8 right-8 z-40 inline-flex h-12 w-12 items-center justify-center rounded-full bg-white text-slate-700 shadow-md ring-1 ring-slate-200 transition-all duration-200 hover:-translate-y-0.5 hover:bg-slate-50 hover:text-slate-900 hover:shadow-lg",
+        "fixed bottom-8 right-8 z-40 inline-flex h-12 w-12 items-center justify-center rounded-full bg-surface text-content-mid shadow-md ring-1 ring-line transition-all duration-200 hover:-translate-y-0.5 hover:bg-surface-muted hover:text-content hover:shadow-lg",
         visible ? "opacity-100" : "pointer-events-none opacity-0",
       )}
     >

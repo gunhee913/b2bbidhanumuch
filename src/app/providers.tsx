@@ -7,8 +7,10 @@ import {
   QueryClient,
   QueryClientProvider,
 } from '@tanstack/react-query';
+import type { CSSProperties } from 'react';
 import { ThemeProvider } from 'next-themes';
 import { Toaster as SonnerToaster } from 'sonner';
+import { CircleCheck, CircleX, Info, TriangleAlert } from 'lucide-react';
 import DarkModeSync from '@/components/DarkModeSync';
 import { TooltipProvider } from '@/components/ui/tooltip';
 
@@ -66,22 +68,48 @@ export default function Providers({ children }: { children: React.ReactNode }) {
         </TooltipProvider>
         {/*
          * sonner · 우측 상단 스택 토스트 · 앱 전역 root 마운트
-         * · richColors : success/error/warning 표준 톤 자동 적용
-         * · closeButton: hover 시 X 버튼 노출
-         * · offset     : 상단 헤더 (64px) 아래 살짝 여백
-         * · 트레이딩 UI 컨텍스트: 밀림/최고가 갱신 등 realtime 알림에 사용
+         *
+         * 색은 토큰으로 받는다. 흰 배경을 못 박아 두면 어두운 화면에서 토스트만
+         * 흰 판으로 떠, 알림 하나가 화면에서 제일 밝은 것이 된다.
+         * richColors 는 쓰지 않는다 · 상태는 아이콘 색 하나로만.
+         * 모서리는 본문 패널(2px)보다 둥글게 — 바닥에 붙은 판이 아니라 잠깐 떠 있다
+         * 사라지는 것이라, 떠 있음을 모양이 먼저 말하게 한다.
+         * closeButton 은 우상단 · hover 시만 노출 (globals.css).
          */}
         <SonnerToaster
           position="top-right"
-          richColors
           closeButton
-          offset={80}
+          offset={64}
+          /*
+           * 입찰 영수증이 세로로 길어 보이지 않는 폭.
+           * 내용 자체는 가장 긴 행이 219px 이라 400px 로도 잘리지 않지만, 헤더·본문 4행·
+           * 액션까지 쌓이면 세로가 150px 을 넘어 세로로 선 카드가 된다. 다만 라벨 좌 ·
+           * 값 우 정렬이라 폭을 늘린 만큼 둘 사이가 벌어지므로 440 에서 멈춘다.
+           */
+          style={{ '--width': '440px' } as CSSProperties}
+          icons={{
+            success: <CircleCheck className="h-4 w-4 text-sky-500" aria-hidden />,
+            error: <CircleX className="h-4 w-4 text-rose-500" aria-hidden />,
+            warning: <TriangleAlert className="h-4 w-4 text-amber-500" aria-hidden />,
+            info: <Info className="h-4 w-4 text-content-soft" aria-hidden />,
+          }}
           toastOptions={{
             classNames: {
-              toast:
-                'font-pretendard border border-slate-200 shadow-lg',
-              title: 'text-[13px] font-bold -tracking-[0.01em]',
-              description: 'text-[12px] text-slate-600',
+              /*
+               * 카드 껍데기(바탕·테두리·모서리·여백)는 여기 두면 안 된다.
+               * 이 클래스는 `toast.custom` 에도 그대로 붙는데, 그쪽은 제 카드를
+               * 직접 그리므로 카드 안에 카드가 생긴다. 껍데기는 기본 토스트에만
+               * 걸리도록 `globals.css` 의 `[data-styled="true"]` 아래에 둔다.
+               */
+              toast: 'font-pretendard',
+              title: 'text-[13.5px] font-bold -tracking-[0.01em] tabular-nums',
+              description: '!mt-0.5 !text-[12.5px] !text-content-soft tabular-nums',
+              actionButton:
+                '!bg-transparent !text-content !text-[12px] !font-semibold !px-1 hover:!underline',
+              cancelButton:
+                '!bg-transparent !text-content-soft !text-[12px] !font-medium !px-1 hover:!underline',
+              closeButton:
+                '!border-0 !bg-transparent !text-content-faint hover:!bg-surface-accent hover:!text-content',
             },
           }}
         />

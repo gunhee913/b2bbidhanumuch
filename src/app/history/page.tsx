@@ -5,7 +5,7 @@ import { HistoryPageContent } from "@/features/history/components/HistoryPageCon
 
 export default function HistoryPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-white" />}>
+    <Suspense fallback={<div className="min-h-screen bg-surface" />}>
       <HistoryPageContent />
     </Suspense>
   );

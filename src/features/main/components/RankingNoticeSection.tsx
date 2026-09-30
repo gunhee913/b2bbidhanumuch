@@ -8,8 +8,8 @@ import { RankingSection } from "@/features/main/components/RankingSection";
  */
 export function RankingNoticeSection() {
   return (
-    <section className="bg-white py-14">
-      <div className="mx-auto max-w-[1240px] px-8">
+    <section className="bg-surface py-14">
+      <div className="mx-auto max-w-[1360px] min-[1700px]:max-w-[1600px] px-8">
         <div className="grid grid-cols-1 items-start gap-16 lg:grid-cols-2">
           <RankingSection />
           <NoticeSection />

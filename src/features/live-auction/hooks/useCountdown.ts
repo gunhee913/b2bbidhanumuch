@@ -22,7 +22,7 @@ export interface CountdownResult {
   progress: number;
 }
 
-function formatCountdown(ms: number): string {
+export function formatCountdown(ms: number): string {
   if (ms <= 0) return "00:00";
   const totalSec = Math.floor(ms / 1000);
   const h = Math.floor(totalSec / 3600);
@@ -31,6 +31,30 @@ function formatCountdown(ms: number): string {
   const mm = String(m).padStart(2, "0");
   const ss = String(s).padStart(2, "0");
   return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
+}
+
+/**
+ * 특정 시각(ISO 또는 ms)까지 남은 시간 · 1초 tick.
+ * 대기 상태의 "다음 회차 시작까지" 카운트다운에 사용.
+ */
+export function useCountdownTo(
+  targetMs: number | null,
+  enabled = true,
+): { remainingMs: number; formatted: string } {
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (!enabled || targetMs == null) return;
+    setNow(Date.now());
+    const interval = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(interval);
+  }, [enabled, targetMs]);
+
+  if (!enabled || targetMs == null) {
+    return { remainingMs: 0, formatted: "--:--" };
+  }
+  const remainingMs = Math.max(0, targetMs - now);
+  return { remainingMs, formatted: formatCountdown(remainingMs) };
 }
 
 /**

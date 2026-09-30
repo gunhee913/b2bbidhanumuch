@@ -1,7 +1,6 @@
 import { getAdminClient } from "@/lib/supabase-admin";
 import { NextRequest, NextResponse } from "next/server";
 import { resolveAuth } from "@/lib/resolve-auth";
-import { MIN_BID_INCREMENT } from "@/features/live-auction/constants/bidding";
 
 const supabase = getAdminClient();
 
@@ -35,8 +34,8 @@ type FailReason =
   | "no_open_round" // open 회차 없음
   | "closed" // 회차 시간 만료
   | "below_min" // 최저단가 미달
-  | "outbid" // 이미 타 매참인이 더 높은 최고가로 입찰함
   | "settled" // 이미 낙찰 확정
+  | "house_mismatch" // 소속 공판장 아님
   | "invalid" // 기타 검증 실패
   | "db_error"; // DB 오류
 
@@ -134,7 +133,7 @@ export async function POST(request: NextRequest) {
         weight,
         is_included,
         listing_id,
-        cattle_listings ( id, status )
+        cattle_listings ( id, status, slaughter_house )
         `,
       )
       .in("id", partIds);
@@ -146,6 +145,14 @@ export async function POST(request: NextRequest) {
 
     const partById = new Map<string, (typeof parts)[number]>();
     (parts ?? []).forEach((p) => partById.set(p.id, p));
+
+    // 소속 공판장 · 지정돼 있으면 그 공판장 상장만 (RPC 에서도 재검사)
+    const { data: dealerRow } = await supabase
+      .from("dealers")
+      .select("slaughter_house")
+      .eq("id", finalDealerId)
+      .maybeSingle();
+    const dealerHouse: string | null = dealerRow?.slaughter_house ?? null;
 
     // 관련 listing 목록 → open 회차 매핑
     const listingIds = Array.from(
@@ -206,7 +213,7 @@ export async function POST(request: NextRequest) {
 
     // 각 아이템 처리 (순차 · 실패는 개별 기록)
     // 사전 검증(상장 상태 / open 회차 / 이미 낙찰) 통과 후 place_bid RPC 로 원자적 처리.
-    // 최저가/최고가+min_increment 검증은 RPC 안에서 부위 row lock 과 함께 수행.
+    // 최저가 검증은 RPC 안에서 부위 row lock 과 함께 수행 (비공개 입찰 · 최고가 비교 없음).
     for (const item of items) {
       const part = partById.get(item.partId);
       if (!part) {
@@ -267,6 +274,16 @@ export async function POST(request: NextRequest) {
         }
       }
 
+      const listingHouse = (part.cattle_listings as any)?.slaughter_house ?? null;
+      if (dealerHouse && listingHouse !== dealerHouse) {
+        failed.push({
+          partId: item.partId,
+          reason: "house_mismatch",
+          message: `소속 공판장(${dealerHouse}) 상장만 입찰할 수 있습니다.`,
+        });
+        continue;
+      }
+
       const resolvedAuctionId = auctionIdInput ?? openInfo.auctionId ?? null;
 
       const { data: rpcData, error: rpcError } = await supabase.rpc("place_bid", {
@@ -274,7 +291,6 @@ export async function POST(request: NextRequest) {
         p_dealer_id: finalDealerId,
         p_bid_price: item.pricePerKg,
         p_auction_id: resolvedAuctionId,
-        p_min_increment: MIN_BID_INCREMENT,
       });
 
       if (rpcError) {
@@ -291,8 +307,6 @@ export async function POST(request: NextRequest) {
         ok: boolean;
         code?: string;
         minPrice?: number;
-        currentTop?: number;
-        nextMin?: number;
         bidId?: string;
         bidAmount?: number;
         isUpdate?: boolean;
@@ -321,11 +335,18 @@ export async function POST(request: NextRequest) {
               message: `최저가(${result.minPrice?.toLocaleString()}원) 이상으로 입찰해 주세요.`,
             });
             break;
-          case "OUTBID":
+          case "SETTLED":
             failed.push({
               partId: item.partId,
-              reason: "outbid",
-              message: `타 매참인 최고가 ${result.currentTop?.toLocaleString()}원/kg · 최소 ${result.nextMin?.toLocaleString()}원/kg 필요`,
+              reason: "settled",
+              message: "이미 낙찰이 확정된 부위입니다.",
+            });
+            break;
+          case "HOUSE_MISMATCH":
+            failed.push({
+              partId: item.partId,
+              reason: "house_mismatch",
+              message: "소속 공판장 상장만 입찰할 수 있습니다.",
             });
             break;
           default:

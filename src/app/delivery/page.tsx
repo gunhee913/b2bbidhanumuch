@@ -5,7 +5,7 @@ import { DeliveryPageContent } from "@/features/delivery/components/DeliveryPage
 
 export default function DeliveryPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-white" />}>
+    <Suspense fallback={<div className="min-h-screen bg-surface" />}>
       <DeliveryPageContent />
     </Suspense>
   );

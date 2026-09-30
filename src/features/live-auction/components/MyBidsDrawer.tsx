@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowUpRight,
   ChevronDown,
@@ -8,6 +8,8 @@ import {
   ClipboardList,
   X,
 } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
+import NumberFlow from "@number-flow/react";
 import { useQueryClient } from "@tanstack/react-query";
 import type { RoundInfo } from "@/features/main/api";
 import { cn } from "@/lib/utils";
@@ -23,13 +25,13 @@ import { formatWeightKg, formatWon, formatWonPerKg } from "../lib/masking";
 const TOTAL_ROUNDS = 3;
 
 /**
- * 회차별 내 입찰 통계 · trigger 카드/드로어 공용.
+ * 회차별 내 입찰 통계 · 회차 필터 칩이 달고 있는 숫자.
  * - open      : rank == null 인 미확정 입찰 → 건수/합계
  * - closed    : rank != null 인 확정 입찰   → 낙찰/미낙찰 카운트 + 낙찰 합계
  * - scheduled : DB 에 있으나 아직 시작 전
  * - null      : DB 에 아직 생성되지 않은 미래 회차 (placeholder)
  */
-interface RoundStat {
+export interface RoundStat {
   roundNo: number;
   roundId: string | null;
   status: RoundInfo["status"] | null;
@@ -44,7 +46,10 @@ interface RoundStat {
   };
 }
 
-function buildRoundStats(rounds: RoundInfo[], bids: MyBidEntry[]): RoundStat[] {
+export function buildRoundStats(
+  rounds: RoundInfo[],
+  bids: MyBidEntry[],
+): RoundStat[] {
   const byRound = new Map<string, MyBidEntry[]>();
   bids.forEach((b) => {
     if (!b.auctionId) return;
@@ -53,14 +58,11 @@ function buildRoundStats(rounds: RoundInfo[], bids: MyBidEntry[]): RoundStat[] {
   });
   const byRoundNo = new Map<number, RoundInfo>();
   rounds.forEach((r) => byRoundNo.set(r.round_no, r));
-  const maxRoundNo = Math.max(
-    TOTAL_ROUNDS,
-    ...rounds.map((r) => r.round_no),
-  );
+  const maxRoundNo = Math.max(TOTAL_ROUNDS, ...rounds.map((r) => r.round_no));
   const stats: RoundStat[] = [];
   for (let no = 1; no <= maxRoundNo; no += 1) {
     const round = byRoundNo.get(no) ?? null;
-    const list = round ? byRound.get(round.id) ?? [] : [];
+    const list = round ? (byRound.get(round.id) ?? []) : [];
     let activeCount = 0;
     let activeAmount = 0;
     let wonCount = 0;
@@ -88,193 +90,6 @@ function buildRoundStats(rounds: RoundInfo[], bids: MyBidEntry[]): RoundStat[] {
   return stats;
 }
 
-export interface MyBidsTriggerProps {
-  dealerId: string | null;
-  listingDate: string;
-  allRounds: RoundInfo[];
-  onOpen: (roundId: string | null) => void;
-}
-
-/**
- * 회차별 입찰 현황을 요약한 사이드 카드.
- * - 진행중 회차: 좌측 accent bar + 라이브 도트
- * - 마감 회차: 낙찰/미낙찰 카운트 + 낙찰 합계
- * - 대기 회차: placeholder
- */
-export function MyBidsTrigger({
-  dealerId,
-  listingDate,
-  allRounds,
-  onOpen,
-}: MyBidsTriggerProps) {
-  const { data: bids = [] } = useMyBids(dealerId, listingDate);
-  const stats = useMemo(
-    () => buildRoundStats(allRounds, bids),
-    [allRounds, bids],
-  );
-
-  const disabled = !dealerId;
-
-  return (
-    <div
-      className={cn(
-        "pointer-events-auto w-[236px] overflow-hidden rounded-[1px] border border-slate-200 bg-white shadow-lg shadow-slate-200/60",
-        disabled && "opacity-70",
-      )}
-    >
-      <button
-        type="button"
-        onClick={() => onOpen(null)}
-        disabled={disabled}
-        className={cn(
-          "flex w-full items-center justify-between px-4 pt-3.5 pb-2 text-left",
-          !disabled && "hover:bg-slate-50/60",
-        )}
-      >
-        <span className="text-[13px] font-bold tracking-tight text-slate-900">
-          내 입찰
-        </span>
-        {!disabled ? (
-          <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
-        ) : null}
-      </button>
-
-      <div className="h-px w-full bg-slate-100" />
-
-      {disabled ? (
-        <div className="px-4 py-4 text-center text-[11px] text-slate-400">
-          로그인 후 확인 가능
-        </div>
-      ) : stats.length === 0 ? (
-        <div className="px-4 py-4 text-center text-[11px] text-slate-400">
-          예정된 회차 없음
-        </div>
-      ) : (
-        <ul className="divide-y divide-slate-100">
-          {stats.map((s) => (
-            <RoundStatRow
-              key={s.roundNo}
-              stat={s}
-              disabled={disabled || !s.roundId}
-              onClick={() => onOpen(s.roundId)}
-            />
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-}
-
-function RoundStatRow({
-  stat,
-  disabled,
-  onClick,
-}: {
-  stat: RoundStat;
-  disabled: boolean;
-  onClick: () => void;
-}) {
-  const { roundNo, status, active, closed } = stat;
-  const isOpen = status === "open";
-  const isClosed = status === "closed";
-  // scheduled(스케줄 됐지만 시작 전) 와 null(DB 미생성) 모두 UI 상 "대기중"
-  const isWaiting = !isOpen && !isClosed;
-
-  const statusChip = isOpen ? (
-    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-sky-600">
-      <span className="relative flex h-1.5 w-1.5">
-        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-sky-500 opacity-75" />
-        <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-sky-500" />
-      </span>
-      진행중
-    </span>
-  ) : isClosed ? (
-    <span className="text-[10px] font-semibold text-slate-400">종료</span>
-  ) : (
-    <span className="text-[10px] font-semibold text-slate-300">대기중</span>
-  );
-
-  return (
-    <li className="relative">
-      {isOpen ? (
-        <span
-          className="absolute inset-y-0 left-0 w-[3px] bg-sky-500"
-          aria-hidden
-        />
-      ) : null}
-      <button
-        type="button"
-        onClick={onClick}
-        disabled={disabled}
-        className={cn(
-          "flex w-full flex-col gap-1 px-4 py-2.5 text-left transition-colors",
-          disabled
-            ? "cursor-default"
-            : "hover:bg-slate-50/60",
-        )}
-      >
-        <div className="flex items-center justify-between">
-          <span
-            className={cn(
-              "text-[12px] font-bold tabular-nums",
-              isOpen
-                ? "text-slate-900"
-                : isWaiting
-                  ? "text-slate-400"
-                  : "text-slate-700",
-            )}
-          >
-            {roundNo}차 경매
-          </span>
-          {statusChip}
-        </div>
-        {isOpen ? (
-          <div className="flex items-baseline justify-between">
-            <span className="text-[10px] text-slate-500 tabular-nums">
-              입찰 {active.count}건
-            </span>
-            <span
-              className={cn(
-                "text-[12px] font-bold tabular-nums",
-                active.count > 0 ? "text-slate-900" : "text-slate-400",
-              )}
-            >
-              {active.count > 0 ? formatWon(active.amount) : "—"}
-            </span>
-          </div>
-        ) : isClosed ? (
-          <div className="flex items-baseline justify-between">
-            <span className="text-[10px] tabular-nums">
-              <span className="font-semibold text-sky-600">
-                낙찰 {closed.wonCount}
-              </span>
-              <span className="mx-1 text-slate-300">·</span>
-              <span className="font-medium text-slate-500">
-                미낙찰 {closed.lostCount}
-              </span>
-            </span>
-            <span
-              className={cn(
-                "text-[12px] font-bold tabular-nums",
-                closed.wonCount > 0 ? "text-sky-700" : "text-slate-400",
-              )}
-            >
-              {closed.wonCount > 0 ? formatWon(closed.wonAmount) : "—"}
-            </span>
-          </div>
-        ) : (
-          <div className="flex items-baseline justify-between">
-            <span className="text-[10px] text-slate-300">시작 전</span>
-            <span className="text-[12px] font-medium tabular-nums text-slate-300">
-              —
-            </span>
-          </div>
-        )}
-      </button>
-    </li>
-  );
-}
-
 export interface MyBidsDrawerProps {
   open: boolean;
   onClose: () => void;
@@ -283,6 +98,8 @@ export interface MyBidsDrawerProps {
   allRounds: RoundInfo[];
   initialRoundFilter?: string | null;
   onNavigateListing?: (listingId: string) => void;
+  /** 사이드 메뉴 패널 안에 끼워 넣기 · 떠 있는 껍데기(위치·애니메이션·바깥 클릭·ESC·닫기 버튼) 없이 내용만 */
+  embedded?: boolean;
 }
 
 type Tab = "active" | "closed";
@@ -293,7 +110,14 @@ const TABS: { id: Tab; label: string }[] = [
 ];
 
 type ViewMode = "entity" | "part";
-type OutcomeFilter = "all" | "won" | "lost";
+/** 경매결과 탭 필터 · 미낙찰은 취소선으로 이미 구분되므로 "낙찰만" 토글 하나로 충분 */
+type OutcomeFilter = "all" | "won";
+
+/** 오버레이 패널 폭 */
+const MY_BIDS_PANEL_WIDTH = 400;
+
+/** 이 속성이 붙은 영역 안의 클릭은 "바깥 클릭 닫기" 에서 제외 (트리거가 직접 열기/토글을 처리) */
+export const MY_BIDS_TRIGGER_ATTR = "data-my-bids-trigger";
 
 const compareListingNo = (a: string, b: string) =>
   a.localeCompare(b, "ko", { numeric: true });
@@ -319,7 +143,9 @@ export function MyBidsDrawer({
   allRounds,
   initialRoundFilter,
   onNavigateListing,
+  embedded = false,
 }: MyBidsDrawerProps) {
+  const isFloating = open && !embedded;
   const queryClient = useQueryClient();
   const [tab, setTab] = useState<Tab>("active");
   const [viewMode, setViewMode] = useState<ViewMode>("entity");
@@ -338,8 +164,7 @@ export function MyBidsDrawer({
   );
   const isCollapsed = useCallback(
     (key: string) => {
-      const expanded =
-        tab === "closed" ? expandedInClosed : expandedInActive;
+      const expanded = tab === "closed" ? expandedInClosed : expandedInActive;
       return !expanded.has(key);
     },
     [tab, expandedInClosed, expandedInActive],
@@ -368,15 +193,37 @@ export function MyBidsDrawer({
   });
 
   useEffect(() => {
-    if (!open) return;
+    if (!isFloating) return;
     const handleEsc = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
     document.addEventListener("keydown", handleEsc);
     return () => document.removeEventListener("keydown", handleEsc);
-  }, [open, onClose]);
+  }, [isFloating, onClose]);
 
-  // 드로어 열릴 때 초기 라운드 필터/탭 세팅
+  // 드로어 열릴 때 초기 라운드 필터/탭 세팅 · 회차 행에서 열었으면 그 칩을 1회 highlight
+  const [highlightRoundId, setHighlightRoundId] = useState<string | null>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLElement>(null);
+
+  /**
+   * 바깥 클릭 닫기 · `click` 단계에서 판정 (mousedown 이 아님).
+   * mousedown 으로 닫으면 곧이어 트리거의 click 이 다시 열어버려 토글이 깨진다.
+   * click 단계는 React 핸들러(트리거 토글) 가 먼저 돌고 document 리스너가 뒤에 돌아 안전.
+   */
+  useEffect(() => {
+    if (!isFloating) return;
+    const handleOutside = (e: MouseEvent) => {
+      const el = panelRef.current;
+      const target = e.target as Element | null;
+      if (!el || !target || el.contains(target)) return;
+      // 트리거 영역(내 입찰 카드 · 회차 행 · 도킹 바)은 자체 토글/필터 전환을 담당 → 여기서 닫지 않음
+      if (target.closest(`[${MY_BIDS_TRIGGER_ATTR}]`)) return;
+      onClose();
+    };
+    document.addEventListener("click", handleOutside);
+    return () => document.removeEventListener("click", handleOutside);
+  }, [isFloating, onClose]);
   useEffect(() => {
     if (!open) return;
     setRoundFilter(initialRoundFilter ?? null);
@@ -384,328 +231,385 @@ export function MyBidsDrawer({
       const round = allRounds.find((r) => r.id === initialRoundFilter);
       if (round?.status === "closed") setTab("closed");
       else setTab("active");
+      setHighlightRoundId(initialRoundFilter);
+      const id = setTimeout(() => setHighlightRoundId(null), 1400);
+      return () => clearTimeout(id);
     }
   }, [open, initialRoundFilter, allRounds]);
+
+  // 열림 애니메이션 뒤 닫기 버튼에 focus · 키보드로 바로 ESC/Tab 가능
+  useEffect(() => {
+    if (!isFloating) return;
+    const id = setTimeout(() => closeButtonRef.current?.focus(), 280);
+    return () => clearTimeout(id);
+  }, [isFloating]);
 
   const sortedRounds = useMemo(
     () => [...allRounds].sort((a, b) => a.round_no - b.round_no),
     [allRounds],
   );
 
+  /*
+   * 회차별 건수 · 예전엔 회차 패널에 따로 카드로 세워 뒀는데, 거기서 회차를 고르면
+   * 결국 이 드로어를 그 회차로 여는 동작이었다. 필터와 요약이 따로 놀 이유가 없어
+   * 칩이 제 숫자를 달고 있게 합쳤다 — 고르기 전에 어디에 몇 건이 있는지 보인다.
+   */
+  const countByRoundId = useMemo(() => {
+    const map = new Map<string, number>();
+    buildRoundStats(allRounds, bids).forEach((s) => {
+      if (!s.roundId) return;
+      map.set(s.roundId, s.active.count + s.closed.wonCount + s.closed.lostCount);
+    });
+    return map;
+  }, [allRounds, bids]);
+
   /**
    * 입찰현황 vs 경매결과 판정 기준:
    * - `bid.rank == null` → 회차 아직 마감 전 (입찰현황)
    * - `bid.rank != null` → close_round 로 확정 (경매결과)
    */
-  const { activeBids, closedBids, filteredCurrent, byListing, byPart } = useMemo(() => {
-    const filtered = roundFilter
-      ? bids.filter((b) => b.auctionId === roundFilter)
-      : bids;
-    const active = filtered.filter((b) => b.rank == null);
-    const closed = filtered.filter((b) => b.rank != null);
-    // 경매결과 탭에서만 낙찰/미낙찰 필터를 적용. 입찰현황 탭은 아직 확정 전이라 무의미.
-    const targetBase = tab === "active" ? active : closed;
-    const target =
-      tab === "closed" && outcomeFilter !== "all"
-        ? targetBase.filter((b) =>
-            outcomeFilter === "won" ? b.isWinning : !b.isWinning,
-          )
-        : targetBase;
+  const { activeBids, closedBids, filteredCurrent, byListing, byPart } =
+    useMemo(() => {
+      const filtered = roundFilter
+        ? bids.filter((b) => b.auctionId === roundFilter)
+        : bids;
+      const active = filtered.filter((b) => b.rank == null);
+      const closed = filtered.filter((b) => b.rank != null);
+      // 경매결과 탭에서만 낙찰/미낙찰 필터를 적용. 입찰현황 탭은 아직 확정 전이라 무의미.
+      const targetBase = tab === "active" ? active : closed;
+      const target =
+        tab === "closed" && outcomeFilter === "won"
+          ? targetBase.filter((b) => b.isWinning)
+          : targetBase;
 
-    // 개체별 그룹 · 상장번호 오름차순
-    const listingMap = new Map<
-      string,
-      { listing: NonNullable<MyBidEntry["listing"]>; bids: MyBidEntry[] }
-    >();
-    target.forEach((b) => {
-      if (!b.listing) return;
-      const key = b.listing.id;
-      if (!listingMap.has(key)) {
-        listingMap.set(key, { listing: b.listing, bids: [] });
-      }
-      listingMap.get(key)!.bids.push(b);
-    });
-    /**
-     * 정렬 규칙 (뷰 모드 기준, 탭과 독립)
-     * - 개체별: 상장번호 오름차순, 내부는 부위번호 순
-     * - 부위별: 그룹은 총 입찰금액 내림차순, 내부 행은 개별 입찰금액 내림차순
-     *   부위별 그룹은 낙찰이 있는 탭에서도 총 입찰금액 기준으로 통일 (일관성)
-     */
-    const sumBidAmount = (list: MyBidEntry[]) =>
-      list.reduce((sum, b) => sum + b.bidAmount, 0);
-
-    const listingGroups = Array.from(listingMap.values())
-      .map((g) => ({
-        ...g,
-        bids: [...g.bids].sort(
-          (a, b) => (a.part?.partNo ?? 0) - (b.part?.partNo ?? 0),
-        ),
-      }))
-      .sort((a, b) =>
-        compareListingNo(a.listing.listingNo, b.listing.listingNo),
-      );
-
-    // 부위별 그룹 · 좌/우 구분(등심(좌)/등심(우))은 하나의 "등심" 으로 통합.
-    // 그룹 key = 정규화된 이름 · 대표 partNo 는 최소값(첫 번째 부위번호) 을 사용.
-    const partMap = new Map<
-      string,
-      { partName: string; partNo: number; bids: MyBidEntry[] }
-    >();
-    target.forEach((b) => {
-      if (!b.part || !b.listing) return;
-      const normalized = normalizePartName(b.part.partName);
-      const existing = partMap.get(normalized);
-      if (!existing) {
-        partMap.set(normalized, {
-          partName: normalized,
-          partNo: b.part.partNo,
-          bids: [b],
-        });
-      } else {
-        existing.bids.push(b);
-        // 같은 그룹 내 최소 부위번호를 대표 정렬 키로 유지
-        if (b.part.partNo < existing.partNo) {
-          existing.partNo = b.part.partNo;
+      // 개체별 그룹 · 상장번호 오름차순
+      const listingMap = new Map<
+        string,
+        { listing: NonNullable<MyBidEntry["listing"]>; bids: MyBidEntry[] }
+      >();
+      target.forEach((b) => {
+        if (!b.listing) return;
+        const key = b.listing.id;
+        if (!listingMap.has(key)) {
+          listingMap.set(key, { listing: b.listing, bids: [] });
         }
-      }
-    });
-    const partGroups = Array.from(partMap.values())
-      .map((g) => ({
-        ...g,
-        bids: [...g.bids].sort((a, b) => b.bidAmount - a.bidAmount),
-      }))
-      .sort((a, b) => {
-        const diff = sumBidAmount(b.bids) - sumBidAmount(a.bids);
-        if (diff !== 0) return diff;
-        if (a.partNo !== b.partNo) return a.partNo - b.partNo;
-        return a.partName.localeCompare(b.partName, "ko");
+        listingMap.get(key)!.bids.push(b);
       });
+      /**
+       * 정렬 규칙 (뷰 모드 기준, 탭과 독립)
+       * - 개체별: 상장번호 오름차순, 내부는 부위번호 순
+       * - 부위별: 그룹은 총 입찰금액 내림차순, 내부 행은 개별 입찰금액 내림차순
+       *   부위별 그룹은 낙찰이 있는 탭에서도 총 입찰금액 기준으로 통일 (일관성)
+       */
+      const sumBidAmount = (list: MyBidEntry[]) =>
+        list.reduce((sum, b) => sum + b.bidAmount, 0);
 
-    return {
-      activeBids: active,
-      closedBids: closed,
-      filteredCurrent: target,
-      byListing: listingGroups,
-      byPart: partGroups,
-    };
-  }, [bids, tab, roundFilter, outcomeFilter]);
+      const listingGroups = Array.from(listingMap.values())
+        .map((g) => ({
+          ...g,
+          bids: [...g.bids].sort(
+            (a, b) => (a.part?.partNo ?? 0) - (b.part?.partNo ?? 0),
+          ),
+        }))
+        .sort((a, b) =>
+          compareListingNo(a.listing.listingNo, b.listing.listingNo),
+        );
+
+      // 부위별 그룹 · 좌/우 구분(등심(좌)/등심(우))은 하나의 "등심" 으로 통합.
+      // 그룹 key = 정규화된 이름 · 대표 partNo 는 최소값(첫 번째 부위번호) 을 사용.
+      const partMap = new Map<
+        string,
+        { partName: string; partNo: number; bids: MyBidEntry[] }
+      >();
+      target.forEach((b) => {
+        if (!b.part || !b.listing) return;
+        const normalized = normalizePartName(b.part.partName);
+        const existing = partMap.get(normalized);
+        if (!existing) {
+          partMap.set(normalized, {
+            partName: normalized,
+            partNo: b.part.partNo,
+            bids: [b],
+          });
+        } else {
+          existing.bids.push(b);
+          // 같은 그룹 내 최소 부위번호를 대표 정렬 키로 유지
+          if (b.part.partNo < existing.partNo) {
+            existing.partNo = b.part.partNo;
+          }
+        }
+      });
+      const partGroups = Array.from(partMap.values())
+        .map((g) => ({
+          ...g,
+          bids: [...g.bids].sort((a, b) => b.bidAmount - a.bidAmount),
+        }))
+        .sort((a, b) => {
+          const diff = sumBidAmount(b.bids) - sumBidAmount(a.bids);
+          if (diff !== 0) return diff;
+          if (a.partNo !== b.partNo) return a.partNo - b.partNo;
+          return a.partName.localeCompare(b.partName, "ko");
+        });
+
+      return {
+        activeBids: active,
+        closedBids: closed,
+        filteredCurrent: target,
+        byListing: listingGroups,
+        byPart: partGroups,
+      };
+    }, [bids, tab, roundFilter, outcomeFilter]);
 
   const totalAmount = filteredCurrent.reduce((sum, b) => sum + b.bidAmount, 0);
   const totalLabel =
-    tab === "closed" && outcomeFilter === "won"
-      ? "낙찰금액"
-      : tab === "closed" && outcomeFilter === "lost"
-        ? "미낙찰 입찰금액"
-        : "총 입찰금액";
+    tab === "closed" && outcomeFilter === "won" ? "낙찰금액" : "총 입찰금액";
   const isEmpty =
     viewMode === "entity" ? byListing.length === 0 : byPart.length === 0;
+  const showRoundChips = sortedRounds.length > 1;
 
-  return (
+  /**
+   * 비모달 오버레이 패널 · 어둡게 덮는 backdrop 없음 · 가려지지 않은 영역(사이드/차트)은 그대로 조작 가능.
+   * 본문을 밀지 않고 위에 겹쳐 뜬다. 닫기는 바깥 클릭 · X · ESC · 트리거 재클릭 · ↗ 이동(우측 상세가 가려지므로).
+   * 컴포넌트는 항상 마운트(탭·필터 state 유지) · 패널 DOM 만 AnimatePresence 로 진입/퇴장.
+   */
+  const body = (
     <>
-      <div
-        className={cn(
-          "fixed inset-0 z-40 bg-black/30 backdrop-blur-[2px] transition-opacity duration-200",
-          open ? "opacity-100" : "pointer-events-none opacity-0",
-        )}
-        onClick={onClose}
-        aria-hidden
-      />
+      {/* 헤더 · 좌 타이틀 / 우 합계(있을 때만) + 닫기 · 별도 합계 바 없음 */}
+      <header className="flex items-center justify-between gap-3 px-4 pb-2 pt-3">
+        <div className="flex items-center gap-2">
+          <h2 className="text-[15px] font-bold text-content">나의 입찰</h2>
+        </div>
+        <div className="flex items-center gap-2">
+          {filteredCurrent.length > 0 ? (
+            <div className="flex flex-col items-end leading-none">
+              <span className="text-[10px] font-medium text-content-faint">
+                {totalLabel} · {filteredCurrent.length}건
+              </span>
+              <span className="mt-1 text-[14px] font-bold tabular-nums text-content">
+                <NumberFlow
+                  value={totalAmount}
+                  locales="ko-KR"
+                  suffix="원"
+                  willChange
+                />
+              </span>
+            </div>
+          ) : null}
+          {embedded ? null : (
+            <button
+              ref={closeButtonRef}
+              type="button"
+              onClick={onClose}
+              aria-label="닫기"
+              className="inline-flex h-8 w-8 items-center justify-center text-content-soft transition-colors hover:bg-surface-accent hover:text-content focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+      </header>
 
-      <aside
-        className={cn(
-          "fixed right-0 top-0 z-50 flex h-full w-[420px] flex-col bg-white shadow-2xl transition-transform duration-300",
-          open ? "translate-x-0" : "translate-x-full",
-        )}
-        aria-hidden={!open}
-      >
-        <header className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-          <div className="flex items-center gap-2">
-            <ClipboardList className="h-4 w-4 text-sky-600" />
-            <h2 className="text-[15px] font-bold text-slate-900">나의 입찰</h2>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="닫기"
-            className="inline-flex h-8 w-8 items-center justify-center text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </header>
+      <nav className="px-4">
+        <ul className="flex gap-1">
+          {TABS.map((t) => {
+            const count =
+              t.id === "active" ? activeBids.length : closedBids.length;
+            const isActive = t.id === tab;
+            return (
+              <li key={t.id}>
+                <button
+                  type="button"
+                  onClick={() => setTab(t.id)}
+                  aria-pressed={isActive}
+                  className={cn(
+                    "inline-flex h-8 items-center gap-1.5 rounded-lg px-3 text-[13px] font-semibold transition-colors",
+                    isActive
+                      ? "bg-surface-strong text-content"
+                      : "text-content-faint hover:bg-surface-accent hover:text-content-mid",
+                  )}
+                >
+                  {t.label}
+                  <span className="text-[12px] font-semibold tabular-nums text-content-faint">
+                    {count}
+                  </span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      </nav>
 
-        <nav className="border-b border-slate-100">
-          <ul className="flex">
-            {TABS.map((t) => {
-              const count =
-                t.id === "active" ? activeBids.length : closedBids.length;
-              const isActive = t.id === tab;
-              return (
-                <li key={t.id} className="flex-1">
-                  <button
-                    type="button"
-                    onClick={() => setTab(t.id)}
-                    className={cn(
-                      "relative flex h-11 w-full items-center justify-center gap-1.5 text-sm font-bold transition-colors",
-                      isActive
-                        ? "text-slate-900"
-                        : "text-slate-400 hover:text-slate-700",
-                    )}
-                  >
-                    {t.label}
-                    <span
-                      className={cn(
-                        "inline-flex min-w-[16px] items-center justify-center bg-slate-100 px-1 text-[10px] font-bold tabular-nums",
-                        isActive ? "bg-sky-100 text-sky-700" : "text-slate-500",
-                      )}
-                    >
-                      {count}
-                    </span>
-                    {isActive ? (
-                      <span
-                        className="absolute inset-x-6 bottom-0 h-[2px] bg-slate-900"
-                        aria-hidden
-                      />
-                    ) : null}
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        </nav>
-
-        {sortedRounds.length > 0 ? (
-          <div className="border-b border-slate-100 px-4 py-2">
-            <div className="flex flex-wrap items-center gap-1">
+      {/*
+       * 컨트롤 1줄 · 좌: 회차 칩(회차 2개 이상일 때만 · 활성 칩 재클릭 = 전체)
+       *              우: 개체별/부위별 · (경매결과 탭) 낙찰만
+       * 정렬 라벨은 두지 않음 — 뷰 모드가 정렬을 결정하는 고정 규칙
+       */}
+      <div className="flex items-center justify-between gap-2 px-4 py-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-1">
+          {showRoundChips ? (
+            <>
               <RoundFilterChip
                 label="전체"
+                count={bids.length}
                 active={roundFilter === null}
                 onClick={() => setRoundFilter(null)}
               />
               {sortedRounds.map((r) => (
                 <RoundFilterChip
                   key={r.id}
-                  label={`${r.round_no}차`}
+                  label={`${r.round_no}회차`}
+                  count={countByRoundId.get(r.id) ?? 0}
                   live={r.status === "open"}
                   active={roundFilter === r.id}
-                  onClick={() => setRoundFilter(r.id)}
+                  highlight={highlightRoundId === r.id}
+                  onClick={() =>
+                    setRoundFilter((prev) => (prev === r.id ? null : r.id))
+                  }
                 />
               ))}
-            </div>
-          </div>
-        ) : null}
-
-        {/* 그룹 축 스위치 · 낙찰/미낙찰 필터 · 정렬 표시 */}
-        <div className="flex items-center justify-between gap-2 border-b border-slate-100 px-4 py-2">
-          <div className="flex items-center gap-2">
-            <ViewModeToggle value={viewMode} onChange={setViewMode} />
-            {tab === "closed" ? (
-              <OutcomeFilterToggle
-                value={outcomeFilter}
-                onChange={setOutcomeFilter}
-              />
-            ) : null}
-          </div>
-          <span className="shrink-0 text-[10px] font-medium text-slate-400">
-            {viewMode === "part" ? "금액 ↓" : "상장번호 ↑"}
-          </span>
+            </>
+          ) : null}
         </div>
+        <div className="flex shrink-0 items-center gap-1.5">
+          {tab === "closed" ? (
+            <OutcomeFilterToggle
+              value={outcomeFilter}
+              onChange={setOutcomeFilter}
+            />
+          ) : null}
+          <ViewModeToggle value={viewMode} onChange={setViewMode} />
+        </div>
+      </div>
 
-        <div className="border-b border-slate-100 bg-slate-50/60 px-5 py-3">
-          <div className="flex items-baseline justify-between">
-            <span className="text-[11px] font-semibold text-slate-500">
-              {totalLabel}
-            </span>
-            <div className="flex items-baseline gap-1.5">
-              <span className="text-[11px] tabular-nums text-slate-500">
-                {filteredCurrent.length}건
-              </span>
-              <span className="text-[18px] font-bold tabular-nums text-slate-900">
-                {formatWon(totalAmount)}
-              </span>
-            </div>
+      <div className="flex-1 overflow-y-auto">
+        {isLoading ? (
+          <div className="flex h-40 items-center justify-center text-xs text-content-faint">
+            불러오는 중...
           </div>
-        </div>
-
-        <div className="flex-1 overflow-y-auto">
-          {isLoading ? (
-            <div className="flex h-40 items-center justify-center text-xs text-slate-400">
-              불러오는 중...
-            </div>
-          ) : isEmpty ? (
-            <EmptyState variant={tab} />
-          ) : viewMode === "entity" ? (
-            <ul className="space-y-2 p-3">
-              {byListing.map((group) => {
-                const key = `L:${group.listing.id}`;
-                return (
-                  <ListingBidGroup
-                    key={group.listing.id}
-                    listing={group.listing}
-                    bids={group.bids}
-                    collapsed={isCollapsed(key)}
-                    onToggle={() => toggleGroup(key)}
-                    onNavigate={
-                      onNavigateListing
-                        ? () => {
-                            onNavigateListing(group.listing.id);
-                            onClose();
-                          }
-                        : undefined
-                    }
-                  />
-                );
-              })}
-            </ul>
-          ) : (
-            <ul className="space-y-2 p-3">
-              {byPart.map((group) => {
-                const key = `P:${group.partName}`;
-                return (
-                  <PartBidGroup
-                    key={group.partName}
-                    partName={group.partName}
-                    bids={group.bids}
-                    collapsed={isCollapsed(key)}
-                    onToggle={() => toggleGroup(key)}
-                    onNavigateListing={
-                      onNavigateListing
-                        ? (listingId) => {
-                            onNavigateListing(listingId);
-                            onClose();
-                          }
-                        : undefined
-                    }
-                  />
-                );
-              })}
-            </ul>
-          )}
-        </div>
-      </aside>
+        ) : isEmpty ? (
+          <EmptyState variant={tab} onGoBid={onClose} />
+        ) : viewMode === "entity" ? (
+          <ul className="space-y-2 p-3">
+            {byListing.map((group) => {
+              const key = `L:${group.listing.id}`;
+              return (
+                <ListingBidGroup
+                  key={group.listing.id}
+                  listing={group.listing}
+                  bids={group.bids}
+                  collapsed={isCollapsed(key)}
+                  onToggle={() => toggleGroup(key)}
+                  // 비모달 · 경매장으로 이동해도 패널은 유지 (보면서 수정)
+                  onNavigate={
+                    onNavigateListing
+                      ? () => onNavigateListing(group.listing.id)
+                      : undefined
+                  }
+                />
+              );
+            })}
+          </ul>
+        ) : (
+          <ul className="space-y-2 p-3">
+            {byPart.map((group) => {
+              const key = `P:${group.partName}`;
+              return (
+                <PartBidGroup
+                  key={group.partName}
+                  partName={group.partName}
+                  bids={group.bids}
+                  collapsed={isCollapsed(key)}
+                  onToggle={() => toggleGroup(key)}
+                  onNavigateListing={onNavigateListing}
+                />
+              );
+            })}
+          </ul>
+        )}
+      </div>
     </>
+  );
+
+  if (embedded) {
+    return (
+      <section aria-label="나의 입찰" className="flex h-full min-h-0 flex-col">
+        {body}
+      </section>
+    );
+  }
+
+  return (
+    <AnimatePresence>
+      {open ? (
+        <motion.aside
+          key="my-bids-panel"
+          ref={panelRef}
+          role="complementary"
+          aria-label="나의 입찰"
+          className="fixed bottom-0 right-0 top-12 z-50 flex flex-col border-l border-line bg-surface shadow-[-12px_0_32px_-12px_rgba(15,23,42,0.28)]"
+          style={{ width: MY_BIDS_PANEL_WIDTH }}
+          initial={{ x: MY_BIDS_PANEL_WIDTH }}
+          animate={{ x: 0 }}
+          exit={{
+            x: MY_BIDS_PANEL_WIDTH,
+            transition: { duration: 0.22, ease: "easeIn" },
+          }}
+          transition={{
+            type: "spring",
+            stiffness: 380,
+            damping: 36,
+            mass: 0.9,
+          }}
+        >
+          {body}
+        </motion.aside>
+      ) : null}
+    </AnimatePresence>
   );
 }
 
+/**
+ * 회차 필터 칩 · 고르는 자리이자 그 회차에 몇 건을 넣었는지 보는 자리.
+ * 0 건인 회차는 숫자를 지운다 — 아직 아무것도 없는 회차에 「0」 이 줄줄이 붙으면
+ * 정작 숫자가 있는 회차가 눈에 안 들어온다.
+ */
 function RoundFilterChip({
   label,
+  count,
   live,
   active,
+  highlight = false,
   onClick,
 }: {
   label: string;
+  count: number;
   live?: boolean;
   active: boolean;
+  /** 회차 행에서 드로어를 열었을 때 1회 ink ring pulse · "이 회차로 왔다" 시선 유도 */
+  highlight?: boolean;
   onClick: () => void;
 }) {
   return (
-    <button
+    <motion.button
       type="button"
       onClick={onClick}
+      animate={
+        highlight
+          ? {
+              boxShadow: [
+                "0 0 0 0 rgba(15,23,42,0)",
+                "0 0 0 4px rgba(15,23,42,0.45)",
+                "0 0 0 0 rgba(15,23,42,0)",
+              ],
+            }
+          : { boxShadow: "0 0 0 0 rgba(15,23,42,0)" }
+      }
+      transition={{ duration: 1.2, ease: "easeInOut" }}
       className={cn(
         "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold transition-colors",
         active
-          ? "bg-slate-900 text-white"
-          : "bg-slate-100 text-slate-600 hover:bg-slate-200",
+          ? "bg-inverse text-inverse-content"
+          : "bg-surface-accent text-content-mid hover:bg-surface-strong",
       )}
     >
       {live ? (
@@ -713,19 +617,29 @@ function RoundFilterChip({
           <span
             className={cn(
               "absolute inline-flex h-full w-full animate-ping rounded-full opacity-75",
-              active ? "bg-white" : "bg-sky-500",
+              active ? "bg-surface" : "bg-emerald-500",
             )}
           />
           <span
             className={cn(
               "relative inline-flex h-1.5 w-1.5 rounded-full",
-              active ? "bg-white" : "bg-sky-500",
+              active ? "bg-surface" : "bg-emerald-500",
             )}
           />
         </span>
       ) : null}
       {label}
-    </button>
+      {count > 0 ? (
+        <span
+          className={cn(
+            "tabular-nums",
+            active ? "text-inverse-content/70" : "text-content-faint",
+          )}
+        >
+          {count}
+        </span>
+      ) : null}
+    </motion.button>
   );
 }
 
@@ -765,20 +679,20 @@ function ListingBidGroup({
   }
 
   return (
-    <li className="group overflow-hidden rounded-lg border border-slate-100 bg-white transition-all hover:border-sky-200 hover:shadow-sm">
+    <li className="group overflow-hidden rounded-lg transition-colors hover:bg-surface-muted/60">
       <GroupHeader
         collapsed={collapsed}
         onToggle={onToggle}
         title={listing.listingNo}
-        titleClass="text-sky-700"
+        titleClass="text-content"
         subtitle={subtitleParts.join(" · ")}
         amount={displayAmount}
-        amountClass={hasSettled ? "text-sky-700" : "text-slate-900"}
+        amountClass={hasSettled ? "text-content" : "text-content"}
         onNavigate={onNavigate}
         navLabel={`${listing.listingNo} 경매장에서 열기`}
       />
       {!collapsed ? (
-        <ul className="bg-slate-50/50">
+        <ul className="divide-y divide-line-soft bg-surface-muted/50">
           {bids.map((b) => (
             <BidRow key={b.id} bid={b} variant="entity" />
           ))}
@@ -800,7 +714,7 @@ function ViewModeToggle({
     { id: "part", label: "부위별" },
   ];
   return (
-    <div className="inline-flex items-center rounded-md bg-slate-100 p-0.5">
+    <div className="inline-flex items-center rounded-md bg-surface-accent p-0.5">
       {options.map((o) => {
         const active = o.id === value;
         return (
@@ -811,8 +725,8 @@ function ViewModeToggle({
             className={cn(
               "rounded-[5px] px-2.5 py-1 text-[11px] font-bold transition-colors",
               active
-                ? "bg-white text-slate-900 shadow-sm"
-                : "text-slate-500 hover:text-slate-700",
+                ? "bg-surface text-content shadow-sm"
+                : "text-content-soft hover:text-content-mid",
             )}
           >
             {o.label}
@@ -823,6 +737,7 @@ function ViewModeToggle({
   );
 }
 
+/** `낙찰만` 단일 토글 칩 · 켜면 먹색 채움 */
 function OutcomeFilterToggle({
   value,
   onChange,
@@ -830,34 +745,22 @@ function OutcomeFilterToggle({
   value: OutcomeFilter;
   onChange: (v: OutcomeFilter) => void;
 }) {
-  const options: { id: OutcomeFilter; label: string }[] = [
-    { id: "all", label: "전체" },
-    { id: "won", label: "낙찰" },
-    { id: "lost", label: "미낙찰" },
-  ];
+  const on = value === "won";
   return (
-    <div className="inline-flex items-center rounded-md bg-slate-100 p-0.5">
-      {options.map((o) => {
-        const active = o.id === value;
-        return (
-          <button
-            key={o.id}
-            type="button"
-            onClick={() => onChange(o.id)}
-            className={cn(
-              "rounded-[5px] px-2 py-1 text-[11px] font-bold transition-colors",
-              active
-                ? o.id === "won"
-                  ? "bg-white text-sky-700 shadow-sm"
-                  : "bg-white text-slate-900 shadow-sm"
-                : "text-slate-500 hover:text-slate-700",
-            )}
-          >
-            {o.label}
-          </button>
-        );
-      })}
-    </div>
+    <button
+      type="button"
+      role="switch"
+      aria-checked={on}
+      onClick={() => onChange(on ? "all" : "won")}
+      className={cn(
+        "inline-flex h-[26px] items-center rounded-md border px-2 text-[11px] font-bold transition-colors",
+        on
+          ? "border-inverse bg-inverse text-inverse-content"
+          : "border-line bg-surface text-content-soft hover:text-content-mid",
+      )}
+    >
+      낙찰만
+    </button>
   );
 }
 
@@ -894,18 +797,18 @@ function PartBidGroup({
   }
 
   return (
-    <li className="group overflow-hidden rounded-lg border border-slate-100 bg-white transition-all hover:border-sky-200 hover:shadow-sm">
+    <li className="group overflow-hidden rounded-lg transition-colors hover:bg-surface-muted/60">
       <GroupHeader
         collapsed={collapsed}
         onToggle={onToggle}
         title={partName}
-        titleClass="text-slate-900"
+        titleClass="text-content"
         subtitle={subtitleParts.join(" · ")}
         amount={displayAmount}
-        amountClass={hasSettled ? "text-sky-700" : "text-slate-900"}
+        amountClass={hasSettled ? "text-content" : "text-content"}
       />
       {!collapsed ? (
-        <ul className="divide-y divide-slate-100 bg-slate-50/50">
+        <ul className="divide-y divide-line-soft bg-surface-muted/50">
           {bids.map((b) => (
             <BidRow
               key={b.id}
@@ -961,18 +864,18 @@ function GroupHeader({
           onToggle();
         }
       }}
-      className="flex w-full cursor-pointer items-start justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-slate-50/60"
+      className="flex w-full cursor-pointer items-start justify-between gap-3 px-4 py-2.5 text-left transition-colors hover:bg-surface-muted/60"
     >
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
         <div className="flex min-w-0 items-center gap-1.5">
           {collapsed ? (
-            <ChevronRight className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+            <ChevronRight className="h-3.5 w-3.5 shrink-0 text-content-faint" />
           ) : (
-            <ChevronDown className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+            <ChevronDown className="h-3.5 w-3.5 shrink-0 text-content-faint" />
           )}
           <span
             className={cn(
-              "truncate text-[15px] font-bold tabular-nums",
+              "truncate text-[13px] font-bold tabular-nums",
               titleClass,
             )}
           >
@@ -983,15 +886,15 @@ function GroupHeader({
           ) : null}
         </div>
         {subtitle ? (
-          <span className="pl-[22px] text-[11px] tabular-nums text-slate-400">
+          <span className="pl-[22px] text-[11px] tabular-nums text-content-faint">
             {subtitle}
           </span>
         ) : null}
       </div>
       <span
         className={cn(
-          "shrink-0 self-center text-[15px] font-bold tabular-nums",
-          amountClass ?? "text-slate-900",
+          "shrink-0 self-center text-[13px] font-bold tabular-nums",
+          amountClass ?? "text-content",
         )}
       >
         {amount > 0 ? formatWon(amount) : "—"}
@@ -1016,7 +919,7 @@ function NavigateLink({
       }}
       aria-label={label ?? "경매장에서 열기"}
       title={label ?? "경매장에서 열기"}
-      className="inline-flex h-5 w-5 items-center justify-center rounded text-slate-300 transition-colors hover:bg-sky-50 hover:text-sky-600"
+      className="inline-flex h-5 w-5 items-center justify-center rounded text-content-ghost transition-colors hover:bg-surface-accent hover:text-content"
     >
       <ArrowUpRight className="h-3.5 w-3.5" strokeWidth={2.25} />
     </button>
@@ -1024,35 +927,12 @@ function NavigateLink({
 }
 
 /**
- * 개체별/부위별 공용 행. 4-column grid 로 세로 정렬 축 확립.
- * - variant='entity': 부위명 강조
- * - variant='part'  : 상장번호 강조
+ * 개체별/부위별 공용 행 · 두 뷰 모두 동일한 1-line 3-column grid.
+ *   [ 주제목 + 보조(meta) | 단가 | 금액 ]
+ * - entity: 주제목 = 부위명,   meta = 중량             (등급은 그룹 헤더에 이미 있음)
+ * - part  : 주제목 = 상장번호, meta = 등급 · 부위 · 중량 (좌/우 구분은 여기서 보임)
+ * 미낙찰은 금액 취소선 + 주제목 톤다운만 · 행 전체 opacity 는 쓰지 않음 (스캔 시 흐릿함 방지)
  */
-/**
- * 개체별/부위별 공용 행.
- * - entity variant: 1-line grid [부위명 | 중량 | 단가 | 금액]
- * - part   variant: 2-line 카드 · 상장번호+금액 / 등급·부위·중량·단가
- */
-/**
- * 진행 중 회차의 오픈 최고가 상태 배지.
- * - 1위 : 내가 현재 최고가 (isTopBid)
- * - 역전당함 : 내 입찰이 있지만 최고가에서 밀려남
- */
-function OpenBidStatusBadge({ isTop }: { isTop: boolean }) {
-  if (isTop) {
-    return (
-      <span className="inline-flex items-center gap-0.5 bg-sky-600 px-1 py-px text-[9px] font-bold uppercase tracking-wider text-white shadow-sm">
-        1위
-      </span>
-    );
-  }
-  return (
-    <span className="inline-flex items-center gap-0.5 bg-amber-500 px-1 py-px text-[9px] font-bold uppercase tracking-wider text-white shadow-sm">
-      역전
-    </span>
-  );
-}
-
 function BidRow({
   bid,
   variant,
@@ -1065,103 +945,96 @@ function BidRow({
   const isSettled = bid.rank != null;
   const isLost = isSettled && !bid.isWinning;
   const listing = bid.listing;
-
-  if (variant === "entity") {
-    return (
-      <li
-        className={cn(
-          "grid grid-cols-[minmax(0,1fr)_54px_92px_96px] items-baseline gap-2 px-4 py-2 text-[12px]",
-          isLost && "opacity-60",
-        )}
-      >
-        <span className="flex min-w-0 items-center gap-1 truncate font-semibold text-slate-900">
-          <span className="truncate">{bid.part?.partName ?? "-"}</span>
-          {!isSettled ? <OpenBidStatusBadge isTop={bid.isTopBid} /> : null}
-        </span>
-        <span className="text-right text-[11px] tabular-nums text-slate-400">
-          {formatWeightKg(bid.part?.weight ?? null)}
-        </span>
-        <span className="text-right text-[11px] tabular-nums text-slate-500">
-          {formatWonPerKg(bid.bidPrice)}
-        </span>
-        <span
-          className={cn(
-            "text-right text-[12px] font-bold tabular-nums",
-            isLost
-              ? "text-slate-400 line-through decoration-slate-300"
-              : "text-slate-900",
-          )}
-        >
-          {formatWon(bid.bidAmount)}
-        </span>
-      </li>
-    );
-  }
-
-  const subtitleBits: string[] = [];
-  if (listing) {
-    subtitleBits.push(formatGradeLabel(listing.grade, listing.marblingScore));
-  }
-  if (bid.part?.partName) subtitleBits.push(bid.part.partName);
   const weight = formatWeightKg(bid.part?.weight ?? null);
-  if (weight !== "-") subtitleBits.push(weight);
-  const priceLabel = formatWonPerKg(bid.bidPrice);
-  if (priceLabel !== "-") subtitleBits.push(priceLabel);
+
+  const primary =
+    variant === "entity"
+      ? (bid.part?.partName ?? "-")
+      : (listing?.listingNo ?? "-");
+
+  const metaBits: string[] = [];
+  if (variant === "part") {
+    if (listing) {
+      metaBits.push(formatGradeLabel(listing.grade, listing.marblingScore));
+    }
+    if (bid.part?.partName) metaBits.push(bid.part.partName);
+  }
+  if (weight !== "-") metaBits.push(weight);
 
   return (
-    <li
-      className={cn(
-        "flex flex-col gap-0.5 px-4 py-2.5",
-        isLost && "opacity-60",
-      )}
-    >
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex min-w-0 items-center gap-1.5">
-          <span className="truncate text-[13px] font-bold tabular-nums text-sky-700">
-            {listing?.listingNo ?? "-"}
-          </span>
-          {!isSettled ? <OpenBidStatusBadge isTop={bid.isTopBid} /> : null}
-          {onNavigate && listing ? (
-            <NavigateLink
-              onClick={onNavigate}
-              label={`${listing.listingNo} 경매장에서 열기`}
-            />
-          ) : null}
-        </div>
+    <li className="grid grid-cols-[minmax(0,1fr)_84px_92px] items-baseline gap-2 px-4 py-2">
+      <span className="flex min-w-0 items-baseline gap-1.5">
         <span
           className={cn(
-            "shrink-0 text-[13px] font-bold tabular-nums",
-            isLost
-              ? "text-slate-400 line-through decoration-slate-300"
-              : "text-slate-900",
+            "shrink-0 text-[12px] font-semibold tabular-nums",
+            variant === "part" ? "text-content" : "text-content",
+            isLost && "text-content-soft",
           )}
         >
-          {formatWon(bid.bidAmount)}
+          {primary}
         </span>
-      </div>
-      {subtitleBits.length > 0 ? (
-        <span className="text-[11px] tabular-nums text-slate-400">
-          {subtitleBits.join(" · ")}
-        </span>
-      ) : null}
+        {metaBits.length > 0 ? (
+          <span className="min-w-0 truncate text-[11px] tabular-nums text-content-faint">
+            {metaBits.join(" · ")}
+          </span>
+        ) : null}
+        {onNavigate && listing ? (
+          <NavigateLink
+            onClick={onNavigate}
+            label={`${listing.listingNo} 경매장에서 열기`}
+          />
+        ) : null}
+      </span>
+      <span className="text-right text-[11px] tabular-nums text-content-soft">
+        {formatWonPerKg(bid.bidPrice)}
+      </span>
+      <span
+        className={cn(
+          "text-right text-[12px] font-bold tabular-nums",
+          isLost
+            ? "text-content-faint line-through decoration-slate-300"
+            : "text-content",
+        )}
+      >
+        {formatWon(bid.bidAmount)}
+      </span>
     </li>
   );
 }
 
-function EmptyState({ variant }: { variant: Tab }) {
+/**
+ * 빈 상태 · 입찰현황 탭은 "경매장에서 입찰하기" 액션 제공 (패널 닫고 테이블로 시선 복귀).
+ * 경매결과 탭은 기다리는 상태라 액션 없이 설명만.
+ */
+function EmptyState({
+  variant,
+  onGoBid,
+}: {
+  variant: Tab;
+  onGoBid: () => void;
+}) {
   return (
     <div className="flex h-full flex-col items-center justify-center gap-2 px-6 py-16 text-center">
-      <ClipboardList className="h-6 w-6 text-slate-300" />
-      <p className="text-sm font-semibold text-slate-500">
+      <ClipboardList className="h-6 w-6 text-content-ghost" />
+      <p className="text-sm font-semibold text-content-soft">
         {variant === "active"
           ? "진행 중인 입찰이 없습니다"
           : "마감된 입찰이 없습니다"}
       </p>
-      <p className="text-xs text-slate-400 leading-relaxed">
-        {variant === "active"
-          ? "부위를 선택하고 입찰가를 등록해 보세요."
-          : "회차가 마감되면 여기에 결과가 표시됩니다."}
-      </p>
+      {variant === "active" ? (
+        <button
+          type="button"
+          onClick={onGoBid}
+          className="mt-2 inline-flex h-9 items-center gap-1.5 rounded-md bg-inverse px-4 text-[12px] font-bold text-inverse-content transition-colors hover:bg-inverse focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
+        >
+          경매장에서 입찰하기
+          <ArrowUpRight className="h-3.5 w-3.5" strokeWidth={2.25} />
+        </button>
+      ) : (
+        <p className="text-xs leading-relaxed text-content-faint">
+          회차가 마감되면 여기에 결과가 표시됩니다.
+        </p>
+      )}
     </div>
   );
 }

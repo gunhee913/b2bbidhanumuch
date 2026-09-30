@@ -1,10 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import {
-  fetchLiveListings,
-  type LiveListingsResponse,
-} from "../api";
+import { fetchLiveListings, type LiveListingsResponse } from "../api";
 
 export interface UseLiveListingsParams {
   /**
@@ -36,8 +33,7 @@ export function useLiveListings({
       slaughterHouse ?? "all",
       listingDate ?? "today",
     ],
-    queryFn: () =>
-      fetchLiveListings({ slaughterHouse, listingDate }),
+    queryFn: () => fetchLiveListings({ slaughterHouse, listingDate }),
     enabled,
     refetchInterval: refetchInterval ?? 5_000,
     staleTime: 2_000,

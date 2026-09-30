@@ -13,8 +13,13 @@ export interface PricePoint {
   date: Date;
   /** 가중 평균 단가 (원/kg). */
   value: number;
-  /** 해당 시점 두수 (거래량). */
+  /** 해당 시점 낙찰 건수 (거래량). */
   count: number;
+  /** 해당 시점 상장 건수 (마감 기준) · 낙찰률 = count / listed · 0 이면 산출 불가 */
+  listed: number;
+  /** 낙찰가 범위 · 해당 시점 최저/최고 낙찰 단가 (원/kg) · 없으면 null */
+  low: number | null;
+  high: number | null;
 }
 
 /* ================================================================== */
@@ -34,10 +39,15 @@ export function aggregatePricePoints(
 ): PricePoint[] {
   if (granularity === "day") return daily;
 
-  const grouped = new Map<
-    number,
-    { date: Date; sumValueWeighted: number; sumCount: number }
-  >();
+  interface Bucket {
+    date: Date;
+    sumValueWeighted: number;
+    sumCount: number;
+    sumListed: number;
+    low: number | null;
+    high: number | null;
+  }
+  const grouped = new Map<number, Bucket>();
 
   for (const p of daily) {
     const bucketStart =
@@ -49,11 +59,17 @@ export function aggregatePricePoints(
     if (bucket) {
       bucket.sumValueWeighted += p.value * p.count;
       bucket.sumCount += p.count;
+      bucket.sumListed += p.listed;
+      bucket.low = minNullable(bucket.low, p.low);
+      bucket.high = maxNullable(bucket.high, p.high);
     } else {
       grouped.set(key, {
         date: bucketStart,
         sumValueWeighted: p.value * p.count,
         sumCount: p.count,
+        sumListed: p.listed,
+        low: p.low,
+        high: p.high,
       });
     }
   }
@@ -62,9 +78,11 @@ export function aggregatePricePoints(
     .sort((a, b) => a.date.getTime() - b.date.getTime())
     .map((b) => ({
       date: b.date,
-      value:
-        b.sumCount > 0 ? Math.round(b.sumValueWeighted / b.sumCount) : 0,
+      value: b.sumCount > 0 ? Math.round(b.sumValueWeighted / b.sumCount) : 0,
       count: b.sumCount,
+      listed: b.sumListed,
+      low: b.low,
+      high: b.high,
     }));
 }
 
@@ -83,6 +101,9 @@ export function aggregatePartPriceSeries({
       date: parseLocalDate(p.date),
       value: p.avg,
       count: p.count,
+      listed: p.listed ?? 0,
+      low: p.min,
+      high: p.max,
     });
   }
   return aggregatePricePoints(daily, granularity);
@@ -170,11 +191,18 @@ export function buildPartPriceSeries({
     const skip = rand() < 0.2;
     const count = skip ? 0 : 10 + Math.floor(rand() * 50);
     if (count === 0) continue;
+    // 낙찰률 72~96% 구간에서 흔들리도록 상장 건수 역산
+    const listed = Math.max(count, Math.round(count / (0.72 + rand() * 0.24)));
+    // 낙찰가 범위 · 평균 아래위로 1.5~4.5% · 건수가 많을수록 조금 넓게
+    const spread = last * (0.015 + rand() * 0.02 + Math.min(count, 50) / 5000);
 
     daily.push({
       date: d,
       value: Math.round(last),
       count,
+      listed,
+      low: Math.round(last - spread * (0.6 + rand() * 0.4)),
+      high: Math.round(last + spread * (0.6 + rand() * 0.4)),
     });
   }
 
@@ -212,4 +240,16 @@ function mulberry32(seed: number): () => number {
 
 function clamp(v: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, v));
+}
+
+function minNullable(a: number | null, b: number | null): number | null {
+  if (a === null) return b;
+  if (b === null) return a;
+  return Math.min(a, b);
+}
+
+function maxNullable(a: number | null, b: number | null): number | null {
+  if (a === null) return b;
+  if (b === null) return a;
+  return Math.max(a, b);
 }

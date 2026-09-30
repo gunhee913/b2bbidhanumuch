@@ -4,6 +4,9 @@ import { Suspense } from "react";
 import { MainHeader } from "@/features/main/components/MainHeader";
 import { MainFooter } from "@/features/main/components/MainFooter";
 import { LiveAuctionRoom } from "@/features/live-auction/components/LiveAuctionRoom";
+import { useSideDockInsetClass } from "@/features/live-auction/components/AuctionSideDock";
+import { CANVAS_BG_CLASS } from "@/features/live-auction/constants/surface";
+import { cn } from "@/lib/utils";
 
 /**
  * `/auction/live` · 통합 실시간 경매 뷰.
@@ -16,15 +19,16 @@ import { LiveAuctionRoom } from "@/features/live-auction/components/LiveAuctionR
  * (`missing-suspense-with-csr-bailout` 방지)
  */
 export default function AuctionLivePage() {
+  const sideDockInsetClass = useSideDockInsetClass();
   return (
-    <>
-      <MainHeader />
-      <main className="min-h-[calc(100vh-64px)] bg-slate-50 pb-12">
+    <div className={sideDockInsetClass}>
+      <MainHeader fluid />
+      <main className={cn("min-h-[calc(100vh-48px)] pb-12", CANVAS_BG_CLASS)}>
         <Suspense fallback={null}>
           <LiveAuctionRoom />
         </Suspense>
       </main>
-      <MainFooter />
-    </>
+      <MainFooter fluid />
+    </div>
   );
 }

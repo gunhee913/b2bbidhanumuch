@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import AdminLayout from '@/components/admin/AdminLayout';
+import { SLAUGHTER_HOUSES } from '@/constants/slaughterHouses';
 import { 
   Plus, 
   Edit, 
@@ -65,6 +66,7 @@ export default function DealersPage() {
     phone: '',
     auctionPassword: '',
     address: '',
+    slaughterHouse: '',
     status: 'active' as 'active' | 'inactive',
   });
 
@@ -109,6 +111,7 @@ export default function DealersPage() {
       phone: dealer.phone,
       auctionPassword: '',
       address: dealer.address || '',
+      slaughterHouse: dealer.slaughterHouse || '',
       status: dealer.status,
     });
     setEditingDealerId(dealer.id);
@@ -117,7 +120,7 @@ export default function DealersPage() {
   const handleEditCancel = () => {
     setEditingDealerId(null);
     setSelectedDealer(null);
-    setFormData({ dealerNo: '', name: '', representativeName: '', businessNo: '', phone: '', auctionPassword: '', address: '', status: 'active' });
+    setFormData({ dealerNo: '', name: '', representativeName: '', businessNo: '', phone: '', auctionPassword: '', address: '', slaughterHouse: '', status: 'active' });
   };
 
   const handleEditSave = async () => {
@@ -129,6 +132,7 @@ export default function DealersPage() {
       businessNo: formData.businessNo || undefined,
       phone: formData.phone,
       address: formData.address || undefined,
+      slaughterHouse: formData.slaughterHouse || null,
       status: formData.status,
     };
 
@@ -154,6 +158,7 @@ export default function DealersPage() {
       phone: '',
       auctionPassword: '',
       address: '',
+      slaughterHouse: '',
       status: 'active',
     });
     setIsAddingDealer(true);
@@ -161,7 +166,7 @@ export default function DealersPage() {
 
   const handleAddCancel = () => {
     setIsAddingDealer(false);
-    setFormData({ dealerNo: '', name: '', representativeName: '', businessNo: '', phone: '', auctionPassword: '', address: '', status: 'active' });
+    setFormData({ dealerNo: '', name: '', representativeName: '', businessNo: '', phone: '', auctionPassword: '', address: '', slaughterHouse: '', status: 'active' });
   };
 
   const handleAddSave = async () => {
@@ -174,6 +179,7 @@ export default function DealersPage() {
       password: '0000',
       auctionPassword: formData.auctionPassword || '0000',
       address: formData.address || undefined,
+      slaughterHouse: formData.slaughterHouse || null,
       status: formData.status,
     };
 
@@ -407,6 +413,7 @@ export default function DealersPage() {
                 <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50" style={{ minWidth: 130 }}>대표번호</th>
                 <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50" style={{ minWidth: 90 }}>경매 비밀번호</th>
                 <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50" style={{ minWidth: 200 }}>주소</th>
+                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50" style={{ minWidth: 110 }}>소속 공판장</th>
                 <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">등록일</th>
                 <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">직원수</th>
                 <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50" style={{ minWidth: 50 }}>수정</th>
@@ -481,6 +488,18 @@ export default function DealersPage() {
                       placeholder="주소"
                       className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
                     />
+                  </td>
+                  <td className="px-2 py-2 border border-gray-200">
+                    <select
+                      value={formData.slaughterHouse}
+                      onChange={(e) => setFormData({ ...formData, slaughterHouse: e.target.value })}
+                      className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
+                    >
+                      <option value="">미지정</option>
+                      {SLAUGHTER_HOUSES.map((h) => (
+                        <option key={h} value={h}>{h}</option>
+                      ))}
+                    </select>
                   </td>
                   <td className="px-2 py-2 border border-gray-200 text-sm text-gray-400 text-center">-</td>
                   <td className="px-2 py-2 border border-gray-200 text-sm text-gray-400 text-center">-</td>
@@ -574,6 +593,18 @@ export default function DealersPage() {
                           className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
                         />
                       </td>
+                      <td className="px-2 py-2 border border-gray-200">
+                        <select
+                          value={formData.slaughterHouse}
+                          onChange={(e) => setFormData({ ...formData, slaughterHouse: e.target.value })}
+                          className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
+                        >
+                          <option value="">미지정</option>
+                          {SLAUGHTER_HOUSES.map((h) => (
+                            <option key={h} value={h}>{h}</option>
+                          ))}
+                        </select>
+                      </td>
                       <td className="px-2 py-2 border border-gray-200 text-sm text-gray-500 text-center whitespace-nowrap">{formatDate(dealer.createdAt)}</td>
                       <td className="px-2 py-2 border border-gray-200 text-sm text-gray-500 text-center whitespace-nowrap">{dealer.employees.length}명</td>
                       <td className="px-2 py-2 border border-gray-200" colSpan={2}>
@@ -613,6 +644,7 @@ export default function DealersPage() {
                       <td className="px-2 py-2 border border-gray-200 text-sm text-gray-600 text-center whitespace-nowrap">{dealer.phone}</td>
                       <td className="px-2 py-2 border border-gray-200 text-sm text-gray-600 text-center whitespace-nowrap">••••</td>
                       <td className="px-2 py-2 border border-gray-200 text-sm text-gray-600 whitespace-nowrap">{dealer.address || '-'}</td>
+                      <td className={`px-2 py-2 border border-gray-200 text-sm text-center whitespace-nowrap ${dealer.slaughterHouse ? 'text-gray-900 font-medium' : 'text-amber-600'}`}>{dealer.slaughterHouse || '미지정'}</td>
                       <td className="px-2 py-2 border border-gray-200 text-sm text-gray-500 text-center whitespace-nowrap">{formatDate(dealer.createdAt)}</td>
                       <td className="px-2 py-2 border border-gray-200 text-sm text-gray-500 text-center whitespace-nowrap">{dealer.employees.length}명</td>
                       <td className="px-2 py-2 border border-gray-200">
@@ -641,7 +673,7 @@ export default function DealersPage() {
                   {/* 직원 목록 (펼침) */}
                   {expandedDealer === dealer.id && (
                     <tr>
-                      <td colSpan={12} className="p-0">
+                      <td colSpan={13} className="p-0">
                         <div className="p-4 border-t border-gray-100">
                           <div className="flex items-center justify-between mb-3">
                             <h4 className="text-sm font-semibold text-gray-700">경매대리인 / 직원 목록</h4>

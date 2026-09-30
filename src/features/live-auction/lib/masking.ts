@@ -26,17 +26,13 @@ export function formatKrw(value: number | null | undefined): string {
   return NUMBER_FORMATTER.format(Math.round(value));
 }
 
-export function formatWonPerKg(
-  value: number | null | undefined,
-): string {
+export function formatWonPerKg(value: number | null | undefined): string {
   if (value === null || value === undefined) return "-";
   if (!Number.isFinite(value) || value <= 0) return "-";
   return `${NUMBER_FORMATTER.format(Math.round(value))}원/kg`;
 }
 
-export function formatWeightKg(
-  value: number | null | undefined,
-): string {
+export function formatWeightKg(value: number | null | undefined): string {
   if (value === null || value === undefined) return "-";
   if (!Number.isFinite(value) || value <= 0) return "-";
   return `${value.toFixed(1)}kg`;
