@@ -35,6 +35,40 @@ export const GRADE_FILTER_OPTIONS = [
   "3",
 ] as const;
 
+/** 거르지 않음 · 사다리 맨 위 9 에서 한참 떨어뜨려 「푸는 키」 로 따로 둔다 */
+export const GRADE_CLEAR_KEY = "0";
+
+/**
+ * 등급 ↔ 숫자키 · 9 에서 시작해 목록 차례대로 한 칸씩 내려온다.
+ *
+ * `1++(9)`·`(8)`·`(7)` 은 숫자가 곧 근내지방도라 외울 것이 없고, 그 아래는 그 줄을
+ * 그대로 이어 받아 `1+`=6 · `1`=5 · `2`=4 · `3`=3 이 된다. 숫자가 높을수록 좋은
+ * 고기라는 한 방향이라, 칩 이름을 몰라도 손이 어느 쪽으로 갈지는 안다.
+ *
+ * 자리를 박아 두지 않고 `GRADE_FILTER_OPTIONS` 에서 끌어낸다 — 등급이 하나 늘면
+ * 사다리도 같이 늘어야지, 두 곳을 맞춰 고치게 두면 언젠가 어긋난다. 0 이하로
+ * 내려가는 칸은 버린다(0 은 전체 몫이고 음수는 키가 아니다).
+ */
+export const GRADE_HOTKEYS: ReadonlyArray<{ key: string; value: string }> =
+  GRADE_FILTER_OPTIONS.map((value, i) => ({
+    key: String(9 - i),
+    value,
+  })).filter(({ key }) => Number(key) > 0);
+
+const GRADE_BY_KEY = new Map(GRADE_HOTKEYS.map((h) => [h.key, h.value]));
+const KEY_BY_GRADE = new Map(GRADE_HOTKEYS.map((h) => [h.value, h.key]));
+
+/** 누른 숫자가 거는 등급 · `0` 은 전체(빈 값), 짝 없는 숫자는 `null` 로 흘려보낸다 */
+export function gradeForHotkey(key: string): string | null {
+  if (key === GRADE_CLEAR_KEY) return "";
+  return GRADE_BY_KEY.get(key) ?? null;
+}
+
+/** 이 등급을 거는 숫자 · 칩 말풍선이 제 키를 적을 때 쓴다 */
+export function hotkeyForGrade(value: string): string {
+  return value ? (KEY_BY_GRADE.get(value) ?? "") : GRADE_CLEAR_KEY;
+}
+
 /**
  * `grade` + `marblingScore` → 시세 차트 등급 키 (`1++A`, 9 → `1++(9)`).
  * `GRADE_FILTER_OPTIONS` 와 같은 값 집합이라 필터 드롭다운과 그대로 맞물린다.

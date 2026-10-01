@@ -1,12 +1,18 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
-import { format, subDays } from "date-fns";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 import { MainHeader } from "@/features/main/components/MainHeader";
-import { MainFooter } from "@/features/main/components/MainFooter";
 import { LoginGateCard } from "@/features/main/components/LoginGateCard";
+import {
+  CANVAS_BG_CLASS,
+  PAGE_GUTTER_CLASS,
+  PAGE_SHELL_CLASS,
+  SURFACE_SHELL_CLASS,
+} from "@/features/live-auction/constants/surface";
 import { useRealtimeDelivery } from "@/hooks/useRealtimeDelivery";
 import { useWinningParts } from "../hooks/useWinningParts";
 import {
@@ -15,39 +21,35 @@ import {
 } from "../hooks/useDeliveryAssignments";
 import { useDealerPartners } from "../hooks/useDealerPartners";
 import type { AssignmentInfo } from "../types";
-import {
-  computeEntityProgress,
-  groupPartsByEntity,
-  summarizeDirty,
-} from "../lib/groupByEntity";
 import { DeliveryHeader } from "./DeliveryHeader";
-import { DeliveryProgress } from "./DeliveryProgress";
-import { DeliveryEntityList } from "./DeliveryEntityList";
-import { SaveBar } from "./SaveBar";
+import { DeliveryRoom } from "./DeliveryRoom";
 
+/*
+ * 오늘 하루만 띄운다. 배송지시는 오늘 딴 것을 오늘 보내는 일이라, 지난주까지 끌고
+ * 오면 이미 보낸 건이 표를 채워 오늘치를 찾아 내려가야 한다. 지난 것은 「이번주」 를
+ * 눌러 보면 된다.
+ */
 const initialPeriod = () => {
   const today = format(new Date(), "yyyy-MM-dd");
-  const weekAgo = format(subDays(new Date(), 6), "yyyy-MM-dd");
-  return { startDate: weekAgo, endDate: today };
+  return { startDate: today, endDate: today };
 };
 
 /**
- * `/delivery` 배송지시 페이지 본문.
+ * `/delivery` 배송지시 페이지.
  *
- * - 로그인한 딜러의 낙찰 부위를 개체(상장) 단위로 묶어 보여주고 거래처 배정을 편집
- * - dirty 상태 로컬 관리 · 상단 SaveBar 로 일괄 저장 (저장 전 거래처별 요약 노출)
- * - Realtime 배정 변경 시 자동 갱신
+ * 자료를 모아 `DeliveryRoom` 에 넘기는 일만 한다 — 화면 짜임은 거기 있다.
+ * 머리(기간·새로고침)와 본문을 한 화면 높이 안에 가두고 스크롤은 열마다 안에서 돈다.
  */
 export function DeliveryPageContent() {
   const { data: session, status } = useSession();
   const dealerId = session?.dealer?.id ?? session?.employee?.dealerId ?? null;
-  const dealerName = session?.dealer?.name ?? session?.employee?.name ?? "중도매인";
+  const dealerName =
+    session?.dealer?.name ?? session?.employee?.name ?? "중도매인";
   const queryClient = useQueryClient();
 
   const [period, setPeriod] = useState(initialPeriod);
   const [searchPeriod, setSearchPeriod] = useState(period);
-  const [partFilter, setPartFilter] = useState("");
-  const [hideDone, setHideDone] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const partsQuery = useWinningParts({
     dealerId,
@@ -58,9 +60,6 @@ export function DeliveryPageContent() {
   const partnersQuery = useDealerPartners(dealerId);
   const saveMutation = useSaveAssignments();
 
-  const [dirty, setDirty] = useState<Record<string, string | null>>({});
-  const [saveError, setSaveError] = useState<string | null>(null);
-
   useRealtimeDelivery({
     onAssignmentChange: () => {
       queryClient.invalidateQueries({ queryKey: ["delivery-assignments"] });
@@ -68,185 +67,116 @@ export function DeliveryPageContent() {
     enabled: !!dealerId,
   });
 
-  const parts = useMemo(() => partsQuery.data?.winningParts ?? [], [partsQuery.data]);
+  const parts = useMemo(
+    () => partsQuery.data?.winningParts ?? [],
+    [partsQuery.data],
+  );
   const savedAssignments = useMemo<Record<string, AssignmentInfo>>(
     () => assignmentsQuery.data?.assignments ?? {},
     [assignmentsQuery.data],
   );
-  const partners = useMemo(() => partnersQuery.data?.partners ?? [], [partnersQuery.data]);
-
-  const partOptions = useMemo(
-    () => Array.from(new Set(parts.map((p) => p.partName))).sort((a, b) => a.localeCompare(b, "ko-KR")),
-    [parts],
+  const partners = useMemo(
+    () => partnersQuery.data?.partners ?? [],
+    [partnersQuery.data],
   );
 
-  const progress = useMemo(() => {
-    const entities = groupPartsByEntity(parts);
-    let entityDone = 0;
-    let partSaved = 0;
-    let partPending = 0;
-    let totalAmount = 0;
-    let totalWeight = 0;
-    for (const e of entities) {
-      const p = computeEntityProgress(e, savedAssignments, dirty);
-      if (p.done) entityDone++;
-      partSaved += p.saved;
-      partPending += p.pending;
-      totalAmount += e.totalAmount;
-      totalWeight += e.totalWeight;
-    }
-    return {
-      entityTotal: entities.length,
-      entityDone,
-      partTotal: parts.length,
-      partSaved,
-      partPending,
-      totalAmount,
-      totalWeight,
-    };
-  }, [parts, savedAssignments, dirty]);
-
-  const dirtyCount = Object.keys(dirty).length;
-  const dirtySummary = useMemo(
-    () =>
-      summarizeDirty(dirty, parts, (id) => partners.find((p) => p.id === id)?.name ?? "거래처"),
-    [dirty, parts, partners],
+  const handleSave = useCallback(
+    async (dirty: Record<string, string | null>) => {
+      setSaveError(null);
+      try {
+        await saveMutation.mutateAsync({
+          assignments: dirty,
+          assignedBy: dealerName,
+        });
+      } catch (e) {
+        setSaveError(e instanceof Error ? e.message : "저장에 실패했습니다.");
+        throw e;
+      }
+    },
+    [saveMutation, dealerName],
   );
-
-  const handleSearch = useCallback(() => {
-    setSearchPeriod(period);
-  }, [period]);
-
-  const handleChangePartner = useCallback((partId: string, partnerId: string | null) => {
-    setDirty((prev) => {
-      const next = { ...prev };
-      if (partnerId === null) delete next[partId];
-      else next[partId] = partnerId;
-      return next;
-    });
-  }, []);
-
-  const handleApplyAll = useCallback((partIds: string[], partnerId: string) => {
-    setDirty((prev) => {
-      const next = { ...prev };
-      for (const id of partIds) next[id] = partnerId;
-      return next;
-    });
-  }, []);
-
-  const handleReset = useCallback(() => {
-    setDirty({});
-    setSaveError(null);
-  }, []);
-
-  const handleSave = useCallback(async () => {
-    if (dirtyCount === 0) return;
-    setSaveError(null);
-    try {
-      await saveMutation.mutateAsync({ assignments: dirty, assignedBy: dealerName });
-      setDirty({});
-    } catch (e) {
-      setSaveError(e instanceof Error ? e.message : "저장에 실패했습니다.");
-    }
-  }, [dirty, dirtyCount, saveMutation, dealerName]);
 
   const handleRefresh = useCallback(() => {
     partsQuery.refetch();
     assignmentsQuery.refetch();
   }, [partsQuery, assignmentsQuery]);
 
-  useEffect(() => {
-    setDirty({});
-    setSaveError(null);
-  }, [dealerId, searchPeriod.startDate, searchPeriod.endDate]);
-
   const isAuthReady = status !== "loading";
-  const showGate = isAuthReady && !dealerId;
 
   if (!isAuthReady) {
     return (
-      <>
-        <MainHeader />
-        <main className="mx-auto min-h-[calc(100vh-48px)] w-full max-w-[1360px] min-[1700px]:max-w-[1600px] bg-canvas px-8 py-16">
-          <div className="h-6 w-32 animate-pulse rounded bg-surface-accent" />
-          <div className="mt-6 h-64 animate-pulse rounded bg-surface-accent" />
-        </main>
-        <MainFooter />
-      </>
+      <Shell>
+        <div className="h-6 w-32 animate-pulse bg-surface-accent" />
+        <div className="mt-3 h-64 animate-pulse bg-surface-accent" />
+      </Shell>
     );
   }
 
-  if (showGate) {
+  if (!dealerId) {
     return (
-      <>
-        <MainHeader />
-        <main className="min-h-[calc(100vh-48px)] bg-canvas">
-          <div className="mx-auto w-full max-w-[1360px] min-[1700px]:max-w-[1600px] px-8 py-12">
-            <LoginGateCard pageLabel="배송지시" requireDealer />
-          </div>
-        </main>
-        <MainFooter />
-      </>
+      <Shell>
+        <LoginGateCard pageLabel="배송지시" requireDealer />
+      </Shell>
     );
   }
 
-  const isLoading = partsQuery.isLoading || assignmentsQuery.isLoading || partnersQuery.isLoading;
-  const isRefreshing = partsQuery.isFetching || assignmentsQuery.isFetching;
-
+  const isLoading =
+    partsQuery.isLoading ||
+    assignmentsQuery.isLoading ||
+    partnersQuery.isLoading;
   const fetchError =
-    partsQuery.error?.message || assignmentsQuery.error?.message || partnersQuery.error?.message || null;
+    partsQuery.error?.message ||
+    assignmentsQuery.error?.message ||
+    partnersQuery.error?.message ||
+    null;
 
   return (
-    <>
-      <MainHeader />
-      <main className="min-h-[calc(100vh-48px)] bg-canvas">
+    <Shell>
+      {/* 머리는 제 카드 · 본문 두 판은 각자 카드로 서서 8px 틈을 눈금이 쓴다 */}
+      <div className={cn("shrink-0", SURFACE_SHELL_CLASS)}>
         <DeliveryHeader
           startDate={period.startDate}
           endDate={period.endDate}
           onChangePeriod={setPeriod}
-          onSearch={handleSearch}
-          partOptions={partOptions}
-          partFilter={partFilter}
-          onPartFilterChange={setPartFilter}
-          hideDone={hideDone}
-          onHideDoneChange={setHideDone}
-          isRefreshing={isRefreshing}
+          onSearch={() => setSearchPeriod(period)}
+          isRefreshing={partsQuery.isFetching || assignmentsQuery.isFetching}
           onRefresh={handleRefresh}
         />
-        <div className="mx-auto w-full max-w-[1360px] min-[1700px]:max-w-[1600px] px-8 py-6">
-          <SaveBar
-            dirtyCount={dirtyCount}
-            summary={dirtySummary}
-            submitting={saveMutation.isPending}
-            onSave={handleSave}
-            onReset={handleReset}
-            error={saveError}
-          />
+      </div>
+      <DeliveryRoom
+        parts={parts}
+        partners={partners}
+        savedAssignments={savedAssignments}
+        isLoading={isLoading}
+        saving={saveMutation.isPending}
+        saveError={fetchError ?? saveError}
+        onSave={handleSave}
+        resetKey={`${dealerId}|${searchPeriod.startDate}|${searchPeriod.endDate}`}
+      />
+    </Shell>
+  );
+}
 
-          {fetchError ? (
-            <div className="mb-3 border border-rose-200 bg-rose-50 px-3 py-2 text-[12px] font-semibold text-rose-700">
-              {fetchError}
-            </div>
-          ) : null}
-
-          <DeliveryProgress {...progress} isLoading={isLoading} />
-
-          <div className="mt-5">
-            <DeliveryEntityList
-              parts={parts}
-              partners={partners}
-              savedAssignments={savedAssignments}
-              dirtyAssignments={dirty}
-              partFilter={partFilter}
-              hideDone={hideDone}
-              isLoading={isLoading}
-              onChangePart={handleChangePartner}
-              onApplyAll={handleApplyAll}
-            />
-          </div>
-        </div>
+/**
+ * 페이지 껍데기 · 경매장과 같은 폭·같은 좌우 여백(`px-6`)·같은 캔버스.
+ *
+ * 다만 세로는 다르다. 경매장은 아래로 흐르는 읽는 화면이라 `min-h` 로 두고 바닥글을
+ * 달지만, 여기는 저장 바가 늘 같은 자리에 있어야 하는 작업 화면이라 `h-` 로 못 박고
+ * 스크롤은 열 안에서만 돈다. 바닥글도 없다 — 창을 조금만 줄여도 저장 바를 밀어낸다.
+ */
+function Shell({ children }: { children: ReactNode }) {
+  return (
+    <div className={PAGE_SHELL_CLASS}>
+      <MainHeader fluid />
+      <main
+        className={cn(
+          "flex h-[calc(100vh-48px)] min-h-0 flex-col gap-2",
+          PAGE_GUTTER_CLASS,
+          CANVAS_BG_CLASS,
+        )}
+      >
+        {children}
       </main>
-      <MainFooter />
-    </>
+    </div>
   );
 }

@@ -33,7 +33,7 @@ export function RoundPeekCard({
         <motion.div
           role="status"
           aria-label="경매 시간"
-          /* 레일 왼쪽에 붙는다 · 자리 기준은 화면이 아니라 도크 틀(`AUCTION_SHELL_CLASS`) */
+          /* 레일 왼쪽에 붙는다 · 자리 기준은 화면이 아니라 도크 틀(`PAGE_SHELL_CLASS`) */
           className="pointer-events-auto absolute right-[60px] top-2 z-20"
           initial={{ opacity: 0, x: 12 }}
           animate={{ opacity: 1, x: 0 }}

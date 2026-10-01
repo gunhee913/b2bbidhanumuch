@@ -2,7 +2,9 @@
 
 import Image from "next/image";
 import { ImageOff } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { formatGradeLabel } from "../lib/grade";
+import { isSpecEmpty, JUDGED_SPECS } from "../lib/judgedSpecs";
 import { PartMarketChart } from "./PartMarketChart";
 import type { LiveListing } from "../api";
 
@@ -68,16 +70,29 @@ export function SheetSummaryPanel({
             <ImageOff className="h-6 w-6" strokeWidth={1.5} />
           </span>
         )}
-        {/* 어느 개체인지 · 사진 위 한 줄 · 값은 표가 이미 말하고 있다 */}
-        <span className="absolute inset-x-0 bottom-0 flex items-baseline gap-1.5 bg-gradient-to-t from-[#0f0f12]/75 to-transparent px-2.5 pb-1.5 pt-6 text-left">
-          <span className="text-[13px] font-bold tabular-nums text-white">
-            {listing.listingNo}
-          </span>
-          <span className="text-[11.5px] font-semibold text-white/75">
+        {/*
+         * 사진 위 한 줄 · 상세 방 각인(`GradeStamp`)과 같은 차례·같은 굵기다.
+         *
+         * 등급이 가장 굵다. 어느 개체인지는 짚고 있는 행이 이미 말하고 있고, 사진에
+         * 대고 묻는 것은 「몇 등급이냐」 하나다 — 단면을 들여다보다 등급을 되짚으려고
+         * 열여섯 칸짜리 표를 거슬러 가지 않아도 되게 같은 자리에 둔다.
+         */}
+        <span className="absolute inset-x-0 bottom-0 flex items-baseline gap-2 bg-gradient-to-t from-[#0f0f12]/80 to-transparent px-2.5 pb-1.5 pt-7 text-left">
+          <span className="shrink-0 text-[17px] font-bold leading-none tabular-nums text-white">
             {formatGradeLabel(listing.grade, listing.marblingScore)}
           </span>
+          <span className="shrink-0 text-[12px] font-medium leading-none tabular-nums text-white/60">
+            {listing.listingNo}
+          </span>
+          {listing.companyName ? (
+            <span className="min-w-0 truncate text-[12px] font-medium leading-none text-white/60">
+              {listing.companyName}
+            </span>
+          ) : null}
         </span>
       </div>
+
+      <JudgedSpecStrip listing={listing} />
 
       <PartMarketChart
         compact
@@ -87,5 +102,60 @@ export function SheetSummaryPanel({
         height={CHART_HEIGHT}
       />
     </div>
+  );
+}
+
+/**
+ * 일곱을 한 덩어리로 묶어 두는 폭 · 칸 사이가 30px 쯤에서 멈춘다.
+ *
+ * 패널은 560px 까지 넓어지는데 그 폭에 맞춰 늘리면 칸 사이가 56px 로 벌어져, 한
+ * 덩어리로 훑으라고 붙여 둔 일곱이 낱개로 흩어진다. 넓어진 몫은 띠가 쓰지 않고
+ * 사진과 차트가 가져간다.
+ */
+const SPEC_STRIP_MAX_WIDTH = 380;
+
+/**
+ * 판정 일곱 · 사진 바로 밑.
+ *
+ * 상세 방처럼 사진 **위**에 얹지 않는다. 거기는 무대가 크지만 여기 사진은 좁은
+ * 패널에서 276×207px 뿐이라, 두 줄짜리 상자를 덮으면 단면 아래 1/4 이 가린다 —
+ * 마블링 보라고 둔 사진이다. 밑으로 내리면 세로 34px 만 쓰고, 흰 글씨에 그늘을
+ * 깔지 않아도 돼 밝은 모드에서 더 또렷하다.
+ *
+ * 표에도 같은 일곱 열이 있지만 거기로 눈을 보내려면 열여섯 칸을 거슬러 가야 한다.
+ * ↑/↓ 로 훑는 동안 눈은 이 패널에 붙어 있어서, 왼쪽을 봐야 한다면 키보드 이동이
+ * 반쯤 헛돈다.
+ */
+function JudgedSpecStrip({ listing }: { listing: LiveListing }) {
+  return (
+    <dl
+      style={{ maxWidth: SPEC_STRIP_MAX_WIDTH }}
+      className="mx-auto flex w-full items-end justify-between gap-x-2 py-0.5"
+    >
+      {JUDGED_SPECS.map(({ label, key, unit }) => {
+        const value = listing[key];
+        const empty = isSpecEmpty(value);
+        return (
+          <div key={label} className="flex flex-col items-center gap-1">
+            <dt className="text-[9.5px] font-medium leading-none text-content-faint">
+              {label}
+            </dt>
+            <dd
+              className={cn(
+                "text-[12px] font-bold leading-none tabular-nums",
+                empty ? "text-content-ghost" : "text-content",
+              )}
+            >
+              {empty ? "-" : value}
+              {!empty && unit ? (
+                <span className="pl-px text-[8.8px] font-medium text-content-faint">
+                  {unit}
+                </span>
+              ) : null}
+            </dd>
+          </div>
+        );
+      })}
+    </dl>
   );
 }

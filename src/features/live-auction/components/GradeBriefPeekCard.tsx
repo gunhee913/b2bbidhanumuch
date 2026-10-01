@@ -32,7 +32,7 @@ export function GradeBriefPeekCard({
         <motion.div
           role="status"
           aria-label="오늘의 상장"
-          /* 레일 왼쪽에 붙는다 · 자리 기준은 화면이 아니라 도크 틀(`AUCTION_SHELL_CLASS`) */
+          /* 레일 왼쪽에 붙는다 · 자리 기준은 화면이 아니라 도크 틀(`PAGE_SHELL_CLASS`) */
           className="pointer-events-auto absolute right-[60px] top-[104px] z-20 w-[268px]"
           initial={{ opacity: 0, x: 12 }}
           animate={{ opacity: 1, x: 0 }}

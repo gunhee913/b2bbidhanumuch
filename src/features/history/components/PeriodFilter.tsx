@@ -21,7 +21,8 @@ export interface PeriodFilterProps {
   className?: string;
 }
 
-type PresetKey = "year" | "thisMonth" | "lastMonth" | "thisWeek" | "lastWeek";
+type PresetKey =
+  "today" | "year" | "thisMonth" | "lastMonth" | "thisWeek" | "lastWeek";
 
 interface Preset {
   key: PresetKey;
@@ -32,10 +33,18 @@ interface Preset {
 const fmt = (d: Date) => format(d, "yyyy-MM-dd");
 
 /**
- * 프리셋 기간 목록 · 자주 사용하는 기간을 원클릭으로 적용.
- * 순서: 이번주 → 지난주 → 이번달 → 지난달 → 올해 (좁은 범위 → 넓은 범위)
+ * 프리셋 기간 목록 · 자주 쓰는 기간을 한 번에 적용.
+ * 순서: 오늘 → 이번주 → 지난주 → 이번달 → 지난달 → 올해 (좁은 범위 → 넓은 범위)
  */
 const PRESETS: Preset[] = [
+  {
+    key: "today",
+    label: "오늘",
+    range: () => {
+      const today = fmt(new Date());
+      return { start: today, end: today };
+    },
+  },
   {
     key: "thisWeek",
     label: "이번주",
@@ -146,7 +155,7 @@ export function PeriodFilter({
                 "inline-flex h-7 items-center border px-2.5 text-[11px] font-semibold transition-colors",
                 isActive
                   ? "border-inverse bg-inverse text-inverse-content"
-                  : "border-line bg-surface text-content-mid hover:border-sky-300 hover:text-sky-700",
+                  : "border-line bg-surface text-content-mid hover:border-content-ghost hover:text-content",
               )}
             >
               {p.label}
@@ -161,20 +170,20 @@ export function PeriodFilter({
         type="date"
         value={startDate}
         onChange={(e) => onChange({ startDate: e.target.value, endDate })}
-        className="h-7 border border-line bg-surface px-2 text-[12px] tabular-nums text-content-mid outline-none focus:border-sky-500"
+        className="h-7 border border-line bg-surface px-2 text-[12px] tabular-nums text-content-mid outline-none focus:border-focus"
       />
       <span className="text-[12px] text-content-faint">~</span>
       <input
         type="date"
         value={endDate}
         onChange={(e) => onChange({ startDate, endDate: e.target.value })}
-        className="h-7 border border-line bg-surface px-2 text-[12px] tabular-nums text-content-mid outline-none focus:border-sky-500"
+        className="h-7 border border-line bg-surface px-2 text-[12px] tabular-nums text-content-mid outline-none focus:border-focus"
       />
       {onSearch ? (
         <button
           type="button"
           onClick={onSearch}
-          className="inline-flex h-7 items-center bg-inverse px-3 text-[11px] font-bold text-inverse-content transition-colors hover:bg-inverse"
+          className="inline-flex h-7 items-center bg-inverse px-3 text-[11px] font-bold text-inverse-content transition-opacity hover:opacity-90"
         >
           조회
         </button>

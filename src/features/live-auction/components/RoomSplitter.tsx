@@ -26,12 +26,15 @@ import { TABLE_DEFAULT_WIDTH } from "../hooks/useRoomLayout";
 export function RoomSplitter({
   tableWidth,
   tableOnLeft,
+  defaultWidth = TABLE_DEFAULT_WIDTH,
   onResize,
   onReset,
 }: {
   tableWidth: number;
   /** 눈금 왼쪽에 표가 있으면 참 · 표를 1열 앞으로 옮겨 놓았을 때다 */
   tableOnLeft: boolean;
+  /** 두 번 눌렀을 때 돌아갈 폭 · 방마다 기본값이 달라 안내 문구도 따라간다 */
+  defaultWidth?: number;
   onResize: (px: number) => void;
   onReset: () => void;
 }) {
@@ -47,7 +50,7 @@ export function RoomSplitter({
       role="separator"
       aria-orientation="vertical"
       aria-label="사진·시세와 표 사이 너비"
-      title={`끌어서 너비 조절 · 두 번 누르면 ${TABLE_DEFAULT_WIDTH}px 로`}
+      title={`끌어서 너비 조절 · 두 번 누르면 ${defaultWidth}px 로`}
       {...handlers}
       onDoubleClick={onReset}
       className={cn(

@@ -20,6 +20,7 @@ import {
   Star,
   History,
   ImageOff,
+  Keyboard,
   Moon,
   Pencil,
   Sun,
@@ -33,6 +34,7 @@ import { useBidStore } from "@/stores/bidStore";
 import type { RoundSchedule } from "@/features/round-schedules/types";
 import type { RoundInfo } from "@/features/main/api";
 import type { LiveListing } from "../api";
+import { isTypingInto } from "../lib/keyboard";
 import { useDailyBriefing } from "../hooks/useDailyBriefing";
 import { useDeadlineTitle } from "../hooks/useDeadlineTitle";
 import { useAuctionNotes } from "../hooks/useAuctionNotes";
@@ -49,10 +51,13 @@ import {
 import { formatGradeLabel } from "../lib/grade";
 import { AuctionSchedulePanel } from "./AuctionSchedulePanel";
 import { GradeBriefPeekCard } from "./GradeBriefPeekCard";
-import { MyBidsDrawer } from "./MyBidsDrawer";
+import { MyBidsPanel } from "./MyBidsPanel";
 import { useRoundPhase, type RoundPhase } from "./RoundCountdownDial";
 import { RoundFloatingCard } from "./RoundFloatingCard";
 import { RoundPeekCard } from "./RoundPeekCard";
+import { BID_STEPS } from "../lib/bidKeys";
+import { PAGE_SHELL_CLASS } from "../constants/surface";
+import { buildShortcutGroups } from "../lib/shortcuts";
 import { ShortcutTooltip } from "./ShortcutTooltip";
 
 interface AuctionSideDockProps {
@@ -113,6 +118,21 @@ export function AuctionSideDock({
   }, [applyDefaultOpen]);
 
   /*
+   * `?` 로 단축키 목록 · 어디서든 통하는 관례라 따로 알려 줄 것이 없는 유일한 키다.
+   * 한글 입력기를 켜도 `/` 자리는 그대로라(`RoomPicker` 가 이미 기대고 있다) 글자로 본다.
+   */
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "?" || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (isTypingInto(document.activeElement)) return;
+      e.preventDefault();
+      toggleTab("shortcuts");
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [toggleTab]);
+
+  /*
    * 회차 상태는 여기서 한 번만 구해 패널·레일·튀어나오는 카드가 나눠 쓴다.
    * 셋이 각자 1초 타이머를 돌리면 같은 순간에도 초가 어긋나 보일 수 있다.
    */
@@ -143,7 +163,7 @@ export function AuctionSideDock({
 
   return (
     /*
-     * 도크를 담는 틀 · 화면 높이를 다 쓰되 가로로는 본문과 같은 상한(`AUCTION_SHELL_CLASS`)에
+     * 도크를 담는 틀 · 화면 높이를 다 쓰되 가로로는 본문과 같은 상한(`PAGE_SHELL_CLASS`)에
      * 맞춰 가운데 선다. 안쪽 둘은 화면 끝이 아니라 이 틀의 오른쪽 끝에 붙으므로,
      * 넓은 화면에서도 표 바로 옆에 남는다.
      *
@@ -155,7 +175,7 @@ export function AuctionSideDock({
     <div
       className={cn(
         "pointer-events-none fixed inset-y-0 left-0 right-0 z-[45] overflow-hidden",
-        AUCTION_SHELL_CLASS,
+        PAGE_SHELL_CLASS,
       )}
     >
       <aside
@@ -192,14 +212,12 @@ export function AuctionSideDock({
         </OverlayScroll>
 
         <div className={cn("min-h-0 flex-1", tab !== "myBids" && "hidden")}>
-          <MyBidsDrawer
-            embedded
-            open
+          <MyBidsPanel
             onClose={() => setOpen(false)}
             dealerId={dealerId}
             listingDate={listingDate}
             allRounds={allRounds}
-            initialRoundFilter={myBidsRoundId}
+            focusRoundId={myBidsRoundId}
             onNavigateListing={onNavigateListing}
           />
         </div>
@@ -229,6 +247,15 @@ export function AuctionSideDock({
             listingDate={listingDate}
             onNavigateListing={onNavigateListing}
           />
+        </div>
+
+        <div
+          className={cn(
+            "flex min-h-0 flex-1 flex-col",
+            tab !== "shortcuts" && "hidden",
+          )}
+        >
+          <ShortcutsPanel />
         </div>
 
         <div
@@ -305,7 +332,21 @@ export function AuctionSideDock({
           onClick={() => toggleTab("recent")}
         />
 
-        <ThemeRailButton />
+        {/*
+         * 아래 두 개는 오늘의 자료가 아니라 내 설정이다 · 사이 선 하나로 갈라 둔다.
+         * `mt-auto` 를 이 무리 머리에 걸어야 둘이 함께 바닥에 붙는다 — 테마 버튼에
+         * 걸어 두면 그것만 내려가고 단축키는 위 목록 꼬리에 남는다.
+         */}
+        <div className="mt-auto flex flex-col items-center gap-1 pt-2">
+          <span className="mb-1 h-px w-5 bg-line" aria-hidden />
+          <RailItem
+            icon={Keyboard}
+            label="단축키"
+            active={open && tab === "shortcuts"}
+            onClick={() => toggleTab("shortcuts")}
+          />
+          <ThemeRailButton />
+        </div>
       </nav>
 
       <RoundPeekCard
@@ -380,7 +421,7 @@ function ThemeRailButton() {
       aria-pressed={isDarkMode}
       aria-label={label}
       title={label}
-      className="group mb-3 mt-auto inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-content-faint transition-colors hover:bg-surface-accent hover:text-content"
+      className="group mb-3 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-content-faint transition-colors hover:bg-surface-accent hover:text-content"
     >
       {isDarkMode ? (
         <Sun className="h-[18px] w-[18px]" strokeWidth={1.9} aria-hidden />
@@ -390,22 +431,6 @@ function ThemeRailButton() {
     </button>
   );
 }
-
-/**
- * 경매장 바깥 틀 · 2120px 에서 멈추고 남는 폭은 양옆으로 똑같이 흘린다.
- *
- * 화면이 넓어질수록 늘려 봐야 쓸모가 없어서다. 상장표는 열 간격만 벌어지고,
- * 상세 1열은 사진 높이가 화면에 묶여 있어 폭만 남아돈다 — 3440 화면에서 사진 판이
- * 2528px 까지 벌어지는데 정작 사진은 그대로였다.
- *
- * 2120 은 상세 페이지에서 나온 값이다. 표 최대 1000 + 눈금 8 + 1열 넉넉히 1000 +
- * 좌우 여백 48 = 2056, 여기에 도크 접힘(56)을 얹었다. 1920 이하에서는 상한에
- * 닿지 않아 지금과 똑같이 화면을 다 쓴다.
- *
- * 도크도 화면 끝이 아니라 **이 틀의 오른쪽 끝**에 붙는다(`AuctionSideDock`).
- * 화면 끝에 두면 넓은 화면에서 표와 수백 px 떨어져, 손이 가는 메뉴가 제일 멀어진다.
- */
-export const AUCTION_SHELL_CLASS = "mx-auto max-w-[2120px]";
 
 /**
  * 오른쪽 여백 · 레일(56)은 늘 비워 두고, 패널이 펴져 있으면 패널(304)만큼 더 비운다.
@@ -423,7 +448,7 @@ export const AUCTION_SHELL_CLASS = "mx-auto max-w-[2120px]";
 export function useAuctionShellClass() {
   const open = useSideDock((s) => s.open);
   return cn(
-    AUCTION_SHELL_CLASS,
+    PAGE_SHELL_CLASS,
     "transition-[padding] duration-200 ease-out",
     open ? "min-w-[1672px] pr-[360px]" : "min-w-[1368px] pr-14",
   );
@@ -644,13 +669,9 @@ function FavoritesPanel({
         }}
         className="flex min-h-0 shrink-0 flex-col"
       >
-        <FavoriteSectionHead
-          label="개체"
-          count={listingRows.length}
-          unit="두"
-        />
+        <PanelSectionHead label="개체" count={listingRows.length} unit="두" />
         {listingRows.length === 0 ? (
-          <FavoriteEmpty text="상장표 접수번호 옆 별을 누르면 모여요" />
+          <PanelEmpty text="상장표 접수번호 옆 별을 누르면 모여요" />
         ) : (
           <OverlayScroll autoHideDelay={0} className="min-h-0 flex-1">
             <ul className="px-2 pb-1">
@@ -690,9 +711,9 @@ function FavoritesPanel({
       />
 
       <section className="flex min-h-0 flex-1 flex-col">
-        <FavoriteSectionHead label="부위" count={partRows.length} unit="개" />
+        <PanelSectionHead label="부위" count={partRows.length} unit="개" />
         {partRows.length === 0 ? (
-          <FavoriteEmpty text="부위 표 맨 앞 별을 누르면 모여요" />
+          <PanelEmpty text="부위 표 맨 앞 별을 누르면 모여요" />
         ) : (
           <OverlayScroll autoHideDelay={0} className="min-h-0 flex-1">
             <ul className="px-2 pb-1">
@@ -727,6 +748,125 @@ function FavoritesPanel({
           </OverlayScroll>
         )}
       </section>
+    </div>
+  );
+}
+
+/**
+ * 단축키 목록 · 말풍선과 칸 `title` 에 흩어져 있던 키를 한자리에 모은다.
+ *
+ * 가운데 띄우는 창이 아니라 옆 판으로 연 건, 이게 표를 보면서 익히는 물건이기
+ * 때문이다. 창으로 띄우면 「이 키가 무엇을 움직이는지」 를 보여 줄 바로 그 표를 가린다.
+ * 옆 판은 아무것도 덮지 않아서, 목록을 펴 둔 채로 키를 눌러 보며 익힐 수 있다.
+ */
+function ShortcutsPanel() {
+  const bidStep = useBidStore((s) => s.bidStep);
+  const groups = useMemo(() => buildShortcutGroups(bidStep), [bidStep]);
+  const [editingStep, setEditingStep] = useState(false);
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col">
+      <PanelSectionHead label="단축키" count={0} unit="" />
+      <OverlayScroll autoHideDelay={0} className="min-h-0 flex-1">
+        <div className="px-4 pb-3">
+          {groups.map((group) => (
+            <section key={group.id} className="pb-3 pt-1.5">
+              <h3 className="mb-1.5 text-[12px] font-bold text-content">
+                {group.title}
+              </h3>
+              <ul>
+                {/* 뜻이 아니라 키로 가른다 · 눈금에 따라 뜻이 「1,000원」 으로 겹친다 */}
+                {group.rows.map((row) => (
+                  <li key={row.keys.join("+")}>
+                    <div className="flex items-center justify-between gap-2 py-[3px]">
+                      <span className="flex min-w-0 flex-1 items-center gap-1">
+                        <span className="truncate text-[12px] text-content-mid">
+                          {row.label}
+                        </span>
+                        {row.editsStep ? (
+                          <button
+                            type="button"
+                            onClick={() => setEditingStep((v) => !v)}
+                            aria-expanded={editingStep}
+                            aria-label="올리고 내릴 금액 바꾸기"
+                            title="올리고 내릴 금액"
+                            className={cn(
+                              "inline-flex h-4 w-4 shrink-0 items-center justify-center rounded transition-colors",
+                              editingStep
+                                ? "bg-surface-strong text-content"
+                                : "text-content-ghost hover:bg-surface-accent hover:text-content",
+                            )}
+                          >
+                            <Pencil className="h-2.5 w-2.5" aria-hidden />
+                          </button>
+                        ) : null}
+                      </span>
+                      {/* 키는 오른끝에 세로로 맞춘다 · 훑을 때 눈이 한 줄로 내려간다 */}
+                      <span className="flex shrink-0 items-center gap-1">
+                        {row.keys.map((k) => (
+                          <kbd
+                            key={k}
+                            className="rounded-[4px] bg-surface-strong px-1.5 py-0.5 text-[10.5px] font-medium leading-[14px] text-content-mid"
+                          >
+                            {k}
+                          </kbd>
+                        ))}
+                      </span>
+                    </div>
+                    {row.editsStep && editingStep ? <BidStepPicker /> : null}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ))}
+        </div>
+      </OverlayScroll>
+    </div>
+  );
+}
+
+/**
+ * ↑↓ 와 +/- 가 한 번에 움직일 금액 · 연필을 눌러야 펴진다.
+ *
+ * 늘 펴 두지 않는 건 이게 한 번 정하고 마는 값이기 때문이다. 목록은 키를 찾으러
+ * 여는 자리인데, 그 한가운데 늘 눌러야 할 것처럼 생긴 네모 넷이 놓이면 찾는 눈을
+ * 매번 붙잡는다. 대신 설정 화면으로 멀리 보내지도 않는다 — 연필은 금액이 적힌 바로
+ * 그 글자 옆에 있고, 눌러서 고르면 그 글자가 제자리에서 바뀐다. 고치는 것과 고쳐지는
+ * 것이 같은 자리라 무엇을 건드리는 단추인지 따로 설명할 것이 없다.
+ *
+ * Alt(1원)·Shift(1,000원)는 고를 수 없다 — 사다리 양 끝을 못 박아 둬야 눈금을
+ * 어디에 두든 잘게·내 눈금·크게 셋이 손에 남는다(`BID_STEPS`).
+ */
+function BidStepPicker() {
+  const bidStep = useBidStore((s) => s.bidStep);
+  const setBidStep = useBidStore((s) => s.setBidStep);
+
+  return (
+    <div
+      role="radiogroup"
+      aria-label="올리고 내릴 금액"
+      className="my-1 inline-flex items-center gap-0.5 rounded-md border border-line bg-surface-muted p-0.5"
+    >
+      {BID_STEPS.map((step) => {
+        const active = step === bidStep;
+        return (
+          <button
+            key={step}
+            type="button"
+            role="radio"
+            aria-checked={active}
+            onClick={() => setBidStep(step)}
+            className={cn(
+              "rounded-[5px] px-2 text-[11px] font-semibold leading-6 tabular-nums transition-colors",
+              active
+                ? "bg-surface text-content shadow-sm ring-1 ring-line"
+                : "text-content-soft hover:text-content",
+            )}
+          >
+            {step.toLocaleString("ko-KR")}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -778,9 +918,9 @@ function NotesPanel({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <FavoriteSectionHead label="메모" count={rows.length} unit="개" />
+      <PanelSectionHead label="메모" count={rows.length} unit="개" />
       {rows.length === 0 ? (
-        <FavoriteEmpty text="사진 왼쪽 위 「메모」를 누르면 모여요" />
+        <PanelEmpty text="사진 왼쪽 위 「메모」를 누르면 모여요" />
       ) : (
         <OverlayScroll autoHideDelay={0} className="min-h-0 flex-1">
           <ul className="px-2 pb-1">
@@ -841,7 +981,7 @@ function NotesPanel({
   );
 }
 
-function FavoriteSectionHead({
+function PanelSectionHead({
   label,
   count,
   unit,
@@ -864,7 +1004,7 @@ function FavoriteSectionHead({
 }
 
 /** 빈 칸은 한 줄로만 · 두 칸이 높이를 나눠 쓰는 자리라 안내가 길면 목록보다 커진다 */
-function FavoriteEmpty({ text }: { text: string }) {
+function PanelEmpty({ text }: { text: string }) {
   return (
     <div className="flex min-h-0 flex-1 items-center justify-center px-5 text-center">
       <p className="text-[12px] text-content-faint">{text}</p>

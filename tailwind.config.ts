@@ -125,6 +125,8 @@ const config = {
         fav: "rgb(var(--fav) / <alpha-value>)",
         /** 메모 자국 · 관심과 같은 「내가 남긴 표식」 무리지만 색을 갈라 둘을 구분한다 */
         note: "rgb(var(--note) / <alpha-value>)",
+        /** 저장 전 변경 · 저장 한 번이면 사라지는 임시 상태 · 관심(`fav`)과 섞어 쓰지 않는다 */
+        pending: "rgb(var(--pending) / <alpha-value>)",
         /**
          * 입력칸 · 면(`bg-field`)과 경계(`border-field-line`)를 함께 써야 칸이 선다.
          * 라이트는 눌러서, 다크는 띄워서 만든다 (`globals.css` 참고).
@@ -184,11 +186,25 @@ const config = {
           "0%, 100%": { opacity: "1" },
           "50%": { opacity: "0.55" },
         },
+        /*
+         * 바깥에서 지목돼 들어온 표 행 · 잠깐 밝혔다 제 색으로 가라앉는다.
+         *
+         * 끝 색이 `--surface-accent` 인 것은 우연이 아니다 — 지목된 행은 곧 고른
+         * 행이고, 고른 행의 배경이 그 값이다(`getRowBgClass`). 투명으로 끝내면
+         * 애니메이션이 끝나는 한 프레임에 바탕이 비쳐 행이 깜빡인다.
+         *
+         * 길이를 바꾸면 `ROW_LAND_MS` 도 같이 고쳐야 한다.
+         */
+        "row-land": {
+          "0%, 30%": { backgroundColor: "rgb(var(--focus) / 0.28)" },
+          "100%": { backgroundColor: "rgb(var(--surface-accent))" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
         "pulse-soft": "pulse-soft 1s ease-in-out infinite",
+        "row-land": "row-land 1.1s ease-out 1",
       },
     },
   },

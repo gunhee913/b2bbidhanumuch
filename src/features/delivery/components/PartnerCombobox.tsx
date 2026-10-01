@@ -9,22 +9,24 @@ export interface PartnerComboboxProps {
   partners: Partner[];
   value: string | null;
   onChange: (partnerId: string | null) => void;
-  disabled?: boolean;
   placeholder?: string;
 }
 
 /**
- * 배송지시 개체 카드 안에서 사용하는 거래처 선택 combobox.
+ * 거래처 고르개 · 거래처명·사업자번호·대표로 찾는다.
+ * 목록은 그 중도매인이 맡은 거래처만 온다 (부모에서 `useDealerPartners` 가 거른다).
  *
- * - 자동완성: 거래처명 / 사업자번호 부분일치
- * - 딜러 담당 거래처만 리스트로 전달됨 (부모에서 `useDealerPartners` 로 필터링)
- * - 저장 완료 시 disabled = true 로 잠금 (요구사항 상 딜러는 수정 불가)
+ * **고른 칸을 칠하지 않는다.** 예전엔 고르면 호박색으로 채웠는데 두 가지가 틀어졌다.
+ * 하나는 밝은 바탕 전용 색(`amber-50`)이라 어두운 바탕에선 형광펜 자국처럼 떴고,
+ * 다른 하나는 더 근본적이다 — 일을 다 끝낸 저녁이면 모든 줄이 노래진다. 끝난 상태가
+ * 가장 시끄러우면 안 된다. 다 됐는지 아닌지는 적힌 이름이 이미 말해 준다.
+ *
+ * 호박색은 「저장 전」 하나에만 남겨 뒀다 (`DeliveryPartTable` 의 왼쪽 띠).
  */
 export function PartnerCombobox({
   partners,
   value,
   onChange,
-  disabled = false,
   placeholder = "거래처 검색",
 }: PartnerComboboxProps) {
   const [open, setOpen] = useState(false);
@@ -52,42 +54,33 @@ export function PartnerCombobox({
     if (!query.trim()) return partners;
     const q = query.trim().toLowerCase();
     return partners.filter((p) => {
-      const hay =
-        `${p.name} ${p.partnerNo} ${p.representative}`.toLowerCase();
+      const hay = `${p.name} ${p.partnerNo} ${p.representative}`.toLowerCase();
       return hay.includes(q);
     });
   }, [partners, query]);
-
-  const label = selected
-    ? `${selected.name}`
-    : disabled
-      ? "-"
-      : placeholder;
 
   return (
     <div ref={rootRef} className="relative">
       <button
         type="button"
-        onClick={() => !disabled && setOpen((v) => !v)}
-        disabled={disabled}
+        onClick={() => setOpen((v) => !v)}
         className={cn(
-          "inline-flex h-7 w-full items-center justify-between gap-1 border px-2 text-[12px] transition-colors",
-          disabled
-            ? "cursor-not-allowed border-line-soft bg-surface-muted text-content-soft"
-            : selected
-              ? "border-amber-300 bg-amber-50 text-amber-900 hover:border-amber-400"
-              : "border-line bg-surface text-content-soft hover:border-line",
+          "inline-flex h-7 w-full items-center justify-between gap-1 rounded border bg-surface px-2 text-[12px] transition-colors",
+          open ? "border-focus" : "border-line hover:border-content-ghost",
         )}
       >
-        <span className="min-w-0 truncate text-left font-semibold">
-          {label}
+        <span
+          className={cn(
+            "min-w-0 truncate text-left",
+            selected ? "font-semibold text-content" : "text-content-ghost",
+          )}
+        >
+          {selected ? selected.name : placeholder}
         </span>
-        {!disabled ? (
-          <ChevronDown className="h-3.5 w-3.5 shrink-0 text-content-faint" />
-        ) : null}
+        <ChevronDown className="h-3.5 w-3.5 shrink-0 text-content-ghost" />
       </button>
 
-      {open && !disabled ? (
+      {open ? (
         <div className="absolute z-30 mt-1 w-[260px] overflow-hidden rounded-md border border-line bg-surface shadow-xl">
           <div className="flex items-center gap-1.5 border-b border-line-soft px-2 py-1.5">
             <Search className="h-3.5 w-3.5 text-content-faint" />
@@ -110,7 +103,7 @@ export function PartnerCombobox({
                     setOpen(false);
                     setQuery("");
                   }}
-                  className="flex w-full items-center px-3 py-1.5 text-left text-[11px] font-semibold text-rose-600 hover:bg-rose-50"
+                  className="flex w-full items-center px-3 py-1.5 text-left text-[11px] font-semibold text-lost hover:bg-surface-muted"
                 >
                   선택 해제
                 </button>
@@ -132,7 +125,7 @@ export function PartnerCombobox({
                     }}
                     className={cn(
                       "flex w-full flex-col items-start gap-0.5 px-3 py-1.5 text-left hover:bg-surface-muted",
-                      value === p.id && "bg-amber-50",
+                      value === p.id && "bg-surface-accent",
                     )}
                   >
                     <span className="text-[12px] font-bold text-content">

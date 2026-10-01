@@ -34,6 +34,26 @@ import { SortHeaderButton } from "./SortHeaderButton";
 
 export type SheetBidding = ReturnType<typeof useSheetBidding>;
 
+/** 행 표식 · 값은 부위 id · 입찰칸(`BID_INPUT_ATTR`)과 달리 마감된 행에도 붙는다 */
+const PART_ROW_ATTR = "data-part-row";
+/** 지목돼 들어온 행을 밝히는 시간 · `tailwind.config.ts` 의 `row-land` 와 같아야 한다 */
+export const ROW_LAND_MS = 1100;
+
+/**
+ * 그 부위의 행을 보이는 데까지 굴린다 · 찾았으면 `true`.
+ *
+ * `block: "nearest"` 라 이미 보이는 행은 건드리지 않는다. 늘 가운데로 세우면
+ * 두 번째 줄을 눌렀을 때도 표가 통째로 움직여, 옮길 이유가 없는데 자리를 잃는다.
+ */
+export function scrollPartRowIntoView(partId: string): boolean {
+  const row = document.querySelector(
+    `[${PART_ROW_ATTR}="${CSS.escape(partId)}"]`,
+  );
+  if (!row) return false;
+  row.scrollIntoView({ block: "nearest" });
+  return true;
+}
+
 /**
  * 2열부터 끝까지의 폭 · 「실측 내용 폭 + 좌우 여백 8px」.
  *   결과 구분선·표 오른쪽 테두리에 닿는 열은 바깥쪽 여백이 12px (`PART_GUTTERS`) 이라 그만큼 넓다.
@@ -285,6 +305,8 @@ export interface SheetPartGridProps {
   dealerId: string | null;
   canReadBids: boolean;
   selectedPartId: string | null;
+  /** 방금 바깥에서 지목돼 들어온 행 · 잠깐 밝혀 스무 줄 중 어느 줄인지 알린다 */
+  landedPartId?: string | null;
   onSelectPart: (entry: SheetBidEntry) => void;
   bidding: SheetBidding;
   isBlocked: (entry: SheetBidEntry) => boolean;
@@ -315,6 +337,7 @@ export function SheetPartGrid({
   dealerId,
   canReadBids,
   selectedPartId,
+  landedPartId,
   onSelectPart,
   bidding,
   isBlocked,
@@ -385,6 +408,7 @@ export function SheetPartGrid({
                     dealerId={dealerId}
                     canReadBids={canReadBids}
                     isSelected={entry.part.id === selectedPartId}
+                    landed={entry.part.id === landedPartId}
                     onClick={() => onSelectPart(entry)}
                     bidding={bidding}
                     disabled={isBlocked(entry)}
@@ -433,6 +457,7 @@ function SheetPartRow({
   dealerId,
   canReadBids,
   isSelected,
+  landed,
   onClick,
   bidding,
   disabled,
@@ -446,6 +471,7 @@ function SheetPartRow({
   dealerId: string | null;
   canReadBids: boolean;
   isSelected: boolean;
+  landed: boolean;
   onClick: () => void;
   bidding: SheetBidding;
   disabled: boolean;
@@ -471,12 +497,14 @@ function SheetPartRow({
 
   return (
     <tr
+      {...{ [PART_ROW_ATTR]: part.id }}
       onClick={onClick}
       aria-selected={isSelected}
       className={cn(
         PART_ROW_HEIGHT,
         "cursor-pointer border-b border-line-soft transition-colors last:border-b-0",
         getRowBgClass(rowState),
+        landed && "animate-row-land",
       )}
     >
       <td

@@ -81,9 +81,11 @@ import {
   FAVORITE_ROW_AXIS,
   LISTING_ROW_AXIS,
   PART_ROW_AXIS,
+  ROW_LAND_MS,
   SheetBatchFooter,
   SheetBatchSubtotal,
   SheetPartGrid,
+  scrollPartRowIntoView,
 } from "./SheetParts";
 
 /**
@@ -525,40 +527,74 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
   const partParam = searchParams.get("part");
   const listingParam = searchParams.get("listing");
 
-  const selected = useMemo<SheetBidEntry | null>(() => {
-    if (rows.length === 0) return null;
-    const byId = rows.find((r) => r.part.id === pick.id);
-    if (byId) return byId;
-
+  /**
+   * `?part=` 가 지목한 행 · 내 입찰·관심·메모에서 부위를 찍고 들어올 때 들어온다.
+   *
+   * 거르기나 「마감 숨기기」로 그 행이 빠졌으면 null 이다 — 지목이 없었던 것처럼 굴어야
+   * 한다. 아래 `selected` 는 어차피 다른 행으로 내려앉는데, 거기에 「찾았다」 표시까지
+   * 켜면 엉뚱한 줄을 가리키며 이게 네가 누른 것이라고 말하는 꼴이 된다.
+   */
+  const paramEntry = useMemo<SheetBidEntry | null>(() => {
+    if (!partParam) return null;
     if (axis.kind === "listing") {
-      if (!pick.id && partParam) {
-        const byParam = rows.find(
+      return (
+        rows.find(
           (r) =>
             r.part.listingPartNo === partParam ||
             String(r.part.partNo).padStart(2, "0") ===
               partParam.padStart(2, "0"),
-        );
-        if (byParam) return byParam;
-      }
+        ) ?? null
+      );
+    }
+    /* 부위축에서 넘어올 때 보던 행을 들고 온다 · 여기서는 `part` 가 부위 UUID 다 */
+    if (axis.kind === "favorite") {
+      return rows.find((r) => r.part.id === partParam) ?? null;
+    }
+    return null;
+  }, [rows, partParam, axis.kind]);
+
+  const selected = useMemo<SheetBidEntry | null>(() => {
+    if (rows.length === 0) return null;
+    const byId = rows.find((r) => r.part.id === pick.id);
+    if (byId) return byId;
+    if (!pick.id && paramEntry) return paramEntry;
+
+    if (axis.kind === "listing") {
       const byGroup = pick.group
         ? rows.find((r) => toPartGroupName(r.part.partName) === pick.group)
         : null;
       if (byGroup) return byGroup;
-    } else if (axis.kind === "favorite") {
-      /* 부위축에서 넘어올 때 보던 행을 들고 온다 · 여기서는 `part` 가 부위 UUID 다 */
-      if (!pick.id && partParam) {
-        const byPartId = rows.find((r) => r.part.id === partParam);
-        if (byPartId) return byPartId;
-      }
-    } else if (!pick.id && listingParam) {
+    } else if (axis.kind === "part" && !pick.id && listingParam) {
       const byListing = rows.find((r) => r.listing.listingNo === listingParam);
       if (byListing) return byListing;
     }
 
     return rows.find((r) => !isPartSettled(r.part)) ?? rows[0] ?? null;
-  }, [rows, pick, axis.kind, partParam, listingParam]);
+  }, [rows, pick, axis.kind, paramEntry, listingParam]);
+
+  /*
+   * 지목돼 들어온 행 · 보이는 데까지 굴리고 잠깐 밝힌다.
+   *
+   * 그 행은 이미 「고른 행」 이라 배경이 한 단 짙지만, 그건 마우스가 얹힌 행과 같은
+   * 회색이다 — 스무 줄 가운데 어느 것인지 눈으로 찾아야 한다. 계속 켜 두지 않고
+   * 껐다 켜는 쪽을 고른 이유는, 켜 두면 그 표시가 「고른 행」 과 겹쳐 둘 다 안 읽히기
+   * 때문이다. 찾는 일은 들어온 순간 한 번뿐이고 그 뒤로는 고른 행 표시가 맡는다.
+   */
+  const [landedPartId, setLandedPartId] = useState<string | null>(null);
+  const landedFor = useRef<string | null>(null);
+  const paramPartId = paramEntry?.part.id ?? null;
+  useEffect(() => {
+    if (!paramPartId || landedFor.current === paramPartId) return;
+    landedFor.current = paramPartId;
+    scrollPartRowIntoView(paramPartId);
+    setLandedPartId(paramPartId);
+    const id = setTimeout(() => setLandedPartId(null), ROW_LAND_MS);
+    return () => clearTimeout(id);
+  }, [paramPartId]);
 
   const selectRow = useCallback((entry: SheetBidEntry) => {
+    /* 다른 행을 누른 순간 「찾았다」 는 끝난 말이다 · 남겨 두면 밝은 줄과 고른 줄이 갈린다 */
+    setLandedPartId(null);
     setPick({
       id: entry.part.id,
       group: toPartGroupName(entry.part.partName),
@@ -1333,6 +1369,7 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
             dealerId={dealerId}
             canReadBids={isAuthenticated && isDealer}
             selectedPartId={selected?.part.id ?? null}
+            landedPartId={landedPartId}
             onSelectPart={selectRow}
             bidding={sheetBidding}
             isBlocked={({ listing }) => !!getBlockReason(listing)}
@@ -1802,24 +1839,27 @@ function RoomHeader({
          * 어떻게 다뤘는가(가공 → 등급판정 세부)다. 흐르는 대로 두면 경계가 창 너비에
          * 따라 매번 다른 곳에 생겨서, 같은 화면을 봐도 어제와 다르게 읽힌다.
          * 등급판정 일곱은 붙여 둔다 — 하나씩 보는 값이 아니라 한 덩어리로 훑는 값이라,
-         * 사이에 다른 것이 끼면 어디까지가 판정 결과인지 경계가 사라진다.
+         * 사이에 다른 것이 끼면 어디까지가 판정 결과인지 경계가 사라진다. 대신 그 앞에
+         * 한 단 넓은 틈(24px)을 둔다. 예전엔 일곱이 저 혼자 굵고 커서 덩어리로 보였는데,
+         * 그 강조를 사진 각인으로 옮기고 나니 묶어 주던 것이 같이 사라졌다. 무게로 묶던
+         * 것을 틈으로 묶는다 — 「상장업체 가공 가공중량」 과 섞여 읽히지만 않으면 된다.
          *
          * 이력이 윗줄 끝에 있는 건 길이 때문이기도 하다. 165px 짜리라 아랫줄에 두면
          * 두 줄이 874/1070 으로 기울어, 좁은 창에서 혼자 셋째 줄로 밀려났다. 위로
          * 올리니 874/905 로 맞아떨어진다. 개체를 가리키는 값이라 자리도 어색하지 않다.
          *
-         * 간격은 짝 사이(16px) > 라벨·값 사이(6px) 순서를 지킨다. 이 순서가 뒤집히면
-         * 값이 제 라벨이 아니라 옆 짝의 라벨에 붙어 읽힌다.
+         * 간격은 묶음 사이(24px) > 짝 사이(16px) > 라벨·값 사이(6px) 순서를 지킨다.
+         * 이 순서가 뒤집히면 값이 제 라벨이 아니라 옆 짝의 라벨에 붙어 읽힌다.
+         * 줄 사이(8px)는 짝 사이보다 좁다 — 넓히면 두 줄이 딴 블록으로 떨어져 보인다.
          */}
         {listing === null ? null : (
-          <dl className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-4 gap-y-1.5">
+          <dl className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-4 gap-y-2">
             <Stat label="축종" value={listing.breed} w={SPEC_FLOOR.breed} />
             <Stat label="성별" value={listing.gender} w={SPEC_FLOOR.gender} />
             <Stat
               label="등급"
               value={formatGradeLabel(listing.grade, listing.marblingScore)}
               w={SPEC_FLOOR.grade}
-              strong
             />
             <Stat
               label="개월"
@@ -1894,45 +1934,39 @@ function RoomHeader({
               label="근내지방"
               value={listing.marblingScore}
               w={SPEC_FLOOR.marbling}
-              strong
+              startsGroup
             />
             <Stat
               label="육색"
               value={listing.meatColor}
               w={SPEC_FLOOR.meatColor}
-              strong
             />
             <Stat
               label="지방색"
               value={listing.fatColor}
               w={SPEC_FLOOR.fatColor}
-              strong
             />
             <Stat
               label="조직도"
               value={listing.texture}
               w={SPEC_FLOOR.texture}
-              strong
             />
             <Stat
               label="성숙도"
               value={listing.maturity}
               w={SPEC_FLOOR.maturity}
-              strong
             />
             <Stat
               label="등지방두께"
               value={listing.backFat}
               unit="mm"
               w={SPEC_FLOOR.backFat}
-              strong
             />
             <Stat
               label="등심면적"
               value={listing.eyeMuscle}
               unit="㎠"
               w={SPEC_FLOOR.eyeMuscle}
-              strong
             />
           </dl>
         )}
@@ -1948,14 +1982,19 @@ function RoomHeader({
  * 그 뒤가 통째로 밀린다. 한 개체당 흔들림을 다 더하면 238px 였다 — 옆 값을 읽으려던
  * 눈이 매번 새로 찾아야 했다는 뜻이다. 그래서 가장 넓은 값만큼 미리 자리를 잡아 둔다.
  *
- * 숫자는 2026-09-30 상장 693건을 Pretendard 로 실측한 최댓값(단위 포함, 강조 칸은
- * 16px Bold 기준)이다. 천장이 아니라 바닥이라 이보다 긴 값이 와도 잘리지 않고 늘어난다.
- * 다만 늘어나는 순간 그 값에서만 다시 흔들리므로, 데이터 폭이 달라지면 다시 잰다.
+ * 숫자는 Pretendard 로 실측한 최댓값(단위 포함)이다. 천장이 아니라 바닥이라 이보다 긴
+ * 값이 와도 잘리지 않고 늘어난다. 다만 늘어나는 순간 그 값에서만 다시 흔들리므로,
+ * 데이터 폭이 달라지면 다시 잰다.
+ *
+ * 등급과 등급판정 여덟 칸은 13.5px SemiBold 로 다시 쟀다 — 강조(16px Bold)를 걷어낸
+ * 자리에 옛 바닥을 그대로 두면 값보다 20px 넓은 빈칸이 남아, 짝 사이가 들쭉날쭉해진다.
  */
+const DIGIT_FLOOR = 9;
+
 const SPEC_FLOOR = {
   breed: 24,
   gender: 24,
-  grade: 63,
+  grade: 54,
   monthAge: 18,
   slaughter: 131,
   carcassWeight: 41,
@@ -1963,13 +2002,14 @@ const SPEC_FLOOR = {
   company: 62,
   processDate: 75,
   processWeight: 40,
-  marbling: 11,
-  meatColor: 11,
-  fatColor: 11,
-  texture: 8,
-  maturity: 10,
-  backFat: 39,
-  eyeMuscle: 51,
+  /* 판정 다섯은 모두 한 자리 숫자라 바닥이 같다 · 따로 적으면 하나만 어긋나도 모른다 */
+  marbling: DIGIT_FLOOR,
+  meatColor: DIGIT_FLOOR,
+  fatColor: DIGIT_FLOOR,
+  texture: DIGIT_FLOOR,
+  maturity: DIGIT_FLOOR,
+  backFat: 38,
+  eyeMuscle: 48,
   trace: 136,
 } as const;
 
@@ -1978,40 +2018,29 @@ function Stat({
   value,
   unit,
   w,
-  strong,
+  startsGroup,
 }: {
   label: string;
   value: number | string | null | undefined;
   unit?: string;
   /** 값칸 바닥 너비 · `SPEC_FLOOR` 에서 가져온다 */
   w: number;
-  /**
-   * 등급판정이 매긴 값 · 값을 정하는 건 결국 이것들이라 한눈에 잡혀야 한다.
-   *
-   * 크기(16 대 13.5) · 굵기(700 대 600) · 밝기(17.4:1 대 12.0:1) 를 한꺼번에
-   * 움직인다. 한 축만 건드려서는 안 보였다 — 크기만 1.5px 올렸을 때는 나머지가
-   * 모두 같은 밝기·같은 굵기라 그냥 묻혔다. 도드라지려면 바탕이 먼저 물러나야 한다.
-   */
-  strong?: boolean;
+  /** 앞에 한 단 넓은 틈 · 여기서 다른 묶음이 시작한다는 표시 */
+  startsGroup?: boolean;
 }) {
   const empty = value === null || value === undefined || value === "";
   return (
-    <div className="flex shrink-0 items-baseline gap-1.5">
-      <dt
-        className={cn(
-          "text-[11.5px] font-medium",
-          strong ? "text-content-soft" : "text-content-faint",
-        )}
-      >
-        {label}
-      </dt>
+    <div
+      className={cn(
+        "flex shrink-0 items-baseline gap-1.5",
+        startsGroup && "ml-2",
+      )}
+    >
+      <dt className="text-[11.5px] font-medium text-content-faint">{label}</dt>
       <dd
         style={{ minWidth: w }}
         className={cn(
-          "leading-none tabular-nums",
-          strong
-            ? "text-[16px] font-bold text-content"
-            : "text-[13.5px] font-semibold text-content-mid",
+          "text-[13.5px] font-semibold leading-none tabular-nums text-content-mid",
           empty && "text-content-ghost",
         )}
       >

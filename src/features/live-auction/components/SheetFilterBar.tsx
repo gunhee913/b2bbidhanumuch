@@ -3,7 +3,8 @@
 import type { ReactNode } from "react";
 import { RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { GRADE_FILTER_OPTIONS } from "../lib/grade";
+import { useGradeHotkeys } from "../hooks/useGradeHotkeys";
+import { GRADE_FILTER_OPTIONS, hotkeyForGrade } from "../lib/grade";
 import { CompactFilterPill } from "./CompactFilterPill";
 
 /** 전체 + 7등급 · 빈 값이 「거르지 않음」 이고 `matchesGradeFilter` 가 그대로 통과시킨다 */
@@ -93,6 +94,10 @@ export function SheetFilterBar({
  *
  * 부위별 방(`AuctionDetailRoom`)도 같은 탭을 쓴다 — 같은 일을 하는 줄이 화면마다 다르게
  * 생기면 안 되고, 등급 목록은 한 군데서만 늘어나야 한다.
+ *
+ * 숫자키는 칩 위에 적지 않고 말풍선에만 둔다. 일곱 칩에 숫자 뱃지를 달면 `1++(9)` 옆에
+ * `9` 가 또 붙어 — 같은 숫자가 두 뜻으로 보이는 데다, 11px 로 꽉 찬 줄에 글자가 배로
+ * 는다. 키는 한 번 익히면 그만인 것이라 늘 보일 필요가 없다.
  */
 export function GradeFilterTabs({
   value,
@@ -101,6 +106,8 @@ export function GradeFilterTabs({
   value: string;
   onChange: (v: string) => void;
 }) {
+  useGradeHotkeys(value, onChange);
+
   return (
     <div
       role="tablist"
@@ -109,13 +116,17 @@ export function GradeFilterTabs({
     >
       {GRADE_TABS.map((opt) => {
         const active = opt.value === value;
+        const key = hotkeyForGrade(opt.value);
         return (
           <button
             key={opt.label}
             type="button"
             role="tab"
             aria-selected={active}
-            onClick={() => onChange(opt.value)}
+            aria-keyshortcuts={key || undefined}
+            title={key ? `${opt.label} · 숫자 ${key}` : opt.label}
+            /* 켜진 칩을 다시 누르면 풀린다 · 숫자키와 같은 손놀림이라 둘이 어긋나지 않는다 */
+            onClick={() => onChange(active ? "" : opt.value)}
             className={cn(
               "whitespace-nowrap rounded-[5px] px-2 text-[11px] font-semibold leading-6 tabular-nums transition-colors",
               active

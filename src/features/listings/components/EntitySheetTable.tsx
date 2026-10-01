@@ -41,6 +41,24 @@ const DENSE_CELL = "px-1.5";
 const QUALITY_TIGHT = "px-1";
 const DENSE_GROUP_START = "pl-2";
 
+/** 행 표식 · 값은 개체 id · 키보드로 짚은 줄을 찾아 굴릴 때 쓴다 */
+const SHEET_ROW_ATTR = "data-sheet-row";
+
+/**
+ * 그 개체의 행을 보이는 데까지 굴린다 · 찾았으면 `true`.
+ *
+ * 멈출 자리는 행이 들고 있는 `scroll-margin-top` 이 정한다 — 고정 머리글 밑으로
+ * 기어들어 가지 않게 표가 이미 재어 둔 값이다.
+ */
+export function scrollSheetRowIntoView(entityId: string): boolean {
+  const row = document.querySelector(
+    `[${SHEET_ROW_ATTR}="${CSS.escape(entityId)}"]`,
+  );
+  if (!row) return false;
+  row.scrollIntoView({ block: "nearest" });
+  return true;
+}
+
 const QUALITY_COLUMN_COUNT = 7;
 /**
  * 등급판정 7열 폭 · 근내지방 · 육색 · 지방색 · 조직도 · 성숙도 · 등지방두께 · 등심면적.
@@ -345,9 +363,7 @@ export function EntitySheetTable({
                 setLightbox(entity);
               }}
               opensDetail={!!onOpenPhotos}
-              favorited={
-                favoriteIds ? favoriteIds.has(entity.listingNo) : null
-              }
+              favorited={favoriteIds ? favoriteIds.has(entity.listingNo) : null}
               onToggleFavorite={
                 onToggleFavorite
                   ? () => onToggleFavorite(entity.listingNo)
@@ -465,6 +481,7 @@ function EntityRows({
     <Fragment>
       <tr
         ref={rowRef}
+        {...{ [SHEET_ROW_ATTR]: entity.id }}
         onClick={onToggle}
         onMouseEnter={onHover}
         onFocus={onHover}

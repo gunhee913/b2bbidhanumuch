@@ -3,13 +3,14 @@
 import { useState } from "react";
 import { ChevronDown, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useBidStore } from "@/stores/bidStore";
 import type { LiveListing, LivePart } from "../api";
 import type { SheetBidding } from "./SheetParts";
 import type { SheetBidEntry } from "../hooks/useSheetBidding";
 import { extractSide, toPartGroupName } from "../lib/partGrouping";
 import {
   BID_INPUT_ATTR,
-  BID_KEY_HINT,
+  bidKeyHint,
   BID_SCOPE_ATTR,
   handleBidKeyDown,
 } from "../lib/bidKeys";
@@ -309,6 +310,7 @@ function DockBidInput({
   bidding: SheetBidding;
   compact?: boolean;
 }) {
+  const bidStep = useBidStore((s) => s.bidStep);
   const state = bidding.cellState(part.id);
   const price = bidding.effectivePrice(part);
   const saved = bidding.myOpenBid(part)?.bidPrice ?? null;
@@ -338,7 +340,7 @@ function DockBidInput({
         }
         disabled={settled || state.pending}
         aria-label={`${part.partName} 내 입찰가`}
-        title={BID_KEY_HINT}
+        title={bidKeyHint(bidStep)}
         onFocus={(e) => e.currentTarget.select()}
         onChange={(e) => {
           const digits = e.target.value.replace(/[^0-9]/g, "").slice(0, 6);
@@ -346,6 +348,7 @@ function DockBidInput({
         }}
         onKeyDown={(e) =>
           handleBidKeyDown(e, {
+            step: bidStep,
             onSubmit: () => bidding.submitOne(listing, part),
             onRevert: () => bidding.clearDraft(part.id),
             onStep: step,

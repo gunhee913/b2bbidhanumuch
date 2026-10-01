@@ -5,12 +5,14 @@ import { useDebounce } from "react-use";
 
 import {
   EntitySheetTable,
+  scrollSheetRowIntoView,
   type SheetSummaryColumn,
 } from "@/features/listings/components/EntitySheetTable";
 import { fromLiveListing } from "@/features/listings/lib/sheetEntity";
 import type { LiveListing } from "../api";
 import { matchesGradeFilter } from "../lib/grade";
 import { summarizeParts, type PartsSummary } from "../lib/sheetSummary";
+import { useSheetCursor } from "../hooks/useSheetCursor";
 import { useStickySheetOffsets } from "../hooks/useStickySheetOffsets";
 import { SheetFilterBar } from "./SheetFilterBar";
 import {
@@ -76,13 +78,6 @@ export function LiveListingSheet({
 }: LiveListingSheetProps) {
   const { filterRef, filterStickyTop, headStickyTop } = useStickySheetOffsets();
 
-  /**
-   * 요약이 가리키는 개체 · 행을 스쳐 지나가는 동안 사진·차트가 따라 튀지 않게 잠깐 묵힌다.
-   */
-  const [hoveredId, setHoveredId] = useState<string | null>(null);
-  const [summaryId, setSummaryId] = useState<string | null>(null);
-  useDebounce(() => setSummaryId(hoveredId), 90, [hoveredId]);
-
   const summaryById = useMemo(
     () =>
       new Map<string, PartsSummary>(
@@ -103,7 +98,22 @@ export function LiveListingSheet({
 
   const entities = useMemo(() => filtered.map(fromLiveListing), [filtered]);
 
-  /** 아직 아무 행에도 올려 보지 않았으면 첫 개체를 세워 둔다 (빈 패널 방지) */
+  /**
+   * 짚고 있는 행 · 마우스를 올려도, ↑/↓ 를 눌러도 같은 손가락이 움직인다.
+   * 표의 밝은 줄과 오른쪽 요약이 늘 같은 개체를 가리켜야 해서 자리를 하나만 둔다.
+   */
+  const cursorIds = useMemo(() => filtered.map((l) => l.id), [filtered]);
+  const cursor = useSheetCursor({
+    ids: cursorIds,
+    onOpen: onOpenListing,
+    onMove: scrollSheetRowIntoView,
+  });
+
+  /** 요약이 가리키는 개체 · 행을 스쳐 지나가는 동안 사진·차트가 따라 튀지 않게 잠깐 묵힌다 */
+  const [summaryId, setSummaryId] = useState<string | null>(null);
+  useDebounce(() => setSummaryId(cursor.id), 90, [cursor.id]);
+
+  /** 아직 아무 행도 짚지 않았으면 첫 개체를 세워 둔다 (빈 패널 방지) */
   const summaryListing = useMemo(
     () => filtered.find((l) => l.id === summaryId) ?? filtered[0] ?? null,
     [filtered, summaryId],
@@ -142,7 +152,8 @@ export function LiveListingSheet({
           <EntitySheetTable
             compact
             stickyHeadTop={headStickyTop}
-            onHoverEntity={setHoveredId}
+            onHoverEntity={cursor.set}
+            selectedId={cursor.id}
             entities={entities}
             onSelect={onOpenListing}
             favoriteIds={favoriteIds}

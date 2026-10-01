@@ -1,9 +1,17 @@
 import type { KeyboardEvent } from "react";
 
-/** 스텝 단위 · 맨손 100 · Shift 1,000 · Alt 1(한 칸 차이로 순위가 갈리는 자리) */
-export const BID_STEP_FINE = 1;
-export const BID_STEP = 100;
-export const BID_STEP_LARGE = 1000;
+/**
+ * 올리고 내리는 눈금 사다리 · 칸 옆 미니 스텝(`SheetBidCell`)과 같은 네 칸.
+ *
+ * 맨손 ↑↓ 가 얼마씩 움직일지는 고르게 두고(`bidStep`), Alt·Shift 는 사다리 양 끝에
+ * 못 박아 둔다. 수정자까지 고른 값을 따라 움직이면 눈금을 1원으로 바꾸는 순간 셋이
+ * 한자리에 겹쳐 빠른 이동이 사라진다. 양 끝이 고정이라야 어떤 눈금을 고르든
+ * 「잘게 · 내 눈금 · 크게」 셋이 늘 손에 남는다.
+ */
+export const BID_STEPS = [1, 10, 100, 1000] as const;
+export const BID_STEP_DEFAULT = 100;
+export const BID_STEP_FINE = BID_STEPS[0];
+export const BID_STEP_LARGE = BID_STEPS[BID_STEPS.length - 1];
 
 /** 입찰 입력 표식 · 값은 부위 id · ↑/↓ 이동과 재포커스가 이 표식으로 칸을 찾는다 */
 export const BID_INPUT_ATTR = "data-bid-input";
@@ -23,8 +31,8 @@ export const BID_SCOPE_ATTR = "data-bid-scope";
 export type BidMode = "nav" | "edit";
 
 /** 개체 뷰어 독 입력칸 title · 거기는 모드가 없고 늘 쓰기다 */
-export const BID_KEY_HINT =
-  "Enter 입찰 · Esc 되돌리기 · +/- 100 · Shift+↑↓ 1,000 · ↑↓ 이동";
+export const bidKeyHint = (step: number): string =>
+  `Enter 입찰 · Esc 되돌리기 · +/- ${step.toLocaleString("ko-KR")} · Shift+↑↓ 1,000 · ↑↓ 이동`;
 
 /** 표 어디서든 ↓ 로 첫 입찰칸에 들어간다 · 머리글 안내가 쓰는 문구 */
 export const BID_ENTER_HINT = "↓ 입찰칸으로";
@@ -39,16 +47,19 @@ export function bidModeHint(
   mode: BidMode,
   rowLabel: string,
   pivotLabel: string,
+  step: number,
 ): string {
   return mode === "nav"
     ? `고르기 · 숫자 입력 · ↑↓ ${rowLabel} · ←→ ${pivotLabel} · Enter 고치기`
-    : "쓰기 · Enter 입찰 · Esc 취소 · ↑↓ 100 · Shift 1,000 · Alt 1";
+    : `쓰기 · Enter 입찰 · Esc 취소 · ↑↓ ${step.toLocaleString("ko-KR")} · Shift 1,000 · Alt 1`;
 }
 
 /** 상장표 입찰칸인가 · 제 화면에서 개체를 넘기는 개체 뷰어 독의 칸은 뺀다 */
 export function isSheetBidInput(el: Element | null): boolean {
   return (
-    !!el && el.hasAttribute(BID_INPUT_ATTR) && !el.closest(`[${BID_SCOPE_ATTR}]`)
+    !!el &&
+    el.hasAttribute(BID_INPUT_ATTR) &&
+    !el.closest(`[${BID_SCOPE_ATTR}]`)
   );
 }
 
@@ -125,6 +136,8 @@ export interface SheetBidKeyHandlers {
   onRevert: () => void;
   /** 현재 값에 `delta` 를 더한다 · 하한 0 은 부르는 쪽에서 */
   onStep: (delta: number) => void;
+  /** 맨손 ↑↓ · +/- 한 번에 움직일 금액 · 설정값(`bidStep`)이 들어온다 */
+  step: number;
   /** 빈 칸인가 · 넣을 게 없으니 Enter 가 그냥 다음 줄로 간다 */
   isEmpty: boolean;
   /** 넣을 수 있는 값인가 */
@@ -152,6 +165,7 @@ export function handleSheetBidKeyDown(
     onSubmit,
     onRevert,
     onStep,
+    step,
     isEmpty,
     canSubmit,
   }: SheetBidKeyHandlers,
@@ -162,7 +176,7 @@ export function handleSheetBidKeyDown(
   // `+`/`-` 는 두 모드 공통 · 한 손으로 한 칸 올리고 내리던 손버릇을 남긴다
   if (bare && (e.key === "+" || e.key === "=" || e.key === "-")) {
     e.preventDefault();
-    onStep(e.key === "-" ? -BID_STEP : BID_STEP);
+    onStep(e.key === "-" ? -step : step);
     return;
   }
 
@@ -219,11 +233,7 @@ export function handleSheetBidKeyDown(
   }
   if (e.key === "ArrowUp" || e.key === "ArrowDown") {
     e.preventDefault();
-    const size = e.shiftKey
-      ? BID_STEP_LARGE
-      : e.altKey
-        ? BID_STEP_FINE
-        : BID_STEP;
+    const size = e.shiftKey ? BID_STEP_LARGE : e.altKey ? BID_STEP_FINE : step;
     onStep(e.key === "ArrowUp" ? size : -size);
     return;
   }
@@ -237,6 +247,8 @@ export interface BidKeyHandlers {
   onSubmit: () => void;
   onRevert: () => void;
   onStep: (delta: number) => void;
+  /** 맨손 +/- 한 번에 움직일 금액 · 설정값(`bidStep`)이 들어온다 */
+  step: number;
   /**
    * 되돌릴 초안이 있는지 · Esc 2단계를 쓰는 화면만 준다.
    * 주지 않으면 늘 되돌리기만 한다.
@@ -250,7 +262,7 @@ export interface BidKeyHandlers {
  */
 export function handleBidKeyDown(
   e: KeyboardEvent<HTMLInputElement>,
-  { onSubmit, onRevert, onStep, canRevert }: BidKeyHandlers,
+  { onSubmit, onRevert, onStep, step, canRevert }: BidKeyHandlers,
 ): boolean {
   if (e.key === "Enter") {
     e.preventDefault();
@@ -275,12 +287,12 @@ export function handleBidKeyDown(
   }
   if (e.key === "+" || e.key === "=") {
     e.preventDefault();
-    onStep(BID_STEP);
+    onStep(step);
     return true;
   }
   if (e.key === "-") {
     e.preventDefault();
-    onStep(-BID_STEP);
+    onStep(-step);
     return true;
   }
   return false;

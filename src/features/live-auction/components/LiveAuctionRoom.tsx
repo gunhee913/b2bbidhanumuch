@@ -22,7 +22,7 @@ const VIEW_QUERY_KEY = "view";
 /**
  * 요약을 못 세울 만큼 좁을 때의 본문 폭 · 표 하나만 놓이는 경우라 여기서 끊는다.
  *
- * 요약이 설 만큼 넓어지면 상한을 풀고 바깥 틀(`AUCTION_SHELL_CLASS`, 2120)에 맡긴다.
+ * 요약이 설 만큼 넓어지면 상한을 풀고 바깥 틀(`PAGE_SHELL_CLASS`, 2120)에 맡긴다.
  * 예전에는 여기서 1660 으로 끊고 남는 폭을 오른쪽에 버렸는데, 2560 화면에서 844px 이
  * 그냥 비었다. 끊는 자리는 한 군데여야 하고, 그 자리는 도크까지 함께 품는 바깥 틀이다.
  */
@@ -171,7 +171,7 @@ export function LiveAuctionRoom() {
         listings={listings}
         roundListingMap={roundData?.roundListingMap ?? {}}
         briefOnEnter
-        onNavigateListing={(listingId) => openListing(listingId)}
+        onNavigateListing={openListing}
         favoriteIds={favorites.ids}
         onToggleFavorite={toggleFavorite}
       />

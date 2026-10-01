@@ -21,6 +21,7 @@ import {
 import { cn } from "@/lib/utils";
 import type { LiveListing } from "../api";
 import { formatGradeLabel, toGradeSeriesKey } from "../lib/grade";
+import { isSpecEmpty, JUDGED_SPECS } from "../lib/judgedSpecs";
 import { toPartGroupName } from "../lib/partGrouping";
 import { useListingCerts } from "../hooks/useListingCerts";
 import type { StageSlot } from "../hooks/useRoomLayout";
@@ -468,28 +469,8 @@ export function ViewerMediaPane({
   );
 }
 
-/**
- * 등급판정 일곱 · 판정사가 이 단면을 보고 매긴 값들.
- *
- * 품질정보 띠의 차례를 그대로 따른다. 거기서도 이 일곱은 붙여 두는데, 하나씩 보는
- * 값이 아니라 한 덩어리로 훑는 값이라 사이에 다른 것이 끼면 경계가 사라지기 때문이다.
- */
 /** 메모 길이 상한 · API 와 같은 값을 쓴다 (서버도 500 에서 자른다) */
 const NOTE_MAX_LENGTH = 500;
-
-const JUDGED_SPECS: ReadonlyArray<{
-  label: string;
-  read: (l: LiveListing) => number | string | null | undefined;
-  unit?: string;
-}> = [
-  { label: "근내지방", read: (l) => l.marblingScore },
-  { label: "육색", read: (l) => l.meatColor },
-  { label: "지방색", read: (l) => l.fatColor },
-  { label: "조직도", read: (l) => l.texture },
-  { label: "성숙도", read: (l) => l.maturity },
-  { label: "등지방두께", read: (l) => l.backFat, unit: "mm" },
-  { label: "등심면적", read: (l) => l.eyeMuscle, unit: "㎠" },
-];
 
 /**
  * 겹 공통 껍데기 · 끌기·배율·크기 손잡이는 각인이든 메모든 똑같다.
@@ -561,8 +542,8 @@ function StageOverlay({
  *
  * 품질정보 띠는 화면 맨 위라, 마블링을 들여다보다 점수를 되짚으려면 눈이 열여덟 칸을
  * 거슬러 올라갔다 와야 한다. 등급도 일곱 값도 다름 아닌 이 사진에 대한 판정사의
- * 답이니 같은 자리에 둔다. 목록 쪽 요약 사진과 굵기가 반대인데, 거기는 "어느
- * 개체냐"가 물음이고 여기는 접수번호가 바로 위에 22px 로 있어 물음이 "몇 등급이냐"
+ * 답이니 같은 자리에 둔다. 상장표 요약 사진(`SheetSummaryPanel`)도 같은 차례를 쓴다 —
+ * 두 곳 다 접수번호는 이미 딴 데서 말하고 있어, 사진에 대고 묻는 것은 "몇 등급이냐"
  * 하나이기 때문이다.
  *
  * **라벨을 값 옆이 아니라 위에 두는 이유.** 옆에 두면 칸 폭이 라벨＋값이라 일곱을
@@ -621,10 +602,9 @@ function GradeStamp({
           </span>
           {/* 접지 않는다 · 일곱이 한 줄로 서 있어야 「한 덩어리」 로 읽힌다 */}
           <span className="flex items-end gap-[0.8em] whitespace-nowrap">
-            {JUDGED_SPECS.map(({ label, read, unit }) => {
-              const value = read(listing);
-              const empty =
-                value === null || value === undefined || value === "";
+            {JUDGED_SPECS.map(({ label, key, unit }) => {
+              const value = listing[key];
+              const empty = isSpecEmpty(value);
               return (
                 <span
                   key={label}

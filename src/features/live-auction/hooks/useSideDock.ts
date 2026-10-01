@@ -9,7 +9,8 @@ export type SideDockTab =
   | "myBids"
   | "favorites"
   | "notes"
-  | "recent";
+  | "recent"
+  | "shortcuts";
 
 export interface RecentListing {
   listingId: string;
@@ -36,6 +37,17 @@ interface SideDockState {
   hasChosen: boolean;
   /** 내 입찰 탭을 특정 회차로 걸러 열 때 · 회차 행·마감 토스트에서 들어온다 */
   myBidsRoundId: string | null;
+  /**
+   * 내 입찰에서 **직접** 열고 닫은 회차만 담는다 · 손대지 않은 회차는 제 기본값을
+   * 따른다 (진행 중은 펴고, 마감은 접고).
+   *
+   * 패널이 제 안에 들고 있지 않고 여기 둔 이유는 개체를 옮길 때마다 방이 다시
+   * 그려지면서 패널 상태가 통째로 날아가기 때문이다 — 101 에서 102 로 넘어가면
+   * 펴 둔 회차가 도로 접혔다. 저장소에는 남기지 않는다(`partialize` 밖) · 회차
+   * id 는 그날치라 디스크에 쌓아 봐야 다음 날 아무것도 못 가리킨다.
+   */
+  myBidsOpenRounds: Record<string, boolean>;
+  setMyBidsRoundOpen: (roundId: string, open: boolean) => void;
   recent: RecentListing[];
   /**
    * 관심 패널 위 칸(개체) 높이 px · 아래 칸(부위)은 남는 만큼 가져간다.
@@ -71,6 +83,11 @@ export const useSideDock = create<SideDockState>()(
       tab: "round",
       hasChosen: false,
       myBidsRoundId: null,
+      myBidsOpenRounds: {},
+      setMyBidsRoundOpen: (roundId, open) =>
+        set((s) => ({
+          myBidsOpenRounds: { ...s.myBidsOpenRounds, [roundId]: open },
+        })),
       recent: [],
       favTopHeight: FAV_TOP_DEFAULT_HEIGHT,
       toggleTab: (tab) => {

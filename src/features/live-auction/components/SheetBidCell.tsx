@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
+import { useBidStore } from "@/stores/bidStore";
 import type { SheetBidCellState } from "../hooks/useSheetBidding";
 import {
   BID_INPUT_ATTR,
@@ -138,6 +139,7 @@ export function SheetBidCell({
   onCancel,
   canCancel = false,
 }: SheetBidCellProps) {
+  const bidStep = useBidStore((s) => s.bidStep);
   const inputRef = useRef<HTMLInputElement>(null);
   const [focused, setFocused] = useState(false);
   const [mode, setMode] = useState<BidMode>("nav");
@@ -337,7 +339,7 @@ export function SheetBidCell({
           </div>
           {/* 지금 어느 모드인지와, 그 모드에서 살아 있는 키 · 커서만으로는 약하다 */}
           <p className="whitespace-nowrap px-1 pb-0.5 pt-1 text-[10px] font-medium text-content-faint">
-            {bidModeHint(mode, rowLabel, pivotLabel)}
+            {bidModeHint(mode, rowLabel, pivotLabel, bidStep)}
           </p>
         </div>
       ) : null}
@@ -372,6 +374,7 @@ export function SheetBidCell({
           onKeyDown={(e) =>
             handleSheetBidKeyDown(e, {
               mode,
+              step: bidStep,
               onEdit: beginEdit,
               onNav: () => setMode("nav"),
               onTypeOver: typeOver,
