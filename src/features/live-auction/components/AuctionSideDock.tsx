@@ -21,8 +21,10 @@ import {
   History,
   ImageOff,
   Moon,
+  Pencil,
   Sun,
   Timer,
+  Trash2,
   type LucideProps,
 } from "lucide-react";
 import { OverlayScroll } from "@/components/ui/overlay-scroll";
@@ -33,6 +35,7 @@ import type { RoundInfo } from "@/features/main/api";
 import type { LiveListing } from "../api";
 import { useDailyBriefing } from "../hooks/useDailyBriefing";
 import { useDeadlineTitle } from "../hooks/useDeadlineTitle";
+import { useAuctionNotes } from "../hooks/useAuctionNotes";
 import { useMyBids } from "../hooks/useMyBids";
 import { useRoundPeek } from "../hooks/useRoundPeek";
 import { isDeadlineTier } from "../lib/deadline";
@@ -75,7 +78,7 @@ interface AuctionSideDockProps {
 /**
  * 경매장 오른쪽 사이드 메뉴 · 56px 아이콘 레일 + 304px 패널 (토스증권 우측 메뉴 구성).
  *
- * 헤더까지 화면 높이 전체를 차지하고, 본문 위에 덮지 않는다 — 페이지 오른쪽 여백(`useSideDockInsetClass`)으로
+ * 헤더까지 화면 높이 전체를 차지하고, 본문 위에 덮지 않는다 — 페이지 오른쪽 여백(`useAuctionShellClass`)으로
  * 자리를 비워 두고 펼치면 그 여백이 넓어져 표가 그만큼 좁아진다. 패널은 페이지와 같은 바탕에 칸막이 없이 둔다.
  * 패널 내용은 접혀 있어도 계속 마운트해 둔다 · 내 입찰 탭·필터 상태와 마감 임박 탭 제목 알림이 끊기지 않게.
  */
@@ -139,14 +142,29 @@ export function AuctionSideDock({
   const peekOpen = !open && !brief.open && (peeking || hovering);
 
   return (
-    <>
+    /*
+     * 도크를 담는 틀 · 화면 높이를 다 쓰되 가로로는 본문과 같은 상한(`AUCTION_SHELL_CLASS`)에
+     * 맞춰 가운데 선다. 안쪽 둘은 화면 끝이 아니라 이 틀의 오른쪽 끝에 붙으므로,
+     * 넓은 화면에서도 표 바로 옆에 남는다.
+     *
+     * 틀 자체는 클릭을 받지 않는다 — 가운데가 뻥 뚫린 투명한 판이라 그대로 두면
+     * 본문 전체를 덮어 아무것도 눌리지 않는다. `overflow-hidden` 은 접힌 패널이
+     * 밀려나 있는 자리(+360)를 잘라 낸다 — 없으면 펼칠 때 패널이 틀 바깥 여백에서
+     * 떠서 날아 들어온다.
+     */
+    <div
+      className={cn(
+        "pointer-events-none fixed inset-y-0 left-0 right-0 z-[45] overflow-hidden",
+        AUCTION_SHELL_CLASS,
+      )}
+    >
       <aside
         id="auction-side-panel"
         aria-label="경매장 사이드 메뉴"
         aria-hidden={!open}
         inert={!open}
         className={cn(
-          "fixed inset-y-0 right-14 z-[45] flex w-[304px] flex-col border-l border-line-soft bg-canvas transition-[transform,visibility] duration-200 ease-out",
+          "pointer-events-auto absolute inset-y-0 right-14 z-0 flex w-[304px] flex-col border-l border-line-soft bg-canvas transition-[transform,visibility] duration-200 ease-out",
           open ? "visible translate-x-0" : "invisible translate-x-[360px]",
         )}
       >
@@ -203,6 +221,19 @@ export function AuctionSideDock({
         <div
           className={cn(
             "flex min-h-0 flex-1 flex-col",
+            tab !== "notes" && "hidden",
+          )}
+        >
+          <NotesPanel
+            listings={listings}
+            listingDate={listingDate}
+            onNavigateListing={onNavigateListing}
+          />
+        </div>
+
+        <div
+          className={cn(
+            "flex min-h-0 flex-1 flex-col",
             tab !== "recent" && "hidden",
           )}
         >
@@ -216,7 +247,7 @@ export function AuctionSideDock({
       <nav
         aria-label="사이드 메뉴"
         className={cn(
-          "fixed inset-y-0 right-0 z-[46] flex w-14 flex-col items-center gap-1 bg-canvas",
+          "pointer-events-auto absolute inset-y-0 right-0 z-10 flex w-14 flex-col items-center gap-1 bg-canvas",
           !open && "border-l border-line-soft",
         )}
       >
@@ -262,6 +293,12 @@ export function AuctionSideDock({
           onClick={() => toggleTab("favorites")}
         />
         <RailItem
+          icon={Pencil}
+          label="메모"
+          active={open && tab === "notes"}
+          onClick={() => toggleTab("notes")}
+        />
+        <RailItem
           icon={History}
           label="최근 본"
           active={open && tab === "recent"}
@@ -284,7 +321,7 @@ export function AuctionSideDock({
         open={brief.open}
         onClose={brief.close}
       />
-    </>
+    </div>
   );
 }
 
@@ -355,17 +392,38 @@ function ThemeRailButton() {
 }
 
 /**
+ * 경매장 바깥 틀 · 2120px 에서 멈추고 남는 폭은 양옆으로 똑같이 흘린다.
+ *
+ * 화면이 넓어질수록 늘려 봐야 쓸모가 없어서다. 상장표는 열 간격만 벌어지고,
+ * 상세 1열은 사진 높이가 화면에 묶여 있어 폭만 남아돈다 — 3440 화면에서 사진 판이
+ * 2528px 까지 벌어지는데 정작 사진은 그대로였다.
+ *
+ * 2120 은 상세 페이지에서 나온 값이다. 표 최대 1000 + 눈금 8 + 1열 넉넉히 1000 +
+ * 좌우 여백 48 = 2056, 여기에 도크 접힘(56)을 얹었다. 1920 이하에서는 상한에
+ * 닿지 않아 지금과 똑같이 화면을 다 쓴다.
+ *
+ * 도크도 화면 끝이 아니라 **이 틀의 오른쪽 끝**에 붙는다(`AuctionSideDock`).
+ * 화면 끝에 두면 넓은 화면에서 표와 수백 px 떨어져, 손이 가는 메뉴가 제일 멀어진다.
+ */
+export const AUCTION_SHELL_CLASS = "mx-auto max-w-[2120px]";
+
+/**
  * 오른쪽 여백 · 레일(56)은 늘 비워 두고, 패널이 펴져 있으면 패널(304)만큼 더 비운다.
  * 페이지 껍데기(header + main + footer)에 붙여야 헤더까지 함께 물러난다.
+ *
+ * 본문은 이 틀 안에서 **왼쪽에 붙어 있다**. 그래서 도크를 여닫으면 본문이 오른쪽에서
+ * 줄었다 늘 뿐, 통째로 옆으로 미끄러지지 않는다 — 표를 읽는 중에 가로로 밀리는 것이
+ * 폭이 조금 줄어드는 것보다 훨씬 거슬린다.
  *
  * 여백만큼 최소 폭도 같이 키운다. 본문에는 가장 넓은 표(부위별 상장표 1259)에
  * 섹션 여백을 더한 1312 를 늘 남겨야 하고, 여백을 여기서 깎으면 표 오른쪽 끝
  * (내 낙찰대금)이 도크 밑으로 밀려 잘린다 — 모자라면 본문을 줄이는 대신
  * 페이지를 가로로 넘긴다. 최소 폭 = 1312 + 여백 (접힘 56 → 1368 · 펼침 360 → 1672).
  */
-export function useSideDockInsetClass() {
+export function useAuctionShellClass() {
   const open = useSideDock((s) => s.open);
   return cn(
+    AUCTION_SHELL_CLASS,
     "transition-[padding] duration-200 ease-out",
     open ? "min-w-[1672px] pr-[360px]" : "min-w-[1368px] pr-14",
   );
@@ -586,7 +644,11 @@ function FavoritesPanel({
         }}
         className="flex min-h-0 shrink-0 flex-col"
       >
-        <FavoriteSectionHead label="개체" count={listingRows.length} unit="두" />
+        <FavoriteSectionHead
+          label="개체"
+          count={listingRows.length}
+          unit="두"
+        />
         {listingRows.length === 0 ? (
           <FavoriteEmpty text="상장표 접수번호 옆 별을 누르면 모여요" />
         ) : (
@@ -665,6 +727,116 @@ function FavoritesPanel({
           </OverlayScroll>
         )}
       </section>
+    </div>
+  );
+}
+
+/**
+ * 메모 패널 · 오늘 남긴 말을 한자리에 모은다.
+ *
+ * 관심과 달리 칸을 나누지 않는다. 관심은 개체와 부위가 섞이면 「두 마리」 와 「두 덩이」
+ * 가 한 숫자로 세어져 갈라 뒀지만, 메모는 지금 부위에만 붙고 세는 것도 「남긴 말 몇
+ * 개」 하나뿐이다. 개체 메모가 생기면 그때 같은 식으로 나누면 된다.
+ *
+ * 줄에서 굵은 것이 관심과 뒤집혀 있다. 관심 목록은 「무엇을 담았나」 가 물음이라 대상이
+ * 굵지만, 메모는 대상이 아니라 적어 둔 말을 보려고 여는 목록이다. 어느 부위 것인지는
+ * 그 말을 짚고 나서 확인한다.
+ *
+ * 오늘 상장에 없는 것은 거른다 — 메모를 남긴 뒤 상장이 내려가면 열 곳이 없는 줄이 된다.
+ */
+function NotesPanel({
+  listings,
+  listingDate,
+  onNavigateListing,
+}: {
+  listings: LiveListing[];
+  listingDate: string | null;
+  onNavigateListing: (listingId: string, partNo?: number | null) => void;
+}) {
+  const notes = useAuctionNotes(listingDate);
+
+  /* 차례는 관심과 같은 접수번호 순 · 두 목록을 번갈아 볼 때 눈이 길을 잃지 않게 */
+  const rows = useMemo(() => {
+    const bodyOf = new Map(
+      notes.rows
+        .filter((n) => n.targetType === "part")
+        .map((n) => [n.targetId, n.body]),
+    );
+    if (bodyOf.size === 0) return [];
+    return listings
+      .flatMap((listing) =>
+        listing.parts
+          .filter((part) => bodyOf.has(part.id))
+          .map((part) => ({ listing, part, body: bodyOf.get(part.id)! })),
+      )
+      .sort(
+        (a, b) =>
+          a.listing.listingNo.localeCompare(b.listing.listingNo) ||
+          a.part.partNo - b.part.partNo,
+      );
+  }, [notes.rows, listings]);
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col">
+      <FavoriteSectionHead label="메모" count={rows.length} unit="개" />
+      {rows.length === 0 ? (
+        <FavoriteEmpty text="사진 왼쪽 위 「메모」를 누르면 모여요" />
+      ) : (
+        <OverlayScroll autoHideDelay={0} className="min-h-0 flex-1">
+          <ul className="px-2 pb-1">
+            {rows.map(({ listing, part, body }) => (
+              <li key={part.id}>
+                <div className="group flex items-start gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-surface-accent">
+                  <button
+                    type="button"
+                    onClick={() => onNavigateListing(listing.id, part.partNo)}
+                    className="flex min-w-0 flex-1 items-start gap-3 text-left"
+                  >
+                    <span className="relative mt-0.5 h-10 w-10 shrink-0 overflow-hidden rounded-md bg-surface-accent">
+                      {listing.images[0] ? (
+                        <Image
+                          src={listing.images[0]}
+                          alt=""
+                          fill
+                          sizes="40px"
+                          className="object-cover"
+                          unoptimized
+                        />
+                      ) : (
+                        <ImageOff className="absolute inset-0 m-auto h-4 w-4 text-content-ghost" />
+                      )}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      {/* 적어 둔 말이 먼저 · 두 줄까지만 보이고 나머지는 열어서 본다 */}
+                      <span className="line-clamp-2 text-[12.5px] leading-[1.45] text-content">
+                        {body}
+                      </span>
+                      <span className="mt-1 flex items-baseline gap-1.5 text-[11.5px] text-content-faint">
+                        <span className="min-w-0 truncate font-medium">
+                          {part.partName}
+                        </span>
+                        <span className="shrink-0 tabular-nums">
+                          {listing.listingNo}
+                        </span>
+                      </span>
+                    </span>
+                  </button>
+                  {/* 지운 자리에서 바로 뺀다 · 빼러 사진까지 돌아가게 하지 않는다 */}
+                  <button
+                    type="button"
+                    onClick={() => notes.save("part", part.id, "")}
+                    aria-label={`${part.partName} ${listing.listingNo} 메모 지우기`}
+                    title="메모 지우기"
+                    className="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-content-ghost transition-colors hover:bg-surface-strong hover:text-lost active:scale-[0.9]"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </OverlayScroll>
+      )}
     </div>
   );
 }

@@ -11,7 +11,7 @@ import {
 import type { LiveListing, LivePart } from "../api";
 import type { useSheetBidding, SheetBidEntry } from "../hooks/useSheetBidding";
 import { formatGradeLabel } from "../lib/grade";
-import { extractSide } from "../lib/partGrouping";
+import { extractSide, toPartGroupName } from "../lib/partGrouping";
 import {
   hasVisibleResult,
   isBidIdle,
@@ -200,6 +200,71 @@ export const LISTING_ROW_AXIS: SheetRowAxis = {
   ),
 };
 
+/**
+ * 고정축 없음 · 행 = 관심으로 찍어 둔 부위 · 사진 옆에 부위명·등급(위) + 접수번호·업체(아래).
+ *
+ * 다른 두 축은 한쪽이 고정이라 1열에서 그쪽을 적을 필요가 없었다 — 개체축은 부위명만,
+ * 부위축은 등급과 접수번호만 적는다. 관심은 고정이 없다. 한 개체의 등심과 다른 개체의
+ * 채끝이 나란히 서므로 부위명도 접수번호도 빠질 수 없고, 견주려면 등급까지 있어야 한다.
+ *
+ * 위아래 규칙은 두 축과 같다 — 위에는 고를 때 보는 것(부위·등급), 아래에는 고르고 나서
+ * 짚는 것(접수번호·업체). 좌/우는 부위명 뒤에 붙인다, 같은 개체의 좌/우가 나란히 올 때
+ * 두 줄을 가르는 게 그것뿐이다.
+ */
+export const FAVORITE_ROW_AXIS: SheetRowAxis = {
+  headLabel: "관심 부위",
+  pivotLabel: "관심",
+  headWidth: 175 + FAV_SLOT_WIDTH,
+  headTitle: ({ listing, part }) =>
+    [part.partName, listing.listingNo, listing.companyName]
+      .filter(Boolean)
+      .join(" · "),
+  renderHead: ({ listing, part }) => (
+    <span className="flex items-center gap-1.5">
+      <span className="relative h-[26px] w-[34px] shrink-0 overflow-hidden rounded-[3px] bg-surface-accent ring-1 ring-line">
+        {listing.images[0] ? (
+          <Image
+            src={listing.images[0]}
+            alt=""
+            fill
+            sizes="34px"
+            className="object-cover"
+            unoptimized
+          />
+        ) : (
+          <ImageOff
+            className="absolute inset-0 m-auto h-3 w-3 text-content-ghost"
+            strokeWidth={1.5}
+            aria-hidden
+          />
+        )}
+      </span>
+      <span className="block min-w-0">
+        <span className="flex items-baseline gap-1 text-[12px] leading-[14px]">
+          <span className="min-w-0 truncate font-semibold text-content">
+            {toPartGroupName(part.partName)}
+          </span>
+          {extractSide(part.partName) ? (
+            <span className="shrink-0 text-[11px] font-bold text-content-soft">
+              {extractSide(part.partName)}
+            </span>
+          ) : null}
+          <span className="shrink-0 font-bold text-content">
+            {formatGradeLabel(listing.grade, listing.marblingScore)}
+          </span>
+        </span>
+        <span className="flex items-baseline gap-1 text-[10px] leading-[11px] -tracking-[0.02em] text-content-faint">
+          <span className="shrink-0 tabular-nums">{listing.listingNo}</span>
+          {/* 업체명은 이 칸에서 유일하게 잘려도 되는 것 · 나머지는 잘리면 다른 값이 된다 */}
+          {listing.companyName ? (
+            <span className="min-w-0 truncate">{listing.companyName}</span>
+          ) : null}
+        </span>
+      </span>
+    </span>
+  ),
+};
+
 function displayPartNo(listing: LiveListing, part: LivePart): string {
   return (
     part.listingPartNo ||
@@ -228,6 +293,8 @@ export interface SheetPartGridProps {
   /** 관심으로 찍은 것 · 부위는 UUID 로 찍어 본다 (개체 접수번호가 섞여 있어도 무해하다) */
   favoriteIds: ReadonlySet<string>;
   onToggleFavorite: (partId: string) => void;
+  /** 그 부위에 남긴 메모 · 없으면 null · 1열 모서리 자국을 띄우는 데만 쓴다 */
+  getNote: (partId: string) => string | null;
 }
 
 /**
@@ -254,6 +321,7 @@ export function SheetPartGrid({
   getPartResult,
   favoriteIds,
   onToggleFavorite,
+  getNote,
 }: SheetPartGridProps) {
   const chunks = splitIntoColumns(entries, columns);
   const rowsPerColumn = chunks[0]?.length ?? 0;
@@ -323,6 +391,7 @@ export function SheetPartGrid({
                     result={getPartResult(entry.listing, entry.part)}
                     favorited={favoriteIds.has(entry.part.id)}
                     onToggleFavorite={() => onToggleFavorite(entry.part.id)}
+                    note={getNote(entry.part.id)}
                   />
                 ))}
                 {Array.from({ length: rowsPerColumn - chunk.length }).map(
@@ -370,6 +439,7 @@ function SheetPartRow({
   result,
   favorited,
   onToggleFavorite,
+  note,
 }: {
   entry: SheetBidEntry;
   axis: SheetRowAxis;
@@ -382,6 +452,7 @@ function SheetPartRow({
   result: PartResult | null;
   favorited: boolean;
   onToggleFavorite: () => void;
+  note: string | null;
 }) {
   const { listing, part } = entry;
   const myBid = dealerId
@@ -408,7 +479,10 @@ function SheetPartRow({
         getRowBgClass(rowState),
       )}
     >
-      <td title={axis.headTitle(entry)} className={cn(PART_CELL, "text-left")}>
+      <td
+        title={axis.headTitle(entry)}
+        className={cn(PART_CELL, "relative text-left")}
+      >
         {/* 별 좌우 여백을 같게 · 왼쪽 8(`PART_GUTTERS`) + 오른쪽 8 이라 가운데 선다 */}
         <span className="flex items-center gap-2">
           <PartFavoriteStar
@@ -418,6 +492,7 @@ function SheetPartRow({
           />
           <span className="min-w-0 flex-1">{axis.renderHead(entry)}</span>
         </span>
+        <NoteMark body={note} />
       </td>
       <td className={cn(PART_CELL, "text-right text-content-mid")}>
         {part.weight && part.weight > 0 ? (
@@ -567,6 +642,30 @@ function PartFavoriteStar({
         aria-hidden
       />
     </button>
+  );
+}
+
+/**
+ * 메모 자국 · 1열 칸 오른쪽 위 모서리.
+ *
+ * 삼각형 하나로 「여기 내가 남긴 말이 있다」 만 말하고, 내용은 올려야 나온다. 표계산
+ * 프로그램이 메모 달린 칸에 붙이는 표시와 같은 약속이라 설명 없이도 읽힌다.
+ *
+ * 폭을 먹지 않는 게 핵심이다. 1열은 이미 별 하나를 들이려고 낙찰자·낙찰가에서 폭을
+ * 꿔 온 칸이라 더 내줄 자리가 없다. 모서리에 얹으면 글자가 잘리는 건 맨 끝 몇 픽셀
+ * 뿐인데, 거기는 어차피 `truncate` 가 먼저 자르는 자리다.
+ *
+ * 이름을 읽어 주지 않는다 — 같은 칸의 `title` 이 이미 부위와 접수번호를 말하고, 여기에
+ * 메모 전문까지 겹쳐 읽어 주면 행 하나 지날 때마다 문장 둘을 듣는다.
+ */
+function NoteMark({ body }: { body: string | null }) {
+  if (!body) return null;
+  return (
+    <span
+      title={body}
+      aria-hidden
+      className="absolute right-0 top-0 h-0 w-0 border-l-[7px] border-t-[7px] border-l-transparent border-t-note"
+    />
   );
 }
 

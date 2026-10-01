@@ -20,14 +20,13 @@ import { clearFromSheet, markFromSheet } from "../lib/detailNavigation";
 const VIEW_QUERY_KEY = "view";
 
 /**
- * 경매장 본문 폭 · 왼쪽 정렬(`mx-auto` 없음).
+ * 요약을 못 세울 만큼 좁을 때의 본문 폭 · 표 하나만 놓이는 경우라 여기서 끊는다.
  *
- * 화면이 넓어져도 표를 늘리지 않는다 — 늘리면 열 간격만 벌어져 읽기 나빠진다.
- * 남는 폭은 오른쪽 여백으로 두고, 사이드 메뉴를 펴면 그 여백부터 먹는다.
+ * 요약이 설 만큼 넓어지면 상한을 풀고 바깥 틀(`AUCTION_SHELL_CLASS`, 2120)에 맡긴다.
+ * 예전에는 여기서 1660 으로 끊고 남는 폭을 오른쪽에 버렸는데, 2560 화면에서 844px 이
+ * 그냥 비었다. 끊는 자리는 한 군데여야 하고, 그 자리는 도크까지 함께 품는 바깥 틀이다.
  */
 const ROOM_CONTAINER_CLASS = "max-w-[1360px]";
-/** 요약을 편 상장표 · 요약 자리(300)만큼 더 내준다 · 표는 그대로 두고 옆으로 붙인다 */
-const SHEET_WIDE_CONTAINER_CLASS = "max-w-[1660px]";
 /** 상장표 섹션 좌우 여백 · 사이드 메뉴를 편 1728 화면에서 표+요약이 들어가는 값 */
 const SHEET_PADDING_X = 24;
 
@@ -99,11 +98,7 @@ export function LiveAuctionRoom() {
    */
   const [roomRef, { width: roomWidth }] = useMeasure<HTMLDivElement>();
   const showSummary = roomWidth - SHEET_PADDING_X * 2 >= SUMMARY_PANEL_MIN_ROOM;
-  const sheetGridClass = cn(
-    "px-6 py-3",
-    // 요약이 붙을 때만 넓힌다 · 표는 그대로 두고 옆으로 붙인다
-    showSummary ? SHEET_WIDE_CONTAINER_CLASS : ROOM_CONTAINER_CLASS,
-  );
+  const sheetGridClass = cn("px-6 py-3", !showSummary && ROOM_CONTAINER_CLASS);
 
   /**
    * 예전 뷰 주소 정리 · `?view=part` `?view=partSheet` 는 이제 없는 화면이다.

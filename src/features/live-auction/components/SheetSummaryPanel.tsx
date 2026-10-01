@@ -6,10 +6,15 @@ import { formatGradeLabel } from "../lib/grade";
 import { PartMarketChart } from "./PartMarketChart";
 import type { LiveListing } from "../api";
 
-/** 요약 자리폭 · 사진 4:3 이 252px · 차트 아래 거래 막대까지 들어가는 기준 폭 */
-export const SUMMARY_PANEL_WIDTH = 360;
 /** 남는 폭이 모자라면 여기까지 좁힌다 */
 export const SUMMARY_PANEL_MIN_WIDTH = 300;
+/**
+ * 요약이 더 넓어져도 쓸모가 없어지는 지점 · 사진 4:3 이 420px 높이가 되는 폭.
+ *
+ * 넓은 화면에서 남는 폭을 표와 3:1 로 나눠 갖는데, 여기서 멈추고 나머지는 표가
+ * 가져간다. 더 키우면 사진만 커지고 그 아래 시세 차트는 나아지지 않는다.
+ */
+export const SUMMARY_PANEL_MAX_WIDTH = 560;
 /**
  * 상장표가 한 글자도 잘리지 않는 폭 · 16열의 실측 합 + 반올림 여유.
  * 요약은 이 폭을 건드리지 않는 선에서만 자리를 얻는다 — 표가 먼저다.

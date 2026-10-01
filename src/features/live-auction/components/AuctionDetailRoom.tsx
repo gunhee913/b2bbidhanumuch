@@ -26,6 +26,7 @@ import { cn } from "@/lib/utils";
 import type { LiveListing } from "../api";
 import { useAuctionRoom } from "../hooks/useAuctionRoom";
 import { useAuctionFavorites } from "../hooks/useAuctionFavorites";
+import { useAuctionNotes } from "../hooks/useAuctionNotes";
 import { useSideDock } from "../hooks/useSideDock";
 import {
   useRoomLayout,
@@ -51,6 +52,7 @@ import {
 import { isPartSettled, summarizeParts } from "../lib/sheetSummary";
 import { formatKrw } from "../lib/masking";
 import {
+  favoritesHref,
   listingDetailHref,
   liveRoomHref,
   partDetailHref,
@@ -76,6 +78,7 @@ import { ViewerMediaPane } from "./ListingViewerDialog";
 import { formatDate, formatTraceNo } from "./ListingSpecSheet";
 import { buildTraceHref } from "./ListingInfoSection";
 import {
+  FAVORITE_ROW_AXIS,
   LISTING_ROW_AXIS,
   PART_ROW_AXIS,
   SheetBatchFooter,
@@ -319,9 +322,23 @@ function gridColumns(order: PaneOrder<RoomColumn>, tableWidth: number): string {
   return `${track(order[0])} ${SPLITTER_WIDTH}px ${track(order[1])}`;
 }
 
-/** 무엇을 세우고 볼 것인가 · 개체 한 마리 또는 부위 하나 */
+/** 개체 하나의 첫 부위 · 축을 옮길 때 들고 갈 행이 없으면 여기서 짓는다 */
+function firstEntryOf(listing: LiveListing | undefined): SheetBidEntry | null {
+  if (!listing) return null;
+  const part = [...listing.parts].sort((a, b) => a.partNo - b.partNo)[0];
+  return part ? { listing, part } : null;
+}
+
+/**
+ * 무엇을 세우고 볼 것인가 · 개체 한 마리, 부위 하나, 또는 아무것도.
+ *
+ * `favorite` 만 세울 것이 없다. 관심으로 찍어 둔 부위들이 곧 전부라 넘길 바깥 차례가
+ * 없고, 그래서 헤더 선택기와 ←/→ 가 할 일이 없다.
+ */
 export type RoomAxis =
-  { kind: "listing"; listingNo: string } | { kind: "part"; group: string };
+  | { kind: "listing"; listingNo: string }
+  | { kind: "part"; group: string }
+  | { kind: "favorite" };
 
 /**
  * 경매장 상세 · 한 축을 세우고 나머지를 표로 훑으며 입찰한다.
@@ -369,6 +386,26 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
   const houseKey = house?.key ?? null;
   const partGroups = useMemo(() => groupPartsByName(listings), [listings]);
 
+  /*
+   * 관심 · 상장표와 같은 목록을 본다 · 담을 곳이 없으면 로그인부터 받는다.
+   * 개체는 접수번호, 부위는 UUID 로 들어온다 — 별을 켜고 끌 때는 갈라 볼 일 없이
+   * 그대로 넘긴다. 관심축이 행을 고를 때만 부위 쪽(`part.id`)만 꺼내 쓴다.
+   *
+   * 축이 쓸 행을 여기서 만들기 때문에 다른 상태보다 먼저 와야 한다.
+   */
+  const favorites = useAuctionFavorites(listingDate);
+  const notes = useAuctionNotes(listingDate);
+  const toggleFavorite = useCallback(
+    (id: string) => {
+      if (!dealerId) {
+        setLoginPromptOpen(true);
+        return;
+      }
+      favorites.toggle(id);
+    },
+    [dealerId, favorites, setLoginPromptOpen],
+  );
+
   /* ── 고정축 ─────────────────────────────────────────── */
 
   const axisListing =
@@ -383,7 +420,7 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
   const hideSettled = useRoomLayout((state) => state.hideSettled);
   const toggleHideSettled = useRoomLayout((state) => state.toggleHideSettled);
 
-  /** 축이 주는 날것의 행 · 개체축이면 부위들, 부위축이면 개체들 */
+  /** 축이 주는 날것의 행 · 개체축이면 부위들, 부위축이면 개체들, 관심축이면 찍어 둔 부위들 */
   const groupRows = useMemo<SheetBidEntry[]>(() => {
     if (axis.kind === "listing") {
       if (!axisListing) return [];
@@ -391,11 +428,35 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
         .sort((a, b) => a.partNo - b.partNo)
         .map((part) => ({ listing: axisListing, part }));
     }
-    return (axisGroup?.items ?? []).map(({ listing, part }) => ({
-      listing,
-      part,
-    }));
-  }, [axis.kind, axisListing, axisGroup]);
+    if (axis.kind === "part") {
+      return (axisGroup?.items ?? []).map(({ listing, part }) => ({
+        listing,
+        part,
+      }));
+    }
+    /*
+     * 관심축 · 부위로 찍은 것만 모은다.
+     *
+     * 관심 목록은 개체(접수번호)와 부위(UUID)가 한 집합에 섞여 있는데(`useAuctionFavorites`),
+     * 여기서는 `part.id` 로만 물어보므로 개체로 찍은 것은 애초에 걸리지 않는다. 개체 관심은
+     * 「이 소를 볼까」 고 이 화면은 「이 등심을 얼마에 넣을까」 라, 섞으면 접수번호 하나에
+     * 부위 스물이 딸려 붙는다.
+     *
+     * 줄 세우는 차례는 사이드 메뉴 관심 목록과 같은 접수번호 순이다. 같은 개체 안에서는
+     * 부위번호 순 — 한 마리에서 여럿을 찍었으면 늘 같은 자리에 같은 차례로 선다.
+     */
+    return listings
+      .flatMap((listing) =>
+        listing.parts
+          .filter((part) => favorites.ids.has(part.id))
+          .map((part) => ({ listing, part })),
+      )
+      .sort(
+        (a, b) =>
+          a.listing.listingNo.localeCompare(b.listing.listingNo) ||
+          a.part.partNo - b.part.partNo,
+      );
+  }, [axis.kind, axisListing, axisGroup, listings, favorites.ids]);
 
   /*
    * 등급·업체 거르개 · 부위축에서만 쓴다.
@@ -406,14 +467,15 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
    */
   const [gradeFilter, setGradeFilter] = useState("");
   const [companyFilter, setCompanyFilter] = useState("");
-  const filterable = axis.kind === "part";
+  /* 개체축만 뺀다 · 한 마리의 부위들은 등급도 업체도 전부 같아 거를 것이 없다 */
+  const filterable = axis.kind !== "listing";
   const filtered = filterable && (!!gradeFilter || !!companyFilter);
   const resetFilters = useCallback(() => {
     setGradeFilter("");
     setCompanyFilter("");
   }, []);
   /** 이 축에서 한 행이 무엇인가 · 머리글·빈 화면이 같은 말을 쓰게 한다 */
-  const rowNoun = axis.kind === "listing" ? "부위" : "개체";
+  const rowNoun = axis.kind === "part" ? "개체" : "부위";
 
   /** 업체 후보는 거르기 전 목록에서 뽑는다 · 고를 때마다 후보가 줄면 되돌릴 길이 막힌다 */
   const companyOptions = useMemo(() => {
@@ -433,11 +495,8 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
     if (!filterable || (!gradeFilter && !companyFilter)) return groupRows;
     return groupRows.filter(
       ({ listing }) =>
-        matchesGradeFilter(
-          gradeFilter,
-          listing.grade,
-          listing.marblingScore,
-        ) && (!companyFilter || listing.companyName === companyFilter),
+        matchesGradeFilter(gradeFilter, listing.grade, listing.marblingScore) &&
+        (!companyFilter || listing.companyName === companyFilter),
     );
   }, [groupRows, filterable, gradeFilter, companyFilter]);
 
@@ -485,6 +544,12 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
         ? rows.find((r) => toPartGroupName(r.part.partName) === pick.group)
         : null;
       if (byGroup) return byGroup;
+    } else if (axis.kind === "favorite") {
+      /* 부위축에서 넘어올 때 보던 행을 들고 온다 · 여기서는 `part` 가 부위 UUID 다 */
+      if (!pick.id && partParam) {
+        const byPartId = rows.find((r) => r.part.id === partParam);
+        if (byPartId) return byPartId;
+      }
     } else if (!pick.id && listingParam) {
       const byListing = rows.find((r) => r.listing.listingNo === listingParam);
       if (byListing) return byListing;
@@ -500,8 +565,26 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
     });
   }, []);
 
-  /** 헤더의 등급판정 · 왼쪽 사진이 가리키는 개체 */
-  const focusListing = selected?.listing ?? axisListing;
+  /**
+   * 헤더의 등급판정 · 왼쪽 사진이 가리키는 개체.
+   *
+   * 고른 행이 없어도 비우지 않는다. 부위축에는 기댈 고정 개체가 없어서(`axisListing`
+   * 은 개체축 전용) 거르개가 0건을 내면 이 값이 통째로 사라졌고, 그러면 아래 「찾을 수
+   * 없습니다」 로 떨어져 등급 하나 눌렀다가 방 밖으로 쫓겨났다. 표가 비는 사정은 표
+   * 안 빈 화면이 이미 말하고 있으니, 왼쪽은 보던 개체를 그대로 붙들고 있으면 된다 —
+   * 거르개를 지우면 끊긴 데 없이 이어진다.
+   */
+  const lastFocus = useRef<SheetBidEntry | null>(null);
+  if (selected) lastFocus.current = selected;
+  /* 부위를 옮겼으면 기억은 버린다 · 남의 방 행을 들고 있을 수는 없다 */
+  const remembered =
+    lastFocus.current &&
+    groupRows.some((r) => r.part.id === lastFocus.current?.part.id)
+      ? lastFocus.current
+      : null;
+  /** 사진·시세가 보는 행 · 입찰은 어디까지나 `selected` 다, 이 값은 보여 주기 전용 */
+  const focusEntry = selected ?? remembered ?? groupRows[0] ?? null;
+  const focusListing = focusEntry?.listing ?? axisListing;
 
   /* ── 이전/다음 고정축 ─────────────────────────────────── */
 
@@ -530,6 +613,15 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
     [router, houseKey],
   );
 
+  /* 관심축의 한 칸 · 옮기는 것이 방이 아니라 행일 뿐, 끝에서 멈추는 건 위 둘과 같다 */
+  const goToFavRow = useCallback(
+    (target: SheetBidEntry | undefined) => {
+      if (!target) return;
+      selectRow(target);
+    },
+    [selectRow],
+  );
+
   const listingIdx = listings.findIndex((l) => l.id === axisListing?.id);
   const groupIdx = partGroups.findIndex((g) => g.group === axisGroup?.group);
 
@@ -538,14 +630,27 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
    * 부위축은 행이 이미 개체라 ↑/↓ 와 하는 일이 같았다 — 키 넷이 한 가지 일만 했다.
    * 고정축(헤더 picker 가 가리키는 것)을 옮기게 하면 두 축 다 겹치지 않는다.
    */
+  /**
+   * 관심축에서 ←/→ 가 짚는 자리 · 보이는 목록(`rows`) 안에서 센다.
+   *
+   * 다른 두 축은 ←/→ 가 방을 옮기지만 관심은 옮길 방이 없다. 대신 담아 둔 차례대로
+   * 다음 부위로 넘어간다 — 세워 둔 것이 곧 고른 행이라, 화살표가 그 행을 민다.
+   * 거르거나 감춰서 빠진 행은 건너뛴다. 눌렀는데 아무 일도 안 일어나면 안 된다.
+   */
+  const favIdx = rows.findIndex((r) => r.part.id === selected?.part.id);
+
   const pivotIdx = axis.kind === "listing" ? listingIdx : groupIdx;
   const pivotLast =
     (axis.kind === "listing" ? listings.length : partGroups.length) - 1;
-  const canPrev = pivotIdx > 0;
-  const canNext = pivotIdx >= 0 && pivotIdx < pivotLast;
+  const canPrev = axis.kind === "favorite" ? favIdx > 0 : pivotIdx > 0;
+  const canNext =
+    axis.kind === "favorite"
+      ? favIdx >= 0 && favIdx < rows.length - 1
+      : pivotIdx >= 0 && pivotIdx < pivotLast;
 
   const goPrev = useCallback(() => {
-    if (axis.kind === "listing") goToListing(listings[listingIdx - 1]);
+    if (axis.kind === "favorite") goToFavRow(rows[favIdx - 1]);
+    else if (axis.kind === "listing") goToListing(listings[listingIdx - 1]);
     else goToGroup(partGroups[groupIdx - 1]);
   }, [
     axis.kind,
@@ -555,10 +660,14 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
     listingIdx,
     partGroups,
     groupIdx,
+    rows,
+    favIdx,
+    goToFavRow,
   ]);
 
   const goNext = useCallback(() => {
-    if (axis.kind === "listing") goToListing(listings[listingIdx + 1]);
+    if (axis.kind === "favorite") goToFavRow(rows[favIdx + 1]);
+    else if (axis.kind === "listing") goToListing(listings[listingIdx + 1]);
     else goToGroup(partGroups[groupIdx + 1]);
   }, [
     axis.kind,
@@ -568,6 +677,9 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
     listingIdx,
     partGroups,
     groupIdx,
+    rows,
+    favIdx,
+    goToFavRow,
   ]);
 
   const [arrowNavLearned, setArrowNavLearned] = useLocalStorage(
@@ -581,24 +693,43 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
 
   const switchAxis = useCallback(
     (next: RoomAxis["kind"]) => {
-      if (next === axis.kind || !selected) return;
+      if (next === axis.kind) return;
+      /*
+       * 관심축은 들고 갈 것이 없어도 들어갈 수 있다 — 세울 대상이 없는 축이라
+       * 고른 행은 「처음 고를 행」 힌트일 뿐이다. 나머지 둘은 무엇을 세울지가
+       * 고른 행에서 나오므로 행이 없으면 갈 곳이 없다.
+       */
+      if (next === "favorite") {
+        router.push(
+          favoritesHref({ houseKey, partId: focusEntry?.part.id ?? null }),
+        );
+        return;
+      }
+      /*
+       * 들고 갈 행 · 보던 행이 없으면 오늘 첫 개체의 첫 부위로 간다.
+       *
+       * 뒷길이 필요한 건 관심이 빈 경우다. 거기엔 고른 행이 없는데, 그렇다고 전환을
+       * 막으면 뒤로 가기 말고는 방을 나갈 수가 없다 — 탭을 눌러도 아무 일이 없다.
+       */
+      const carry = focusEntry ?? firstEntryOf(listings[0]);
+      if (!carry) return;
       if (next === "part") {
         router.push(
-          partDetailHref(toPartGroupName(selected.part.partName), {
+          partDetailHref(toPartGroupName(carry.part.partName), {
             houseKey,
-            listingNo: selected.listing.listingNo,
+            listingNo: carry.listing.listingNo,
           }),
         );
         return;
       }
       router.push(
-        listingDetailHref(selected.listing.listingNo, {
+        listingDetailHref(carry.listing.listingNo, {
           houseKey,
-          part: String(selected.part.partNo).padStart(2, "0"),
+          part: String(carry.part.partNo).padStart(2, "0"),
         }),
       );
     },
-    [axis.kind, selected, router, houseKey],
+    [axis.kind, focusEntry, listings, router, houseKey],
   );
 
   // ←/→ 개체 이동 · ↓ 첫 입찰칸 · 입력칸 안에서는 글자 커서라 막는다 · Alt 를 쥐면 어디서든
@@ -621,7 +752,9 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
       if (e.code === "KeyB" || e.key === "b" || e.key === "B") {
         if (isTypingInto(el) || e.metaKey || e.ctrlKey || e.altKey) return;
         e.preventDefault();
-        switchAxis(axis.kind === "listing" ? "part" : "listing");
+        /* 개체별 → 부위별 → 관심 → 개체별 · 탭에 놓인 차례 그대로 돈다 */
+        const at = AXIS_TABS.findIndex((t) => t.kind === axis.kind);
+        switchAxis(AXIS_TABS[(at + 1) % AXIS_TABS.length].kind);
         return;
       }
 
@@ -772,7 +905,10 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
       : CHART_MAX_HEIGHT;
   const chartHeight =
     focus === "chart"
-      ? Math.max(CHART_DEFAULT_HEIGHT, Math.round(colHeight) - CHART_CARD_CHROME)
+      ? Math.max(
+          CHART_DEFAULT_HEIGHT,
+          Math.round(colHeight) - CHART_CARD_CHROME,
+        )
       : Math.min(storedChartHeight, maxChartHeight);
 
   const [mediaIdx, setMediaIdx] = useState(0);
@@ -780,22 +916,6 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
   useEffect(() => {
     setMediaIdx(0);
   }, [focusListingId]);
-
-  /*
-   * 관심 · 상장표와 같은 목록을 본다 · 담을 곳이 없으면 로그인부터 받는다.
-   * 개체는 접수번호, 부위는 UUID 로 들어온다 — 여기서는 갈라 볼 일 없이 그대로 넘긴다.
-   */
-  const favorites = useAuctionFavorites(listingDate);
-  const toggleFavorite = useCallback(
-    (id: string) => {
-      if (!dealerId) {
-        setLoginPromptOpen(true);
-        return;
-      }
-      favorites.toggle(id);
-    },
-    [dealerId, favorites, setLoginPromptOpen],
-  );
 
   const sideDock = (
     <AuctionSideDock
@@ -844,9 +964,13 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
     () => new Set(groupRows.map((r) => r.listing.id)).size,
     [groupRows],
   );
-  const shownCount = axis.kind === "listing" ? rows.length : headCount;
-  const totalCount =
-    axis.kind === "listing" ? groupRows.length : groupHeadCount;
+  /*
+   * 부위축만 개체를 센다 · 거기서는 좌/우가 따로 행이라 행 수와 개체 수가 다르다.
+   * 관심축은 행 하나가 부위 하나다 — 같은 개체에서 둘을 찍었으면 둘로 세야 한다.
+   */
+  const countsHeads = axis.kind === "part";
+  const shownCount = countsHeads ? headCount : rows.length;
+  const totalCount = countsHeads ? groupHeadCount : groupRows.length;
   const blockReasons = useMemo(
     () => rows.map((r) => getBlockReason(r.listing)),
     [rows, getBlockReason],
@@ -859,9 +983,25 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
    * 「찾을 수 없습니다」 는 상장에 정말 없을 때만이다 · 거르기 전 목록(`groupRows`)으로 판단한다.
    * 걸러서 0이 된 것뿐인데 이 화면이 뜨면, 등급 하나 눌렀다가 방이 통째로 사라진 것처럼
    * 보이고 거르개조차 같이 없어져 되돌릴 길이 막힌다 — 그건 표 안 빈 화면이 맡는다.
+   *
+   * `!focusListing` 도 거르기와는 상관없어야 한다. 예전엔 부위축에서 거른 결과가 0이면
+   * 이 값이 null 이 되어 조건을 몰래 통과했다 — `focusListing` 쪽 주석 참고.
    */
-  const missing = axis.kind === "listing" ? !axisListing : !axisGroup;
-  if (missing || groupRows.length === 0 || !focusListing) {
+  const missing =
+    axis.kind === "listing"
+      ? !axisListing
+      : axis.kind === "part"
+        ? !axisGroup
+        : /* 관심축은 세울 것이 없으니 「없는 방」 도 없다 · 비는 건 목록이 빌 때뿐이다 */
+          false;
+  /*
+   * 관심축은 비어도 방을 지킨다 · 찍어 둔 것이 없다는 말은 표 안에서 한다.
+   * 나머지 둘과 달리 「없는 방」 이 아니라 「빈 서랍」 이라, 화면을 통째로 바꾸면
+   * 별 하나 뺐다가 방 밖으로 밀려난다 — 탭도 같이 사라져 돌아올 길이 막힌다.
+   */
+  const bail =
+    axis.kind === "favorite" ? false : groupRows.length === 0 || !focusListing;
+  if (missing || bail) {
     return (
       <>
         {sideDock}
@@ -871,8 +1011,15 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
               ? "상장 정보를 불러오는 중입니다."
               : axis.kind === "listing"
                 ? `오늘 상장에서 ${axis.listingNo} 개체를 찾을 수 없습니다.`
-                : `오늘 상장에 ${axis.group} 부위가 없습니다.`}
+                : axis.kind === "part"
+                  ? `오늘 상장에 ${axis.group} 부위가 없습니다.`
+                  : "관심으로 찍어 둔 부위가 없습니다."}
           </p>
+          {!listingsLoading && axis.kind === "favorite" ? (
+            <p className="-mt-1 text-[12.5px] text-content-faint">
+              상장표나 부위 표에서 별을 눌러 담으면 여기 모입니다
+            </p>
+          ) : null}
           {listingsLoading ? null : (
             <button
               type="button"
@@ -888,8 +1035,8 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
   }
 
   const chartReferencePrice =
-    selected?.part.minPrice != null
-      ? { value: selected.part.minPrice, label: "최저단가" }
+    focusEntry?.part.minPrice != null
+      ? { value: focusEntry.part.minPrice, label: "최저단가" }
       : null;
 
   /**
@@ -916,7 +1063,11 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
       {orderPanes(
         stackOrder,
         {
-          /* 그림 위에는 아무것도 얹지 않는다 · 개체 이동은 헤더 스테퍼, 장 전환은 썸네일 레일 */
+          /*
+           * 그림 위에 조작은 얹지 않는다 · 개체 이동은 헤더 스테퍼, 장 전환은 썸네일 레일.
+           * 등급 각인만 예외인데, 그건 누를 것이 아니라 이 사진이 몇 등급인지를 말하는
+           * 글자이고 자리도 사진이 못 채우고 남긴 여백이다.
+           */
           photo:
             focus === "chart" ? null : (
               <section
@@ -957,13 +1108,32 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
                     onToggle={() => toggleFocus("photo")}
                   />
                 </div>
-                <ViewerMediaPane
-                  key={focusListing.id}
-                  listing={focusListing}
-                  mediaIdx={mediaIdx}
-                  onMediaIdxChange={setMediaIdx}
-                  className="px-3 pb-3"
-                />
+                {focusListing ? (
+                  <ViewerMediaPane
+                    key={focusListing.id}
+                    listing={focusListing}
+                    mediaIdx={mediaIdx}
+                    onMediaIdxChange={setMediaIdx}
+                    className="px-3 pb-3"
+                    stamp
+                    note={
+                      focusEntry
+                        ? {
+                            partId: focusEntry.part.id,
+                            partLabel: `${focusEntry.part.partName} · ${focusEntry.listing.listingNo}`,
+                            body: notes.get("part", focusEntry.part.id),
+                            onSave: (body) =>
+                              notes.save("part", focusEntry.part.id, body),
+                          }
+                        : null
+                    }
+                  />
+                ) : (
+                  /* 관심이 비었을 때만 온다 · 다른 축은 늘 가리킬 개체가 있다 */
+                  <div className="flex min-h-0 flex-1 items-center justify-center px-3 pb-3 text-[13px] font-medium text-white/25">
+                    담아 둔 부위가 없습니다
+                  </div>
+                )}
               </section>
             ),
           /* 차트는 캔버스 높이가 고정이라 눌리면 잘린다 · 모자라면 열이 흐른다 */
@@ -983,7 +1153,7 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
                 )}
               >
                 <PartMarketChart
-                  partName={selected?.part.partName ?? null}
+                  partName={focusEntry?.part.partName ?? null}
                   listing={focusListing}
                   referencePrice={chartReferencePrice}
                   height={chartHeight}
@@ -1108,30 +1278,56 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
       </header>
       <div className="scrollbar-thin min-h-0 flex-1 overflow-y-auto">
         {rows.length === 0 ? (
-          /* 비어 있는 까닭이 둘이라 되돌리는 단추도 둘이다 · 엉뚱한 걸 눌러도 안 풀린다 */
+          /*
+           * 비어 있는 까닭이 셋이라 되돌리는 단추도 셋이다 · 엉뚱한 걸 눌러도 안 풀린다.
+           * 애초에 담은 것이 없는 경우(관심축)는 되돌릴 것이 없어 나가는 길만 준다.
+           */
           <div className="flex h-full flex-col items-center justify-center gap-2 px-6 text-center">
             <p className="text-[13px] font-semibold text-content-mid">
-              {allRows.length === 0
-                ? `조건에 맞는 ${rowNoun}가 없습니다`
-                : `남은 ${rowNoun}가 없습니다`}
+              {groupRows.length === 0
+                ? "관심으로 담아 둔 부위가 없습니다"
+                : allRows.length === 0
+                  ? `조건에 맞는 ${rowNoun}가 없습니다`
+                  : `남은 ${rowNoun}가 없습니다`}
             </p>
-            <p className="text-[12px] text-content-faint">
-              {allRows.length === 0
-                ? `${groupRows.length}개 중 등급·업체에 걸리는 것이 없어요`
-                : `${allRows.length}개가 모두 마감돼 숨겨졌어요`}
-            </p>
+            {/* 거르개 쪽은 윗줄이 이미 다 말했다 · 나머지 둘은 「왜 비었는지」 가 윗줄에 없다 */}
+            {groupRows.length === 0 ? (
+              <p className="text-[12px] text-content-faint">
+                상장표나 부위 표에서 별을 누르면 여기 모입니다
+              </p>
+            ) : allRows.length === 0 ? null : (
+              <p className="text-[12px] text-content-faint">
+                {allRows.length}개가 모두 마감돼 숨겨졌어요
+              </p>
+            )}
             <button
               type="button"
-              onClick={allRows.length === 0 ? resetFilters : toggleHideSettled}
+              onClick={
+                groupRows.length === 0
+                  ? goBackToSheet
+                  : allRows.length === 0
+                    ? resetFilters
+                    : toggleHideSettled
+              }
               className="mt-1 h-7 rounded-md bg-surface-accent px-2.5 text-[12px] font-semibold text-content transition-colors hover:bg-surface-strong"
             >
-              {allRows.length === 0 ? "필터 초기화" : "숨김 해제"}
+              {groupRows.length === 0
+                ? "상장표 보기"
+                : allRows.length === 0
+                  ? "필터 초기화"
+                  : "숨김 해제"}
             </button>
           </div>
         ) : (
           <SheetPartGrid
             entries={rows}
-            axis={axis.kind === "listing" ? PART_ROW_AXIS : LISTING_ROW_AXIS}
+            axis={
+              axis.kind === "listing"
+                ? PART_ROW_AXIS
+                : axis.kind === "part"
+                  ? LISTING_ROW_AXIS
+                  : FAVORITE_ROW_AXIS
+            }
             columns={1}
             gridClassName="grid-cols-1"
             dealerId={dealerId}
@@ -1143,16 +1339,25 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
             getPartResult={getPartResult}
             favoriteIds={favorites.ids}
             onToggleFavorite={toggleFavorite}
+            getNote={(partId) => notes.get("part", partId)}
           />
         )}
       </div>
       <div className="shrink-0 border-t border-line-soft bg-surface px-3 pb-2">
         <SheetBatchFooter
           batchKey={
-            axis.kind === "listing" ? axisListing!.id : `part:${axisGroup!.group}`
+            axis.kind === "listing"
+              ? axisListing!.id
+              : axis.kind === "part"
+                ? `part:${axisGroup!.group}`
+                : "favorite"
           }
           label={
-            axis.kind === "listing" ? axisListing!.listingNo : axisGroup!.group
+            axis.kind === "listing"
+              ? axisListing!.listingNo
+              : axis.kind === "part"
+                ? axisGroup!.group
+                : "관심"
           }
           entries={rows}
           bidding={sheetBidding}
@@ -1160,14 +1365,22 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
             allSettled
               ? axis.kind === "listing"
                 ? "마감된 개체입니다."
-                : "마감된 부위입니다."
+                : axis.kind === "part"
+                  ? "마감된 부위입니다."
+                  : /* 한 부위가 아니라 찍어 둔 것 전부라 가리킬 대상이 없다 */
+                    "관심 부위가 모두 마감됐습니다."
               : allBlocked
                 ? blockReasons[0]
                 : undefined
           }
           selected={selected}
           selectedLabel={({ listing, part }) =>
-            axis.kind === "listing" ? part.partName : listing.listingNo
+            axis.kind === "listing"
+              ? part.partName
+              : axis.kind === "part"
+                ? listing.listingNo
+                : /* 부위도 개체도 섞여 있어 한쪽만 적으면 어느 줄인지 못 짚는다 */
+                  `${listing.listingNo} ${part.partName}`
           }
         >
           <SheetBatchSubtotal summary={summary} />
@@ -1193,7 +1406,9 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
             hint={
               axis.kind === "listing"
                 ? (listings[listingIdx - 1]?.listingNo ?? null)
-                : (partGroups[groupIdx - 1]?.group ?? null)
+                : axis.kind === "part"
+                  ? (partGroups[groupIdx - 1]?.group ?? null)
+                  : favHint(rows[favIdx - 1])
             }
           />
         }
@@ -1206,17 +1421,62 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
             hint={
               axis.kind === "listing"
                 ? (listings[listingIdx + 1]?.listingNo ?? null)
-                : (partGroups[groupIdx + 1]?.group ?? null)
+                : axis.kind === "part"
+                  ? (partGroups[groupIdx + 1]?.group ?? null)
+                  : favHint(rows[favIdx + 1])
             }
           />
         }
-        /* 부위축은 picker 가 부위를 가리키므로 "지금 어느 개체인가" 를 따로 적는다 */
+        /*
+         * 부위축은 picker 가 부위를 가리키므로 "지금 어느 개체인가" 를 따로 적는다.
+         * 고른 행이 아니라 `focusListing` 을 쓴다 — 거르개가 0건을 내도 사진은 보던
+         * 개체를 붙들고 있는데 여기만 비면 둘이 서로 다른 말을 한다.
+         */
         entityLabel={
-          axis.kind === "part" ? (selected?.listing.listingNo ?? null) : null
+          axis.kind === "listing"
+            ? null
+            : (focusEntry?.listing.listingNo ?? null)
         }
         showArrowHint={!arrowNavLearned && (canPrev || canNext)}
         picker={
-          axis.kind === "listing" ? (
+          axis.kind === "favorite" ? (
+            focusEntry ? (
+              /*
+               * 담아 둔 차례가 곧 고정축이다 · 세우는 것이 방이 아니라 행일 뿐,
+               * 「지금 어디를 보고 있나 · 몇 번째인가」 를 말하는 일은 똑같다.
+               */
+              <RoomPicker
+                label="다른 관심 부위 선택"
+                placeholder="부위 · 접수번호 · 업체 검색"
+                hotkey="/"
+                title={toPartGroupName(focusEntry.part.partName)}
+                titleWidth={PART_TITLE_WIDTH}
+                badge={`${favIdx + 1}/${rows.length}`}
+                badgeChars={String(rows.length).length * 2 + 1}
+                items={rows}
+                keyOf={(r) => r.part.id}
+                isCurrent={(r) => r.part.id === focusEntry.part.id}
+                searchTextOf={(r) => [
+                  r.part.partName,
+                  r.listing.listingNo,
+                  r.listing.companyName,
+                  formatGradeLabel(r.listing.grade, r.listing.marblingScore),
+                ]}
+                renderRow={(r) => <FavoritePickerRow entry={r} />}
+                onPick={selectRow}
+              />
+            ) : (
+              /* 담은 것이 없을 때만 · 부위명이 서던 자리에 같은 크기로 선다 */
+              <span className="flex items-baseline gap-2 px-2 py-1">
+                <span className="text-[22px] font-bold leading-none -tracking-[0.02em] text-content">
+                  관심
+                </span>
+                <span className="text-[12px] font-medium tabular-nums text-content-faint">
+                  0
+                </span>
+              </span>
+            )
+          ) : axis.kind === "listing" ? (
             <RoomPicker
               label="다른 개체 선택"
               placeholder="접수번호 · 업체 · 등급 검색"
@@ -1334,6 +1594,51 @@ function ListingPickerRow({ listing }: { listing: LiveListing }) {
   );
 }
 
+/** 관심 목록 한 줄 · 부위와 개체가 둘 다 섞여 있어 둘 다 적는다 */
+function FavoritePickerRow({ entry }: { entry: SheetBidEntry }) {
+  const { listing, part } = entry;
+  return (
+    <>
+      <span className="relative h-[33px] w-11 shrink-0 overflow-hidden rounded-md bg-surface-accent ring-1 ring-line">
+        {listing.images[0] ? (
+          <Image
+            src={listing.images[0]}
+            alt=""
+            fill
+            sizes="44px"
+            className="object-cover"
+            unoptimized
+          />
+        ) : (
+          <ImageOff
+            className="absolute inset-0 m-auto h-3.5 w-3.5 text-content-ghost"
+            strokeWidth={1.5}
+            aria-hidden
+          />
+        )}
+      </span>
+      <span className="w-[72px] shrink-0 truncate text-[12.5px] font-bold text-content">
+        {part.partName}
+      </span>
+      <span className="shrink-0 whitespace-nowrap text-[12px] font-semibold tabular-nums text-content-mid">
+        {listing.listingNo}
+      </span>
+      <span className="w-[58px] shrink-0 text-[12px] font-semibold text-content-mid">
+        {formatGradeLabel(listing.grade, listing.marblingScore)}
+      </span>
+      <span className="min-w-0 flex-1 truncate text-right text-[12px] text-content-soft">
+        {listing.companyName || "-"}
+      </span>
+    </>
+  );
+}
+
+/** 화살표에 붙는 다음 자리 귀띔 · 관심은 부위가 같은 것이 섞여 접수번호까지 적는다 */
+function favHint(entry: SheetBidEntry | undefined): string | null {
+  if (!entry) return null;
+  return `${entry.part.partName} ${entry.listing.listingNo}`;
+}
+
 function PartPickerRow({
   group,
   dealerId,
@@ -1386,6 +1691,7 @@ function PartPickerRow({
 const AXIS_TABS: { kind: RoomAxis["kind"]; label: string }[] = [
   { kind: "listing", label: "개체별" },
   { kind: "part", label: "부위별" },
+  { kind: "favorite", label: "관심" },
 ];
 
 function RoomHeader({
@@ -1400,8 +1706,11 @@ function RoomHeader({
 }: {
   axis: RoomAxis;
   onAxisChange: (next: RoomAxis["kind"]) => void;
-  /** 지금 고른 행의 개체 · 어느 축이든 이 값이 사진·등급판정을 함께 말한다 */
-  listing: LiveListing;
+  /**
+   * 지금 고른 행의 개체 · 어느 축이든 이 값이 사진·등급판정을 함께 말한다.
+   * 가리킬 행이 없으면(관심이 비었을 때) null — 등급판정 띠를 통째로 접는다.
+   */
+  listing: LiveListing | null;
   picker: React.ReactNode;
   /** 고정축 이동 좌우 화살표 · 두 축 모두 picker 를 사이에 두고 감싼다 */
   stepPrev: React.ReactNode;
@@ -1414,13 +1723,14 @@ function RoomHeader({
   /** ←/→ 가 옮기는 것 · 표의 행과 뒤집힌 짝이다 */
   const pivotNoun = axis.kind === "listing" ? "개체" : "부위";
   // 도축장은 지금 보고 있는 경매장과 늘 같다 (상장 목록이 도축장으로 걸러진다) · 빼고 날짜만
-  const slaughterLine =
-    [
-      formatDate(listing.slaughterDate),
-      listing.slaughterNo ? `No.${listing.slaughterNo}` : null,
-    ]
-      .filter((v) => v && v !== "-")
-      .join(" · ") || null;
+  const slaughterLine = listing
+    ? [
+        formatDate(listing.slaughterDate),
+        listing.slaughterNo ? `No.${listing.slaughterNo}` : null,
+      ]
+        .filter((v) => v && v !== "-")
+        .join(" · ") || null
+    : null;
 
   return (
     <header className="px-6 pb-3 pt-2">
@@ -1501,125 +1811,131 @@ function RoomHeader({
          * 간격은 짝 사이(16px) > 라벨·값 사이(6px) 순서를 지킨다. 이 순서가 뒤집히면
          * 값이 제 라벨이 아니라 옆 짝의 라벨에 붙어 읽힌다.
          */}
-        <dl className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-4 gap-y-1.5">
-          <Stat label="축종" value={listing.breed} w={SPEC_FLOOR.breed} />
-          <Stat label="성별" value={listing.gender} w={SPEC_FLOOR.gender} />
-          <Stat
-            label="등급"
-            value={formatGradeLabel(listing.grade, listing.marblingScore)}
-            w={SPEC_FLOOR.grade}
-            strong
-          />
-          <Stat label="개월" value={listing.monthAge} w={SPEC_FLOOR.monthAge} />
-          <Stat label="도축" value={slaughterLine} w={SPEC_FLOOR.slaughter} />
-          <Stat
-            label="도체중"
-            value={listing.carcassWeight}
-            unit="kg"
-            w={SPEC_FLOOR.carcassWeight}
-          />
-          <Stat
-            label="경락단가"
-            value={
-              listing.unitPrice
-                ? formatKrw(Math.round(listing.unitPrice))
-                : null
-            }
-            unit="원"
-            w={SPEC_FLOOR.unitPrice}
-          />
-          {/* 번호 자체가 조회 링크다 · 옆에 「이력조회」를 또 두면 그만큼 넓어진다 */}
-          <div className="flex shrink-0 items-baseline gap-1.5">
-            <dt className="text-[11.5px] font-medium text-content-faint">
-              이력
-            </dt>
-            <dd
-              style={{ minWidth: SPEC_FLOOR.trace }}
-              className="text-[13.5px] font-semibold leading-none"
-            >
-              <a
-                href={buildTraceHref(listing.traceNo)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 tabular-nums text-content-mid underline decoration-line underline-offset-[3px] hover:text-content hover:decoration-content"
+        {listing === null ? null : (
+          <dl className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-4 gap-y-1.5">
+            <Stat label="축종" value={listing.breed} w={SPEC_FLOOR.breed} />
+            <Stat label="성별" value={listing.gender} w={SPEC_FLOOR.gender} />
+            <Stat
+              label="등급"
+              value={formatGradeLabel(listing.grade, listing.marblingScore)}
+              w={SPEC_FLOOR.grade}
+              strong
+            />
+            <Stat
+              label="개월"
+              value={listing.monthAge}
+              w={SPEC_FLOOR.monthAge}
+            />
+            <Stat label="도축" value={slaughterLine} w={SPEC_FLOOR.slaughter} />
+            <Stat
+              label="도체중"
+              value={listing.carcassWeight}
+              unit="kg"
+              w={SPEC_FLOOR.carcassWeight}
+            />
+            <Stat
+              label="경락단가"
+              value={
+                listing.unitPrice
+                  ? formatKrw(Math.round(listing.unitPrice))
+                  : null
+              }
+              unit="원"
+              w={SPEC_FLOOR.unitPrice}
+            />
+            {/* 번호 자체가 조회 링크다 · 옆에 「이력조회」를 또 두면 그만큼 넓어진다 */}
+            <div className="flex shrink-0 items-baseline gap-1.5">
+              <dt className="text-[11.5px] font-medium text-content-faint">
+                이력
+              </dt>
+              <dd
+                style={{ minWidth: SPEC_FLOOR.trace }}
+                className="text-[13.5px] font-semibold leading-none"
               >
-                {formatTraceNo(listing.traceNo)}
-                <ExternalLink
-                  className="h-3 w-3 text-content-faint"
-                  aria-hidden
-                />
-              </a>
-            </dd>
-          </div>
+                <a
+                  href={buildTraceHref(listing.traceNo)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 tabular-nums text-content-mid underline decoration-line underline-offset-[3px] hover:text-content hover:decoration-content"
+                >
+                  {formatTraceNo(listing.traceNo)}
+                  <ExternalLink
+                    className="h-3 w-3 text-content-faint"
+                    aria-hidden
+                  />
+                </a>
+              </dd>
+            </div>
 
-          {/*
-           * 줄바꿈 하나 · 폭을 다 차지하고 높이는 0 이라 다음 짝부터 아랫줄로 간다.
-           * `dl` 의 자식은 dt·dd 이거나 그 둘을 감싼 div 여야 해서, 줄마다 div 로
-           * 묶는 대신 빈 칸을 하나 끼웠다.
-           */}
-          <span aria-hidden className="h-0 w-full" />
+            {/*
+             * 줄바꿈 하나 · 폭을 다 차지하고 높이는 0 이라 다음 짝부터 아랫줄로 간다.
+             * `dl` 의 자식은 dt·dd 이거나 그 둘을 감싼 div 여야 해서, 줄마다 div 로
+             * 묶는 대신 빈 칸을 하나 끼웠다.
+             */}
+            <span aria-hidden className="h-0 w-full" />
 
-          <Stat
-            label="상장업체"
-            value={listing.companyName}
-            w={SPEC_FLOOR.company}
-          />
-          <Stat
-            label="가공"
-            value={formatDate(listing.processDate)}
-            w={SPEC_FLOOR.processDate}
-          />
-          <Stat
-            label="가공중량"
-            value={listing.processWeight}
-            unit="kg"
-            w={SPEC_FLOOR.processWeight}
-          />
-          <Stat
-            label="근내지방"
-            value={listing.marblingScore}
-            w={SPEC_FLOOR.marbling}
-            strong
-          />
-          <Stat
-            label="육색"
-            value={listing.meatColor}
-            w={SPEC_FLOOR.meatColor}
-            strong
-          />
-          <Stat
-            label="지방색"
-            value={listing.fatColor}
-            w={SPEC_FLOOR.fatColor}
-            strong
-          />
-          <Stat
-            label="조직도"
-            value={listing.texture}
-            w={SPEC_FLOOR.texture}
-            strong
-          />
-          <Stat
-            label="성숙도"
-            value={listing.maturity}
-            w={SPEC_FLOOR.maturity}
-            strong
-          />
-          <Stat
-            label="등지방두께"
-            value={listing.backFat}
-            unit="mm"
-            w={SPEC_FLOOR.backFat}
-            strong
-          />
-          <Stat
-            label="등심면적"
-            value={listing.eyeMuscle}
-            unit="㎠"
-            w={SPEC_FLOOR.eyeMuscle}
-            strong
-          />
-        </dl>
+            <Stat
+              label="상장업체"
+              value={listing.companyName}
+              w={SPEC_FLOOR.company}
+            />
+            <Stat
+              label="가공"
+              value={formatDate(listing.processDate)}
+              w={SPEC_FLOOR.processDate}
+            />
+            <Stat
+              label="가공중량"
+              value={listing.processWeight}
+              unit="kg"
+              w={SPEC_FLOOR.processWeight}
+            />
+            <Stat
+              label="근내지방"
+              value={listing.marblingScore}
+              w={SPEC_FLOOR.marbling}
+              strong
+            />
+            <Stat
+              label="육색"
+              value={listing.meatColor}
+              w={SPEC_FLOOR.meatColor}
+              strong
+            />
+            <Stat
+              label="지방색"
+              value={listing.fatColor}
+              w={SPEC_FLOOR.fatColor}
+              strong
+            />
+            <Stat
+              label="조직도"
+              value={listing.texture}
+              w={SPEC_FLOOR.texture}
+              strong
+            />
+            <Stat
+              label="성숙도"
+              value={listing.maturity}
+              w={SPEC_FLOOR.maturity}
+              strong
+            />
+            <Stat
+              label="등지방두께"
+              value={listing.backFat}
+              unit="mm"
+              w={SPEC_FLOOR.backFat}
+              strong
+            />
+            <Stat
+              label="등심면적"
+              value={listing.eyeMuscle}
+              unit="㎠"
+              w={SPEC_FLOOR.eyeMuscle}
+              strong
+            />
+          </dl>
+        )}
       </div>
     </header>
   );

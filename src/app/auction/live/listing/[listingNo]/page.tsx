@@ -3,7 +3,7 @@
 import { Suspense, use } from "react";
 import { MainHeader } from "@/features/main/components/MainHeader";
 import { AuctionDetailRoom } from "@/features/live-auction/components/AuctionDetailRoom";
-import { useSideDockInsetClass } from "@/features/live-auction/components/AuctionSideDock";
+import { useAuctionShellClass } from "@/features/live-auction/components/AuctionSideDock";
 import { CANVAS_BG_CLASS } from "@/features/live-auction/constants/surface";
 import { cn } from "@/lib/utils";
 
@@ -20,10 +20,10 @@ interface ListingDetailPageProps {
  */
 export default function ListingDetailPage({ params }: ListingDetailPageProps) {
   const { listingNo } = use(params);
-  const sideDockInsetClass = useSideDockInsetClass();
+  const auctionShellClass = useAuctionShellClass();
 
   return (
-    <div className={cn("h-screen overflow-hidden", sideDockInsetClass)}>
+    <div className={cn("h-screen overflow-hidden", auctionShellClass)}>
       <MainHeader fluid />
       <main
         className={cn(

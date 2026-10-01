@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
-import { ChevronDown, LogOut, User } from "lucide-react";
+import { ChevronDown, LogOut } from "lucide-react";
 import {
   Popover,
   PopoverContent,
@@ -127,9 +127,38 @@ export function MainHeader({ fluid = false }: MainHeaderProps) {
   );
 }
 
+/** 계정 팝오버 한 줄 · 라벨은 왼쪽 끝, 값은 오른쪽 끝에 맞춰 세로로 줄이 선다 */
+function Row({
+  label,
+  value,
+  numeric = false,
+}: {
+  label: string;
+  value: string;
+  numeric?: boolean;
+}) {
+  return (
+    <div className="flex items-baseline justify-between gap-3">
+      <dt className="shrink-0 text-content-faint">{label}</dt>
+      <dd
+        className={cn(
+          "truncate font-semibold text-content-mid",
+          numeric && "tabular-nums",
+        )}
+      >
+        {value}
+      </dd>
+    </div>
+  );
+}
+
 function AuthMenuSkeleton() {
   return (
-    <div className="h-5 w-24 animate-pulse rounded bg-surface-accent" aria-hidden />
+    /* 폭은 중도매인 기준(`7000001 김건희 중도매인`) · 세션이 올 때 헤더 오른쪽이 덜 튀게 맞춰 둔다 */
+    <div
+      className="h-5 w-44 animate-pulse rounded bg-surface-accent"
+      aria-hidden
+    />
   );
 }
 
@@ -152,7 +181,7 @@ function buildLoginHref(
 function AuthMenu() {
   const { data: session, status } = useSession();
   const pathname = usePathname();
-  const { house } = useCurrentHouse();
+  const { house, dealerHouse } = useCurrentHouse();
   const callbackTarget = buildPcCallbackUrl(pathname);
 
   if (status === "loading") return <AuthMenuSkeleton />;
@@ -177,32 +206,61 @@ function AuthMenu() {
     session.companyEmployee?.name ||
     "회원";
 
-  const roleLabel = getRoleLabel(session.user?.userType, session.user?.role);
+  const roleLabel = getRoleLabel(session.user?.userType);
   const dashboardHref = getDashboardHref(session.user?.userType);
+
+  /**
+   * 머리글자 동그라미 대신 번호를 그대로 적는다.
+   *
+   * 중도매인끼리는 이름보다 번호로 서로를 부르고, 낙찰자 표시·정산 내역도 전부 번호로
+   * 나간다. 동그라미 속 글자 한 자는 그 번호를 대신하지 못했다 — 「김」 이든 「1」 이든
+   * 라벨이 없으면 무엇을 줄인 것인지 알 길이 없다.
+   *
+   * 라벨(「거래인번호」)은 떼고 숫자만 둔다. 이 자리의 일곱 자리 숫자는 중도매인에게
+   * 설명이 필요 없고, 처음 보는 사람을 위한 풀이는 눌러서 열었을 때 있으면 된다.
+   *
+   * 직원 계정도 소속 중도매인의 번호로 입찰하므로 같은 번호를 보여 준다. 번호와 이름이
+   * 둘 다 필요한 까닭도 여기 있다 — 직원이 여럿이면 번호는 같고 이름만 다르다.
+   */
+  const dealerNo = session.dealer?.dealerNo ?? null;
+  /*
+   * 중도매인이 아닌 계정은 역할을 눈에 띄게 적는다.
+   *
+   * 경매장에 들어오는 사람은 사실상 전부 중도매인이다(관리자는 `/admin`, 상장업체는
+   * `/company`). 「중도매인」 은 이름의 꼬리표로 흐리게 두고, 드물게 뜨는 나머지에만
+   * 면을 깔아 눈에 걸리게 한다 — 관리자 계정으로 잘못 들어온 것일 수 있다.
+   */
+  const foreignRole = session.user?.userType !== "dealer_user";
 
   return (
     <Popover>
       <PopoverTrigger asChild>
         <button
           type="button"
-          aria-label={`${displayName} · ${roleLabel} · 계정 메뉴`}
-          className={cn(
-            UTILITY_ITEM_CLASS,
-            "pl-1.5 font-semibold text-content",
-          )}
+          aria-label={[
+            dealerNo && `거래인번호 ${dealerNo}`,
+            displayName,
+            roleLabel,
+            "계정 메뉴",
+          ]
+            .filter(Boolean)
+            .join(" · ")}
+          className={cn(UTILITY_ITEM_CLASS, "gap-2 font-semibold text-content")}
         >
-          <span
-            aria-hidden
-            className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-inverse text-[11px] font-bold leading-none text-inverse-content"
-          >
-            {displayName.trim().charAt(0) || <User className="h-3.5 w-3.5" />}
-          </span>
+          {dealerNo ? <span className="tabular-nums">{dealerNo}</span> : null}
           <span className="max-w-[90px] truncate">{displayName}</span>
-          {/* 역할 · 관리자/업체/중도매인 계정을 한눈에 구분 */}
-          <span className="text-[11.5px] font-medium text-content-faint">
+          <span
+            className={cn(
+              "shrink-0",
+              foreignRole
+                ? /* 관리자·상장업체는 면을 깔아 둔다 · 경매장에 잘못 들어온 것일 수 있다 */
+                  "rounded bg-surface-accent px-1.5 py-0.5 text-[11px] font-bold text-content-mid"
+                : "text-[11.5px] font-medium text-content-faint",
+            )}
+          >
             {roleLabel}
           </span>
-          <ChevronDown className="h-3.5 w-3.5 text-content-faint" />
+          <ChevronDown className="h-3.5 w-3.5 shrink-0 text-content-faint" />
         </button>
       </PopoverTrigger>
 
@@ -211,13 +269,23 @@ function AuthMenu() {
         sideOffset={8}
         className={cn(HEADER_POPOVER_CLASS, "w-[220px] overflow-hidden")}
       >
+        {/*
+         * 트리거에서 뺀 설명이 여기 모인다 · 평소엔 접어 두고 확인할 때만 펼친다.
+         *
+         * 소속 공판장은 다른 데서 말해 주는 곳이 없다. 이 공판장 상장만 입찰되는데
+         * (`getBlockReason`), 그 사실은 값을 다 적고 Enter 를 친 뒤에야 알게 된다.
+         */}
         <div className="border-b border-line-soft px-4 py-3">
-          <div className="text-xs font-semibold text-content-faint">
-            {roleLabel}
-          </div>
-          <div className="mt-0.5 truncate text-sm font-bold text-content">
-            {displayName}
-          </div>
+          <dl className="flex flex-col gap-1.5 text-[12px]">
+            {dealerNo ? (
+              <Row label="거래인번호" value={dealerNo} numeric />
+            ) : null}
+            <Row label="성함" value={displayName} />
+            <Row label="구분" value={roleLabel} />
+            {dealerHouse ? (
+              <Row label="소속 공판장" value={dealerHouse.fullName} />
+            ) : null}
+          </dl>
         </div>
 
         <ul className="py-1 text-sm">
@@ -285,15 +353,11 @@ function buildPcCallbackUrl(pathname: string | null): string {
   return "/main";
 }
 
-function getRoleLabel(
-  userType: string | undefined,
-  role: string | undefined,
-): string {
+/* 직원도 「중도매인」 이다 · 바깥에서 보기엔 같은 한 중도매인이고, 권한 차이는 화면이 알아서 가린다 */
+function getRoleLabel(userType: string | undefined): string {
   if (userType === "admin_user") return "관리자";
   if (userType === "company_user") return "상장업체";
-  if (userType === "dealer_user") {
-    return role === "employee" ? "중도매인 직원" : "중도매인";
-  }
+  if (userType === "dealer_user") return "중도매인";
   return "회원";
 }
 

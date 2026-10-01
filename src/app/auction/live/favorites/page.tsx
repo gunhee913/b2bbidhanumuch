@@ -1,23 +1,20 @@
 "use client";
 
-import { Suspense, use } from "react";
+import { Suspense } from "react";
 import { MainHeader } from "@/features/main/components/MainHeader";
 import { AuctionDetailRoom } from "@/features/live-auction/components/AuctionDetailRoom";
 import { useAuctionShellClass } from "@/features/live-auction/components/AuctionSideDock";
 import { CANVAS_BG_CLASS } from "@/features/live-auction/constants/surface";
 import { cn } from "@/lib/utils";
 
-interface PartDetailPageProps {
-  params: Promise<{ partGroup: string }>;
-}
-
 /**
- * `/auction/live/part/[partGroup]` · 부위축 상세.
- * 개체 페이지와 같은 화면에서 고정축만 뒤집는다 — 부위 하나를 세우고
- * 그 부위를 가진 개체들이 표의 행이 된다. 같은 부위끼리 견주며 입찰한다.
+ * `/auction/live/favorites` · 관심축 상세.
+ *
+ * 개체·부위 페이지와 같은 화면인데 세워 둘 고정축이 없다 — 관심으로 찍어 둔 부위들이
+ * 곧 표의 행이고, 그게 전부다. 개체 관심(접수번호로 찍은 것)은 여기 오지 않는다.
+ * 고를 대상이 주소에 없으므로 동적 구간도 없다.
  */
-export default function PartDetailPage({ params }: PartDetailPageProps) {
-  const { partGroup } = use(params);
+export default function FavoritesDetailPage() {
   const auctionShellClass = useAuctionShellClass();
 
   return (
@@ -30,9 +27,7 @@ export default function PartDetailPage({ params }: PartDetailPageProps) {
         )}
       >
         <Suspense fallback={null}>
-          <AuctionDetailRoom
-            axis={{ kind: "part", group: decodeURIComponent(partGroup) }}
-          />
+          <AuctionDetailRoom axis={{ kind: "favorite" }} />
         </Suspense>
       </main>
     </div>

@@ -8,6 +8,7 @@ export type SideDockTab =
   | "schedule"
   | "myBids"
   | "favorites"
+  | "notes"
   | "recent";
 
 export interface RecentListing {

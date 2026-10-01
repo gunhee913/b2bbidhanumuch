@@ -16,8 +16,8 @@ import { SheetFilterBar } from "./SheetFilterBar";
 import {
   SheetSummaryPanel,
   SHEET_TABLE_MIN_WIDTH,
+  SUMMARY_PANEL_MAX_WIDTH,
   SUMMARY_PANEL_MIN_WIDTH,
-  SUMMARY_PANEL_WIDTH,
 } from "./SheetSummaryPanel";
 import { SheetResultCells } from "./SheetParts";
 
@@ -126,9 +126,15 @@ export function LiveListingSheet({
       </div>
 
       <div className="flex">
-        {/* 표가 먼저 · 요약은 표 최소 폭을 건드리지 않고 남는 폭만 가져간다 */}
+        {/*
+         * 남는 폭은 표와 요약이 3:1 로 나눈다 · 표가 먼저고, 요약은 제 상한까지만.
+         *
+         * 표가 큰 몫을 갖는 건 열이 16칸이라서다. 3:1 로 받아 가장 넓어지는 자리가
+         * 1512px 인데 칸당 94px — 상세 방 표가 9칸에 1000px(칸당 111px)까지 허용하는
+         * 것보다 오히려 빡빡하다. 벌어져서 읽기 나빠지는 지점은 아직 멀다.
+         */}
         <div
-          className="min-w-0 flex-1"
+          className="min-w-0 flex-[3]"
           style={
             canShowSummary ? { minWidth: SHEET_TABLE_MIN_WIDTH } : undefined
           }
@@ -159,10 +165,10 @@ export function LiveListingSheet({
           <aside
             aria-label="개체 요약"
             style={{
-              width: SUMMARY_PANEL_WIDTH,
               minWidth: SUMMARY_PANEL_MIN_WIDTH,
+              maxWidth: SUMMARY_PANEL_MAX_WIDTH,
             }}
-            className="border-l border-line-soft"
+            className="flex-1 border-l border-line-soft"
           >
             <div className="sticky" style={{ top: headStickyTop }}>
               <SheetSummaryPanel listing={summaryListing} />

@@ -1,14 +1,30 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 import { createPortal } from "react-dom";
+import { useMeasure } from "react-use";
 import Image from "next/image";
-import { ChevronLeft, ChevronRight, FileText, ImageOff, X } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  FileText,
+  ImageOff,
+  Pencil,
+  X,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { LiveListing } from "../api";
-import { toGradeSeriesKey } from "../lib/grade";
+import { formatGradeLabel, toGradeSeriesKey } from "../lib/grade";
 import { toPartGroupName } from "../lib/partGrouping";
 import { useListingCerts } from "../hooks/useListingCerts";
+import type { StageSlot } from "../hooks/useRoomLayout";
+import { useStagePlacement } from "../hooks/useStagePlacement";
 import { ListingViewerRail } from "./ListingViewerRail";
 import type { SheetBidding } from "./SheetParts";
 import { useSideDock } from "../hooks/useSideDock";
@@ -311,6 +327,8 @@ export function ViewerMediaPane({
   onPrev,
   onNext,
   className,
+  stamp = false,
+  note = null,
 }: {
   listing: LiveListing;
   mediaIdx: number;
@@ -322,6 +340,24 @@ export function ViewerMediaPane({
   onNext?: () => void;
   /** 바깥 여백 · 기본은 전체화면 뷰어 기준 */
   className?: string;
+  /**
+   * 사진 왼쪽 아래에 등급 각인을 찍는다 · 상세 페이지처럼 사진만 덩그러니 있는 곳용.
+   * 전체화면 뷰어는 옆에 스펙 레일이 통째로 붙어 있어 필요 없다.
+   */
+  stamp?: boolean;
+  /**
+   * 사진 위 메모 쪽지 · 지금 고른 부위에 붙는다.
+   *
+   * 읽고 쓰는 일은 바깥(상세 방)이 맡는다. 이 판은 사진을 그리는 곳이지 딜러의 메모가
+   * 어디에 어떻게 저장되는지 알아야 할 곳이 아니다.
+   */
+  note?: {
+    partId: string;
+    /** 제목줄에 적는 이름 · 어느 부위에 쓰는 메모인지 */
+    partLabel: string;
+    body: string | null;
+    onSave: (body: string) => void;
+  } | null;
 }) {
   const hasAnyCert = listing.hasGradeCert || listing.hasSlaughterCert;
   const { data: certs } = useListingCerts(listing.id, hasAnyCert);
@@ -373,6 +409,7 @@ export function ViewerMediaPane({
 
   const safeIdx = Math.min(mediaIdx, Math.max(0, media.length - 1));
   const current = media[safeIdx] ?? null;
+  const [stageRef, stage] = useMeasure<HTMLDivElement>();
 
   return (
     <div
@@ -389,7 +426,18 @@ export function ViewerMediaPane({
         onSelect={onMediaIdxChange}
       />
 
-      <div className="relative flex min-h-0 flex-1 items-center justify-center">
+      {/*
+       * 각인을 끌어다 놓는 판 · 자리를 비율로 담으니 무대 크기를 알아야 px 로 편다.
+       *
+       * `overflow-hidden` 은 안전장치다. 각인은 무대 안에 들어오도록 가두지만, 셈이
+       * 반 픽셀이라도 어긋나면 그 삐져나간 폭이 바깥 스크롤 영역으로 올라가 엉뚱한
+       * 조상에 스크롤바를 만든다. 여기서 끊으면 위로 번지지 않는다. 화살표도 안쪽에
+       * 붙어 있어(left-2 / right-2) 잘릴 것이 없다.
+       */}
+      <div
+        ref={stageRef}
+        className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden"
+      >
         {hasMany && onPrev ? (
           <ViewerArrow side="left" disabled={!canPrev} onClick={onPrev} />
         ) : null}
@@ -397,8 +445,377 @@ export function ViewerMediaPane({
         {hasMany && onNext ? (
           <ViewerArrow side="right" disabled={!canNext} onClick={onNext} />
         ) : null}
+        {/* 증명서 스캔본에는 찍지 않는다 · 흰 종이라 가릴 것이 있고, 등급은 그 안에 이미 적혀 있다 */}
+        {stamp && current?.kind === "photo" ? (
+          <GradeStamp
+            listing={listing}
+            stageWidth={stage.width}
+            stageHeight={stage.height}
+          />
+        ) : null}
+        {note && current?.kind === "photo" ? (
+          <StageNote
+            partId={note.partId}
+            partLabel={note.partLabel}
+            body={note.body}
+            onSave={note.onSave}
+            stageWidth={stage.width}
+            stageHeight={stage.height}
+          />
+        ) : null}
       </div>
     </div>
+  );
+}
+
+/**
+ * 등급판정 일곱 · 판정사가 이 단면을 보고 매긴 값들.
+ *
+ * 품질정보 띠의 차례를 그대로 따른다. 거기서도 이 일곱은 붙여 두는데, 하나씩 보는
+ * 값이 아니라 한 덩어리로 훑는 값이라 사이에 다른 것이 끼면 경계가 사라지기 때문이다.
+ */
+/** 메모 길이 상한 · API 와 같은 값을 쓴다 (서버도 500 에서 자른다) */
+const NOTE_MAX_LENGTH = 500;
+
+const JUDGED_SPECS: ReadonlyArray<{
+  label: string;
+  read: (l: LiveListing) => number | string | null | undefined;
+  unit?: string;
+}> = [
+  { label: "근내지방", read: (l) => l.marblingScore },
+  { label: "육색", read: (l) => l.meatColor },
+  { label: "지방색", read: (l) => l.fatColor },
+  { label: "조직도", read: (l) => l.texture },
+  { label: "성숙도", read: (l) => l.maturity },
+  { label: "등지방두께", read: (l) => l.backFat, unit: "mm" },
+  { label: "등심면적", read: (l) => l.eyeMuscle, unit: "㎠" },
+];
+
+/**
+ * 겹 공통 껍데기 · 끌기·배율·크기 손잡이는 각인이든 메모든 똑같다.
+ *
+ * 손잡이를 뿌리에 박지 않고 자식에게 넘긴다. 각인은 글자뿐이라 상자 전체를 잡아도
+ * 되지만 메모는 안에 입력칸이 있어서, 전체가 손잡이면 글을 쓰려고 누르는 순간
+ * 쪽지가 끌려간다. 메모는 제목줄만 손잡이로 쓴다.
+ */
+function StageOverlay({
+  slot,
+  stageWidth,
+  stageHeight,
+  label,
+  className,
+  children,
+}: {
+  slot: StageSlot;
+  stageWidth: number;
+  stageHeight: number;
+  label: string;
+  className?: string;
+  children: (handle: StageDragHandle) => ReactNode;
+}) {
+  const place = useStagePlacement<HTMLDivElement>({
+    slot,
+    stageWidth,
+    stageHeight,
+  });
+
+  const handle: StageDragHandle = {
+    ...place.moveProps,
+    onDoubleClick: place.reset,
+    title: "끌어서 자리 옮기기 · 두 번 눌러 처음으로",
+    className: place.active ? "cursor-grabbing" : "cursor-grab",
+  };
+
+  return (
+    <div
+      ref={place.ref}
+      role="group"
+      aria-label={label}
+      style={place.style}
+      className={cn(
+        "group/overlay absolute left-0 top-0 z-10 w-max touch-none rounded-[0.3em] backdrop-blur-sm",
+        place.active && "ring-1 ring-white/30",
+        className,
+      )}
+    >
+      {children(handle)}
+      {/*
+       * 크기 손잡이 · 평소엔 숨고 겹에 손이 올라오면 나온다.
+       * 늘 보이면 사진 위 작은 상자에 군더더기가 하나 더 붙고, 숨겨 두면 끌 일이
+       * 있을 때 — 곧 겹에 손이 가 있을 때 — 만 나타난다.
+       */}
+      <span
+        role="presentation"
+        {...place.sizeProps}
+        title="끌어서 크기 조절"
+        className="absolute bottom-0 right-0 flex h-[1.4em] w-[1.4em] cursor-nwse-resize items-end justify-end rounded-br-[0.3em] p-[0.3em] opacity-0 transition-opacity group-hover/overlay:opacity-100"
+      >
+        <span className="h-[0.5em] w-[0.5em] border-b-2 border-r-2 border-white/60" />
+      </span>
+    </div>
+  );
+}
+
+/**
+ * 사진 위 판정 각인.
+ *
+ * 품질정보 띠는 화면 맨 위라, 마블링을 들여다보다 점수를 되짚으려면 눈이 열여덟 칸을
+ * 거슬러 올라갔다 와야 한다. 등급도 일곱 값도 다름 아닌 이 사진에 대한 판정사의
+ * 답이니 같은 자리에 둔다. 목록 쪽 요약 사진과 굵기가 반대인데, 거기는 "어느
+ * 개체냐"가 물음이고 여기는 접수번호가 바로 위에 22px 로 있어 물음이 "몇 등급이냐"
+ * 하나이기 때문이다.
+ *
+ * **라벨을 값 옆이 아니라 위에 두는 이유.** 옆에 두면 칸 폭이 라벨＋값이라 일곱을
+ * 늘어놓는 데 437px 가 든다. 1열을 최소(460)까지 좁히면 썸네일 레일과 여백을 빼고
+ * 사진 무대가 360px 뿐이라 그대로 터진다. 위로 올리면 칸 폭이 둘 중 큰 쪽이라
+ * 265.9px 로 줄어 좁은 쪽에서도 들어간다. 값을 가운데로 모으는 건 「근내지방 9」 처럼
+ * 라벨이 값보다 세 배 긴 칸이 많아서다 — 왼쪽에 붙이면 숫자가 칸 구석에 처박힌다.
+ *
+ * 키보드로는 못 옮긴다. 자리와 크기는 보기 편하자는 일일 뿐이고, 여기 적힌 값은 위
+ * 품질정보 띠에 그대로 다 있어 끌지 못해도 잃는 정보가 없다. 그래서 과녁을 탭 차례에
+ * 끼워 ←/→ 의 개체 이동과 다투게 만들 까닭이 없다.
+ */
+function GradeStamp({
+  listing,
+  stageWidth,
+  stageHeight,
+}: {
+  listing: LiveListing;
+  stageWidth: number;
+  stageHeight: number;
+}) {
+  return (
+    <StageOverlay
+      slot="stamp"
+      stageWidth={stageWidth}
+      stageHeight={stageHeight}
+      label="등급판정 요약 · 끌어서 옮기고 모서리를 잡아 키울 수 있습니다"
+      className="select-none bg-black/60 transition-colors hover:bg-black/75"
+    >
+      {(handle) => (
+        /*
+         * 여백은 안쪽에 둔다 · 바깥은 재는 자리라 비워야 한다. 까닭은
+         * `useStagePlacement` 의 `ref` 주석에 적어 뒀다.
+         *
+         * 각인은 읽기만 하는 상자라 전체가 손잡이다.
+         */
+        <div
+          {...handle}
+          className={cn(
+            "flex flex-col gap-[0.8em] px-[1em] py-[0.8em]",
+            handle.className,
+          )}
+        >
+          <span className="flex items-baseline gap-[0.8em] whitespace-nowrap">
+            <span className="text-[1.5em] font-bold leading-none tabular-nums text-white">
+              {formatGradeLabel(listing.grade, listing.marblingScore)}
+            </span>
+            <span className="text-[1.2em] font-medium leading-none tabular-nums text-white/55">
+              {listing.listingNo}
+            </span>
+            {listing.companyName ? (
+              <span className="max-w-[10em] truncate text-[1.2em] font-medium leading-none text-white/55">
+                {listing.companyName}
+              </span>
+            ) : null}
+          </span>
+          {/* 접지 않는다 · 일곱이 한 줄로 서 있어야 「한 덩어리」 로 읽힌다 */}
+          <span className="flex items-end gap-[0.8em] whitespace-nowrap">
+            {JUDGED_SPECS.map(({ label, read, unit }) => {
+              const value = read(listing);
+              const empty =
+                value === null || value === undefined || value === "";
+              return (
+                <span
+                  key={label}
+                  className="flex flex-col items-center gap-[0.4em]"
+                >
+                  <span className="text-[0.95em] font-medium leading-none text-white/45">
+                    {label}
+                  </span>
+                  <span
+                    className={cn(
+                      "text-[1.3em] font-bold leading-none tabular-nums",
+                      empty ? "text-white/30" : "text-white",
+                    )}
+                  >
+                    {empty ? "-" : value}
+                    {!empty && unit ? (
+                      <span className="pl-[0.05em] text-[0.73em] font-medium text-white/45">
+                        {unit}
+                      </span>
+                    ) : null}
+                  </span>
+                </span>
+              );
+            })}
+          </span>
+        </div>
+      )}
+    </StageOverlay>
+  );
+}
+
+/** 손잡이로 쓸 요소에 그대로 펼친다 · 커서 클래스는 `cn` 으로 합쳐야 한다 */
+type StageDragHandle = {
+  onPointerDown: (e: React.PointerEvent<HTMLElement>) => void;
+  onPointerMove: (e: React.PointerEvent<HTMLElement>) => void;
+  onPointerUp: (e: React.PointerEvent<HTMLElement>) => void;
+  onPointerCancel: (e: React.PointerEvent<HTMLElement>) => void;
+  onDoubleClick: () => void;
+  title: string;
+  className: string;
+};
+
+/**
+ * 사진 위 메모 쪽지 · 지금 고른 **부위**에 붙는다.
+ *
+ * 개체가 아니라 부위인 건 상세 방이 부위 단위로 돌아가기 때문이다. 표 1열의 별도
+ * 부위를 찍고 자국도 부위에 붙으니, 쪽지만 개체에 붙으면 메모를 써 놓고 표에 아무
+ * 자국이 없어 다시 찾지 못한다. 쓰는 것과 읽는 것이 같은 대상이어야 한다.
+ *
+ * 비어 있을 때는 작은 알약 하나로 접힌다. 각인은 늘 떠 있어도 할 말이 있지만 빈 쪽지는
+ * 사진을 가리기만 한다 — 그렇다고 아주 없애면 메모를 쓸 길이 사라진다.
+ */
+function StageNote({
+  partId,
+  partLabel,
+  body,
+  onSave,
+  stageWidth,
+  stageHeight,
+}: {
+  partId: string;
+  partLabel: string;
+  body: string | null;
+  onSave: (body: string) => void;
+  stageWidth: number;
+  stageHeight: number;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState("");
+
+  /* 부위를 옮기면 쓰던 것을 접는다 · 남의 쪽지에 내 글이 남아 있으면 안 된다 */
+  useEffect(() => {
+    setEditing(false);
+  }, [partId]);
+
+  const open = () => {
+    setDraft(body ?? "");
+    setEditing(true);
+  };
+
+  const commit = () => {
+    onSave(draft);
+    setEditing(false);
+  };
+
+  if (!editing && !body) {
+    return (
+      <StageOverlay
+        slot="note"
+        stageWidth={stageWidth}
+        stageHeight={stageHeight}
+        label="메모 쓰기"
+        className="select-none bg-black/45 transition-colors hover:bg-black/70"
+      >
+        {(handle) => (
+          <span
+            {...handle}
+            className={cn(
+              "flex items-center gap-[0.4em] px-[0.8em] py-[0.5em]",
+              handle.className,
+            )}
+          >
+            <Pencil
+              className="h-[1.1em] w-[1.1em] text-white/50"
+              strokeWidth={2.2}
+              aria-hidden
+            />
+            <button
+              type="button"
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={open}
+              className="text-[1.15em] font-semibold leading-none text-white/70 hover:text-white"
+            >
+              메모
+            </button>
+          </span>
+        )}
+      </StageOverlay>
+    );
+  }
+
+  return (
+    <StageOverlay
+      slot="note"
+      stageWidth={stageWidth}
+      stageHeight={stageHeight}
+      label={`${partLabel} 메모`}
+      className="bg-black/70"
+    >
+      {(handle) => (
+        <div className="flex w-[22em] flex-col">
+          {/* 제목줄만 손잡이 · 아래 글 영역을 잡으면 글을 쓰려는 것이다 */}
+          <span
+            {...handle}
+            className={cn(
+              "flex select-none items-center gap-[0.4em] rounded-t-[0.3em] border-b border-white/10 px-[0.8em] py-[0.45em]",
+              handle.className,
+            )}
+          >
+            <Pencil
+              className="h-[1em] w-[1em] shrink-0 text-white/40"
+              strokeWidth={2.2}
+              aria-hidden
+            />
+            <span className="min-w-0 flex-1 truncate text-[1em] font-semibold leading-none text-white/45">
+              {partLabel}
+            </span>
+          </span>
+
+          {editing ? (
+            <>
+              <textarea
+                autoFocus
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                onPointerDown={(e) => e.stopPropagation()}
+                onBlur={commit}
+                onKeyDown={(e) => {
+                  e.stopPropagation();
+                  if (e.key === "Escape") {
+                    setEditing(false);
+                    return;
+                  }
+                  if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) commit();
+                }}
+                maxLength={NOTE_MAX_LENGTH}
+                placeholder="예: 등지방 두꺼움 · 다음 회차에"
+                className="h-[7em] w-full resize-none bg-transparent px-[0.8em] py-[0.6em] text-[1.2em] leading-[1.45] text-white caret-white outline-none placeholder:text-white/25"
+              />
+              <span className="flex items-center justify-between px-[0.8em] pb-[0.6em] text-[0.95em] leading-none text-white/35">
+                <span>Esc 취소 · ⌘↵ 저장</span>
+                <span className="tabular-nums">
+                  {draft.length}/{NOTE_MAX_LENGTH}
+                </span>
+              </span>
+            </>
+          ) : (
+            /* 눌러서 고친다 · 지우려면 글을 다 지우고 나가면 된다 */
+            <button
+              type="button"
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={open}
+              title="눌러서 고치기"
+              className="w-full whitespace-pre-wrap px-[0.8em] py-[0.6em] text-left text-[1.2em] leading-[1.45] text-white/90 hover:bg-white/5"
+            >
+              {body}
+            </button>
+          )}
+        </div>
+      )}
+    </StageOverlay>
   );
 }
 

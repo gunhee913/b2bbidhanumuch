@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import BottomNav from '@/components/BottomNav';
 import NotificationBell from '@/components/NotificationBell';
+import { shortDealerNo } from '@/features/dealers/lib/dealerNo';
 
 export default function ProfilePage() {
   const { data: session, status } = useSession();
@@ -76,7 +77,7 @@ export default function ProfilePage() {
   const userPhone = session?.user?.phone || '';
   const userRole = (session as any)?.employee?.role || '중도매인';
   const dealerNo = session?.dealer?.dealerNo || '';
-  const displayNo = dealerNo ? String(parseInt(dealerNo, 10) - 7000000) : '0';
+  const displayNo = shortDealerNo(dealerNo) ?? '0';
 
   return (
     <div className="fixed inset-0 bg-white flex justify-center items-center z-[9999] overflow-hidden">
