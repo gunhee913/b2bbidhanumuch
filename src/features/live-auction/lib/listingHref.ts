@@ -41,6 +41,22 @@ export function favoritesHref(
 }
 
 /**
+ * 입찰 페이지 · `/auction/live/bids?house=음성&part=<부위 UUID>`.
+ *
+ * 관심 페이지와 짜임이 같다 — 세울 고정축이 없고 모아 놓은 부위들이 곧 화면의 전부다.
+ * 다른 건 모으는 기준 하나뿐이다. 거기는 내가 찍어 둔 것, 여기는 내가 값을 넣은 것.
+ */
+export function myBidsHref(
+  opts: { houseKey?: string | null; partId?: string | null } = {},
+): string {
+  const params = new URLSearchParams();
+  if (opts.houseKey) params.set(HOUSE_QUERY_KEY, opts.houseKey);
+  if (opts.partId) params.set("part", opts.partId);
+  const qs = params.toString();
+  return `/auction/live/bids${qs ? `?${qs}` : ""}`;
+}
+
+/**
  * 부위 페이지 · `/auction/live/part/등심?house=음성&listing=260929-101`.
  *
  * 개체 페이지와 같은 화면을 쓰되 고정축만 뒤집는다 — 부위 하나를 세우고

@@ -21,10 +21,11 @@ import {
   SquareCheckBig,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { LiveListing } from "../api";
+import type { LiveListing, LivePart } from "../api";
 import { useAuctionRoom } from "../hooks/useAuctionRoom";
 import { useAuctionFavorites } from "../hooks/useAuctionFavorites";
 import { useAuctionNotes } from "../hooks/useAuctionNotes";
+import { useMyBids } from "../hooks/useMyBids";
 import { useSideDock } from "../hooks/useSideDock";
 import {
   useRoomLayout,
@@ -51,6 +52,7 @@ import { isPartSettled, summarizeParts } from "../lib/sheetSummary";
 import { formatKrw } from "../lib/masking";
 import {
   favoritesHref,
+  myBidsHref,
   listingDetailHref,
   liveRoomHref,
   partDetailHref,
@@ -286,13 +288,19 @@ function firstEntryOf(listing: LiveListing | undefined): SheetBidEntry | null {
 /**
  * 무엇을 세우고 볼 것인가 · 개체 한 마리, 부위 하나, 또는 아무것도.
  *
- * `favorite` 만 세울 것이 없다. 관심으로 찍어 둔 부위들이 곧 전부라 넘길 바깥 차례가
- * 없고, 그래서 헤더 선택기와 ←/→ 가 할 일이 없다.
+ * 뒤의 둘(`favorite` · `mybid`)은 세울 것이 없다. 모아 놓은 부위들이 곧 전부라 넘길
+ * 바깥 차례가 없고, 그래서 헤더 선택기와 ←/→ 는 방 대신 **줄**을 민다. 둘은 모으는
+ * 기준 하나만 다르다 — 내가 찍어 둔 것이냐, 내가 값을 넣은 것이냐.
  */
 export type RoomAxis =
   | { kind: "listing"; listingNo: string }
   | { kind: "part"; group: string }
-  | { kind: "favorite" };
+  | { kind: "favorite" }
+  | { kind: "mybid" };
+
+/** 세울 고정축 없이 모아 놓은 줄만 보는 축 · 관심과 입찰이 짜임을 통째로 나눠 쓴다 */
+const isRowsOnly = (kind: RoomAxis["kind"]) =>
+  kind === "favorite" || kind === "mybid";
 
 /**
  * 경매장 상세 · 한 축을 세우고 나머지를 표로 훑으며 입찰한다.
@@ -349,6 +357,20 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
    */
   const favorites = useAuctionFavorites(listingDate);
   const notes = useAuctionNotes(listingDate);
+
+  /*
+   * 입찰축이 모을 부위 · 사이드 메뉴 「내 입찰」 과 같은 질의라 한 번만 받아 온다.
+   *
+   * 값을 쥐지 않고 id 만 추리는 건 표가 이미 제 입찰을 그릴 줄 알기 때문이다
+   * (`getPartResult`). 여기서 할 일은 「어느 줄을 세울까」 하나뿐이다.
+   *
+   * 결과가 난 줄은 아래에서 다시 거른다 — 이 탭은 **아직 손댈 수 있는** 입찰만 모은다.
+   */
+  const { data: myBids } = useMyBids(dealerId, listingDate);
+  const myBidPartIds = useMemo(
+    () => new Set((myBids ?? []).map((b) => b.partId).filter(Boolean)),
+    [myBids],
+  );
   const toggleFavorite = useCallback(
     (id: string) => {
       if (!dealerId) {
@@ -397,7 +419,7 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
   const hideSettled = useRoomLayout((state) => state.hideSettled);
   const toggleHideSettled = useRoomLayout((state) => state.toggleHideSettled);
 
-  /** 축이 주는 날것의 행 · 개체축이면 부위들, 부위축이면 개체들, 관심축이면 찍어 둔 부위들 */
+  /** 축이 주는 날것의 행 · 개체축이면 부위들, 부위축이면 개체들, 관심·입찰축이면 모아 둔 부위들 */
   const groupRows = useMemo<SheetBidEntry[]>(() => {
     if (axis.kind === "listing") {
       if (!axisListing) return [];
@@ -412,7 +434,7 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
       }));
     }
     /*
-     * 관심축 · 부위로 찍은 것만 모은다.
+     * 관심축·입찰축 · 부위 단위로만 모은다.
      *
      * 관심 목록은 개체(접수번호)와 부위(UUID)가 한 집합에 섞여 있는데(`useAuctionFavorites`),
      * 여기서는 `part.id` 로만 물어보므로 개체로 찍은 것은 애초에 걸리지 않는다. 개체 관심은
@@ -422,18 +444,28 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
      * 줄 세우는 차례는 사이드 메뉴 관심 목록과 같은 접수번호 순이다. 같은 개체 안에서는
      * 부위번호 순 — 한 마리에서 여럿을 찍었으면 늘 같은 자리에 같은 차례로 선다.
      */
+    const keep =
+      axis.kind === "mybid"
+        ? /* 아직 결과가 안 난 것만 · 손댈 수 있는 줄이 아니면 여기 있을 까닭이 없다 */
+          (part: LivePart) => myBidPartIds.has(part.id) && !isPartSettled(part)
+        : (part: LivePart) => favorites.ids.has(part.id);
     return listings
       .flatMap((listing) =>
-        listing.parts
-          .filter((part) => favorites.ids.has(part.id))
-          .map((part) => ({ listing, part })),
+        listing.parts.filter(keep).map((part) => ({ listing, part })),
       )
       .sort(
         (a, b) =>
           a.listing.listingNo.localeCompare(b.listing.listingNo) ||
           a.part.partNo - b.part.partNo,
       );
-  }, [axis.kind, axisListing, axisGroup, listings, favorites.ids]);
+  }, [
+    axis.kind,
+    axisListing,
+    axisGroup,
+    listings,
+    favorites.ids,
+    myBidPartIds,
+  ]);
 
   /*
    * 등급·업체 거르개 · 부위축에서만 쓴다.
@@ -533,7 +565,7 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
       );
     }
     /* 부위축에서 넘어올 때 보던 행을 들고 온다 · 여기서는 `part` 가 부위 UUID 다 */
-    if (axis.kind === "favorite") {
+    if (isRowsOnly(axis.kind)) {
       return rows.find((r) => r.part.id === partParam) ?? null;
     }
     return null;
@@ -664,14 +696,13 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
   const pivotIdx = axis.kind === "listing" ? listingIdx : groupIdx;
   const pivotLast =
     (axis.kind === "listing" ? listings.length : partGroups.length) - 1;
-  const canPrev = axis.kind === "favorite" ? favIdx > 0 : pivotIdx > 0;
-  const canNext =
-    axis.kind === "favorite"
-      ? favIdx >= 0 && favIdx < rows.length - 1
-      : pivotIdx >= 0 && pivotIdx < pivotLast;
+  const canPrev = isRowsOnly(axis.kind) ? favIdx > 0 : pivotIdx > 0;
+  const canNext = isRowsOnly(axis.kind)
+    ? favIdx >= 0 && favIdx < rows.length - 1
+    : pivotIdx >= 0 && pivotIdx < pivotLast;
 
   const goPrev = useCallback(() => {
-    if (axis.kind === "favorite") goToFavRow(rows[favIdx - 1]);
+    if (isRowsOnly(axis.kind)) goToFavRow(rows[favIdx - 1]);
     else if (axis.kind === "listing") goToListing(listings[listingIdx - 1]);
     else goToGroup(partGroups[groupIdx - 1]);
   }, [
@@ -688,7 +719,7 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
   ]);
 
   const goNext = useCallback(() => {
-    if (axis.kind === "favorite") goToFavRow(rows[favIdx + 1]);
+    if (isRowsOnly(axis.kind)) goToFavRow(rows[favIdx + 1]);
     else if (axis.kind === "listing") goToListing(listings[listingIdx + 1]);
     else goToGroup(partGroups[groupIdx + 1]);
   }, [
@@ -750,9 +781,12 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
        * 고른 행은 「처음 고를 행」 힌트일 뿐이다. 나머지 둘은 무엇을 세울지가
        * 고른 행에서 나오므로 행이 없으면 갈 곳이 없다.
        */
-      if (next === "favorite") {
+      if (isRowsOnly(next)) {
+        const partId = focusEntry?.part.id ?? null;
         router.push(
-          favoritesHref({ houseKey, partId: focusEntry?.part.id ?? null }),
+          next === "mybid"
+            ? myBidsHref({ houseKey, partId })
+            : favoritesHref({ houseKey, partId }),
         );
         return;
       }
@@ -1088,8 +1122,9 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
    * 나머지 둘과 달리 「없는 방」 이 아니라 「빈 서랍」 이라, 화면을 통째로 바꾸면
    * 별 하나 뺐다가 방 밖으로 밀려난다 — 탭도 같이 사라져 돌아올 길이 막힌다.
    */
-  const bail =
-    axis.kind === "favorite" ? false : groupRows.length === 0 || !focusListing;
+  const bail = isRowsOnly(axis.kind)
+    ? false
+    : groupRows.length === 0 || !focusListing;
   if (missing || bail) {
     return (
       <>
@@ -1102,11 +1137,15 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
                 ? `오늘 상장에서 ${axis.listingNo} 개체를 찾을 수 없습니다.`
                 : axis.kind === "part"
                   ? `오늘 상장에 ${axis.group} 부위가 없습니다.`
-                  : "관심으로 찍어 둔 부위가 없습니다."}
+                  : axis.kind === "mybid"
+                    ? "입찰 중인 부위가 없습니다."
+                    : "관심으로 찍어 둔 부위가 없습니다."}
           </p>
-          {!listingsLoading && axis.kind === "favorite" ? (
+          {!listingsLoading && isRowsOnly(axis.kind) ? (
             <p className="-mt-1 text-[12.5px] text-content-faint">
-              상장표나 부위 표에서 별을 눌러 담으면 여기 모입니다
+              {axis.kind === "mybid"
+                ? "값을 넣으면 여기 모이고 결과가 나면 빠집니다"
+                : "상장표나 부위 표에서 별을 눌러 담으면 여기 모입니다"}
             </p>
           ) : null}
           {listingsLoading ? null : (
@@ -1351,11 +1390,14 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
         ) : null}
         <div className="ml-auto flex shrink-0 items-center gap-1">
           {/* 소계는 바닥글이 맡는다 · 머리글에도 같은 줄을 두면 한 화면에 두 번 적힌다 */}
-          <HideSettledToggle
-            on={hideSettled}
-            count={summary.settledCount}
-            onToggle={toggleHideSettled}
-          />
+          {/* 입찰축은 마감된 줄이 애초에 들어오지 않는다 · 감출 것이 없으니 내밀지도 않는다 */}
+          {axis.kind === "mybid" ? null : (
+            <HideSettledToggle
+              on={hideSettled}
+              count={summary.settledCount}
+              onToggle={toggleHideSettled}
+            />
+          )}
           {/* 머리글 여백보다 한 칸 바깥으로 · 글자 줄과 아이콘의 광학 끝선을 맞춘다 */}
           <PaneGripHandle
             label="표"
@@ -1442,14 +1484,16 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
               ? axisListing!.id
               : axis.kind === "part"
                 ? `part:${axisGroup!.group}`
-                : "favorite"
+                : axis.kind
           }
           label={
             axis.kind === "listing"
               ? axisListing!.listingNo
               : axis.kind === "part"
                 ? axisGroup!.group
-                : "관심"
+                : axis.kind === "mybid"
+                  ? "입찰"
+                  : "관심"
           }
           entries={rows}
           bidding={sheetBidding}
@@ -1459,7 +1503,7 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
                 ? "마감된 개체입니다."
                 : axis.kind === "part"
                   ? "마감된 부위입니다."
-                  : /* 한 부위가 아니라 찍어 둔 것 전부라 가리킬 대상이 없다 */
+                  : /* 한 부위가 아니라 찍어 둔 것 전부라 가리킬 대상이 없다 (입찰축은 마감 줄이 없어 여기 오지 않는다) */
                     "관심 부위가 모두 마감됐습니다."
               : allBlocked
                 ? blockReasons[0]
@@ -1531,14 +1575,18 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
         }
         showArrowHint={!arrowNavLearned && (canPrev || canNext)}
         picker={
-          axis.kind === "favorite" ? (
+          isRowsOnly(axis.kind) ? (
             focusEntry ? (
               /*
-               * 담아 둔 차례가 곧 고정축이다 · 세우는 것이 방이 아니라 행일 뿐,
+               * 모아 둔 차례가 곧 고정축이다 · 세우는 것이 방이 아니라 행일 뿐,
                * 「지금 어디를 보고 있나 · 몇 번째인가」 를 말하는 일은 똑같다.
                */
               <RoomPicker
-                label="다른 관심 부위 선택"
+                label={
+                  axis.kind === "mybid"
+                    ? "다른 입찰 부위 선택"
+                    : "다른 관심 부위 선택"
+                }
                 placeholder="부위 · 접수번호 · 업체 검색"
                 hotkey="/"
                 title={toPartGroupName(focusEntry.part.partName)}
@@ -1780,10 +1828,15 @@ function PartPickerRow({
 
 /* ───────────────────────── 헤더 ───────────────────────── */
 
+/*
+ * 차례는 넓은 데서 좁은 데로 · 오늘 나온 것 전부 → 한 부위 → 내가 찍은 것 → 내가 건 것.
+ * 뒤로 갈수록 내 손이 닿은 것만 남는다. `B` 가 이 차례대로 돈다.
+ */
 const AXIS_TABS: { kind: RoomAxis["kind"]; label: string }[] = [
   { kind: "listing", label: "개체별" },
   { kind: "part", label: "부위별" },
   { kind: "favorite", label: "관심" },
+  { kind: "mybid", label: "입찰" },
 ];
 
 function RoomHeader({
