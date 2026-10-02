@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminClient } from "@/lib/supabase-admin";
+import { parseGrade } from "@/features/live-auction/lib/grade";
+import { fetchAllRows } from "@/lib/supabase-paginate";
 
 const supabase = getAdminClient();
 
@@ -9,16 +11,36 @@ const supabase = getAdminClient();
  * Query:
  *   partName: 부위 그룹명 (좌/우 통합 · 예: "등심")
  *   grade:    등급 키 (예: "1++(9)", "1+", "1", "2", "3")
- *   yield:    (선택) 육량 등급 · "A" | "B" | "C" · 지정 시 grade 문자열 suffix 로 매칭
+ *   yield:    (선택) 육량 등급 · "A" | "B" | "C" · 비우면 셋을 합친다
  *   days:     조회 일수 (default 7, max 730)
  *
  * Response:
- *   { series: { date, avg, min, max, count, listed }[], partName, grade, days }
- *   - count  : 낙찰 건수 (가격 통계의 분모)
+ *   { series: { date, avg, min, max, weight, amount, count, listed }[], partName, grade, days }
+ *   - count  : 낙찰 건수 (단가 통계의 분모)
+ *   - weight : 평균 중량 kg · 중량이 적힌 건만 (null 이면 적힌 것이 없음)
+ *   - amount : 평균 낙찰대금 원 · 단가 × 중량의 평균 · 분모는 중량이 적힌 건수
  *   - listed : 마감(closed/completed)된 상장의 부위 건수 · 낙찰률 = count / listed
  *              진행 중(auction/approved) 상장은 아직 결과가 없으므로 listed 에 넣지 않는다
+ *
+ * **등급 짝맞추기는 `parseGrade` 가 맡는다.** 예전에는 근내지방도를 `marbling_score`
+ * 칸에서만 찾고 육량을 글자 꼬리의 `[ABC]` 로 찾았는데, 지금 자료는 `1++A(9)` 처럼 한
+ * 칸에 셋이 들어 있다 — 괄호가 꼬리라 육량을 놓치고, 근내지방도는 제 칸이 비어 있어
+ * `eq(marbling_score, 9)` 에 통째로 걸러졌다. 그래서 요 몇 달 치 낙찰이 시계열에서
+ * 통으로 빠져 차트가 표본 자료로 떨어져 있었다.
  */
 const SETTLED_STATUSES = new Set(["closed", "completed"]);
+
+interface DailyAccumulator {
+  priceSum: number;
+  count: number;
+  listed: number;
+  min: number;
+  max: number;
+  weightSum: number;
+  weightCount: number;
+  amountSum: number;
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -45,16 +67,27 @@ export async function GET(request: NextRequest) {
     sinceDate.setDate(sinceDate.getDate() - days + 1);
     const sinceDateStr = sinceDate.toISOString().split("T")[0];
 
-    // gradeKey → 등급 매칭 prefix. "1++(9)" 는 marbling_score=9 로 별도 필터.
-    const qualityMatch = gradeKey.match(/^(1\+\+|1\+|1|2|3)/);
-    const qualityGrade = qualityMatch?.[1] ?? gradeKey;
-    const marblingMatch = gradeKey.match(/\((\d+)\)/);
-    const marblingScore = marblingMatch ? parseInt(marblingMatch[1], 10) : null;
+    /** 찾는 등급 열쇠를 육질 + 근내지방도로 가른다 · `1++(9)` → 1++ · 9 */
+    const wanted = parseGrade(gradeKey);
+    const wantedQuality = wanted?.quality ?? gradeKey;
+    const wantedMarbling = wanted?.marbling ?? null;
 
-    let query = supabase
-      .from("cattle_parts")
-      .select(
-        `
+    /*
+     * 거친 체만 DB 에 맡긴다. `1%` 는 `1++` 와 `1+` 까지 함께 걸러 오지만, 정확한
+     * 짝맞추기는 아래 `parseGrade` 가 한 번 더 본다 — SQL 쪽에서 괄호·육량이 섞인
+     * 글자를 정확히 맞추려다 앞서처럼 조용히 다 떨어뜨리는 쪽이 훨씬 위험하다.
+     */
+    const targetPart = partName.trim();
+
+    /*
+     * 부위도 SQL 에서 먼저 거른다 · `등심(좌)` 까지 걸리게 앞글자로 맞춘다.
+     * 두 해치를 열일곱 부위 통째로 끌어오면 쪽수가 예순 번을 넘는다.
+     */
+    const data = await fetchAllRows((from, to) =>
+      supabase
+        .from("cattle_parts")
+        .select(
+          `
         part_name,
         bid_price,
         weight,
@@ -67,87 +100,83 @@ export async function GET(request: NextRequest) {
           status
         )
       `,
-      )
-      .eq("is_included", true)
-      .gte("cattle_listings.listing_date", sinceDateStr)
-      .ilike("cattle_listings.grade", `${qualityGrade}%`);
+        )
+        .eq("is_included", true)
+        .gte("cattle_listings.listing_date", sinceDateStr)
+        .ilike("cattle_listings.grade", `${wantedQuality}%`)
+        .ilike("part_name", `${targetPart}%`)
+        .order("id", { ascending: true })
+        .range(from, to),
+    );
 
-    if (marblingScore != null) {
-      query = query.eq("cattle_listings.marbling_score", marblingScore);
-    }
-
-    const { data, error } = await query;
-    if (error) {
-      console.error("part-price-series query error:", error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-
-    const targetPart = partName.trim();
-
-    interface DailyAccumulator {
-      sum: number;
-      count: number;
-      listed: number;
-      min: number;
-      max: number;
-    }
     const dailyMap = new Map<string, DailyAccumulator>();
 
-    type ListingJoin = {
+    interface ListingJoin {
       listing_date: string | null;
       grade: string | null;
+      marbling_score: number | null;
       status: string | null;
-    };
+    }
 
     for (const row of data ?? []) {
       const rawName = (row.part_name as string | null) ?? "";
-      const baseName = rawName.replace(/\(좌\)|\(우\)/g, "").trim();
-      if (baseName !== targetPart) continue;
+      if (rawName.replace(/\(좌\)|\(우\)/g, "").trim() !== targetPart) continue;
 
       const listingRaw = row.cattle_listings as unknown as
-        | ListingJoin
-        | ListingJoin[]
-        | null;
+        ListingJoin | ListingJoin[] | null;
       const listing = Array.isArray(listingRaw) ? listingRaw[0] : listingRaw;
       const date = listing?.listing_date;
       if (!date) continue;
 
-      // 육량 후처리 필터 · grade 문자열 마지막 문자가 A/B/C 인지 확인.
-      // Supabase ilike 는 `A/B/C` suffix 매칭이 애매해 클라이언트 필터로 처리.
-      if (yieldFilter) {
-        const g = (listing?.grade ?? "").trim();
-        const suffix = g.match(/[ABC]$/)?.[0] ?? null;
-        if (suffix !== yieldFilter) continue;
+      const parsed = parseGrade(listing?.grade);
+      if (!parsed || parsed.quality !== wantedQuality) continue;
+
+      /* 근내지방도는 등급 글자에 붙어 있으면 그걸, 없으면 제 칸을 본다 */
+      if (wantedMarbling != null) {
+        const marbling = parsed.marbling ?? listing?.marbling_score ?? null;
+        if (marbling !== wantedMarbling) continue;
       }
+      if (yieldFilter && parsed.yieldGrade !== yieldFilter) continue;
 
       const price = row.bid_price as number | null;
+      const weight = row.weight as number | null;
       const isWon = !!row.winning_dealer_id && !!price && price > 0;
       const isSettled = SETTLED_STATUSES.has(listing?.status ?? "");
       if (!isWon && !isSettled) continue;
 
       const acc = dailyMap.get(date) ?? {
-        sum: 0,
+        priceSum: 0,
         count: 0,
         listed: 0,
         min: Infinity,
-        max: -Infinity,
+        max: 0,
+        weightSum: 0,
+        weightCount: 0,
+        amountSum: 0,
       };
       if (isSettled) acc.listed += 1;
-      if (isWon) {
-        acc.sum += price;
+      if (isWon && price) {
+        acc.priceSum += price;
         acc.count += 1;
         acc.min = Math.min(acc.min, price);
         acc.max = Math.max(acc.max, price);
+        if (weight && weight > 0) {
+          acc.weightSum += weight;
+          acc.weightCount += 1;
+          acc.amountSum += price * weight;
+        }
       }
       dailyMap.set(date, acc);
     }
 
-    // days 범위의 모든 날짜를 채워 시계열 배열 생성 (건수 0 인 날짜도 포함).
+    /* days 범위의 모든 날짜를 채운다 (낙찰 0 인 날도 자리를 남긴다 · 차트의 빈 칸) */
     const series: {
       date: string;
       avg: number | null;
       min: number | null;
       max: number | null;
+      weight: number | null;
+      amount: number | null;
       count: number;
       listed: number;
     }[] = [];
@@ -157,25 +186,35 @@ export async function GET(request: NextRequest) {
       d.setDate(d.getDate() - i);
       const dateStr = d.toISOString().split("T")[0];
       const acc = dailyMap.get(dateStr);
-      if (acc && acc.count > 0) {
-        series.push({
-          date: dateStr,
-          avg: Math.round(acc.sum / acc.count),
-          min: acc.min,
-          max: acc.max,
-          count: acc.count,
-          listed: acc.listed,
-        });
-      } else {
+      if (!acc || acc.count === 0) {
         series.push({
           date: dateStr,
           avg: null,
           min: null,
           max: null,
+          weight: null,
+          amount: null,
           count: 0,
           listed: acc?.listed ?? 0,
         });
+        continue;
       }
+      series.push({
+        date: dateStr,
+        avg: Math.round(acc.priceSum / acc.count),
+        min: acc.min,
+        max: acc.max,
+        weight:
+          acc.weightCount > 0
+            ? Math.round((acc.weightSum / acc.weightCount) * 10) / 10
+            : null,
+        amount:
+          acc.weightCount > 0
+            ? Math.round(acc.amountSum / acc.weightCount)
+            : null,
+        count: acc.count,
+        listed: acc.listed,
+      });
     }
 
     return NextResponse.json({

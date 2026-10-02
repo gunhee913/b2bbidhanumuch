@@ -5,8 +5,8 @@ import Image from "next/image";
 import { ImageOff, Loader2, RotateCcw, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
-  SHEET_CELL,
-  SHEET_GROUP_START,
+  SHEET_PART_CELL as PART_CELL,
+  SHEET_PART_HEAD as PART_HEAD,
 } from "@/features/listings/components/EntitySheetTable";
 import type { LiveListing, LivePart } from "../api";
 import type { useSheetBidding, SheetBidEntry } from "../hooks/useSheetBidding";
@@ -78,9 +78,6 @@ const FAV_SLOT_WIDTH = 22;
 const PART_COLUMN_COUNT = TRAILING_COLUMN_WIDTHS.length + 1;
 /** 결과 열 묶음이 시작하는 열 인덱스 · 앞 5열은 대상·내 입찰 */
 const RESULT_COLUMN_START = 5;
-const PART_HEAD =
-  "whitespace-nowrap border-b border-line bg-surface-muted px-1 py-1.5 text-[12px] font-medium text-content-faint";
-const PART_CELL = "whitespace-nowrap px-1 py-[6px] align-middle tabular-nums";
 /**
  * 「내 것」(입찰가·경락대금)과 「결과」(낙찰자·낙찰가·경락대금) 사이 구분선.
  * 토큰을 써야 한다 — `slate-200` 으로 못 박혀 있던 동안 어두운 판에서 흰 선이 되어,
@@ -686,7 +683,7 @@ function PartFavoriteStar({
  * 이름을 읽어 주지 않는다 — 같은 칸의 `title` 이 이미 부위와 접수번호를 말하고, 여기에
  * 메모 전문까지 겹쳐 읽어 주면 행 하나 지날 때마다 문장 둘을 듣는다.
  */
-function NoteMark({ body }: { body: string | null }) {
+export function NoteMark({ body }: { body: string | null }) {
   if (!body) return null;
   return (
     <span
@@ -889,66 +886,6 @@ export function SheetBatchFooter({
       </div>
       <div>{children}</div>
     </div>
-  );
-}
-
-/* ───────────────────────── 우측 결과 열 · 낙찰 n/총 · 총 낙찰대금 · 내 낙찰대금 ───────────────────────── */
-
-export function SheetResultCells({ summary }: { summary: PartsSummary }) {
-  const participated = summary.myBidCount > 0;
-  return (
-    <>
-      <td
-        className={cn(SHEET_CELL, SHEET_GROUP_START, "px-1 pl-2 text-center")}
-      >
-        <b className="font-bold text-content">{summary.wonCount}</b>
-        <span className="font-medium text-content-faint">/{summary.total}</span>
-      </td>
-      <td
-        className={cn(
-          SHEET_CELL,
-          "px-1.5 text-right font-semibold text-content",
-        )}
-      >
-        {summary.wonAmount > 0 ? (
-          <WonAmount value={summary.wonAmount} />
-        ) : (
-          <span className="text-content-ghost">-</span>
-        )}
-      </td>
-      <td className={cn(SHEET_CELL, "px-1.5 pr-3 text-right font-bold")}>
-        {summary.myWonAmount > 0 ? (
-          <span className="text-content">
-            <WonAmount value={summary.myWonAmount} />
-          </span>
-        ) : summary.myOpenCount > 0 ? (
-          <span className="text-[11px] font-medium text-content">
-            진행중 {summary.myOpenCount}
-          </span>
-        ) : participated ? (
-          <span className="text-[11px] font-medium text-rose-500">
-            미낙찰 {summary.myBidCount}
-          </span>
-        ) : (
-          <span className="text-content-ghost">—</span>
-        )}
-      </td>
-    </>
-  );
-}
-
-/**
- * 낙찰대금 · 「원」은 한 단계 작고 흐리게.
- * 열 전체가 같은 단위를 200번 되풀이하므로 숫자만 또렷하게 남긴다 (등지방두께 `mm` 와 같은 규칙).
- */
-function WonAmount({ value }: { value: number }) {
-  return (
-    <>
-      {formatKrw(value)}
-      <span className="pl-px text-[11px] font-medium text-content-faint">
-        원
-      </span>
-    </>
   );
 }
 

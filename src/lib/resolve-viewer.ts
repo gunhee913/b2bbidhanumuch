@@ -1,18 +1,19 @@
-import 'server-only';
-import { NextRequest } from 'next/server';
-import { getToken } from 'next-auth/jwt';
-import { resolveAuth } from '@/lib/resolve-auth';
+import "server-only";
+import { NextRequest } from "next/server";
+import { getToken } from "next-auth/jwt";
+import { resolveAuth } from "@/lib/resolve-auth";
 
 export type ViewerType =
-  | 'dealer_user'
-  | 'admin_user'
-  | 'company_user'
-  | 'anonymous';
+  "dealer_user" | "admin_user" | "company_user" | "anonymous";
 
 export interface Viewer {
   userType: ViewerType;
   /** 매참인(또는 소속 직원)인 경우 소속 dealer id. 그 외 null. */
   dealerId: string | null;
+  /** 로그인한 사람. 비로그인은 null. 「누가 바꿨나」 를 서버가 적을 때 쓴다. */
+  userId: string | null;
+  /** 표시용 이름. 없으면 빈 문자열. */
+  name: string;
   /**
    * 진행 중 회차의 타 매참인 입찰 정보를 열람할 수 있는가.
    * 비공개 입찰 정책상 관리자·출품업체만 true. 매참인·비로그인은 false.
@@ -20,7 +21,7 @@ export interface Viewer {
   canViewAllBids: boolean;
 }
 
-const STAFF_TYPES: ViewerType[] = ['admin_user', 'company_user'];
+const STAFF_TYPES: ViewerType[] = ["admin_user", "company_user"];
 
 /**
  * 요청자의 열람 권한을 판정한다.
@@ -35,6 +36,8 @@ export async function resolveViewer(request: NextRequest): Promise<Viewer> {
     return {
       userType: auth.userType,
       dealerId: auth.dealerId ?? null,
+      userId: auth.userId,
+      name: auth.name ?? "",
       canViewAllBids: STAFF_TYPES.includes(auth.userType),
     };
   }
@@ -43,11 +46,13 @@ export async function resolveViewer(request: NextRequest): Promise<Viewer> {
     req: request,
     secret: process.env.NEXTAUTH_SECRET,
   });
-  const userType = (token?.userType as ViewerType | undefined) ?? 'anonymous';
+  const userType = (token?.userType as ViewerType | undefined) ?? "anonymous";
 
   return {
     userType,
     dealerId: null,
+    userId: (token?.id as string | undefined) ?? null,
+    name: (token?.name as string | undefined) ?? "",
     canViewAllBids: STAFF_TYPES.includes(userType),
   };
 }

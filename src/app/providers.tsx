@@ -1,18 +1,18 @@
 // In Next.js, this file would be called: app/providers.tsx
-'use client';
+"use client";
 
 // Since QueryClientProvider relies on useContext under the hood, we have to put 'use client' on top
 import {
   isServer,
   QueryClient,
   QueryClientProvider,
-} from '@tanstack/react-query';
-import type { CSSProperties } from 'react';
-import { ThemeProvider } from 'next-themes';
-import { Toaster as SonnerToaster } from 'sonner';
-import { CircleCheck, CircleX, Info, TriangleAlert } from 'lucide-react';
-import DarkModeSync from '@/components/DarkModeSync';
-import { TooltipProvider } from '@/components/ui/tooltip';
+} from "@tanstack/react-query";
+import type { CSSProperties } from "react";
+import { ThemeProvider } from "next-themes";
+import { Toaster as SonnerToaster } from "sonner";
+import { CircleCheck, CircleX, Info, TriangleAlert } from "lucide-react";
+import DarkModeSync from "@/components/DarkModeSync";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 function makeQueryClient() {
   return new QueryClient({
@@ -81,16 +81,23 @@ export default function Providers({ children }: { children: React.ReactNode }) {
           closeButton
           offset={64}
           /*
-           * 입찰 영수증이 세로로 길어 보이지 않는 폭.
-           * 내용 자체는 가장 긴 행이 219px 이라 400px 로도 잘리지 않지만, 헤더·본문 4행·
-           * 액션까지 쌓이면 세로가 150px 을 넘어 세로로 선 카드가 된다. 다만 라벨 좌 ·
-           * 값 우 정렬이라 폭을 늘린 만큼 둘 사이가 벌어지므로 440 에서 멈춘다.
+           * 토스트 폭 · 기본 토스트와 직접 그린 영수증이 같이 쓴다
+           * (`globals.css` 의 `[data-styled="false"]` 규칙이 영수증에도 이 값을 물린다).
+           *
+           * 영수증은 라벨 좌 · 값 우로 짠 표라 둘 사이가 **적당히** 비어 있어야 한다.
+           * 내용 폭(270px 남짓)에 맞추면 「부위」 와 「업진 · 1++A(9) · 2.5kg」 이 붙어
+           * 한 덩어리로 읽히고, 480 까지 벌리면 이번엔 라벨과 값이 양 끝으로 달아나
+           * 같은 줄인지를 눈으로 이어 붙여야 한다. 가장 긴 줄에 130px 쯤 남는 400.
            */
-          style={{ '--width': '440px' } as CSSProperties}
+          style={{ "--width": "400px" } as CSSProperties}
           icons={{
-            success: <CircleCheck className="h-4 w-4 text-sky-500" aria-hidden />,
+            success: (
+              <CircleCheck className="h-4 w-4 text-sky-500" aria-hidden />
+            ),
             error: <CircleX className="h-4 w-4 text-rose-500" aria-hidden />,
-            warning: <TriangleAlert className="h-4 w-4 text-amber-500" aria-hidden />,
+            warning: (
+              <TriangleAlert className="h-4 w-4 text-amber-500" aria-hidden />
+            ),
             info: <Info className="h-4 w-4 text-content-soft" aria-hidden />,
           }}
           toastOptions={{
@@ -101,15 +108,16 @@ export default function Providers({ children }: { children: React.ReactNode }) {
                * 직접 그리므로 카드 안에 카드가 생긴다. 껍데기는 기본 토스트에만
                * 걸리도록 `globals.css` 의 `[data-styled="true"]` 아래에 둔다.
                */
-              toast: 'font-pretendard',
-              title: 'text-[13.5px] font-bold -tracking-[0.01em] tabular-nums',
-              description: '!mt-0.5 !text-[12.5px] !text-content-soft tabular-nums',
+              toast: "font-pretendard",
+              title: "text-[13.5px] font-bold -tracking-[0.01em] tabular-nums",
+              description:
+                "!mt-0.5 !text-[12.5px] !text-content-soft tabular-nums",
               actionButton:
-                '!bg-transparent !text-content !text-[12px] !font-semibold !px-1 hover:!underline',
+                "!bg-transparent !text-content !text-[12px] !font-semibold !px-1 hover:!underline",
               cancelButton:
-                '!bg-transparent !text-content-soft !text-[12px] !font-medium !px-1 hover:!underline',
+                "!bg-transparent !text-content-soft !text-[12px] !font-medium !px-1 hover:!underline",
               closeButton:
-                '!border-0 !bg-transparent !text-content-faint hover:!bg-surface-accent hover:!text-content',
+                "!border-0 !bg-transparent !text-content-faint hover:!bg-surface-accent hover:!text-content",
             },
           }}
         />

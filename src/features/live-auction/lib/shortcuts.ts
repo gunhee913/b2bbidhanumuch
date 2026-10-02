@@ -55,6 +55,20 @@ export function buildShortcutGroups(step: number): ShortcutGroup[] {
       ],
     },
     {
+      id: "mark",
+      title: "담아 두기",
+      /*
+       * 어디서 되는지를 뜻에 적는다 · 이 목록은 상장표에서도 열리는데 쪽지는 상세
+       * 사진 위에만 있다. 「메모」 한 마디만 적어 두면 상장표에서 눌러 보고 고장난
+       * 줄 안다. 관심은 두 화면 다 되지만 담기는 것이 다르다 — 상장표에서는 짚은
+       * 개체, 상세에서는 짚은 부위.
+       */
+      rows: [
+        { keys: ["F"], label: "관심 담기 · 빼기" },
+        { keys: ["M"], label: "상세 사진에 쪽지" },
+      ],
+    },
+    {
       id: "axis",
       title: "개체/부위/관심 탭",
       rows: [

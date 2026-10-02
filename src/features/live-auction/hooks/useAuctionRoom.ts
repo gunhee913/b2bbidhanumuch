@@ -125,7 +125,11 @@ export function useAuctionRoom() {
   ]);
 
   /**
-   * 회차 시작/마감 토스트 · 첫 로드 시 이미 열려 있던 회차에는 알리지 않는다 (데이터 도착 이후의 *전환* 만).
+   * 회차 시작 토스트 · 첫 로드 시 이미 열려 있던 회차에는 알리지 않는다 (데이터 도착 이후의 *전환* 만).
+   *
+   * 마감은 여기서 알리지 않는다 — `useRoundCloseNotifier` 가 같은 순간에 낙찰 건수와
+   * 「내 입찰 보기」 까지 담은 영수증을 띄운다. 둘 다 띄우면 「3회차 마감」 한 줄이 먼저
+   * 뜨고 몇 초 뒤 같은 말을 하는 영수증이 그 위에 또 쌓인다.
    */
   const roundSignalRef = useRef<{
     id: string | null;
@@ -147,12 +151,6 @@ export function useAuctionRoom() {
     const nextOpen = next.status === "open";
     if (nextOpen && (!prevOpen || prev.id !== next.id)) {
       toast(`${next.roundNo}회차 경매 시작`);
-      return;
-    }
-    if (prevOpen && !nextOpen) {
-      toast(`${prev.roundNo}회차 마감`, {
-        description: "낙찰 결과는 내 입찰에서 확인하세요",
-      });
     }
   }, [
     roundData,

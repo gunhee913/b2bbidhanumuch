@@ -359,22 +359,35 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
-      // audit log · 기존 입찰이 있었으면 dealer_update 로 기록
+      /* audit log · 고친 것과 처음 넣은 것을 똑같이 남긴다 (까닭은 `/api/bids` 쪽) */
       const existing = existingByPart.get(item.partId);
-      if (existing) {
-        await supabase.from("bid_audit_logs").insert({
-          bid_id: existing.id,
-          auction_id: resolvedAuctionId || existing.auction_id || null,
-          part_id: item.partId,
-          dealer_id: finalDealerId,
-          action_type: "dealer_update",
-          old_bid_price: existing.bid_price,
-          new_bid_price: item.pricePerKg,
-          old_bid_amount: existing.bid_amount,
-          new_bid_amount: result.bidAmount ?? null,
-          performed_by: null,
-        });
-      }
+      await supabase.from("bid_audit_logs").insert(
+        existing
+          ? {
+              bid_id: existing.id,
+              auction_id: resolvedAuctionId || existing.auction_id || null,
+              part_id: item.partId,
+              dealer_id: finalDealerId,
+              action_type: "dealer_update",
+              old_bid_price: existing.bid_price,
+              new_bid_price: item.pricePerKg,
+              old_bid_amount: existing.bid_amount,
+              new_bid_amount: result.bidAmount ?? null,
+              performed_by: null,
+            }
+          : {
+              bid_id: result.bidId ?? null,
+              auction_id: resolvedAuctionId,
+              part_id: item.partId,
+              dealer_id: finalDealerId,
+              action_type: "dealer_create",
+              old_bid_price: null,
+              new_bid_price: item.pricePerKg,
+              old_bid_amount: null,
+              new_bid_amount: result.bidAmount ?? null,
+              performed_by: null,
+            },
+      );
 
       successful.push({
         partId: item.partId,

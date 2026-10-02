@@ -169,23 +169,3 @@ export function summarizeRows(rows: readonly DailyRow[]): DailySummary {
   }
   return s;
 }
-
-/** 회차별 그룹 · 회차 오름차순, 회차 없는 행은 맨 뒤 · 그룹 안 순서는 입력 순서 유지 */
-export function groupRowsByRound(
-  rows: readonly DailyRow[],
-): { roundNo: number | null; rows: DailyRow[] }[] {
-  const map = new Map<number | null, DailyRow[]>();
-  for (const row of rows) {
-    const list = map.get(row.roundNo);
-    if (list) list.push(row);
-    else map.set(row.roundNo, [row]);
-  }
-  return Array.from(map.entries())
-    .sort(([a], [b]) => {
-      if (a === b) return 0;
-      if (a == null) return 1;
-      if (b == null) return -1;
-      return a - b;
-    })
-    .map(([roundNo, list]) => ({ roundNo, rows: list }));
-}

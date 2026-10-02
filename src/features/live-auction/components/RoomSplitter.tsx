@@ -24,24 +24,34 @@ import { TABLE_DEFAULT_WIDTH } from "../hooks/useRoomLayout";
  * 갔다. 방향키는 이 방에서 개체를 넘기는 키다 — 눈금이 그걸 가져가면 안 된다.
  */
 export function RoomSplitter({
-  tableWidth,
-  tableOnLeft,
-  defaultWidth = TABLE_DEFAULT_WIDTH,
+  size,
+  sizedOnLeft,
+  defaultSize = TABLE_DEFAULT_WIDTH,
+  label = "사진·시세와 표 사이 너비",
   onResize,
   onReset,
 }: {
-  tableWidth: number;
-  /** 눈금 왼쪽에 표가 있으면 참 · 표를 1열 앞으로 옮겨 놓았을 때다 */
-  tableOnLeft: boolean;
+  /**
+   * px 를 쥔 쪽의 폭 · 반대쪽은 남는 폭을 가져간다.
+   *
+   * 어느 쪽이 px 를 쥐는지는 방마다 다르다. 상세 방은 표가 쥐고(열이 아홉이라 좁아지면
+   * 못 읽는다), 배송지시는 사진 판이 쥔다(사이드 메뉴를 여닫을 때마다 사진이 그 몫을
+   * 다 뒤집어쓰면 고기를 볼 수가 없다). 눈금은 그걸 알 까닭이 없다.
+   */
+  size: number;
+  /** 눈금 왼쪽에 px 를 쥔 쪽이 있으면 참 · 끌리는 방향이 뒤집힌다 */
+  sizedOnLeft: boolean;
   /** 두 번 눌렀을 때 돌아갈 폭 · 방마다 기본값이 달라 안내 문구도 따라간다 */
-  defaultWidth?: number;
+  defaultSize?: number;
+  /** 읽어 주는 이름 · 나누는 것이 방마다 다르다 (`RoomStackSplitter` 와 같다) */
+  label?: string;
   onResize: (px: number) => void;
   onReset: () => void;
 }) {
   const { dragging, handlers } = usePaneResize({
-    size: tableWidth,
+    size,
     axis: "x",
-    direction: tableOnLeft ? 1 : -1,
+    direction: sizedOnLeft ? 1 : -1,
     onResize,
   });
 
@@ -49,8 +59,8 @@ export function RoomSplitter({
     <div
       role="separator"
       aria-orientation="vertical"
-      aria-label="사진·시세와 표 사이 너비"
-      title={`끌어서 너비 조절 · 두 번 누르면 ${defaultWidth}px 로`}
+      aria-label={label}
+      title={`끌어서 너비 조절 · 두 번 누르면 ${defaultSize}px 로`}
       {...handlers}
       onDoubleClick={onReset}
       className={cn(

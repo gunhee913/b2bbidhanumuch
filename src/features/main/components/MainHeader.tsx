@@ -30,7 +30,7 @@ const GNB_ITEMS: GnbItem[] = [
   { label: "경매장", href: "/auction/live" },
   { label: "경매내역", href: "/history" },
   { label: "배송지시", href: "/delivery", dealerOnly: true },
-  { label: "시세·동향", href: "/insight" },
+  { label: "분석·통계", href: "/insight" },
 ];
 
 /**
@@ -319,7 +319,7 @@ function AuthMenu() {
  * 현재 pathname 이 GNB 항목의 활성 상태인지 판정.
  *
  * - 정확히 일치하거나, 하위 경로(`/history/xxx`, `/auction/live/xxx`) 인 경우 활성
- * - 배송지시(`/delivery`) · 시세동향(`/insight`) 등도 하위 경로 포함
+ * - 배송지시(`/delivery`) · 분석통계(`/insight`) 등도 하위 경로 포함
  */
 function isGnbActive(pathname: string | null, href: string): boolean {
   if (!pathname) return false;

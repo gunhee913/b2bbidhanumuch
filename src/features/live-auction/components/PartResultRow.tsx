@@ -43,11 +43,14 @@ const CHIP_TONE: Record<PartOutcome, string> = {
   lost: "bg-lost-surface text-lost",
   noBid: "bg-surface-accent text-content-soft",
   passed: "bg-surface text-content-faint ring-1 ring-inset ring-line",
-  waiting: "bg-surface text-content-mid ring-1 ring-inset ring-slate-300",
+  waiting: "bg-surface text-content-mid ring-1 ring-inset ring-line",
 };
 
-/** 다섯 결과와 「입찰」이 모두 같은 상자를 쓴다 · 크기가 같아야 열이 흔들리지 않는다 */
-const CHIP_BASE =
+/**
+ * 다섯 결과와 「입찰」이 모두 같은 상자를 쓴다 · 크기가 같아야 열이 흔들리지 않는다.
+ * 경매내역의 진행중·낙찰·미낙찰 배지도 이 상자를 가져다 쓴다 — 같은 뜻이면 같은 크기.
+ */
+export const CHIP_BASE =
   "inline-flex h-[18px] shrink-0 items-center justify-center rounded-[1px] px-1.5 text-[10.5px] font-bold tracking-tight";
 
 const RESULT_CELL_CLASS = "relative pb-2 pl-3 pr-3 pt-0";

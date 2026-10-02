@@ -1,17 +1,11 @@
 "use client";
 
-import {
-  endOfMonth,
-  endOfWeek,
-  endOfYear,
-  format,
-  startOfMonth,
-  startOfWeek,
-  startOfYear,
-  subMonths,
-  subWeeks,
-} from "date-fns";
 import { cn } from "@/lib/utils";
+import {
+  detectActivePreset,
+  PERIOD_PRESETS,
+  type PeriodPreset,
+} from "../lib/periodPresets";
 
 export interface PeriodFilterProps {
   startDate: string;
@@ -21,98 +15,11 @@ export interface PeriodFilterProps {
   className?: string;
 }
 
-type PresetKey =
-  "today" | "year" | "thisMonth" | "lastMonth" | "thisWeek" | "lastWeek";
-
-interface Preset {
-  key: PresetKey;
-  label: string;
-  range: () => { start: string; end: string };
-}
-
-const fmt = (d: Date) => format(d, "yyyy-MM-dd");
-
-/**
- * 프리셋 기간 목록 · 자주 쓰는 기간을 한 번에 적용.
- * 순서: 오늘 → 이번주 → 지난주 → 이번달 → 지난달 → 올해 (좁은 범위 → 넓은 범위)
- */
-const PRESETS: Preset[] = [
-  {
-    key: "today",
-    label: "오늘",
-    range: () => {
-      const today = fmt(new Date());
-      return { start: today, end: today };
-    },
-  },
-  {
-    key: "thisWeek",
-    label: "이번주",
-    range: () => {
-      const now = new Date();
-      return {
-        start: fmt(startOfWeek(now, { weekStartsOn: 1 })),
-        end: fmt(endOfWeek(now, { weekStartsOn: 1 })),
-      };
-    },
-  },
-  {
-    key: "lastWeek",
-    label: "지난주",
-    range: () => {
-      const lastWeek = subWeeks(new Date(), 1);
-      return {
-        start: fmt(startOfWeek(lastWeek, { weekStartsOn: 1 })),
-        end: fmt(endOfWeek(lastWeek, { weekStartsOn: 1 })),
-      };
-    },
-  },
-  {
-    key: "thisMonth",
-    label: "이번달",
-    range: () => {
-      const now = new Date();
-      return { start: fmt(startOfMonth(now)), end: fmt(endOfMonth(now)) };
-    },
-  },
-  {
-    key: "lastMonth",
-    label: "지난달",
-    range: () => {
-      const lastMonth = subMonths(new Date(), 1);
-      return {
-        start: fmt(startOfMonth(lastMonth)),
-        end: fmt(endOfMonth(lastMonth)),
-      };
-    },
-  },
-  {
-    key: "year",
-    label: "올해",
-    range: () => {
-      const now = new Date();
-      return { start: fmt(startOfYear(now)), end: fmt(endOfYear(now)) };
-    },
-  },
-];
-
-/** 현재 dates 가 어떤 프리셋과 일치하는지 판별 */
-function detectActivePreset(
-  startDate: string,
-  endDate: string,
-): PresetKey | null {
-  for (const preset of PRESETS) {
-    const { start, end } = preset.range();
-    if (start === startDate && end === endDate) return preset.key;
-  }
-  return null;
-}
-
 /**
  * 조회 기간 필터.
  *
  * 레이아웃 · 좌→우 한 줄:
- * [조회기간 라벨] [프리셋 5개] [| 구분선] [시작일 ~ 종료일] [조회]
+ * [조회기간 라벨] [프리셋] [| 구분선] [시작일 ~ 종료일] [조회]
  *
  * - 프리셋 클릭 시 자동으로 dates 갱신 + onSearch 트리거
  * - 직접 date 를 수정한 경우에만 [조회] 버튼으로 명시적 조회
@@ -126,7 +33,7 @@ export function PeriodFilter({
 }: PeriodFilterProps) {
   const activePreset = detectActivePreset(startDate, endDate);
 
-  const applyPreset = (preset: Preset) => {
+  const applyPreset = (preset: PeriodPreset) => {
     const { start, end } = preset.range();
     onChange({ startDate: start, endDate: end });
     onSearch?.();
@@ -144,7 +51,7 @@ export function PeriodFilter({
       </span>
 
       <div className="flex items-center gap-1">
-        {PRESETS.map((p) => {
+        {PERIOD_PRESETS.map((p) => {
           const isActive = activePreset === p.key;
           return (
             <button

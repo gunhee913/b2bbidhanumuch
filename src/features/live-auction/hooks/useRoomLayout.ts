@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { omit } from "es-toolkit";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
@@ -77,6 +78,27 @@ export const STAGE_PLACEMENT_DEFAULT: Record<StageSlot, StagePlacement> = {
 
 const clamp01 = (n: number) => Math.min(1, Math.max(0, n));
 
+/**
+ * 겹 한 칸 갱신 · 자리는 0~1 안에, 배율은 한계 안에 가둔다.
+ *
+ * 저장소 밖에 둔 건 배송지시가 같은 겹을 제 저장소에 담기 때문이다 (`StagePlacementScope`).
+ * 가두는 규칙이 둘로 갈리면 한쪽에서만 겹이 무대 밖으로 나간다.
+ */
+export function applyStagePlacement(
+  prev: StagePlacement,
+  patch: Partial<StagePlacement>,
+): StagePlacement {
+  return {
+    pos: patch.pos
+      ? { x: clamp01(patch.pos.x), y: clamp01(patch.pos.y) }
+      : prev.pos,
+    scale:
+      patch.scale == null
+        ? prev.scale
+        : Math.min(STAGE_SCALE_MAX, Math.max(STAGE_SCALE_MIN, patch.scale)),
+  };
+}
+
 /** 1열 안에 위아래로 쌓이는 두 판 */
 export type StackPane = "photo" | "chart";
 
@@ -108,6 +130,19 @@ interface RoomLayoutState {
    */
   hideSettled: boolean;
   /**
+   * 등급·업체 거르개 · 고정축을 옮겨도 그대로 남는다.
+   *
+   * 방 바깥에 두는 까닭은 크기·차례와 같다. 상세 방은 ←/→ 를 누를 때마다 주소가
+   * 바뀌어 통째로 다시 서는데, 거르개를 방 안에 두면 1++(9)만 보려고 걸어 놓은 것이
+   * 옆 부위로 넘어가는 순간 풀린다 — 열 부위를 훑는 동안 열 번 다시 걸어야 한다.
+   *
+   * 다만 이것만은 저장하지 않는다(`partialize`). 크기나 차례와 달리 거르개는 「지금
+   * 무엇을 찾는 중인가」 라서, 내일 들어왔을 때도 켜져 있으면 상장이 반쯤 사라진
+   * 화면을 까닭 모른 채 보게 된다.
+   */
+  gradeFilter: string;
+  companyFilter: string;
+  /**
    * 끌어다 놓은 겹의 자리와 크기 · 사진마다 비는 곳이 달라 사람이 정한다.
    *
    * 크기·차례와 같은 칸에 두는 이유도 같다. 개체를 넘길 때마다 처음 자리로 돌아가면
@@ -127,6 +162,9 @@ interface RoomLayoutState {
   swapStackOrder: () => void;
   swapColumnOrder: () => void;
   toggleHideSettled: () => void;
+  setGradeFilter: (v: string) => void;
+  setCompanyFilter: (v: string) => void;
+  resetFilters: () => void;
 }
 
 const clampWidth = (px: number) =>
@@ -162,30 +200,21 @@ export const useRoomLayout = create<RoomLayoutState>()(
       stackOrder: ["photo", "chart"],
       columnOrder: ["stack", "table"],
       hideSettled: false,
+      gradeFilter: "",
+      companyFilter: "",
       stage: STAGE_PLACEMENT_DEFAULT,
       toggleFocus: (target) =>
         set({ focus: get().focus === target ? "none" : target }),
       setStagePlacement: (slot, patch) =>
-        set((state) => {
-          const prev = state.stage[slot] ?? STAGE_PLACEMENT_DEFAULT[slot];
-          return {
-            stage: {
-              ...state.stage,
-              [slot]: {
-                pos: patch.pos
-                  ? { x: clamp01(patch.pos.x), y: clamp01(patch.pos.y) }
-                  : prev.pos,
-                scale:
-                  patch.scale == null
-                    ? prev.scale
-                    : Math.min(
-                        STAGE_SCALE_MAX,
-                        Math.max(STAGE_SCALE_MIN, patch.scale),
-                      ),
-              },
-            },
-          };
-        }),
+        set((state) => ({
+          stage: {
+            ...state.stage,
+            [slot]: applyStagePlacement(
+              state.stage[slot] ?? STAGE_PLACEMENT_DEFAULT[slot],
+              patch,
+            ),
+          },
+        })),
       resetStagePlacement: (slot) =>
         set((state) => ({
           stage: { ...state.stage, [slot]: STAGE_PLACEMENT_DEFAULT[slot] },
@@ -204,11 +233,16 @@ export const useRoomLayout = create<RoomLayoutState>()(
         })),
       toggleHideSettled: () =>
         set((state) => ({ hideSettled: !state.hideSettled })),
+      setGradeFilter: (v) => set({ gradeFilter: v }),
+      setCompanyFilter: (v) => set({ companyFilter: v }),
+      resetFilters: () => set({ gradeFilter: "", companyFilter: "" }),
     }),
     {
       name: "live-auction-room-layout",
       storage: createJSONStorage(() => localStorage),
       skipHydration: true,
+      /* 거르개는 이 창에서만 산다 · 까닭은 `gradeFilter` 쪽에 적어 뒀다 */
+      partialize: (state) => omit(state, ["gradeFilter", "companyFilter"]),
     },
   ),
 );

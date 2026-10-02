@@ -24,23 +24,43 @@ export function useSheetCursor({
   ids,
   onOpen,
   onMove,
+  onFavorite,
 }: {
   ids: string[];
   onOpen: (id: string) => void;
   /** 키보드로 옮긴 직후 · 그 행을 보이는 데까지 끌어오는 데 쓴다 */
   onMove?: (id: string) => void;
+  /**
+   * `F` 로 짚은 줄의 관심을 켜고 끈다 · 주는 화면에서만 산다.
+   *
+   * 여기 둔 건 ↑↓ 와 한 짝이기 때문이다. 훑어 내려가다 마음에 드는 줄에서 손을 떼지
+   * 않고 별을 켜는 흐름이라, 커서를 쥔 쪽이 함께 들고 있어야 「지금 짚은 줄」 이
+   * 둘 사이에서 어긋나지 않는다.
+   */
+  onFavorite?: (id: string) => void;
 }): SheetCursor {
   const [id, setId] = useState<string | null>(null);
-  const ref = useRef({ ids, onOpen, onMove, id });
-  ref.current = { ids, onOpen, onMove, id };
+  const ref = useRef({ ids, onOpen, onMove, onFavorite, id });
+  ref.current = { ids, onOpen, onMove, onFavorite, id };
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return;
       if (isTypingInto(document.activeElement)) return;
 
-      const { ids, onOpen, onMove, id } = ref.current;
+      const { ids, onOpen, onMove, onFavorite, id } = ref.current;
       if (ids.length === 0) return;
+
+      /*
+       * 자판 자리(`code`)를 먼저 본다 · 한글 입력기가 켜져 있으면 F 자리를 눌러도
+       * `key` 는 `ㄹ` 이라, 글자로만 보면 영문일 때만 먹는다.
+       */
+      if (e.code === "KeyF" || e.key === "f" || e.key === "F") {
+        if (!onFavorite || !id) return;
+        e.preventDefault();
+        onFavorite(id);
+        return;
+      }
 
       if (e.key === "Enter") {
         /* 단추나 링크에 초점이 가 있으면 그쪽 일이다 · 가로채면 한 번 눌러 둘이 일어난다 */

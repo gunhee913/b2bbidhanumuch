@@ -34,8 +34,8 @@ export type BidMode = "nav" | "edit";
 export const bidKeyHint = (step: number): string =>
   `Enter 입찰 · Esc 되돌리기 · +/- ${step.toLocaleString("ko-KR")} · Shift+↑↓ 1,000 · ↑↓ 이동`;
 
-/** 표 어디서든 ↓ 로 첫 입찰칸에 들어간다 · 머리글 안내가 쓰는 문구 */
-export const BID_ENTER_HINT = "↓ 입찰칸으로";
+/** 표 어디서든 ↑↓ 로 행을 옮기고 Enter 로 그 행의 입찰칸에 든다 · 머리글 안내가 쓰는 문구 */
+export const BID_ENTER_HINT = "↑↓ 행 · Enter 입찰칸으로";
 
 /**
  * 상장표 칸 안내 · 모드마다 살아 있는 키가 달라 문구도 갈라 둔다.

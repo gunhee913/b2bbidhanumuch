@@ -206,6 +206,10 @@ export interface PartPriceSeriesPoint {
   avg: number | null;
   min: number | null;
   max: number | null;
+  /** 평균 중량 kg · 중량이 적힌 건만 */
+  weight: number | null;
+  /** 평균 낙찰대금 원 (단가 × 중량) · 분모는 중량이 적힌 건수 */
+  amount: number | null;
   /** 낙찰 건수 */
   count: number;
   /** 상장 건수 (마감된 상장 기준) · 낙찰률 = count / listed */

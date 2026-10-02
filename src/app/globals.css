@@ -256,6 +256,19 @@
   }
 
   /*
+   * 사진은 끌리지 않는다.
+   *
+   * 고기 사진은 들여다보는 것이지 어디로 옮기는 것이 아니다. 기본값대로 두면 사진
+   * 위에서 손을 조금만 움직여도 반투명한 유령 그림이 커서를 따라붙어, 등심면적을
+   * 재려고 얼굴을 들이대던 중에 화면이 엉뚱하게 반응한다. 쪽지·등급판정을 사진 위에서
+   * 끌어 옮기는 자리라 더 자주 걸린다 — 손잡이를 잡았는데 사진이 함께 끌려 나온다.
+   */
+  img {
+    -webkit-user-drag: none;
+    user-select: none;
+  }
+
+  /*
    * 스크롤바 · 홈은 비우고 막대만 남긴다.
    *
    * 트랙에 색을 깔면 스크롤이 필요 없는 순간에도 화면 가장자리마다 회색 띠가 하나씩
@@ -306,6 +319,23 @@
    */
   .scrollbar-gutter-auto {
     scrollbar-gutter: auto;
+  }
+  /*
+   * 막대를 아예 안 그린다 · 구르기는 그대로 둔다.
+   *
+   * 한 줄짜리 가로 띠(시세 표의 부위 탭)처럼, 막대가 서는 순간 띠 높이가 8px 늘어
+   * 아래 표 전체가 들썩이는 자리를 위한 것이다. 거기서는 막대가 「더 있다」 를
+   * 말하는 대신 판을 흔드는 쪽으로만 작용한다 — 더 있다는 건 양 끝 그늘이 말하고,
+   * 가려진 칸은 방향키가 끌어다 준다.
+   */
+  .no-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;
   }
   /*
    * `scrollbar-width` 는 Firefox 전용으로 둔다.
@@ -552,6 +582,21 @@
     0 8px 28px -6px rgb(0 0 0 / 0.18),
     0 2px 8px -4px rgb(0 0 0 / 0.1);
 }
+/*
+ * 직접 그린 카드(입찰 영수증 · 회차 마감)도 토스터 폭을 그대로 쓴다.
+ *
+ * sonner 는 `width: var(--width)` 를 `[data-styled="true"]` 에만 건다. `toast.custom`
+ * 은 `data-styled="false"` 라 그 규칙 밖에 있고, 담는 `li` 는 `position: absolute` 에
+ * 폭이 없어 **글 길이만큼 줄어든다**. 그래서 토스터에 적어 둔 폭이 상한으로만 남고
+ * 영수증은 늘 제 내용 폭(270px 남짓)으로 섰다 — 라벨 좌 · 값 우로 짠 표에서 둘 사이가
+ * `gap` 만큼만 벌어져, 「부위」 와 「토시·제비 · 1++B(8) · 1.8kg」 이 한 덩어리로 붙었다.
+ *
+ * 폭을 키워도 아무 일이 없던 이유가 이것이다. 카드가 상한에 닿은 적이 없었다.
+ */
+[data-sonner-toaster] [data-sonner-toast][data-styled="false"] {
+  width: var(--width);
+}
+
 [data-sonner-toast][data-styled="true"] [data-close-button] {
   opacity: 0;
   transition: opacity 120ms ease;
@@ -565,6 +610,28 @@
 @media print {
   body.print-daily-listings {
     background: #fff;
+  }
+  /*
+   * 종이는 늘 흰색이다 · 다크모드로 뽑아도 토큰을 라이트 값으로 되돌린다.
+   *
+   * 안 그러면 흰 종이에 `--content: 242 242 245` 가 그대로 찍혀 글자가 사라진다.
+   * 상장표는 경매장에 들고 들어가는 종이라 화면 테마와 무관하게 같은 것이 나와야 한다.
+   * 쓰는 토큰만 되돌린다 — 인쇄지가 다른 토큰을 쓰게 되면 여기에도 같이 적어야 한다.
+   * `.dark` 는 `<html>` 에 붙으므로 `<body>` 에서 다시 선언하면 상속을 덮는다.
+   */
+  body.print-daily-listings {
+    --surface: 255 255 255;
+    --surface-accent: 242 242 245;
+    --line: 226 226 231;
+    --content: 23 23 28;
+    --content-mid: 61 61 70;
+    --content-soft: 110 110 122;
+    --content-faint: 148 148 160;
+    --content-ghost: 200 200 209;
+    --won: 29 78 216;
+    --won-surface: 239 246 255;
+    --lost: 225 29 72;
+    --lost-surface: 255 241 242;
   }
   body.print-daily-listings > * {
     display: none !important;

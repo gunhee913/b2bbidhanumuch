@@ -1,293 +1,336 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, type CSSProperties, type ReactNode, type Ref } from "react";
 import { cn } from "@/lib/utils";
-import { CompactFilterPill } from "@/features/live-auction/components/CompactFilterPill";
+import { TableScroll } from "@/components/ui/table-scroll";
+import { useAppTheme } from "@/hooks/useAppTheme";
+import { useScrollEdges } from "@/hooks/useScrollEdges";
+import { SegmentedTabs } from "@/components/ui/segmented-tabs";
+import { SURFACE_SHELL_CLASS } from "@/features/live-auction/constants/surface";
+import { CHART_PALETTES } from "@/features/live-auction/components/PartMarketChart";
+import { YieldUnifyToggle } from "@/features/live-auction/components/YieldUnifyToggle";
 import { formatKrw } from "@/features/live-auction/lib/masking";
-import { getPartGroupOrder } from "@/features/live-auction/lib/partGrouping";
-import { useMarketPartGradePrices } from "../hooks/useMarketPartGradePrices";
-import type { MarketPartGradeRow } from "../api";
+import {
+  EmptyRow,
+  Measured,
+  SkeletonRows,
+} from "@/features/history/components/TableParts";
+import { MARKET_PART_ATTR, MARKET_ROW_ATTR } from "../hooks/useMarketKeys";
+import type { MarketRow } from "../lib/marketRows";
+import { PeriodRangePicker } from "./PeriodRangePicker";
 
-export interface MarketPartSummaryTableProps {
+export interface MarketPeriodControl {
   startDate: string;
   endDate: string;
-  gradeFilter: string;
-  onChangeGradeFilter: (grade: string) => void;
+  onChange: (next: { startDate: string; endDate: string }) => void;
+  onSearch: () => void;
 }
 
-const GRADE_FILTER_OPTIONS = ["1++", "1+", "1", "2", "3"] as const;
+export interface MarketPartSummaryTableProps {
+  period: MarketPeriodControl;
 
-/** 등급 표시 우선순위 · 낮을수록 위쪽 */
-const GRADE_ORDER: Record<string, number> = {
-  "1++(9)": 0,
-  "1++(8)": 1,
-  "1++(7)": 2,
-  "1+": 3,
-  "1": 4,
-  "2": 5,
-  "3": 6,
-};
+  parts: readonly string[];
+  selectedPart: string | null;
+  onSelectPart: (part: string) => void;
 
-const gradeRank = (g: string) =>
-  GRADE_ORDER[g] ?? (g.startsWith("1++") ? 2.5 : 99);
+  rows: readonly MarketRow[];
+  selectedRowKey: string | null;
+  onSelectRow: (key: string) => void;
+
+  yieldUnified: boolean;
+  onYieldUnifiedChange: (unified: boolean) => void;
+  /** 「낙찰 없음 숨김」 · 감출 줄 수를 세는 쪽이 방이라 단추째 받는다 */
+  hideToggle?: ReactNode;
+
+  isLoading: boolean;
+  isError: boolean;
+
+  /* ── 판 껍데기 · 눈금과 자리바꿈이 쥐는 값 ── */
+  ref?: Ref<HTMLElement>;
+  style?: CSSProperties;
+  className?: string;
+  headerAction?: ReactNode;
+}
+
+const HEAD_CELL =
+  "whitespace-nowrap border-b border-line px-2 py-1.5 font-medium -tracking-[0.01em]";
+const CELL = "whitespace-nowrap px-2 py-2 align-middle tabular-nums";
 
 /**
- * 부위 × 등급 낙찰 요약 테이블 · v2 · 범위 압축 레이아웃 (6열).
+ * 등급 · 낙찰건수 · 중량 · 평균단가 · 최고단가 · 최저단가 · 평균 낙찰대금.
  *
- * 지표 셀 스택 구조:
- *   [평균값 · primary · bold] (강조 컬러)
- *   [min ~ max · secondary · small muted]
+ * 합이 `TABLE_MIN_WIDTH` 안에 들어온다 — 눈금을 끝까지 좁혀도 가로로 구르지 않는다.
+ * 테두리 2px 과 세로 스크롤바 10px 이 폭에서 먼저 빠져나가므로, 바닥값을 열 합과
+ * 똑같이 잡으면 자료가 길어져 스크롤바가 서는 순간 표가 잘린다.
+ */
+const COLUMN_WIDTHS = [70, 68, 70, 88, 88, 88, 104];
+const TOTAL_WIDTH = COLUMN_WIDTHS.reduce((a, b) => a + b, 0);
+
+/**
+ * 한 부위의 등급별 시세 · 부위는 머리의 탭이 고른다.
  *
- * 이전 12열 (min/max/avg × 중량/단가/낙찰금) 을 3개 지표 셀로 압축.
- * 눈이 좌우로 튀지 않고 세로 한 눈에 지표별 요약을 스캔 가능.
+ * 예전엔 열일곱 부위 × 일곱 등급을 한 표에 세로로 쌓았다. 백 줄이 넘는 표에서
+ * 등심과 채끝을 견주려면 스무 줄을 사이에 두고 눈이 오르내려야 했고, 부위마다 줄
+ * 수가 달라 그 거리도 매번 달랐다. 부위를 탭으로 빼면 같은 자리에서 같은 모양의
+ * 표가 갈아 끼워진다 — 값만 바뀌니 차이가 바로 읽힌다.
+ *
+ * 등급은 육질과 육량을 한 칸에 붙여 적는다 (`1++A(9)`). 둘을 나눠 두면 표가 한 칸
+ * 넓어지는 대신 「1++(9) 의 A」 를 눈이 두 번에 나눠 읽어야 하는데, 등급표·경매장·
+ * 경매내역이 모두 붙여 쓰는 꼴이라 여기만 갈라 둘 까닭이 없다.
+ *
+ * 조회기간이 이 판 머리에 있는 건 그것이 **이 표만** 정하기 때문이다. 오른쪽 차트는
+ * 제 기간 토글로 몇 달 치 흐름을 그린다.
  */
 export function MarketPartSummaryTable({
-  startDate,
-  endDate,
-  gradeFilter,
-  onChangeGradeFilter,
+  period,
+  parts,
+  selectedPart,
+  onSelectPart,
+  rows,
+  selectedRowKey,
+  onSelectRow,
+  yieldUnified,
+  onYieldUnifiedChange,
+  hideToggle,
+  isLoading,
+  isError,
+  ref,
+  style,
+  className,
+  headerAction,
 }: MarketPartSummaryTableProps) {
-  const { data, isLoading, isError } = useMarketPartGradePrices({
-    startDate,
-    endDate,
-    grade: gradeFilter || null,
-  });
+  const theme = useAppTheme();
+  const palette = CHART_PALETTES[theme];
+  const tabScroll = useScrollEdges<HTMLDivElement>();
 
-  const sortedRows = useMemo(() => {
-    const order = getPartGroupOrder();
-    const partRank = new Map<string, number>();
-    order.forEach((p, i) => partRank.set(p, i));
-
-    const rows = [...(data?.rows ?? [])];
-    rows.sort((a, b) => {
-      const pa = partRank.get(a.partName) ?? 999;
-      const pb = partRank.get(b.partName) ?? 999;
-      if (pa !== pb) return pa - pb;
-      return gradeRank(a.grade) - gradeRank(b.grade);
-    });
-    return rows;
-  }, [data]);
-
-  const totalCount = useMemo(
-    () => sortedRows.reduce((s, r) => s + r.count, 0),
-    [sortedRows],
+  const partTabs = useMemo(
+    () =>
+      parts.map((part) => ({
+        value: part,
+        label: part,
+        /* 방향키가 짚은 칸을 끌어올 수 있게 표식을 단다 (`useMarketKeys`) */
+        attrs: { [MARKET_PART_ATTR]: part },
+      })),
+    [parts],
   );
 
-  const hasData = sortedRows.length > 0;
+  const totalCount = useMemo(
+    () => rows.reduce((s, r) => s + r.count, 0),
+    [rows],
+  );
 
   return (
-    <section className="overflow-x-auto border border-line bg-surface">
-      <div className="flex flex-wrap items-center gap-2 border-b border-line bg-slate-50/50 px-4 py-2">
-        <CompactFilterPill
-          label="등급"
-          value={gradeFilter}
-          onChange={onChangeGradeFilter}
-          options={GRADE_FILTER_OPTIONS}
+    <section
+      ref={ref}
+      style={style}
+      className={cn("flex min-h-0 flex-col", SURFACE_SHELL_CLASS, className)}
+    >
+      <header className="flex shrink-0 items-center gap-1.5 border-b border-line-soft px-2 py-1.5">
+        <h2 className="shrink-0 text-[13px] font-bold text-content">
+          부위별 시세
+        </h2>
+        <PeriodRangePicker
+          startDate={period.startDate}
+          endDate={period.endDate}
+          onChange={period.onChange}
+          onSearch={period.onSearch}
         />
-        <span className="ml-auto whitespace-nowrap text-[11px] tabular-nums text-content-soft">
-          낙찰 {totalCount}건
+        <span className="shrink-0 whitespace-nowrap text-[11px] tabular-nums text-content-faint">
+          {totalCount.toLocaleString("ko-KR")}건
         </span>
+        {/* 차트 범례 줄의 같은 단추와 한 몸 · 어느 쪽을 눌러도 양쪽이 같이 움직인다 */}
+        <YieldUnifyToggle
+          className="ml-auto"
+          checked={yieldUnified}
+          onChange={onYieldUnifiedChange}
+          heroColor={palette.heroLine}
+          mutedColor={palette.crosshair}
+        />
+        {hideToggle}
+        {headerAction ? (
+          <div className="flex shrink-0 items-center">{headerAction}</div>
+        ) : null}
+      </header>
+
+      {/*
+       * 부위 탭 · **늘 한 줄**이고 좁으면 옆으로 구른다.
+       *
+       * 접어 내리면 판 폭에 따라 한 줄이었다 두 줄이었다 하는데, 그때마다 아래 표
+       * 전체가 28px 씩 오르내린다. 눈금을 잡고 폭을 맞추는 동안 표가 들썩이는 셈이다.
+       *
+       * 막대는 안 그린다 (`no-scrollbar`). 막대가 서면 띠 높이가 또 8px 늘어 결국
+       * 같은 들썩임이 되고, 열일곱 칸이 한 줄에 다 설 때조차 띠 아래에 회색 줄 하나가
+       * 남는다. 가려진 칸이 있다는 건 양 끝 **그늘**이 말하고, 거기까지 가는 길은
+       * 방향키가 맡는다 (`useMarketKeys` 가 짚은 칸을 끌어다 준다).
+       */}
+      <div className="relative shrink-0 border-b border-line">
+        <div
+          ref={tabScroll.ref}
+          className="no-scrollbar overflow-x-auto px-2 py-1.5"
+        >
+          <SegmentedTabs
+            label="부위"
+            value={selectedPart ?? ""}
+            options={partTabs}
+            onChange={onSelectPart}
+            dense
+            className="min-w-max"
+          />
+        </div>
+        <ScrollShade side="left" show={tabScroll.atStart} />
+        <ScrollShade side="right" show={tabScroll.atEnd} />
       </div>
 
-      <table className="w-full table-fixed text-sm">
-        {/*
-         * 컬럼 폭 설계 (6열) · 컨테이너 1176px 기준.
-         * 부위 90 · 등급 108 · 낙찰건수 96 · 중량 200 · 단가 260 · 낙찰금 344 (spare 78)
-         * 낙찰건수를 앞으로 옮겨 표본 크기(N)를 먼저 확인 후 지표로 이동하는 스캔 순서.
-         */}
-        <colgroup>
-          <col className="w-[90px]" />
-          <col className="w-[108px]" />
-          <col className="w-[96px]" />
-          <col className="w-[200px]" />
-          <col className="w-[260px]" />
-          <col className="w-[344px]" />
-        </colgroup>
-        <thead className="bg-surface-muted text-[11px] font-semibold uppercase tracking-wider text-content-soft">
-          <tr>
-            <th className="border-b border-line px-3 py-2.5 text-center">
-              부위
-            </th>
-            <th className="border-b border-line px-3 py-2.5 text-center">
-              등급
-            </th>
-            <th className="border-b border-line px-3 py-2.5 text-center">
-              낙찰건수
-            </th>
-            <th className="border-b border-line px-3 py-2.5 text-center">
-              중량
-            </th>
-            <th className="border-b border-line px-3 py-2.5 text-center">
-              단가
-            </th>
-            <th className="border-b border-line px-3 py-2.5 text-center">
-              낙찰금
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {isLoading ? (
-            <SkeletonRows colSpan={6} rows={8} />
-          ) : isError ? (
-            <EmptyRow
-              colSpan={6}
-              message="시세 데이터를 불러오지 못했습니다."
-            />
-          ) : !hasData ? (
-            <EmptyRow
-              colSpan={6}
-              message={
-                gradeFilter
-                  ? `조회 기간 내 '${gradeFilter}' 등급 낙찰이 없습니다.`
-                  : "조회 기간 내 낙찰 데이터가 없습니다."
-              }
-            />
-          ) : (
-            sortedRows.map((row, idx) => {
-              const prev = sortedRows[idx - 1];
-              const isFirstOfPart = !prev || prev.partName !== row.partName;
-              return (
+      {/* 구르는 건 여기 안쪽뿐 · 머리줄과 탭은 늘 제자리에 선다 */}
+      <TableScroll>
+        <table
+          style={{ minWidth: TOTAL_WIDTH }}
+          className="w-full table-fixed text-[13px] font-semibold text-content"
+        >
+          <colgroup>
+            {COLUMN_WIDTHS.map((width, i) => (
+              <col
+                key={i}
+                style={{ width: `${(width / TOTAL_WIDTH) * 100}%` }}
+              />
+            ))}
+          </colgroup>
+          <thead className="sticky top-0 z-10 bg-surface-muted text-[12px] font-medium text-content-faint">
+            <tr>
+              <th className={cn(HEAD_CELL, "text-left")}>등급</th>
+              <th className={cn(HEAD_CELL, "text-right")}>낙찰건수</th>
+              <th className={cn(HEAD_CELL, "text-right")}>중량</th>
+              <th className={cn(HEAD_CELL, "text-right")}>평균단가</th>
+              <th className={cn(HEAD_CELL, "text-right")}>최고단가</th>
+              <th className={cn(HEAD_CELL, "text-right")}>최저단가</th>
+              <th className={cn(HEAD_CELL, "text-right")}>평균 낙찰대금</th>
+            </tr>
+          </thead>
+          <tbody>
+            {isLoading ? (
+              <SkeletonRows colSpan={COLUMN_WIDTHS.length} rows={8} />
+            ) : isError ? (
+              <EmptyRow
+                colSpan={COLUMN_WIDTHS.length}
+                message="시세를 불러오지 못했습니다."
+              />
+            ) : (
+              rows.map((row) => (
                 <SummaryRow
-                  key={`${row.partName}-${row.grade}`}
+                  key={row.key}
                   row={row}
-                  showPart={isFirstOfPart}
-                  isPartBoundary={isFirstOfPart && idx > 0}
+                  selected={row.key === selectedRowKey}
+                  onSelect={onSelectRow}
                 />
-              );
-            })
-          )}
-        </tbody>
-      </table>
+              ))
+            )}
+          </tbody>
+        </table>
+      </TableScroll>
     </section>
+  );
+}
+
+/**
+ * 구르는 띠 끝의 그늘 · 가려진 칸이 있을 때만 켠다.
+ *
+ * 막대를 지운 자리를 메운다. 늘 켜 두면 다 보이는 때에도 잘린 것처럼 보이므로 그쪽에
+ * 더 있을 때만 켠다 — 그늘이 있으면 밀어 볼 것이 있다는 뜻이다.
+ *
+ * 손은 안 받는다 (`pointer-events-none`) · 그늘 밑에 반쯤 걸친 칸도 눌려야 한다.
+ */
+function ScrollShade({
+  side,
+  show,
+}: {
+  side: "left" | "right";
+  show: boolean;
+}) {
+  return (
+    <span
+      aria-hidden
+      className={cn(
+        "pointer-events-none absolute inset-y-0 w-8 transition-opacity duration-150",
+        side === "left"
+          ? "left-0 bg-gradient-to-r from-surface to-transparent"
+          : "right-0 bg-gradient-to-l from-surface to-transparent",
+        show ? "opacity-100" : "opacity-0",
+      )}
+    />
   );
 }
 
 function SummaryRow({
   row,
-  showPart,
-  isPartBoundary,
+  selected,
+  onSelect,
 }: {
-  row: MarketPartGradeRow;
-  showPart: boolean;
-  isPartBoundary: boolean;
+  row: MarketRow;
+  selected: boolean;
+  onSelect: (key: string) => void;
 }) {
+  /*
+   * 낙찰이 없던 등급 · 줄은 그대로 두고 글자만 물린다. 지우면 부위마다 줄 자리가
+   * 어긋나고, 똑같이 진하게 두면 「-」 일곱 줄이 값 있는 줄을 덮는다.
+   */
+  const empty = row.count === 0;
   return (
     <tr
+      {...{ [MARKET_ROW_ATTR]: row.key }}
+      onClick={() => onSelect(row.key)}
+      aria-selected={selected}
       className={cn(
-        "border-b border-line-soft transition-colors hover:bg-slate-50/60",
-        isPartBoundary && "border-t border-line",
+        "cursor-pointer border-b border-line-soft transition-colors",
+        selected
+          ? "bg-surface-accent hover:bg-surface-accent"
+          : "hover:bg-surface-muted",
       )}
     >
-      <td className="whitespace-nowrap px-3 py-3 text-center align-middle text-[13px] font-semibold text-content">
-        {showPart ? row.partName : ""}
-      </td>
-      <td className="whitespace-nowrap px-3 py-3 text-center align-middle text-[12px] font-semibold tabular-nums text-content">
-        {row.grade}
-      </td>
-      <td className="whitespace-nowrap px-3 py-3 text-center align-middle text-[12.5px] font-semibold tabular-nums text-content-mid">
-        {row.count}건
-      </td>
-      <MetricCell
-        primary={formatWeight(row.avgWeight)}
-        range={formatWeightRange(row.minWeight, row.maxWeight)}
-        tone="neutral"
-      />
-      <MetricCell
-        primary={formatKrw(row.avgPrice)}
-        range={formatPriceRange(row.minPrice, row.maxPrice)}
-        tone="strong"
-      />
-      <MetricCell
-        primary={row.avgAmount > 0 ? formatKrw(row.avgAmount) : "-"}
-        range={formatPriceRange(row.minAmount, row.maxAmount)}
-        tone="brand"
-      />
-    </tr>
-  );
-}
-
-/**
- * 지표 셀 · 상단 평균 (강조) + 하단 min ~ max (subtext).
- * tone: neutral (중량) · strong (단가) · brand (낙찰금)
- */
-function MetricCell({
-  primary,
-  range,
-  tone,
-}: {
-  primary: string;
-  range: string | null;
-  tone: "neutral" | "strong" | "brand";
-}) {
-  const primaryClass =
-    tone === "brand"
-      ? "text-[13.5px] font-bold text-sky-700"
-      : tone === "strong"
-        ? "text-[13.5px] font-bold text-content"
-        : "text-[13px] font-semibold text-content";
-
-  return (
-    <td className="whitespace-nowrap px-3 py-3 text-center align-middle">
-      <div className={cn("tabular-nums leading-tight", primaryClass)}>
-        {primary}
-      </div>
-      {range ? (
-        <div className="mt-0.5 text-[10.5px] tabular-nums leading-tight text-content-faint">
-          {range}
-        </div>
-      ) : null}
-    </td>
-  );
-}
-
-/* ---------- formatters ---------- */
-
-function formatWeight(kg: number): string {
-  if (!kg || kg <= 0) return "-";
-  return `${kg.toFixed(1)}kg`;
-}
-
-function formatWeightRange(min: number, max: number): string | null {
-  if (!min || !max || min <= 0 || max <= 0) return null;
-  if (Math.abs(min - max) < 0.05) return null; // 동일값이면 subtext 숨김
-  return `${min.toFixed(1)} ~ ${max.toFixed(1)}kg`;
-}
-
-function formatPriceRange(min: number, max: number): string | null {
-  if (!min || !max || min <= 0 || max <= 0) return null;
-  if (min === max) return null;
-  return `${formatKrw(min)} ~ ${formatKrw(max)}`;
-}
-
-function EmptyRow({
-  colSpan,
-  message,
-}: {
-  colSpan: number;
-  message: string;
-}) {
-  return (
-    <tr>
       <td
-        colSpan={colSpan}
-        className="px-4 py-16 text-center text-[13px] text-content-faint"
+        className={cn(CELL, "text-left", empty ? "text-content-faint" : null)}
       >
-        {message}
+        {row.label}
       </td>
-    </tr>
-  );
-}
-
-function SkeletonRows({ colSpan, rows }: { colSpan: number; rows: number }) {
-  return (
-    <>
-      {Array.from({ length: rows }).map((_, i) => (
-        <tr key={i} className="border-b border-line-soft">
-          <td colSpan={colSpan} className="px-3 py-4">
-            <div className="h-4 w-full animate-pulse rounded bg-surface-accent" />
+      {empty ? (
+        /* 「-」 일곱 칸 대신 한 마디 · 빈 줄이 값 있는 줄을 덮지 않게 */
+        <td className={cn(CELL, "text-left text-content-ghost")} colSpan={6}>
+          낙찰 없음
+        </td>
+      ) : (
+        <>
+          <td className={cn(CELL, "text-right text-content-mid")}>
+            <Measured value={row.count.toLocaleString("ko-KR")} unit="건" />
           </td>
-        </tr>
-      ))}
-    </>
+          <td className={cn(CELL, "text-right")}>
+            <Measured
+              value={row.avgWeight > 0 ? row.avgWeight.toFixed(1) : "-"}
+              unit="kg"
+              className="font-bold"
+            />
+          </td>
+          <td className={cn(CELL, "text-right")}>
+            <Measured
+              value={formatKrw(row.avgPrice)}
+              unit="원"
+              className="font-bold"
+            />
+          </td>
+          {/* 양 끝은 평균보다 한 톤 물린다 · 주인공은 가운데 평균단가다 */}
+          <td className={cn(CELL, "text-right text-content-mid")}>
+            <Measured value={formatKrw(row.maxPrice)} unit="원" />
+          </td>
+          <td className={cn(CELL, "text-right text-content-mid")}>
+            <Measured value={formatKrw(row.minPrice)} unit="원" />
+          </td>
+          <td className={cn(CELL, "text-right")}>
+            <Measured
+              value={row.avgAmount > 0 ? formatKrw(row.avgAmount) : "-"}
+              unit="원"
+              className="font-bold"
+            />
+          </td>
+        </>
+      )}
+    </tr>
   );
 }

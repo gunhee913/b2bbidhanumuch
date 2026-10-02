@@ -1,8 +1,12 @@
 "use client";
 
-import { RefreshCw } from "lucide-react";
+import { useState } from "react";
+import { useInterval } from "react-use";
+import { differenceInMinutes, format } from "date-fns";
+import { Clock, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PeriodFilter } from "@/features/history/components/PeriodFilter";
+import { DELIVERY_DEADLINE_LABEL, deliveryDeadline } from "../lib/deadline";
 
 export interface DeliveryHeaderProps {
   startDate: string;
@@ -11,6 +15,36 @@ export interface DeliveryHeaderProps {
   onSearch: () => void;
   isRefreshing: boolean;
   onRefresh: () => void;
+}
+
+/** 남은 시간이 이 아래로 떨어지면 색을 바꾼다 · 한 시간이면 쉰 건은 마저 끝낼 수 있다 */
+const DEADLINE_SOON_MINUTES = 60;
+
+/**
+ * 머리줄에 적을 마감 문구 · 보고 있는 기간의 **마지막 날**을 기준으로 삼는다.
+ *
+ * 기간을 넓게 잡으면 앞쪽 날은 이미 잠겨 있고 마지막 날만 살아 있다. 살아 있는 쪽을
+ * 말해 줘야 「아직 고칠 수 있나」 에 답이 된다 — 첫날로 재면 늘 「마감됨」 이다.
+ */
+function deadlineState(endDate: string, now: Date) {
+  const deadline = deliveryDeadline(endDate);
+  if (!deadline)
+    return { tone: "open" as const, text: `${DELIVERY_DEADLINE_LABEL} 마감` };
+
+  const left = differenceInMinutes(deadline, now);
+  if (left < 0) {
+    return {
+      tone: "closed" as const,
+      text: `${format(deadline, "M/d")} 마감됨`,
+    };
+  }
+  if (left <= DEADLINE_SOON_MINUTES) {
+    return { tone: "soon" as const, text: `마감 ${left}분 전` };
+  }
+  return {
+    tone: "open" as const,
+    text: `${format(deadline, "M/d")} ${DELIVERY_DEADLINE_LABEL} 마감`,
+  };
 }
 
 /**
@@ -34,8 +68,15 @@ export function DeliveryHeader({
   isRefreshing,
   onRefresh,
 }: DeliveryHeaderProps) {
+  const [now, setNow] = useState(() => new Date());
+  useInterval(() => setNow(new Date()), 60_000);
+  const { tone: deadlineTone, text: deadlineText } = deadlineState(
+    endDate,
+    now,
+  );
+
   return (
-    <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-b-line-soft bg-surface px-3 py-2">
+    <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-b-line-soft bg-surface px-3 py-2">
       <PeriodFilter
         startDate={startDate}
         endDate={endDate}
@@ -43,6 +84,25 @@ export function DeliveryHeader({
         onSearch={onSearch}
         className="border-0 bg-transparent p-0"
       />
+
+      {/*
+       * 마감을 늘 띄워 둔다 · 막힌 뒤에 알면 늦다.
+       *
+       * 오늘치가 열려 있는 동안에는 남은 시간을, 지난 날짜만 보고 있으면 「마감됨」 을
+       * 적는다. 같은 자리에 같은 문장이 있어야 「어, 오늘은 왜 다르지」 가 눈에 띈다.
+       */}
+      <span
+        title={`배송지는 상장일 ${DELIVERY_DEADLINE_LABEL} 까지 고칠 수 있습니다 · 그 뒤 수정은 관리자에게 요청해 주세요`}
+        className={cn(
+          "ml-auto inline-flex h-7 shrink-0 items-center gap-1.5 px-2 text-[11px] font-semibold tabular-nums",
+          deadlineTone === "open" && "text-content-faint",
+          deadlineTone === "soon" && "text-pending",
+          deadlineTone === "closed" && "text-content-ghost",
+        )}
+      >
+        <Clock className="h-3.5 w-3.5" strokeWidth={2.25} aria-hidden />
+        {deadlineText}
+      </span>
 
       <button
         type="button"

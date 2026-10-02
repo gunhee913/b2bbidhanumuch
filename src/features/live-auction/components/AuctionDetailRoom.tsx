@@ -16,8 +16,6 @@ import {
   ChevronRight,
   ExternalLink,
   ImageOff,
-  Maximize2,
-  Minimize2,
   RotateCcw,
   Square,
   SquareCheckBig,
@@ -73,6 +71,7 @@ import { PartMarketChart } from "./PartMarketChart";
 import { RoomPicker } from "./RoomPicker";
 import { RoomSplitter } from "./RoomSplitter";
 import { RoomStackSplitter } from "./RoomStackSplitter";
+import { PaneFocusButton } from "./PaneFocusButton";
 import { ShortcutTooltip } from "./ShortcutTooltip";
 import { ViewerMediaPane } from "./ListingViewerDialog";
 import { formatDate, formatTraceNo } from "./ListingSpecSheet";
@@ -255,53 +254,6 @@ function HideSettledToggle({
 }
 
 /**
- * 크게 보기 토글 · 사진과 시세 카드가 각자 제 우측 위에 하나씩 단다.
- *
- * 켠 판만 남고 다른 판은 자리를 비우므로, 남은 판의 버튼이 곧 되돌리기 버튼이 된다.
- *
- * 평소에는 면이 없고 글자색만 있다 · 손이 닿을 때와 켜져 있을 때만 면이 든다.
- * 바로 옆 `PaneGripHandle` 과 같은 규칙이라 둘이 한 벌로 읽힌다 — 사진 쪽만 늘 면을
- * 깔고 있었더니 손잡이는 떠 있고 확대만 눌려 있는 것처럼 보였고, 정작 켜도 달라지는
- * 게 없어 지금 크게 보는 중인지는 아이콘 모양으로만 알 수 있었다.
- *
- * `tone` 은 얹히는 바탕 · 사진은 먹색 위, 시세는 카드 위라 같은 회색을 쓸 수 없다.
- */
-function FocusButton({
-  on,
-  label,
-  tone,
-  onToggle,
-}: {
-  on: boolean;
-  label: string;
-  tone: "dark" | "card";
-  onToggle: () => void;
-}) {
-  const Icon = on ? Minimize2 : Maximize2;
-  return (
-    <button
-      type="button"
-      onClick={onToggle}
-      aria-pressed={on}
-      aria-label={on ? `${label} 크게 보기 끄기` : `${label} 크게 보기`}
-      title={on ? "원래 크기로" : `${label}에 높이를 몰아준다`}
-      className={cn(
-        "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-[3px] transition-colors",
-        tone === "dark"
-          ? on
-            ? "bg-white/15 text-white ring-1 ring-white/25"
-            : "text-white/45 hover:bg-white/15 hover:text-white/85"
-          : on
-            ? "bg-surface text-content ring-1 ring-line"
-            : "text-content-soft hover:bg-surface-strong hover:text-content",
-      )}
-    >
-      <Icon className="h-3.5 w-3.5" strokeWidth={2.2} />
-    </button>
-  );
-}
-
-/**
  * 받은 차례대로 두 판을 늘어놓고 사이에 눈금을 끼운다 · 세로 쌓기와 가로 열이 같이 쓴다.
  *
  * 판을 그리는 일은 부르는 쪽에 남긴다 — 순서마다 JSX 를 한 벌씩 써 두면 한쪽만 고치는
@@ -408,6 +360,29 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
     [dealerId, favorites, setLoginPromptOpen],
   );
 
+  /**
+   * 쪽지를 남기면 관심에도 담는다 · 적어 둘 만한 부위는 다시 보러 올 부위다.
+   *
+   * 「등지방 두꺼움 · 다음 회차에」 같은 말을 적어 놓고 별을 따로 안 누르면, 정작 다음
+   * 회차에 그 부위를 찾을 길이 접수번호를 외우는 것뿐이다. 적는 손과 담는 손이 늘 같이
+   * 가던 것을 하나로 묶는다.
+   *
+   * **고친 것만** 담는다. 쪽지는 초점을 떼기만 해도 저장이 도는데(`onBlur`), 그때마다
+   * 담으면 일부러 뺀 별이 들여다볼 때마다 되살아난다. 비우는 것도 담지 않는다 —
+   * 지우는 손이 담는 손일 수는 없다.
+   */
+  const saveNoteWithStar = useCallback(
+    (partId: string, body: string) => {
+      const next = body.trim();
+      const changed = next !== (notes.get("part", partId) ?? "");
+      notes.save("part", partId, body);
+      if (changed && next && dealerId && !favorites.ids.has(partId)) {
+        favorites.toggle(partId);
+      }
+    },
+    [notes, favorites, dealerId],
+  );
+
   /* ── 고정축 ─────────────────────────────────────────── */
 
   const axisListing =
@@ -467,17 +442,28 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
    * 전부 사라진다. 그래서 개체축에서는 아예 적용하지 않는다. 축을 오갈 때 값을 지우지
    * 않는 건, 부위를 ←/→ 로 넘겨 가며 같은 등급만 훑는 게 이 화면의 주된 쓰임이기 때문이다.
    */
-  const [gradeFilter, setGradeFilter] = useState("");
-  const [companyFilter, setCompanyFilter] = useState("");
+  /* 거르개는 방 바깥에 산다 · ←/→ 로 부위를 넘겨도 걸어 둔 등급이 풀리지 않게 */
+  const gradeFilter = useRoomLayout((s) => s.gradeFilter);
+  const companyFilter = useRoomLayout((s) => s.companyFilter);
+  const setGradeFilter = useRoomLayout((s) => s.setGradeFilter);
+  const setCompanyFilter = useRoomLayout((s) => s.setCompanyFilter);
   /* 개체축만 뺀다 · 한 마리의 부위들은 등급도 업체도 전부 같아 거를 것이 없다 */
   const filterable = axis.kind !== "listing";
   const filtered = filterable && (!!gradeFilter || !!companyFilter);
-  const resetFilters = useCallback(() => {
-    setGradeFilter("");
-    setCompanyFilter("");
-  }, []);
-  /** 이 축에서 한 행이 무엇인가 · 머리글·빈 화면이 같은 말을 쓰게 한다 */
+  const resetFilters = useRoomLayout((s) => s.resetFilters);
+  /** 이 축에서 한 행이 무엇인가 · 빈 화면과 읽어 주는 이름이 같은 말을 쓰게 한다 */
   const rowNoun = axis.kind === "part" ? "개체" : "부위";
+  /**
+   * 표 머리줄에 세는 이름 · 부위축에서는 고정해 둔 **부위명**을 그대로 쓴다.
+   *
+   * 「개체 4/20」 은 어느 부위 방에서나 똑같이 나오는 말이라 세는 수만 알려 주고 지금
+   * 무엇을 보고 있는지는 말하지 않는다. 부위를 고정한 방에서 이 표의 이름은 그 부위다 —
+   * 「업진 4/20」 이면 이름과 수를 한 번에 읽는다.
+   *
+   * 빈 화면 문구는 `rowNoun` 을 그대로 쓴다. 거기서는 「조건에 맞는 개체가 없습니다」
+   * 라야 말이 되지, 부위명을 끼우면 「업진가 없습니다」 가 된다.
+   */
+  const countLabel = axis.kind === "part" ? axis.group : rowNoun;
 
   /** 업체 후보는 거르기 전 목록에서 뽑는다 · 고를 때마다 후보가 줄면 되돌릴 길이 막힌다 */
   const companyOptions = useMemo(() => {
@@ -718,6 +704,35 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
     goToFavRow,
   ]);
 
+  /**
+   * ↑/↓ 로 고른 행을 옮긴다 · 경매가 열려 있든 아니든 똑같이 움직인다.
+   *
+   * 짚은 데가 없으면 첫 줄부터. `selected` 는 아무것도 안 골랐을 때도 「첫 미마감 행」
+   * 으로 내려앉아 있어서, 들어오자마자 ↓ 를 눌러도 사진이 보던 개체에서 한 칸 옮겨간다.
+   */
+  const moveRow = useCallback(
+    (dir: 1 | -1) => {
+      if (rows.length === 0) return;
+      const at = selected
+        ? rows.findIndex((r) => r.part.id === selected.part.id)
+        : -1;
+      const next =
+        rows[at < 0 ? 0 : Math.min(Math.max(at + dir, 0), rows.length - 1)];
+      if (!next) return;
+      selectRow(next);
+      scrollPartRowIntoView(next.part.id);
+    },
+    [rows, selected, selectRow],
+  );
+
+  /* Enter 는 「고른 행의 칸으로」 다 · 키 처리기는 한 번만 매다는 쪽이라 ref 로 본다 */
+  const selectedRef = useRef(selected);
+  selectedRef.current = selected;
+
+  /* `F` 가 별을 켜는 자리 · 사진과 쪽지(`M`)가 가리키는 바로 그 부위여야 한다 */
+  const favKeyRef = useRef({ entry: focusEntry, toggle: toggleFavorite });
+  favKeyRef.current = { entry: focusEntry, toggle: toggleFavorite };
+
   const [arrowNavLearned, setArrowNavLearned] = useLocalStorage(
     "live-auction-arrow-nav-learned",
     false,
@@ -795,13 +810,50 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
       }
 
       /*
-       * ←/→ 로 개체를 훑다가 ↓ 를 누르면 그대로 입찰에 들어간다 — 개체를 고르고
-       * 마우스로 칸을 찾아 누르던 두 손 동작을 한 손으로 잇는다.
-       * 칸 안에서의 ↓ 는 다음 칸 이동이라 `handleBidKeyDown` 이 이미 맡고 있다.
+       * 관심 담기·빼기 · 지금 짚은 **부위**.
+       *
+       * 개체가 아니라 부위인 건 이 방이 부위를 보고 있어서다. 사진도 쪽지(`M`)도
+       * 짚은 부위에 붙으니 별만 개체에 붙으면, 관심 목록에서 되찾았을 때 어느 부위가
+       * 마음에 들었는지가 사라진다.
        */
-      if (e.key === "ArrowDown") {
+      if (e.code === "KeyF" || e.key === "f" || e.key === "F") {
+        if (isTypingInto(el) || e.metaKey || e.ctrlKey || e.altKey) return;
+        const { entry, toggle } = favKeyRef.current;
+        if (!entry) return;
+        e.preventDefault();
+        toggle(entry.part.id);
+        return;
+      }
+
+      /*
+       * ↑/↓ 는 표 안에서 행을 옮긴다 · 칸 안에서 누른 것은 `typing` 에 걸려 여기 안 온다
+       * (입찰칸도 input 이다 — 거기서는 `handleSheetBidKeyDown` 이 칸 사이를 옮긴다).
+       *
+       * 예전에는 ↓ 가 곧바로 첫 입찰칸으로 뛰어들었다. 그래서 **경매가 열리기 전에는
+       * ↑/↓ 가 아무 일도 하지 않았다** — 뛰어들 칸이 없으니까. 상장을 훑어보는 일은
+       * 입찰이 열리기 전에 하는데, 정작 그때 키보드가 죽어 마우스로 한 줄씩 눌러야 했다.
+       *
+       * 이제 ↑/↓ 는 늘 행을 옮기고, 칸에 들어가는 일은 Enter 가 맡는다. 상장표
+       * (`useSheetCursor`)와 같은 규칙이라 두 화면에서 손이 따로 놀지 않는다.
+       */
+      if (e.key === "ArrowUp" || e.key === "ArrowDown") {
         if (typing) return;
-        if (focusFirstBidInput()) e.preventDefault();
+        e.preventDefault();
+        moveRow(e.key === "ArrowDown" ? 1 : -1);
+        return;
+      }
+
+      /*
+       * Enter 로 고른 행의 입찰칸에 들어간다 · 한 단계씩 깊어지는 차례다
+       * (행 고르기 → Enter → 칸 고르기 → Enter → 값 쓰기).
+       *
+       * 단추나 링크에 초점이 가 있으면 그쪽 일이다 · 가로채면 한 번 눌러 둘이 일어난다.
+       */
+      if (e.key === "Enter") {
+        if (typing || el?.closest("button, a, [role=button]")) return;
+        const partId = selectedRef.current?.part.id;
+        if (partId && focusBidInput(partId)) e.preventDefault();
+        else if (focusFirstBidInput()) e.preventDefault();
         return;
       }
 
@@ -825,6 +877,7 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
   }, [
     goPrev,
     goNext,
+    moveRow,
     arrowNavLearned,
     setArrowNavLearned,
     switchAxis,
@@ -1137,7 +1190,8 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
                       {...stack.handleProps("photo")}
                     />
                   ) : null}
-                  <FocusButton
+                  <PaneFocusButton
+                    verb="크게 보기"
                     on={focus === "photo"}
                     label="사진"
                     tone="dark"
@@ -1159,7 +1213,7 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
                             partLabel: `${focusEntry.part.partName} · ${focusEntry.listing.listingNo}`,
                             body: notes.get("part", focusEntry.part.id),
                             onSave: (body) =>
-                              notes.save("part", focusEntry.part.id, body),
+                              saveNoteWithStar(focusEntry.part.id, body),
                           }
                         : null
                     }
@@ -1205,7 +1259,8 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
                           {...stack.handleProps("chart")}
                         />
                       ) : null}
-                      <FocusButton
+                      <PaneFocusButton
+                        verb="크게 보기"
                         on={focus === "chart"}
                         label="시세"
                         tone="card"
@@ -1221,8 +1276,8 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
         focus === "none" ? (
           <RoomStackSplitter
             key="stack-splitter"
-            chartHeight={chartHeight}
-            chartBelow={stackOrder[0] === "photo"}
+            height={chartHeight}
+            sizedBelow={stackOrder[0] === "photo"}
             onResize={(px) => setChartHeight(px, maxChartHeight)}
             onReset={resetChartHeight}
           />
@@ -1250,12 +1305,12 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
     >
       <header className="flex shrink-0 items-center gap-2 border-b border-line-soft px-4 py-2.5">
         {/*
-         * 세는 단위는 1열 머리글과 같다 · 부위축에서는 좌/우가 따로 행이라
-         * 행 수(30)와 개체 수(15)가 다르다 — 이름과 숫자가 어긋나지 않게 개체를 센다.
+         * 세는 것은 머릿수다 · 부위축에서는 좌/우가 따로 행이라 행 수(30)와 개체
+         * 수(15)가 다른데, 「업진 15」 는 업진이 붙은 소가 열다섯이라는 말이다.
          * 행 수는 아래 소계(`내 입찰 0/30`)가 말한다.
          */}
         <h2 className="shrink-0 text-[13px] font-bold text-content">
-          {rowNoun}{" "}
+          {countLabel}{" "}
           <span className="tabular-nums text-content-faint">
             {shownCount}
             {shownCount < totalCount ? (
@@ -1577,8 +1632,8 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
           { stack: stackColumn, table: tablePane },
           <RoomSplitter
             key="column-splitter"
-            tableWidth={tableWidth}
-            tableOnLeft={tableOnLeft}
+            size={tableWidth}
+            sizedOnLeft={tableOnLeft}
             onResize={(px) => setTableWidth(Math.min(px, maxTableWidth))}
             onReset={resetTableWidth}
           />,

@@ -4,6 +4,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -21,7 +22,12 @@ import {
 import { cn } from "@/lib/utils";
 import type { LiveListing } from "../api";
 import { formatGradeLabel, toGradeSeriesKey } from "../lib/grade";
-import { isSpecEmpty, JUDGED_SPECS } from "../lib/judgedSpecs";
+import {
+  isSpecEmpty,
+  JUDGED_SPECS,
+  type JudgedSpecValues,
+} from "../lib/judgedSpecs";
+import { isTypingInto } from "../lib/keyboard";
 import { toPartGroupName } from "../lib/partGrouping";
 import { useListingCerts } from "../hooks/useListingCerts";
 import type { StageSlot } from "../hooks/useRoomLayout";
@@ -31,7 +37,7 @@ import type { SheetBidding } from "./SheetParts";
 import { useSideDock } from "../hooks/useSideDock";
 
 /** 뷰어 안에서 넘겨 보는 한 장 · 사진이거나 증명서 스캔본 */
-type ViewerMedia =
+export type ViewerMedia =
   | { kind: "photo"; src: string; label: string }
   | { kind: "doc"; src: string | null; label: string };
 
@@ -40,7 +46,7 @@ type ViewerMedia =
  * `mediaIdx: null` 은 미등록 · 자리는 지키되 누를 수 없게 둔다.
  * 없는 항목을 아예 지우면 "이 개체는 증명서가 없는 건가, 기능이 없는 건가" 를 구분 못 한다.
  */
-interface MediaTab {
+export interface MediaTab {
   label: string;
   /** 칸 안에 들어갈 짧은 이름 · 문서 칸에만 쓴다 (64px 에 「등급판정확인서」는 안 들어간다) */
   short?: string;
@@ -449,7 +455,13 @@ export function ViewerMediaPane({
         {/* 증명서 스캔본에는 찍지 않는다 · 흰 종이라 가릴 것이 있고, 등급은 그 안에 이미 적혀 있다 */}
         {stamp && current?.kind === "photo" ? (
           <GradeStamp
-            listing={listing}
+            heading={{
+              grade: listing.grade,
+              marblingScore: listing.marblingScore,
+              listingNo: listing.listingNo,
+              companyName: listing.companyName,
+            }}
+            values={listing}
             stageWidth={stage.width}
             stageHeight={stage.height}
           />
@@ -538,13 +550,30 @@ function StageOverlay({
 }
 
 /**
+ * 각인이 배율 1 일 때 먹는 폭 · Pretendard 실측(266.6)을 올린 값.
+ *
+ * 각인은 접지 않는다(`whitespace-nowrap`). 무대가 이보다 좁으면 넘치는 만큼 잘려
+ * 나가고, 잘리는 쪽은 늘 마지막 칸인 **등심면적**이다. 그래서 무대를 품은 판은 제
+ * 최소 폭을 이 값에서 거꾸로 셈해야 한다 (`DELIVERY_PANE_MIN_WIDTH` 참고).
+ *
+ * 칸 폭은 라벨과 값 중 큰 쪽이고 일곱 중 여섯은 라벨이 이긴다 — 바꾸면 여기도 바뀐다.
+ *
+ * 위아래 두 줄 중 **넓은 쪽이 상자 폭**인데, 머리줄은 자료에 따라 늘었다 줄었다 한다.
+ * 그래도 일곱 칸 줄을 못 넘기게 되어 있다 — 접수번호는 `YYMMDD-RNN` 열 자 꼴이고
+ * 상장업체는 `max-w-[10em]` 에서 말줄임으로 끊기므로, 머리줄이 가장 길어 봐야
+ * 여백 20 + 등급 58.8 + 틈 8 + 번호 71.4 + 틈 8 + 업체 100 = 266.2 다.
+ * 접수번호 자릿수가 늘면 이 셈이 깨지니 그때는 이 값도 같이 올려야 한다.
+ */
+export const GRADE_STAMP_WIDTH = 268;
+
+/**
  * 사진 위 판정 각인.
  *
  * 품질정보 띠는 화면 맨 위라, 마블링을 들여다보다 점수를 되짚으려면 눈이 열여덟 칸을
  * 거슬러 올라갔다 와야 한다. 등급도 일곱 값도 다름 아닌 이 사진에 대한 판정사의
- * 답이니 같은 자리에 둔다. 상장표 요약 사진(`SheetSummaryPanel`)도 같은 차례를 쓴다 —
- * 두 곳 다 접수번호는 이미 딴 데서 말하고 있어, 사진에 대고 묻는 것은 "몇 등급이냐"
- * 하나이기 때문이다.
+ * 답이니 같은 자리에 둔다. 윗줄은 등급 · 접수번호 · 상장업체 차례이고 등급이 가장
+ * 굵다 — 사진에 대고 묻는 것은 「몇 등급이냐」 가 먼저고 「어느 개체냐」 가 그다음이다.
+ * 상장표 요약 사진(`SheetSummaryPanel`)도 같은 셋을 같은 차례 · 같은 굵기로 쓴다.
  *
  * **라벨을 값 옆이 아니라 위에 두는 이유.** 옆에 두면 칸 폭이 라벨＋값이라 일곱을
  * 늘어놓는 데 437px 가 든다. 1열을 최소(460)까지 좁히면 썸네일 레일과 여백을 빼고
@@ -556,12 +585,31 @@ function StageOverlay({
  * 품질정보 띠에 그대로 다 있어 끌지 못해도 잃는 정보가 없다. 그래서 과녁을 탭 차례에
  * 끼워 ←/→ 의 개체 이동과 다투게 만들 까닭이 없다.
  */
-function GradeStamp({
-  listing,
+export function GradeStamp({
+  heading,
+  values,
   stageWidth,
   stageHeight,
 }: {
-  listing: LiveListing;
+  /**
+   * 윗줄에 적을 등급·접수번호·상장업체.
+   *
+   * 한때 배송지시에서는 뺐다 — 그 셋이 카드 머리줄에 이미 서 있으니 사진을 더 가릴
+   * 까닭이 없다고 봤다. 틀린 셈이었다. 각인은 「이 사진이 무엇에 대한 판정이냐」 를
+   * 통째로 담는 상자라, 값 일곱만 있고 어느 개체인지가 없으면 반쪽이다. 머리줄은
+   * 사진 바깥 얇은 띠에 있어 사진을 들여다보는 동안은 눈에 들어오지도 않는다.
+   *
+   * 두 방이 같은 각인을 쓰는 것도 이유다. 한쪽만 머리줄을 빼면 같은 개체 사진이
+   * 방마다 다르게 보여, 경매장에서 보던 것을 배송지시에서 다시 맞춰 봐야 한다.
+   */
+  heading: {
+    grade: string | null;
+    marblingScore: number | null;
+    listingNo: string;
+    companyName?: string | null;
+  };
+  /** 일곱 판정값 · 개체 자료형이 방마다 달라 값만 받는다 */
+  values: JudgedSpecValues;
   stageWidth: number;
   stageHeight: number;
 }) {
@@ -589,21 +637,21 @@ function GradeStamp({
         >
           <span className="flex items-baseline gap-[0.8em] whitespace-nowrap">
             <span className="text-[1.5em] font-bold leading-none tabular-nums text-white">
-              {formatGradeLabel(listing.grade, listing.marblingScore)}
+              {formatGradeLabel(heading.grade, heading.marblingScore)}
             </span>
             <span className="text-[1.2em] font-medium leading-none tabular-nums text-white/55">
-              {listing.listingNo}
+              {heading.listingNo}
             </span>
-            {listing.companyName ? (
+            {heading.companyName ? (
               <span className="max-w-[10em] truncate text-[1.2em] font-medium leading-none text-white/55">
-                {listing.companyName}
+                {heading.companyName}
               </span>
             ) : null}
           </span>
           {/* 접지 않는다 · 일곱이 한 줄로 서 있어야 「한 덩어리」 로 읽힌다 */}
           <span className="flex items-end gap-[0.8em] whitespace-nowrap">
             {JUDGED_SPECS.map(({ label, key, unit }) => {
-              const value = listing[key];
+              const value = values[key];
               const empty = isSpecEmpty(value);
               return (
                 <span
@@ -657,7 +705,7 @@ type StageDragHandle = {
  * 비어 있을 때는 작은 알약 하나로 접힌다. 각인은 늘 떠 있어도 할 말이 있지만 빈 쪽지는
  * 사진을 가리기만 한다 — 그렇다고 아주 없애면 메모를 쓸 길이 사라진다.
  */
-function StageNote({
+export function StageNote({
   partId,
   partLabel,
   body,
@@ -685,9 +733,53 @@ function StageNote({
     setEditing(true);
   };
 
+  /*
+   * `M` 으로 연다 · 쪽지가 사진 위에 떠 있는 동안만 산다.
+   *
+   * 듣는 자리를 쪽지 안에 둔 건 조건이 쪽지와 정확히 같아서다 — 열 쪽지가 있을 때만
+   * 키가 살아야 하고, 열 대상도 이 쪽지가 쥔 바로 그 부위다. 상세방과 배송지시가 같은
+   * 쪽지를 쓰니 두 화면이 한 번에 따라온다.
+   *
+   * 자판 자리(`code`)를 먼저 보는 건 한글 입력기 때문이다. 입력기가 켜져 있으면 M 자리를
+   * 눌러도 `key` 는 `ㅡ` 라, 글자로만 보면 영문일 때만 먹는다 (축 바꾸기 `B` 와 같은 함정).
+   *
+   * 「쓰는 중」 의 기준은 `/` · `B` 와 맞춘다 (`isTypingInto`). 상장표 입찰칸은 고르기
+   * 동안 읽기전용이라, 거기 커서가 있어도 줄을 훑다 말고 손을 떼지 않고 적을 수 있다.
+   */
+  const openRef = useRef(open);
+  openRef.current = open;
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.code !== "KeyM" && e.key !== "m" && e.key !== "M") return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (isTypingInto(document.activeElement)) return;
+      /* 전체화면 뷰어처럼 덮어 둔 판이 떠 있으면 그쪽 일이다 */
+      if (document.querySelector('[aria-modal="true"]')) return;
+      e.preventDefault();
+      openRef.current();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
   const commit = () => {
     onSave(draft);
     setEditing(false);
+  };
+
+  /*
+   * 커서 자리에 줄 하나를 끼운다 · 브라우저 기본값에 맡기지 않는다.
+   *
+   * ⇧↵ 는 칸이 알아서 줄을 바꾸지만 ⌥↵ · ⌃↵ 는 브라우저마다 다르다. 저장을 ↵ 에
+   * 내준 이상 줄바꿈 쪽이 「되는 키와 안 되는 키」 로 갈리면 안 된다.
+   *
+   * `setRangeText` 로 끼우면 커서가 끼운 자리 뒤에 서고 되돌리기(⌘Z)도 살아 있다 —
+   * 글자열을 손으로 이어 붙이면 커서가 맨 뒤로 튄다.
+   */
+  const insertNewline = (el: HTMLTextAreaElement) => {
+    if (el.value.length >= NOTE_MAX_LENGTH) return;
+    el.setRangeText("\n", el.selectionStart, el.selectionEnd, "end");
+    setDraft(el.value);
   };
 
   if (!editing && !body) {
@@ -716,9 +808,14 @@ function StageNote({
               type="button"
               onPointerDown={(e) => e.stopPropagation()}
               onClick={open}
-              className="text-[1.15em] font-semibold leading-none text-white/70 hover:text-white"
+              title="메모 쓰기 (M)"
+              className="flex items-baseline gap-[0.4em] text-[1.15em] font-semibold leading-none text-white/70 hover:text-white"
             >
               메모
+              {/* 키를 알약에 적어 둔다 · 단축키 목록을 열어야만 아는 키는 없는 키다 */}
+              <kbd className="text-[0.8em] font-bold not-italic text-white/35">
+                M
+              </kbd>
             </button>
           </span>
         )}
@@ -768,14 +865,27 @@ function StageNote({
                     setEditing(false);
                     return;
                   }
-                  if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) commit();
+                  if (e.key !== "Enter") return;
+                  /*
+                   * 입력기가 글자를 고르는 중의 ↵ 는 그 고르기를 닫는 ↵ 다.
+                   * 「메모」 를 치면 마지막 글자가 아직 조립 중이라, 이걸 안 보면
+                   * 한글로 쓸 때마다 마지막 한 글자에서 저장되고 창이 닫힌다.
+                   */
+                  if (e.nativeEvent.isComposing) return;
+                  e.preventDefault();
+                  /* 무언가 함께 누르면 줄바꿈 · 그냥 누르면 저장 */
+                  if (e.altKey || e.shiftKey || e.metaKey || e.ctrlKey) {
+                    insertNewline(e.currentTarget);
+                    return;
+                  }
+                  commit();
                 }}
                 maxLength={NOTE_MAX_LENGTH}
                 placeholder="예: 등지방 두꺼움 · 다음 회차에"
                 className="h-[7em] w-full resize-none bg-transparent px-[0.8em] py-[0.6em] text-[1.2em] leading-[1.45] text-white caret-white outline-none placeholder:text-white/25"
               />
               <span className="flex items-center justify-between px-[0.8em] pb-[0.6em] text-[0.95em] leading-none text-white/35">
-                <span>Esc 취소 · ⌘↵ 저장</span>
+                <span>Esc 취소 · ↵ 저장 · ⇧↵ 줄바꿈</span>
                 <span className="tabular-nums">
                   {draft.length}/{NOTE_MAX_LENGTH}
                 </span>
@@ -787,7 +897,7 @@ function StageNote({
               type="button"
               onPointerDown={(e) => e.stopPropagation()}
               onClick={open}
-              title="눌러서 고치기"
+              title="눌러서 고치기 (M)"
               className="w-full whitespace-pre-wrap px-[0.8em] py-[0.6em] text-left text-[1.2em] leading-[1.45] text-white/90 hover:bg-white/5"
             >
               {body}
@@ -827,7 +937,7 @@ function ViewerArrow({
 }
 
 /** 큰 그림 한 장 · 사진 없는 개체(673건 중 433건)를 위해 빈 상태를 분명히 말한다 */
-function ViewerStage({
+export function ViewerStage({
   listingNo,
   item,
 }: {
@@ -873,7 +983,7 @@ function ViewerStage({
  * 글자 탭이던 것을 그림으로 바꿨다 — 사진은 이름이 「사진 1·2」뿐이라 눌러 보기 전에는
  * 뭐가 들었는지 알 수 없었다. 문서는 48px 로 줄이면 글씨가 안 읽혀 아이콘과 짧은 이름으로 둔다.
  */
-function MediaTabs({
+export function MediaTabs({
   tabs,
   activeIdx,
   onSelect,

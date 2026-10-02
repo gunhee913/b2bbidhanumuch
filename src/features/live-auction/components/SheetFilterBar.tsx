@@ -3,15 +3,26 @@
 import type { ReactNode } from "react";
 import { RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  SegmentedTabs,
+  type SegmentedTabOption,
+} from "@/components/ui/segmented-tabs";
 import { useGradeHotkeys } from "../hooks/useGradeHotkeys";
 import { GRADE_FILTER_OPTIONS, hotkeyForGrade } from "../lib/grade";
 import { CompactFilterPill } from "./CompactFilterPill";
 
 /** 전체 + 7등급 · 빈 값이 「거르지 않음」 이고 `matchesGradeFilter` 가 그대로 통과시킨다 */
-const GRADE_TABS = [
+const GRADE_TABS: readonly SegmentedTabOption[] = [
   { value: "", label: "전체" },
   ...GRADE_FILTER_OPTIONS.map((grade) => ({ value: grade, label: grade })),
-];
+].map((tab) => {
+  const key = hotkeyForGrade(tab.value);
+  return {
+    ...tab,
+    hotkey: key || undefined,
+    title: key ? `${tab.label} · 숫자 ${key}` : tab.label,
+  };
+});
 
 /**
  * 상장표 필터 행 · 등급 · 업체 · (부위 표에서만) 부위 탭.
@@ -19,10 +30,10 @@ const GRADE_TABS = [
  * 탭·표와 한 섹션 안에 있으므로 카드 외곽선을 두르지 않는다 —
  * 섹션 안에서 줄을 가르는 것은 아래쪽 hairline 하나면 충분하다.
  *
- * 다만 카드의 **윗변만은 이 줄이 들고 다닌다**. 이 줄은 스크롤에 붙어 화면 위에 멈추는데
- * 윗변을 섹션에 두면 그건 그대로 위로 흘러가 버려, 멈춰 선 필터 줄 위로 좌우 테두리만
- * 잘린 채 솟는다. 섹션은 `border-t-0` 으로 윗변을 비워 두고 여기서 대신 긋는다.
- * (테두리를 바깥 래퍼가 아니라 여기 두는 이유는 `useStickySheetOffsets` 참고)
+ * 윗변도 섹션이 긋는다. 예전에는 이 줄이 스크롤에 붙어 화면 위에 멈춰 서는 바람에
+ * 섹션 윗변이 그대로 위로 흘러가 버려, 멈춰 선 필터 줄 위로 좌우 테두리만 잘린 채
+ * 솟았다 — 그래서 윗변을 이 줄이 들고 다녔다. 이제 구르는 것은 표뿐이고 이 줄은
+ * 스크롤 바깥 제자리에 서 있으므로, 윗변을 들고 다닐 까닭이 없다.
  */
 export function SheetFilterBar({
   gradeFilter,
@@ -47,7 +58,7 @@ export function SheetFilterBar({
   const isFiltered = !!gradeFilter || !!companyFilter || !!partFilter;
 
   return (
-    <div className="border-b border-b-line-soft border-t border-t-line bg-surface">
+    <div className="border-b border-b-line-soft bg-surface">
       <div className="flex items-center justify-between gap-2 px-3 py-2">
         <div className="flex min-w-0 flex-1 items-center gap-1.5">
           <GradeFilterTabs value={gradeFilter} onChange={onGradeChange} />
@@ -109,35 +120,13 @@ export function GradeFilterTabs({
   useGradeHotkeys(value, onChange);
 
   return (
-    <div
-      role="tablist"
-      aria-label="등급"
-      className="inline-flex h-7 shrink-0 items-center gap-0.5 rounded-md border border-line bg-surface-muted p-0.5"
-    >
-      {GRADE_TABS.map((opt) => {
-        const active = opt.value === value;
-        const key = hotkeyForGrade(opt.value);
-        return (
-          <button
-            key={opt.label}
-            type="button"
-            role="tab"
-            aria-selected={active}
-            aria-keyshortcuts={key || undefined}
-            title={key ? `${opt.label} · 숫자 ${key}` : opt.label}
-            /* 켜진 칩을 다시 누르면 풀린다 · 숫자키와 같은 손놀림이라 둘이 어긋나지 않는다 */
-            onClick={() => onChange(active ? "" : opt.value)}
-            className={cn(
-              "whitespace-nowrap rounded-[5px] px-2 text-[11px] font-semibold leading-6 tabular-nums transition-colors",
-              active
-                ? "bg-surface text-content shadow-sm ring-1 ring-line"
-                : "text-content-soft hover:text-content",
-            )}
-          >
-            {opt.label}
-          </button>
-        );
-      })}
-    </div>
+    /* 켜진 칩을 다시 누르면 풀린다(`toggleable`) · 숫자키와 같은 손놀림이라 둘이 어긋나지 않는다 */
+    <SegmentedTabs
+      label="등급"
+      value={value}
+      options={GRADE_TABS}
+      onChange={onChange}
+      toggleable
+    />
   );
 }

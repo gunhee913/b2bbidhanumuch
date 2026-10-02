@@ -45,6 +45,7 @@ import {
 } from "../lib/buildPartPriceSeries";
 import { toGradeSeriesKey } from "../lib/grade";
 import { SURFACE_SHELL_CLASS } from "../constants/surface";
+import { YieldUnifyToggle } from "./YieldUnifyToggle";
 
 /* ------------------------------------------------------------------ */
 /*  Public API                                                         */
@@ -54,15 +55,20 @@ export interface PartMarketChartProps {
   partName: string | null;
   listing: LiveListing | null;
   /**
-   * 차트 캔버스 높이(px). 미지정 시 기본 320 (경매장 규범).
-   * `/insight` 대시보드처럼 세로 여백이 넉넉한 화면에서만 override.
+   * 차트 캔버스 높이 · px 로 못 박거나 `"fill"` 로 남는 세로를 다 가져간다.
+   *
+   * 미지정이면 320 (경매장 규범). `"fill"` 은 판 높이가 사람 손에 달린 자리를 위한
+   * 것이다 — `/insight` 시세 방은 눈금으로 폭을, 창 높이로 세로를 정하므로 차트가
+   * 미리 잡아 둘 수 있는 px 가 없다.
    */
-  height?: number;
+  height?: number | "fill";
   /**
    * 컴포넌트 outer border/bg 를 렌더할지 여부. default true.
    * 부모가 카드 컨테이너를 직접 제공할 때 false 로 지정.
    */
   bordered?: boolean;
+  /** 카드 바깥 틀에 덧붙인다 · 판에 끼울 때 높이·끄는 동안의 그림자를 부르는 쪽이 쥔다 */
+  className?: string;
   /**
    * 헤더 좌측 slot · 부위명 `<h4>` 를 대체.
    * `/insight` 는 부위 selector pill 을 여기에 주입해 title/filter 중복 제거.
@@ -80,6 +86,19 @@ export interface PartMarketChartProps {
    * 개체 등급과 다른 등급의 시세를 견주어 볼 때 부르는 쪽에서 덮어쓴다.
    */
   gradeOverride?: string | null;
+  /**
+   * 그릴 육량등급 · 미지정 시 `listing` 의 등급을 따른다 (그것도 없으면 A).
+   * 표에서 `1++B(9)` 줄을 짚으면 차트도 B 선으로 따라와야 한다.
+   */
+  yieldOverride?: YieldGrade | null;
+  /**
+   * 「육량등급 통합」 을 바깥에서 쥔다 · 둘 다 주면 통제 모드, 안 주면 제가 들고 있는다.
+   *
+   * `/insight` 시세 방은 표와 차트가 나란히 서 있어 상태가 하나여야 한다. 경매장·
+   * 상세처럼 차트만 있는 자리는 그대로 제 상태를 쓴다.
+   */
+  yieldUnified?: boolean;
+  onYieldUnifiedChange?: (unified: boolean) => void;
   /**
    * 기준선 · 선택한 부위의 최저단가 등 "지금 이 값이 시세 대비 어디인가" 를 보여줄 1줄.
    * 먹색 점선 + 우측 축 라벨. null 이면 그리지 않음.
@@ -219,7 +238,7 @@ interface ChartPalette {
   dividerClass: string;
 }
 
-const CHART_PALETTES: Record<ChartTheme, ChartPalette> = {
+export const CHART_PALETTES: Record<ChartTheme, ChartPalette> = {
   light: {
     canvasBg: "#ffffff",
     axisText: "#3d3d46",
@@ -330,6 +349,37 @@ function buildInitialLines(
   return new Set<LineKey>([makeLineKey(grade, yieldG)]);
 }
 
+/**
+ * 통합을 켜고 끌 때 켜 둔 선을 옮겨 심는다.
+ * - 켜면: A/B/C 선택을 그 등급의 통합선 하나로
+ * - 끄면: 통합선을 기준 육량선 하나로 (A·B·C 를 전부 켜지는 않는다)
+ */
+function convertLines(
+  prev: Set<LineKey>,
+  unified: boolean,
+  gradeKey: GradeKey,
+  listingYield: YieldGrade,
+): Set<LineKey> {
+  const next = new Set<LineKey>();
+  if (unified) {
+    const aggFromYields = new Set<GradeKey>();
+    for (const k of prev) {
+      const { grade, yieldG } = parseLineKey(k);
+      if (yieldG === null) next.add(k);
+      else aggFromYields.add(grade);
+    }
+    for (const g of aggFromYields) next.add(g);
+    if (next.size === 0) next.add(gradeKey);
+  } else {
+    for (const k of prev) {
+      const { grade, yieldG } = parseLineKey(k);
+      next.add(yieldG !== null ? k : makeLineKey(grade, listingYield));
+    }
+    if (next.size === 0) next.add(makeLineKey(gradeKey, listingYield));
+  }
+  return next;
+}
+
 /** `1++A` · `1+B` 같은 등급 문자열 끝의 육량등급 · 없으면 A */
 function toYieldGrade(grade: string | null | undefined): YieldGrade {
   const suffix = (grade ?? "").trim().match(/[ABC]$/)?.[0];
@@ -375,6 +425,8 @@ interface LineSeriesData {
   color: string;
   points: PricePoint[];
   latest: number | null;
+  /** 실 자료가 모자라 표본 곡선으로 그린 선인가 */
+  isSample: boolean;
 }
 
 /* ------------------------------------------------------------------ */
@@ -394,24 +446,32 @@ export function PartMarketChart({
   listing,
   height,
   bordered = true,
+  className,
   headerLeft,
   headerRight,
   headerAction,
   referencePrice,
   gradeOverride = null,
+  yieldOverride = null,
+  yieldUnified: yieldUnifiedProp,
+  onYieldUnifiedChange,
   theme,
   compact = false,
 }: PartMarketChartProps) {
   const appTheme = useAppTheme();
   const tone = theme ?? appTheme;
   const palette = CHART_PALETTES[tone];
-  const chartHeight = height ?? DEFAULT_CHART_HEIGHT;
+  const fill = height === "fill";
+  const chartHeight =
+    typeof height === "number" ? height : DEFAULT_CHART_HEIGHT;
   const [granularity, setGranularity] = useState<PriceGranularity>("day");
   // 축약형은 기간 토글이 없으므로 한눈에 추세가 잡히는 3M 으로 고정
   const [range, setRange] = useState<RangePreset>(
     compact ? "3M" : DEFAULT_RANGE,
   );
-  const [yieldUnified, setYieldUnified] = useState(false);
+  const [ownYieldUnified, setOwnYieldUnified] = useState(false);
+  const yieldUnified = yieldUnifiedProp ?? ownYieldUnified;
+  const setYieldUnified = onYieldUnifiedChange ?? setOwnYieldUnified;
   // 분석 오버레이 · 주인공 라인 기준
   const [overlays, setOverlays] = useState<OverlayState>(DEFAULT_OVERLAYS);
   const toggleOverlay = (key: OverlayKey) =>
@@ -428,8 +488,8 @@ export function PartMarketChart({
   );
 
   const listingYield = useMemo<YieldGrade>(
-    () => toYieldGrade(listing?.grade),
-    [listing?.grade],
+    () => yieldOverride ?? toYieldGrade(listing?.grade),
+    [yieldOverride, listing?.grade],
   );
 
   const normalizedPart = useMemo(
@@ -443,7 +503,7 @@ export function PartMarketChart({
   );
 
   // 개체(listing) 변경 시 새 등급·육량 라인으로 완전 대체 (기존 다른 등급 선택은 리셋)
-  // · yieldUnified 는 handleUnifiedChange 에서 별도로 처리하므로 여기 deps 에서 제외
+  // · yieldUnified 는 아래 `appliedUnified` 효과가 따로 맡으므로 여기 deps 에서 제외
   useEffect(() => {
     setSelectedLines(buildInitialLines(gradeKey, listingYield, yieldUnified));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -491,37 +551,22 @@ export function PartMarketChart({
   };
 
   /**
-   * 통합 토글 · 상태 전환 시 라인 자동 변환
-   * - true (통합): 기존 A/B/C 선택을 aggregate 로 변환
-   * - false (해제): 기존 aggregate 선택을 선택 개체 육량 라인 1개로 변환
+   * 통합이 바뀌면 켜 둔 선을 옮겨 심는다.
+   *
+   * 누를 때가 아니라 **값이 바뀐 것을 보고** 움직인다. 통제 모드에서는 이 토글을
+   * 옆 판(부위별 시세 표)이 누를 수도 있어, 누른 쪽에서만 선을 옮기면 표로 켰을 때
+   * 차트가 A·B·C 선을 켜 둔 채 통합 모드로 들어가 아무것도 안 그린다.
+   *
+   * 첫 그림은 이미 맞는 꼴로 세워져 있으므로(`buildInitialLines`) 건너뛴다.
    */
-  const handleUnifiedChange = (checked: boolean) => {
-    setYieldUnified(checked);
-    setSelectedLines((prev) => {
-      const next = new Set<LineKey>();
-      if (checked) {
-        const aggFromYields = new Set<GradeKey>();
-        for (const k of prev) {
-          const { grade, yieldG } = parseLineKey(k);
-          if (yieldG === null) {
-            next.add(k);
-          } else {
-            aggFromYields.add(grade);
-          }
-        }
-        for (const g of aggFromYields) next.add(g);
-        if (next.size === 0) next.add(gradeKey);
-      } else {
-        // 해제: 통합 라인 → 선택 개체 육량 라인 1개로 (A/B/C 전부 켜지 않음)
-        for (const k of prev) {
-          const { grade, yieldG } = parseLineKey(k);
-          next.add(yieldG !== null ? k : makeLineKey(grade, listingYield));
-        }
-        if (next.size === 0) next.add(makeLineKey(gradeKey, listingYield));
-      }
-      return next;
-    });
-  };
+  const appliedUnified = useRef(yieldUnified);
+  useEffect(() => {
+    if (appliedUnified.current === yieldUnified) return;
+    appliedUnified.current = yieldUnified;
+    setSelectedLines((prev) =>
+      convertLines(prev, yieldUnified, gradeKey, listingYield),
+    );
+  }, [yieldUnified, gradeKey, listingYield]);
 
   // 선택된 라인을 등급 순서 → (통합) → A → B → C 순으로 정렬
   // · 현재 통합 상태와 다른 종류의 라인은 화면에 그리지 않음
@@ -628,11 +673,19 @@ export function PartMarketChart({
         color: lineColorFor(grade, shownGrade, palette),
         points,
         latest: points[points.length - 1]?.value ?? null,
+        isSample: useDummy,
       };
     });
   }, [orderedLines, queries, granularity, normalizedPart, shownGrade, palette]);
 
   const hasAny = lineSeriesData.some((gs) => gs.points.length > 0);
+  /*
+   * 표본 곡선으로 떨어진 선이 하나라도 있나.
+   *
+   * 말없이 바꿔 그리면 안 된다. 바로 아래 일자별 표는 실 자료만 적는데, 위쪽 선이
+   * 꾸며 낸 값이면 둘이 어긋난 채로 나란히 서서 어느 쪽이 참인지 알 길이 없다.
+   */
+  const anySample = lineSeriesData.some((gs) => gs.isSample);
 
   // 시세 히어로 기준 라인 · 그려지는 등급의 라인 (육량 여러 개면 첫 줄)
   const heroLine = useMemo(
@@ -658,6 +711,7 @@ export function PartMarketChart({
       className={cn(
         "flex flex-col overflow-hidden",
         bordered ? SURFACE_SHELL_CLASS : "bg-transparent",
+        className,
       )}
     >
       {/* Row 1 · 부위명(또는 커스텀 slot) + 기준 라인 등급 · 우측 단위 + 기간 + granularity */}
@@ -681,6 +735,7 @@ export function PartMarketChart({
                 {formatLineLabel(heroLine.grade, heroLine.yieldG)}
               </span>
             ) : null}
+            {anySample ? <SampleBadge /> : null}
           </h4>
         )}
         {compact ? (
@@ -732,21 +787,23 @@ export function PartMarketChart({
           <span className="mx-0.5 h-4 w-px bg-surface-strong" aria-hidden />
           <YieldUnifyToggle
             checked={yieldUnified}
-            onChange={handleUnifiedChange}
-            palette={palette}
+            onChange={setYieldUnified}
+            heroColor={palette.heroLine}
+            mutedColor={palette.crosshair}
           />
         </div>
       </div>
 
       {/* 차트 */}
-      <div className="relative pb-2">
+      <div className={cn("relative pb-2", fill && "min-h-0 flex-1")}>
         {!hasAny ? (
           <div
             className={cn(
               "flex items-center justify-center text-[11px]",
+              fill && "h-full",
               palette.mutedTextClass,
             )}
-            style={{ height: chartHeight }}
+            style={fill ? undefined : { height: chartHeight }}
           >
             {anyLoading ? "불러오는 중…" : "데이터 없음"}
           </div>
@@ -758,6 +815,7 @@ export function PartMarketChart({
             granularity={granularity}
             rangeDays={rangeDays}
             height={chartHeight}
+            fill={fill}
             referencePrice={referencePrice ?? null}
             overlays={overlays}
             onHover={setHover}
@@ -1102,6 +1160,8 @@ interface PriceLineChartProps {
   /** 노출 기간(캘린더 일수) · null 이면 전체 */
   rangeDays: number | null;
   height: number;
+  /** 남는 세로를 다 쓴다 · 높이는 `ResizeObserver` 가 판에서 읽어 넣는다 */
+  fill: boolean;
   referencePrice: { value: number; label: string } | null;
   overlays: OverlayState;
   /** 크로스헤어 이동 → 부모 헤더 갱신 · 이탈 시 null */
@@ -1117,6 +1177,7 @@ function PriceLineChart({
   granularity,
   rangeDays,
   height,
+  fill,
   referencePrice,
   overlays,
   onHover,
@@ -1124,6 +1185,9 @@ function PriceLineChart({
 }: PriceLineChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
+  /* 차트를 만드는 effect 는 마운트 때 한 번만 돈다 · 그 안에서 최신 값을 읽을 통 */
+  const fillRef = useRef(fill);
+  fillRef.current = fill;
   const lineSeriesRefsRef = useRef<Map<string, PriceSeriesApi>>(new Map());
   /** 주인공 시리즈 · hover 중엔 마지막값 축 라벨을 숨겨 축에 칩이 항상 하나만 보이게 */
   const heroSeriesRef = useRef<PriceSeriesApi | null>(null);
@@ -1279,7 +1343,7 @@ function PriceLineChart({
       },
       autoSize: false,
       width: el.clientWidth,
-      height,
+      height: fillRef.current ? el.clientHeight : height,
     });
 
     chartRef.current = chart;
@@ -1390,8 +1454,14 @@ function PriceLineChart({
     chart.timeScale().subscribeVisibleLogicalRangeChange(handleRangeChange);
 
     const ro = new ResizeObserver((entries) => {
-      const w = entries[0]?.contentRect.width ?? el.clientWidth;
-      chart.applyOptions({ width: Math.max(240, Math.floor(w)) });
+      const box = entries[0]?.contentRect;
+      const w = box?.width ?? el.clientWidth;
+      /* 세로는 판이 정하므로 여기서 읽는다 · 못 박은 높이면 아래 effect 가 넣는다 */
+      const h = fillRef.current ? (box?.height ?? el.clientHeight) : null;
+      chart.applyOptions({
+        width: Math.max(240, Math.floor(w)),
+        ...(h != null ? { height: Math.max(120, Math.floor(h)) } : {}),
+      });
       handleRangeChange();
     });
     ro.observe(el);
@@ -1417,11 +1487,13 @@ function PriceLineChart({
   }, []);
 
   /* ─── 2. height / granularity 변화 적용 ─────── */
+  /* 남는 세로를 쓰는 자리에서는 높이를 `ResizeObserver` 가 쥔다 · 여기서 또 넣으면
+     판이 줄어든 뒤 한 프레임 동안 옛 높이로 되돌아가 차트가 들썩인다 */
   useEffect(() => {
     const chart = chartRef.current;
     if (!chart) return;
     chart.applyOptions({
-      height,
+      ...(fill ? {} : { height }),
       timeScale: {
         timeVisible: false,
         secondsVisible: false,
@@ -1432,7 +1504,7 @@ function PriceLineChart({
         timeFormatter: makeTimeFormatter(granularity),
       },
     });
-  }, [height, granularity]);
+  }, [fill, height, granularity]);
 
   /* ─── 3. 시리즈 재구성 (데이터 변화) ─── */
   useEffect(() => {
@@ -1767,11 +1839,11 @@ function PriceLineChart({
   }, [seriesList, heroKey, referencePrice, rangeDays, palette.referenceLine]);
 
   return (
-    <div className="relative">
+    <div className={cn("relative", fill && "h-full")}>
       <div
         ref={containerRef}
-        className="w-full overflow-hidden"
-        style={{ height, minHeight: height }}
+        className={cn("w-full overflow-hidden", fill && "h-full")}
+        style={fill ? undefined : { height, minHeight: height }}
       />
       {referencePrice && refLabel !== null ? (
         <span
@@ -2230,75 +2302,21 @@ function OverlayMarker({
   );
 }
 
-function YieldUnifyToggle({
-  checked,
-  onChange,
-  palette,
-}: {
-  checked: boolean;
-  onChange: (v: boolean) => void;
-  palette: ChartPalette;
-}) {
-  // 낙찰가 범위 토글과 같은 문법 · 마커(12×6) + 라벨 · 꺼지면 옅게
-  //   마커 · 꺼짐 = A/B/C 세 줄이 따로, 켜짐 = 한 줄로 합쳐진 모양
+/**
+ * 표본 자료 표식 · 실 낙찰이 모자라 꾸며 낸 곡선을 그리고 있을 때만 뜬다.
+ *
+ * 자료가 얇으면 차트가 표본 곡선으로 떨어지는데(`REAL_DATA_MIN_POINTS`), 그 사실을
+ * 안 적으면 꾸며 낸 선을 실제 시세로 읽게 된다. 바로 아래 일자별 표는 실 자료만
+ * 적으므로 둘이 어긋나 보이기도 한다 — 어긋난 게 아니라 위가 표본이라는 뜻이다.
+ */
+function SampleBadge() {
   return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      onClick={() => onChange(!checked)}
-      className={cn(
-        "inline-flex h-6 select-none items-center gap-1 rounded px-1.5 text-[10.5px] font-semibold tracking-tight transition-colors hover:bg-surface-accent",
-        checked ? "text-content" : "text-content-faint",
-      )}
+    <span
+      title="실 낙찰 자료가 모자라 표본 곡선을 그리고 있습니다 · 아래 일자별 시세는 실제 값입니다"
+      className="rounded-[3px] border border-line px-1 py-px text-[10px] font-bold text-content-faint"
     >
-      <svg
-        aria-hidden
-        viewBox="0 0 12 6"
-        width={12}
-        height={6}
-        className="shrink-0"
-      >
-        {checked ? (
-          <line
-            x1="0"
-            y1="3"
-            x2="12"
-            y2="3"
-            stroke={palette.heroLine}
-            strokeWidth="2"
-          />
-        ) : (
-          <>
-            <line
-              x1="0"
-              y1="0.5"
-              x2="12"
-              y2="0.5"
-              stroke={palette.crosshair}
-              strokeWidth="1"
-            />
-            <line
-              x1="0"
-              y1="3"
-              x2="12"
-              y2="3"
-              stroke={palette.crosshair}
-              strokeWidth="1"
-            />
-            <line
-              x1="0"
-              y1="5.5"
-              x2="12"
-              y2="5.5"
-              stroke={palette.crosshair}
-              strokeWidth="1"
-            />
-          </>
-        )}
-      </svg>
-      육량등급 통합
-    </button>
+      표본
+    </span>
   );
 }
 

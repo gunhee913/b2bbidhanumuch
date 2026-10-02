@@ -6,6 +6,7 @@ import { useMeasure } from "react-use";
 import { cn } from "@/lib/utils";
 import { AuctionSideDock } from "./AuctionSideDock";
 import { LiveListingSheet } from "./LiveListingSheet";
+import { MainFooter } from "@/features/main/components/MainFooter";
 import { SURFACE_SHELL_CLASS } from "../constants/surface";
 import { LoginGateOverlay } from "./LoginGateOverlay";
 import { SUMMARY_PANEL_MIN_ROOM } from "./SheetSummaryPanel";
@@ -159,7 +160,7 @@ export function LiveAuctionRoom() {
   }, [listings]);
 
   return (
-    <div ref={roomRef}>
+    <div ref={roomRef} className="flex min-h-0 flex-1 flex-col">
       <AuctionSideDock
         currentRound={currentRound}
         lastClosedRound={roundData?.lastClosedRound ?? null}
@@ -177,10 +178,12 @@ export function LiveAuctionRoom() {
       />
 
       {/* 상장표 · 필터 · 표 · 요약이 칸막이 없는 한 섹션 */}
-      <div className={sheetGridClass}>
-        {/* 윗변은 필터 줄이 긋는다 · 화면 위에 멈춰 선 뒤에도 카드가 닫혀 보이려면 그래야 한다 */}
+      <div className={cn(sheetGridClass, "flex min-h-0 flex-1 flex-col")}>
         <section
-          className={cn("flex min-w-0 flex-col", SURFACE_SHELL_CLASS, "border-t-0")}
+          className={cn(
+            "flex min-h-0 min-w-0 flex-1 flex-col",
+            SURFACE_SHELL_CLASS,
+          )}
         >
           {/* 개체 = 1행 · 행을 누르면 개체 상세로 */}
           <LiveListingSheet
@@ -196,6 +199,7 @@ export function LiveAuctionRoom() {
             canShowSummary={showSummary}
             favoriteIds={favorites.ids}
             onToggleFavorite={toggleFavorite}
+            tail={<MainFooter fluid />}
           />
         </section>
       </div>

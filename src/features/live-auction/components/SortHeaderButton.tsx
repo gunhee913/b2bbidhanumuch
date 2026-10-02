@@ -32,7 +32,8 @@ export function SortHeaderButton({
       className={cn(
         "group/sort inline-flex items-center gap-0.5 -tracking-[0.01em] transition-colors hover:text-content",
         align === "right" && "flex-row-reverse",
-        active ? "text-content" : "text-content-soft",
+        /* 쉬고 있는 동안은 머리줄 톤 그대로 · 한 줄 안에서 고를 수 있는 칸만 진하면 안 된다 */
+        active ? "text-content" : "text-content-faint",
       )}
     >
       {label}

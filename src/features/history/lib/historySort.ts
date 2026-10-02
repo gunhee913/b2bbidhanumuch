@@ -1,6 +1,7 @@
 import type { DailyRow } from "./dailyRows";
 
-export type HistorySortKey = "listingNo" | "weight" | "minPrice" | "myBid";
+export type HistorySortKey =
+  "listingNo" | "weight" | "minPrice" | "myBid" | "winningBid";
 export type HistorySortDir = "asc" | "desc";
 export interface HistorySort {
   key: HistorySortKey;
@@ -22,7 +23,10 @@ const LISTING_NO_COLLATOR = new Intl.Collator("ko-KR", {
   sensitivity: "base",
 });
 
-/** 값 없는(0 이하) 숫자는 방향과 무관하게 뒤로 · 같은 값은 원래 순서 유지 */
+/** 적히지 않은 값 · 낙찰단가는 진행중 줄에서 null 이고 나머지는 0 으로 비어 있다 */
+const sortable = (v: number | null) => (v != null && v > 0 ? v : null);
+
+/** 값 없는 숫자는 방향과 무관하게 뒤로 · 같은 값은 원래 순서 유지 */
 export function sortDailyRows(
   rows: readonly DailyRow[],
   sort: HistorySort | null,
@@ -36,8 +40,8 @@ export function sortDailyRows(
   }
   const key = sort.key;
   return [...rows].sort((a, b) => {
-    const av = a[key] > 0 ? a[key] : null;
-    const bv = b[key] > 0 ? b[key] : null;
+    const av = sortable(a[key]);
+    const bv = sortable(b[key]);
     if (av == null && bv == null) return 0;
     if (av == null) return 1;
     if (bv == null) return -1;

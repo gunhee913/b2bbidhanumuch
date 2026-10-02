@@ -1,17 +1,72 @@
 "use client";
 
-import { useRef, useState, type CSSProperties, type PointerEvent } from "react";
+import {
+  createContext,
+  useContext,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type PointerEvent,
+  type ReactNode,
+} from "react";
 import { useMeasure } from "react-use";
 import {
   useRoomLayout,
   STAGE_PLACEMENT_DEFAULT,
   STAGE_SCALE_MAX,
   STAGE_SCALE_MIN,
+  type StagePlacement,
   type StagePos,
   type StageSlot,
 } from "./useRoomLayout";
 
 const clamp01 = (n: number) => Math.min(1, Math.max(0, n));
+
+/** 겹 자리를 담아 두는 곳 · 방마다 제 저장소가 다르다 */
+export interface StagePlacementStore {
+  get: (slot: StageSlot) => StagePlacement;
+  set: (slot: StageSlot, patch: Partial<StagePlacement>) => void;
+  reset: (slot: StageSlot) => void;
+}
+
+const StagePlacementContext = createContext<StagePlacementStore | null>(null);
+
+/**
+ * 겹 자리를 다른 저장소에 담게 한다 · 감싸지 않으면 경매장 상세 방 것을 쓴다.
+ *
+ * 배송지시가 같은 각인·쪽지를 쓰면서도 자리를 따로 담는 까닭은 두 무대가 다른 크기라서다.
+ * 경매장 1열은 화면 높이를 거의 다 쓰지만 배송 그림판은 그 절반이고, 자리를 공유하면
+ * 한쪽에서 구석으로 밀어 둔 쪽지가 다른 쪽에서는 사진 한복판을 덮는다.
+ */
+export function StagePlacementScope({
+  store,
+  children,
+}: {
+  store: StagePlacementStore;
+  children: ReactNode;
+}) {
+  return (
+    <StagePlacementContext.Provider value={store}>
+      {children}
+    </StagePlacementContext.Provider>
+  );
+}
+
+/** 감싸지 않았을 때 쓰는 기본 저장소 · 경매장 상세 방 레이아웃 */
+function useRoomPlacementStore(): StagePlacementStore {
+  const stage = useRoomLayout((state) => state.stage);
+  const set = useRoomLayout((state) => state.setStagePlacement);
+  const reset = useRoomLayout((state) => state.resetStagePlacement);
+  return useMemo(
+    () => ({
+      get: (slot) => stage[slot] ?? STAGE_PLACEMENT_DEFAULT[slot],
+      set,
+      reset,
+    }),
+    [stage, set, reset],
+  );
+}
 
 /** 배율 1 일 때의 뿌리 글꼴 · 겹 안쪽 치수를 전부 이 값의 em 으로 적는다 */
 const BASE_FONT_PX = 10;
@@ -67,11 +122,17 @@ export function useStagePlacement<T extends HTMLElement>({
   stageWidth: number;
   stageHeight: number;
 }): StagePlacementHandle<T> {
-  const saved = useRoomLayout(
-    (state) => state.stage[slot] ?? STAGE_PLACEMENT_DEFAULT[slot],
-  );
-  const setPlacement = useRoomLayout((state) => state.setStagePlacement);
-  const resetPlacement = useRoomLayout((state) => state.resetStagePlacement);
+  /*
+   * 감싼 저장소가 있으면 그쪽, 없으면 상세 방 것. 기본 저장소를 늘 불러 두는 건
+   * 훅 규칙 때문인데, 읽기 구독 하나라 다른 방에서도 값이 들지 않는다.
+   */
+  const scoped = useContext(StagePlacementContext);
+  const roomStore = useRoomPlacementStore();
+  const store = scoped ?? roomStore;
+
+  const saved = store.get(slot);
+  const setPlacement = store.set;
+  const resetPlacement = store.reset;
 
   const [selfRef, self] = useMeasure<T>();
   /** 손끝을 따라가는 동안의 임시 값 · 놓으면 비우고 저장소 값으로 돌아간다 */

@@ -13,6 +13,7 @@ import Image from "next/image";
 import { ChevronRight, ImageOff, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatGradeLabel } from "@/features/live-auction/lib/grade";
+import { formatKrw } from "@/features/live-auction/lib/masking";
 import {
   ImageLightbox,
   type GalleryItem,
@@ -29,6 +30,17 @@ export const SHEET_HEAD =
   "whitespace-nowrap border-b border-line px-2 py-2 text-center font-medium";
 export const SHEET_CELL =
   "whitespace-nowrap px-2 py-1.5 align-middle tabular-nums";
+/**
+ * 펼침 영역 부위 미니표 · 머리글과 칸.
+ *
+ * 개체 하나를 펼쳐 부위를 늘어놓는 자리는 두 군데다 — 경매장 상세 방(`SheetPartGrid`)
+ * 과 경매내역 상장표(`PartsColumns`). 같은 일을 하는 표라 글자 크기도 여백도 같아야
+ * 하는데, 한쪽은 11px 가운데 정렬에 `py-[7px]`, 다른 쪽은 12px 에 `py-[6px]` 이었다.
+ */
+export const SHEET_PART_HEAD =
+  "whitespace-nowrap border-b border-line bg-surface-muted px-1 py-1.5 text-[12px] font-medium text-content-faint";
+export const SHEET_PART_CELL =
+  "whitespace-nowrap px-1 py-[6px] align-middle tabular-nums";
 const QUALITY_CELL = cn(SHEET_CELL, "text-center text-content-mid");
 /**
  * 좁은 표(`compact`) 전용 여백.
@@ -721,6 +733,21 @@ export function SheetEntityCaption({
       {entity.carcassWeight ? (
         <span>도체중 {entity.carcassWeight}kg</span>
       ) : null}
+      {/*
+       * 도축장·도축일은 `compact` 에서 열이 빠진다 (하루 한 도축장을 보는 화면이라).
+       * 열은 없어도 값까지 없어지면 안 되므로 펼치면 여기서 나온다.
+       */}
+      {entity.slaughterHouse || entity.slaughterDate ? (
+        <span>
+          도축{" "}
+          {[
+            entity.slaughterHouse,
+            entity.slaughterDate ? shortDate(entity.slaughterDate) : null,
+          ]
+            .filter(Boolean)
+            .join(" ")}
+        </span>
+      ) : null}
       {entity.slaughterNo ? <span>도축번호 {entity.slaughterNo}</span> : null}
       {entity.processDate ? (
         <span>가공 {shortDate(entity.processDate)}</span>
@@ -730,6 +757,91 @@ export function SheetEntityCaption({
       ) : null}
       {children}
     </div>
+  );
+}
+
+/* ─────────────── 우측 결과 열 · 낙찰 n/총 · 총 낙찰대금 · 내 낙찰대금 ─────────────── */
+
+/**
+ * 결과 열이 읽는 것만 추린 꼴.
+ *
+ * 경매장은 실시간 입찰에서(`live-auction/lib/sheetSummary`), 경매내역은 낙찰 스냅샷
+ * 에서(`history/lib/dailyListings`) 요약을 만든다. 둘의 집계 함수는 보는 자료가 달라
+ * 하나로 합칠 수 없지만, **결과 열이 쓰는 여섯 값**은 같다. 그 여섯만 여기 적어 두면
+ * 두 쪽 요약이 그대로 이 칸들에 꽂힌다.
+ */
+export interface SheetResultSummary {
+  total: number;
+  wonCount: number;
+  wonAmount: number;
+  myBidCount: number;
+  myWonAmount: number;
+  /** 마감 전 · 낙찰자 없는 부위에 걸린 내 입찰 수 (아직 진행 중 · 미낙찰 아님) */
+  myOpenCount: number;
+}
+
+/**
+ * 개체 행 오른쪽 세 칸 · 낙찰 n/총 · 총 낙찰대금 · 내 낙찰대금.
+ *
+ * 경매장 상장표와 경매내역 상장표가 같은 것을 쓴다. 한때 화면마다 한 벌씩 있었는데
+ * 「원」 꼬리가 한쪽에만 붙고 미낙찰 색이 한쪽은 토큰, 한쪽은 생색(`rose-500`)이라
+ * 같은 열이 화면 따라 다르게 보였다.
+ */
+export function SheetResultCells({ summary }: { summary: SheetResultSummary }) {
+  const participated = summary.myBidCount > 0;
+  return (
+    <>
+      <td
+        className={cn(SHEET_CELL, SHEET_GROUP_START, "px-1 pl-2 text-center")}
+      >
+        <b className="font-bold text-content">{summary.wonCount}</b>
+        <span className="font-medium text-content-faint">/{summary.total}</span>
+      </td>
+      <td
+        className={cn(
+          SHEET_CELL,
+          "px-1.5 text-right font-semibold text-content",
+        )}
+      >
+        {summary.wonAmount > 0 ? (
+          <WonAmount value={summary.wonAmount} />
+        ) : (
+          <span className="text-content-ghost">-</span>
+        )}
+      </td>
+      <td className={cn(SHEET_CELL, "px-1.5 pr-3 text-right font-bold")}>
+        {summary.myWonAmount > 0 ? (
+          <span className="text-content">
+            <WonAmount value={summary.myWonAmount} />
+          </span>
+        ) : summary.myOpenCount > 0 ? (
+          <span className="text-[11px] font-medium text-content">
+            진행중 {summary.myOpenCount}
+          </span>
+        ) : participated ? (
+          <span className="text-[11px] font-medium text-lost">
+            미낙찰 {summary.myBidCount}
+          </span>
+        ) : (
+          <span className="text-content-ghost">—</span>
+        )}
+      </td>
+    </>
+  );
+}
+
+/**
+ * 낙찰대금 · 「원」 은 한 단계 작고 흐리게.
+ * 열 전체가 같은 단위를 200번 되풀이하므로 숫자만 또렷하게 남긴다 (등지방두께 `mm` 와 같은 규칙).
+ */
+function WonAmount({ value }: { value: number }) {
+  return (
+    <>
+      {formatKrw(value)}
+      <span className="pl-px text-[11px] font-medium text-content-faint">
+        원
+      </span>
+    </>
   );
 }
 

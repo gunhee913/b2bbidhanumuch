@@ -10,10 +10,13 @@ import { LoginGateCard } from "@/features/main/components/LoginGateCard";
 import {
   CANVAS_BG_CLASS,
   PAGE_GUTTER_CLASS,
-  PAGE_SHELL_CLASS,
   SURFACE_SHELL_CLASS,
 } from "@/features/live-auction/constants/surface";
 import { useRealtimeDelivery } from "@/hooks/useRealtimeDelivery";
+import {
+  useDeliveryDockHydration,
+  useDeliveryShellClass,
+} from "../hooks/useDeliveryDock";
 import { useWinningParts } from "../hooks/useWinningParts";
 import {
   useDeliveryAssignments,
@@ -41,10 +44,9 @@ const initialPeriod = () => {
  * 머리(기간·새로고침)와 본문을 한 화면 높이 안에 가두고 스크롤은 열마다 안에서 돈다.
  */
 export function DeliveryPageContent() {
+  useDeliveryDockHydration();
   const { data: session, status } = useSession();
   const dealerId = session?.dealer?.id ?? session?.employee?.dealerId ?? null;
-  const dealerName =
-    session?.dealer?.name ?? session?.employee?.name ?? "중도매인";
   const queryClient = useQueryClient();
 
   const [period, setPeriod] = useState(initialPeriod);
@@ -84,17 +86,28 @@ export function DeliveryPageContent() {
     async (dirty: Record<string, string | null>) => {
       setSaveError(null);
       try {
-        await saveMutation.mutateAsync({
-          assignments: dirty,
-          assignedBy: dealerName,
-        });
+        /* 「누가 했나」 는 보내지 않는다 · 서버가 세션에서 꺼내 적는다 */
+        await saveMutation.mutateAsync({ assignments: dirty });
       } catch (e) {
         setSaveError(e instanceof Error ? e.message : "저장에 실패했습니다.");
         throw e;
       }
     },
-    [saveMutation, dealerName],
+    [saveMutation],
   );
+
+  /*
+   * 메모 목록에서 다른 날 메모를 눌렀을 때 · 그 하루로 갈아탄다.
+   *
+   * 기간을 넓히지 않고 **하루로 바꾸는** 건 메모 줄에 적힌 날짜가 곧 가는 곳이기
+   * 때문이다. 「10-01」 을 눌렀는데 09-28~10-01 이 되면, 바뀐 화면이 누른 것과
+   * 달라 보여 어디로 간 것인지 되짚어야 한다.
+   */
+  const handleRequestDate = useCallback((date: string) => {
+    const next = { startDate: date, endDate: date };
+    setPeriod(next);
+    setSearchPeriod(next);
+  }, []);
 
   const handleRefresh = useCallback(() => {
     partsQuery.refetch();
@@ -152,6 +165,7 @@ export function DeliveryPageContent() {
         saveError={fetchError ?? saveError}
         onSave={handleSave}
         resetKey={`${dealerId}|${searchPeriod.startDate}|${searchPeriod.endDate}`}
+        onRequestDate={handleRequestDate}
       />
     </Shell>
   );
@@ -163,14 +177,21 @@ export function DeliveryPageContent() {
  * 다만 세로는 다르다. 경매장은 아래로 흐르는 읽는 화면이라 `min-h` 로 두고 바닥글을
  * 달지만, 여기는 저장 바가 늘 같은 자리에 있어야 하는 작업 화면이라 `h-` 로 못 박고
  * 스크롤은 열 안에서만 돈다. 바닥글도 없다 — 창을 조금만 줄여도 저장 바를 밀어낸다.
+ *
+ * 창에는 스크롤을 두지 않는다(`h-screen overflow-hidden`). 창이 구르면 머리도 사이드
+ * 메뉴도 같이 끌려가 「지금 어느 거래처 줄을 보던 중인가」 를 잡아 줄 것이 화면에서
+ * 사라진다 — 구르는 건 표 안쪽뿐이다.
  */
 function Shell({ children }: { children: ReactNode }) {
+  /* 사이드 메뉴가 펴지면 이 여백이 넓어져 본문이 그만큼 좁아진다 (덮지 않는다) */
+  const shellClass = useDeliveryShellClass();
+
   return (
-    <div className={PAGE_SHELL_CLASS}>
+    <div className={cn("h-screen overflow-hidden", shellClass)}>
       <MainHeader fluid />
       <main
         className={cn(
-          "flex h-[calc(100vh-48px)] min-h-0 flex-col gap-2",
+          "flex h-[calc(100vh-48px)] min-h-0 flex-col gap-2 overflow-hidden",
           PAGE_GUTTER_CLASS,
           CANVAS_BG_CLASS,
         )}

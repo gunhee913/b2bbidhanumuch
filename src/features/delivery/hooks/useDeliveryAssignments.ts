@@ -24,7 +24,13 @@ export function useDeliveryAssignments() {
 
 export interface SaveAssignmentsPayload {
   assignments: Record<string, string | null>;
-  assignedBy: string;
+  /**
+   * 관리자가 마감(상장일 13:30) 뒤에 고칠 때 남기는 까닭.
+   *
+   * 「누가 했나」 는 더 보내지 않는다 — 서버가 세션에서 꺼내 적는다. 화면이 적어
+   * 보내면 아무 이름이나 들어올 수 있었다.
+   */
+  overrideReason?: string;
 }
 
 export function useSaveAssignments() {

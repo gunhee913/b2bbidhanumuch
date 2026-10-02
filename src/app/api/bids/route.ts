@@ -330,21 +330,41 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 기존 입찰이 있었으면 audit log 기록 (dealer_update)
-    if (existingBid) {
-      await supabase.from('bid_audit_logs').insert({
-        bid_id: existingBid.id,
-        auction_id: resolvedAuctionId || existingBid.auction_id || null,
-        part_id: partId,
-        dealer_id: finalDealerId,
-        action_type: 'dealer_update',
-        old_bid_price: existingBid.bid_price,
-        new_bid_price: bidPrice,
-        old_bid_amount: existingBid.bid_amount,
-        new_bid_amount: result.bidAmount ?? null,
-        performed_by: null,
-      });
-    }
+    /*
+     * audit log 기록 · 고친 것뿐 아니라 처음 넣은 것도 남긴다.
+     *
+     * 처음 넣은 것은 bids 행 자체가 기록이라 따로 남길 까닭이 없어 보이지만,
+     * 그 전제는 취소에서 깨진다 — cancel_bid 가 bids 행을 지우고 나면 그 입찰이
+     * 언제 들어왔는지를 아는 데가 한 곳도 안 남는다. 중도매인 입찰내역에는
+     * 「10:27 에 넣었다가 10:31 에 뺐다」 가 떠야 한다.
+     */
+    await supabase.from('bid_audit_logs').insert(
+      existingBid
+        ? {
+            bid_id: existingBid.id,
+            auction_id: resolvedAuctionId || existingBid.auction_id || null,
+            part_id: partId,
+            dealer_id: finalDealerId,
+            action_type: 'dealer_update',
+            old_bid_price: existingBid.bid_price,
+            new_bid_price: bidPrice,
+            old_bid_amount: existingBid.bid_amount,
+            new_bid_amount: result.bidAmount ?? null,
+            performed_by: null,
+          }
+        : {
+            bid_id: result.bidId ?? null,
+            auction_id: resolvedAuctionId,
+            part_id: partId,
+            dealer_id: finalDealerId,
+            action_type: 'dealer_create',
+            old_bid_price: null,
+            new_bid_price: bidPrice,
+            old_bid_amount: null,
+            new_bid_amount: result.bidAmount ?? null,
+            performed_by: null,
+          }
+    );
 
     return NextResponse.json({
       id: result.bidId,

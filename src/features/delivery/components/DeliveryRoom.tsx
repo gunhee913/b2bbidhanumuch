@@ -8,18 +8,24 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { useMeasure } from "react-use";
+import { useInterval, useMeasure } from "react-use";
 import { Loader2, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { OverlayScroll } from "@/components/ui/overlay-scroll";
-import { formatGradeLabel } from "@/features/live-auction/lib/grade";
+import {
+  SegmentedTabs,
+  ToggleChip,
+  type SegmentedTabOption,
+} from "@/components/ui/segmented-tabs";
 import { formatKrw } from "@/features/live-auction/lib/masking";
 import { SURFACE_SHELL_CLASS } from "@/features/live-auction/constants/surface";
 import { PaneGripHandle } from "@/features/live-auction/components/PaneGripHandle";
 import { RoomSplitter } from "@/features/live-auction/components/RoomSplitter";
+import { useDealerNotes } from "@/features/live-auction/hooks/useAuctionNotes";
 import { usePaneReorder } from "@/features/live-auction/hooks/usePaneReorder";
 import type { PaneOrder } from "@/features/live-auction/hooks/useRoomLayout";
 import { useSheetCursor } from "@/features/live-auction/hooks/useSheetCursor";
+import { DELIVERY_DEADLINE_LABEL, isDeliveryLocked } from "../lib/deadline";
 import type { AssignmentInfo, Partner, WinningPart } from "../types";
 import {
   countAssignments,
@@ -29,8 +35,8 @@ import {
 } from "../lib/groupWinningParts";
 import {
   DELIVERY_PANE_MIN_WIDTH,
-  DELIVERY_TABLE_MIN_WIDTH,
-  DELIVERY_TABLE_WIDTH_DEFAULT,
+  DELIVERY_TABLE_PANE_MIN_WIDTH,
+  DELIVERY_PANE_WIDTH_DEFAULT,
   useDeliveryPrefs,
   type DeliveryColumn,
   type DeliveryGroupBy,
@@ -43,27 +49,52 @@ import {
 } from "../hooks/usePartnerPins";
 import { DeliveryFocusPane } from "./DeliveryFocusPane";
 import {
+  DELIVERY_TABLE_MIN_WIDTH,
   DeliveryPartTable,
   scrollDeliveryRowIntoView,
 } from "./DeliveryPartTable";
-import { PartnerHotkeyBar } from "./PartnerHotkeyBar";
+import { DeliverySideDock } from "./DeliverySideDock";
 
 /** 1열과 2열 사이 틈 · 이 자리를 눈금(`RoomSplitter`)이 그대로 쓴다 */
 const SPLITTER_WIDTH = 8;
 
-/** 열 트랙도 늘어놓은 차례를 따른다 · 표는 잡아 둔 px, 개체 판은 남는 폭 전부 */
+/**
+ * 묶는 기준 · 끌 수 없는 축이라 `toggleable` 을 주지 않는다.
+ * 생김새는 경매장 등급 탭과 한 벌이다 (`SegmentedTabs`).
+ */
+const GROUP_BY_TABS: readonly SegmentedTabOption[] = [
+  { value: "part", label: "부위별" },
+  { value: "entity", label: "개체별" },
+  { value: "partner", label: "거래처별" },
+];
+
+/**
+ * 열 두 칸 · **사진 판이 px 를 쥐고 표 판이 남는 폭을 가져간다** (까닭은 `useDeliveryPrefs`).
+ *
+ * 표 판의 바닥은 표가 아니라 머리줄이 정한다(`DELIVERY_TABLE_PANE_MIN_WIDTH`). 표는
+ * 그보다 넓어야 제 모습이지만, 모자라면 판 안에서 가로로 밀면 된다 — 여기서 표의
+ * 바닥(958)을 쓰면 그 폭이 페이지 최소 폭까지 올라가, 창이 작은 기기에서 표 대신
+ * **화면 전체**가 밀린다.
+ */
 function gridColumns(
   order: PaneOrder<DeliveryColumn>,
-  tableWidth: number,
+  paneWidth: number,
 ): string {
   const track = (col: DeliveryColumn) =>
-    col === "table"
-      ? `${tableWidth}px`
-      : `minmax(${DELIVERY_PANE_MIN_WIDTH}px,1fr)`;
+    col === "pane"
+      ? `${paneWidth}px`
+      : `minmax(${DELIVERY_TABLE_PANE_MIN_WIDTH}px,1fr)`;
   return `${track(order[0])} ${SPLITTER_WIDTH}px ${track(order[1])}`;
 }
 
-/** 받은 차례대로 늘어놓고 가운데에 눈금을 끼운다 */
+/**
+ * 받은 차례대로 늘어놓고 가운데에 눈금을 끼운다.
+ *
+ * 넘기는 판에는 **`key` 가 있어야 한다.** 없으면 리액트가 자리 번호로 짝을 맞춰서,
+ * 손잡이로 좌우를 맞바꿀 때 「1번 자리의 판」 이 그대로 이어지는 것으로 친다 — 사진 판과
+ * 표가 서로의 껍데기를 물려받으며 통째로 다시 서고, 보던 사진 장수도 표를 내려 둔 자리도
+ * 거기서 사라진다.
+ */
 function orderPanes(
   order: PaneOrder<DeliveryColumn>,
   panes: Record<DeliveryColumn, ReactNode>,
@@ -88,6 +119,8 @@ export interface DeliveryRoomProps {
   onSave: (dirty: Record<string, string | null>) => Promise<void>;
   /** 기간이 바뀌면 손대던 것을 버린다 · 부모가 열쇠를 바꿔 알린다 */
   resetKey: string;
+  /** 그 날짜 하루로 조회를 옮긴다 · 기간 밖 메모를 눌러 짚어 갈 때 */
+  onRequestDate: (date: string) => void;
 }
 
 /**
@@ -117,12 +150,13 @@ export function DeliveryRoom({
   saveError,
   onSave,
   resetKey,
+  onRequestDate,
 }: DeliveryRoomProps) {
   const groupBy = useDeliveryPrefs((s) => s.groupBy);
   const setGroupBy = useDeliveryPrefs((s) => s.setGroupBy);
-  const storedTableWidth = useDeliveryPrefs((s) => s.tableWidth);
-  const setTableWidth = useDeliveryPrefs((s) => s.setTableWidth);
-  const resetTableWidth = useDeliveryPrefs((s) => s.resetTableWidth);
+  const storedPaneWidth = useDeliveryPrefs((s) => s.paneWidth);
+  const setPaneWidth = useDeliveryPrefs((s) => s.setPaneWidth);
+  const resetPaneWidth = useDeliveryPrefs((s) => s.resetPaneWidth);
 
   const columnOrder = useDeliveryPrefs((s) => s.columnOrder);
   const swapColumnOrder = useDeliveryPrefs((s) => s.swapColumnOrder);
@@ -132,30 +166,33 @@ export function DeliveryRoom({
     gap: SPLITTER_WIDTH,
     onSwap: swapColumnOrder,
   });
-  const tableOnLeft = columnOrder[0] === "table";
+  const paneOnLeft = columnOrder[0] === "pane";
 
   const { data: pinned = EMPTY_PINS } = usePartnerPins();
   const setPin = useSetPartnerPin();
 
-  /* 창을 줄여도 사진 판이 눌리지 않게 · 잡아 둔 폭은 그대로 두고 그릴 때만 깎는다 */
+  /*
+   * 창을 줄이면 잡아 둔 폭은 그대로 두고 그릴 때만 깎는다 · 표가 먼저 제 폭을 챙긴다.
+   *
+   * 여기서 쓰는 건 표 **판**의 바닥이 아니라 표 자체의 바닥(958)이다. 표 판이 더
+   * 좁아도 가로로 밀면 보이기는 하지만, 밀지 않고 다 보이는 쪽이 늘 낫다 — 사진 판은
+   * 제 바닥(370)에 닿을 때까지 양보하고, 거기서부터 표가 밀리기 시작한다.
+   */
   const [gridRef, { width: gridWidth }] = useMeasure<HTMLDivElement>();
-  const maxTableWidth =
+  const maxPaneWidth =
     gridWidth > 0
       ? Math.max(
-          DELIVERY_TABLE_MIN_WIDTH,
-          gridWidth - DELIVERY_PANE_MIN_WIDTH - SPLITTER_WIDTH,
+          DELIVERY_PANE_MIN_WIDTH,
+          gridWidth - DELIVERY_TABLE_MIN_WIDTH - SPLITTER_WIDTH,
         )
-      : storedTableWidth;
-  const tableWidth = Math.min(storedTableWidth, maxTableWidth);
+      : storedPaneWidth;
+  const paneWidth = Math.min(storedPaneWidth, maxPaneWidth);
 
   const [dirty, setDirty] = useState<Record<string, string | null>>({});
   const [onlyUndecided, setOnlyUndecided] = useState(false);
   useEffect(() => setDirty({}), [resetKey]);
 
-  /*
-   * 거른 목록이 곧 표의 「전부」다 · 커서도 묶음 머리의 일괄 배정도 여기서 나온다.
-   * 안 그러면 「미정만」 을 켜 둔 채 일괄을 눌렀을 때 화면에 없는 줄까지 덮인다.
-   */
+  /* 거른 목록이 곧 표의 「전부」다 · 커서가 훑는 차례도 여기서 나온다 */
   const shown = useMemo(() => {
     if (!onlyUndecided) return parts;
     return parts.filter(
@@ -198,17 +235,6 @@ export function DeliveryRoom({
     setDirty((prev) => ({ ...prev, [partId]: partnerId }));
   }, []);
 
-  const assignGroup = useCallback(
-    (partIds: string[], partnerId: string | null) => {
-      setDirty((prev) => {
-        const next = { ...prev };
-        for (const id of partIds) next[id] = partnerId;
-        return next;
-      });
-    },
-    [],
-  );
-
   /*
    * 숫자 키는 커서가 짚은 줄에 꽂고 곧바로 다음 줄로 내린다 — `1 2 1 1 3` 처럼
    * 손이 멈추지 않아야 쉰 건이 빨리 끝난다. 마지막 줄에서는 내리지 않는다.
@@ -243,70 +269,163 @@ export function DeliveryRoom({
     () => countAssignments(parts, savedAssignments, dirty),
     [parts, savedAssignments, dirty],
   );
+
+  /* 부위 → 지금 걸린 거래처 · 사이드 독이 거래처별 건수를 셀 때 쓴다 */
+  const effective = useMemo(
+    () =>
+      new Map(
+        parts.map((p) => [
+          p.partId,
+          effectivePartnerId(p.partId, savedAssignments, dirty),
+        ]),
+      ),
+    [parts, savedAssignments, dirty],
+  );
   const dirtyCount = Object.keys(dirty).length;
   const focused = cursorId ? (partById.get(cursorId) ?? null) : null;
 
+  /*
+   * 메모는 (딜러 · 상장일 · 부위) 에 붙어 경매장과 같은 자리를 쓴다 — 입찰하며 「등지방
+   * 두꺼움」 이라 적어 둔 말이 배송 지정 화면에도 그대로 떠야 한다.
+   *
+   * 조회기간으로 자르지 않고 **전부** 받는다. 적어 둔 말은 「언제 적었나」 가 아니라
+   * 「무엇을 적었나」 로 찾는 것이라, 기간을 맞춰야 보이면 날짜를 기억하는 사람만
+   * 쓸 수 있는 목록이 된다. 표의 자국과 쪽지는 어차피 부위 id 로 집어 가므로 더
+   * 받아 온 것이 섞여 보일 일도 없다.
+   */
+  const notes = useDealerNotes({ all: true });
+  const { get: getNote, save: saveNote } = notes;
+  const partNote = useCallback(
+    (partId: string) => getNote("part", partId),
+    [getNote],
+  );
+
+  /*
+   * 메모에서 그 줄로 짚어 가기 · 지금 기간에 없으면 **메모의 날짜로 조회를 옮기고**
+   * 자료가 들어온 뒤에 짚는다.
+   *
+   * 목록이 날짜를 가리지 않으니(`all: true`) 절반은 지금 표에 없는 줄이다. 전에는 그런
+   * 줄을 눌리지 않게 막고 「화면 밖」 이라 적어 뒀는데, 적어 둔 말을 찾아 눌렀는데
+   * 막혀 있으면 날짜를 손으로 맞춰 다시 눌러야 한다 — 그 손이 이 목록이 대신할 일이다.
+   */
+  const [pendingJump, setPendingJump] = useState<string | null>(null);
+  const jumpToPart = useCallback(
+    (partId: string, activeDate: string) => {
+      if (!partById.has(partId)) onRequestDate(activeDate);
+      setPendingJump(partId);
+    },
+    [partById, onRequestDate],
+  );
+
+  /*
+   * 기다리던 줄이 섰으면 짚고, 안 섰으면 한 번으로 끝낸다.
+   *
+   * 낙찰받지 못한 부위에도 메모는 남는다 — 경매장에서 값을 가늠하며 적은 것들이다.
+   * 그런 줄은 날짜를 옮겨도 배송 표에 설 자리가 없으니, 계속 기다리게 두면 나중에
+   * 그 날짜를 조회할 때 커서가 엉뚱한 데로 튄다.
+   */
+  useEffect(() => {
+    if (!pendingJump || isLoading) return;
+    const reachable = rowIds.includes(pendingJump);
+    /* 「미정만」 에 가려 있을 뿐이면 거르개를 푼다 · 짚어 가기가 거르개보다 세다 */
+    if (!reachable && onlyUndecided && partById.has(pendingJump)) {
+      setOnlyUndecided(false);
+      return;
+    }
+    if (reachable) {
+      setCursor(pendingJump);
+      scrollDeliveryRowIntoView(pendingJump);
+    }
+    setPendingJump(null);
+  }, [pendingJump, isLoading, rowIds, onlyUndecided, partById, setCursor]);
+
+  const focusedNote = useMemo(
+    () =>
+      focused
+        ? {
+            body: getNote("part", focused.partId),
+            onSave: (body: string) =>
+              saveNote("part", focused.partId, body, focused.listingDate),
+          }
+        : null,
+    [focused, getNote, saveNote],
+  );
+
+  /*
+   * 마감은 시간이 흐르면 저절로 온다 · 1분마다 지금을 다시 본다.
+   *
+   * 초마다 보면 표 전체가 분당 예순 번 다시 그려지고, 새로고침해야만 잠기게 두면
+   * 13:29 에 열어 둔 화면으로 14시에도 고칠 수 있다. 분 단위면 둘 다 피한다.
+   */
+  const [now, setNow] = useState(() => new Date());
+  useInterval(() => setNow(new Date()), 60_000);
+  const isLocked = useCallback(
+    (part: WinningPart) => isDeliveryLocked(part.listingDate, now),
+    [now],
+  );
+
+  /*
+   * 저장을 누르는 순간에만 묻는다 · 줄마다 물으면 다섯 줄 고치는 데 창이 다섯 번 뜬다.
+   * 「무엇이 바뀌는가」 는 바꾸는 중이 아니라 **넘기기 직전**에 한 번 보면 된다.
+   */
+  const overwriteCount = useMemo(
+    () =>
+      Object.keys(dirty).filter((partId) => !!savedAssignments[partId]).length,
+    [dirty, savedAssignments],
+  );
+
   const handleSave = useCallback(async () => {
     if (dirtyCount === 0) return;
+    if (
+      overwriteCount > 0 &&
+      !window.confirm(
+        `이미 지정한 ${overwriteCount}건의 거래처가 바뀝니다.\n상장일 ${DELIVERY_DEADLINE_LABEL} 이 지나면 중도매인은 더 고칠 수 없습니다.\n\n저장할까요?`,
+      )
+    ) {
+      return;
+    }
     await onSave(dirty);
     setDirty({});
-  }, [dirty, dirtyCount, onSave]);
+  }, [dirty, dirtyCount, overwriteCount, onSave]);
 
+  /*
+   * 이 열은 껍데기가 없다 · 테두리와 바탕은 안에 선 사진·개체정보 두 카드가 각자 갖는다.
+   * 한 상자 안을 선 하나로 가르면 그 선이 어디에도 붙지 않은 군더더기로 읽혀, 두 카드를
+   * 떼고 그 사이 틈을 그대로 눈금으로 쓴다 (경매장 상세 1열과 같은 틀).
+   */
   const panePane = (
-    <section
+    <div
+      key="pane"
       ref={column.registerPane("pane")}
       style={column.paneStyle("pane")}
       className={cn(
-        "flex min-h-0 flex-col",
-        SURFACE_SHELL_CLASS,
-        column.dragging === "pane" &&
-          "relative z-30 shadow-2xl ring-1 ring-content-soft",
+        "flex min-h-0 min-w-0 flex-col",
+        column.dragging === "pane" && "relative z-30",
         column.dragging &&
           column.dragging !== "pane" &&
           "transition-transform duration-200",
       )}
     >
-      {/*
-       * 등급 각인이 사진 위가 아니라 여기 있다. 증명서를 보는 동안 갤러리가 왼쪽 위에
-       * 「등급판정확인서」 라벨을 띄우는데, 각인을 얹어 두면 둘이 같은 자리에서 겹친다.
-       */}
-      <header className="flex shrink-0 items-center gap-2 border-b border-line-soft px-3 py-1.5">
-        {focused ? (
-          <>
-            <span className="shrink-0 text-[13px] font-bold tabular-nums text-content">
-              {formatGradeLabel(
-                focused.grade,
-                focused.marbling > 0 ? focused.marbling : null,
-              )}
-            </span>
-            <span className="shrink-0 text-[12px] font-medium tabular-nums text-content-faint">
-              {focused.listingNo}
-            </span>
-            {focused.companyName ? (
-              <span className="min-w-0 truncate text-[12px] font-medium text-content-faint">
-                {focused.companyName}
-              </span>
-            ) : null}
-          </>
-        ) : (
-          <span className="text-[12px] font-bold text-content-mid">개체</span>
-        )}
-        <span className="ml-auto" />
-        <PaneGripHandle
-          label="개체"
-          axis="x"
-          tone="card"
-          dragging={column.dragging === "pane"}
-          className="-mr-1"
-          {...column.handleProps("pane")}
-        />
-      </header>
-      <DeliveryFocusPane focused={focused} />
-    </section>
+      <DeliveryFocusPane
+        focused={focused}
+        note={focusedNote}
+        headerAction={
+          <PaneGripHandle
+            label="개체"
+            axis="x"
+            tone="card"
+            dragging={column.dragging === "pane"}
+            className="-mr-1"
+            {...column.handleProps("pane")}
+          />
+        }
+      />
+    </div>
   );
 
   const tablePane = (
     <section
+      key="table"
       ref={column.registerPane("table")}
       style={column.paneStyle("table")}
       className={cn(
@@ -319,18 +438,21 @@ export function DeliveryRoom({
           "transition-transform duration-200",
       )}
     >
-      <header className="flex shrink-0 items-center gap-3 border-b border-line-soft px-3 py-1.5">
-        <GroupByToggle value={groupBy} onChange={setGroupBy} />
-        <label className="inline-flex shrink-0 cursor-pointer select-none items-center gap-1.5 text-[12px] text-content-mid">
-          <input
-            type="checkbox"
-            checked={onlyUndecided}
-            onChange={(e) => setOnlyUndecided(e.target.checked)}
-            className="h-3.5 w-3.5 accent-[rgb(var(--focus))]"
-          />
+      <header className="flex shrink-0 items-center gap-2 border-b border-line-soft px-3 py-1.5">
+        <SegmentedTabs
+          label="묶는 기준"
+          value={groupBy}
+          options={GROUP_BY_TABS}
+          onChange={(v) => setGroupBy(v as DeliveryGroupBy)}
+        />
+        <ToggleChip
+          pressed={onlyUndecided}
+          onPressedChange={setOnlyUndecided}
+          title="아직 거래처를 안 정한 것만 추린다"
+        >
           미정만
-        </label>
-        <p className="flex min-w-0 items-baseline gap-2 text-[12px] tabular-nums text-content-faint">
+        </ToggleChip>
+        <p className="ml-1 flex min-w-0 items-baseline gap-2 text-[12px] tabular-nums text-content-faint">
           <span className="shrink-0">
             낙찰 <b className="font-bold text-content">{counts.total}</b>건
           </span>
@@ -361,29 +483,30 @@ export function DeliveryRoom({
         </div>
       </header>
 
-      <OverlayScroll autoHideDelay={0} className="min-h-0 flex-1">
+      {/* 구르는 건 표뿐이다 · 머리줄과 저장 바는 통 밖에 서서 제자리를 지킨다 */}
+      <OverlayScroll
+        autoHideDelay={0}
+        options={{ overflow: { x: "scroll" } }}
+        className="min-h-0 flex-1"
+      >
         <DeliveryPartTable
           groups={groups}
           partners={partners}
           savedAssignments={savedAssignments}
           dirtyAssignments={dirty}
           cursorPartId={cursorId}
+          getNote={partNote}
+          isLocked={isLocked}
           onCursor={setCursor}
           onAssign={assign}
-          onAssignGroup={assignGroup}
           isLoading={isLoading}
         />
       </OverlayScroll>
 
       <div className="shrink-0">
-        <PartnerHotkeyBar
-          partners={partners}
-          pinned={pinned}
-          onPin={(slot, partnerId) => setPin.mutate({ slot, partnerId })}
-          pinError={setPin.error?.message ?? null}
-        />
         <SaveBar
           dirtyCount={dirtyCount}
+          overwriteCount={overwriteCount}
           saving={saving}
           error={saveError}
           onSave={handleSave}
@@ -406,7 +529,7 @@ export function DeliveryRoom({
         column.dragging && "overflow-hidden",
       )}
       style={{
-        gridTemplateColumns: gridColumns(columnOrder, tableWidth),
+        gridTemplateColumns: gridColumns(columnOrder, paneWidth),
       }}
     >
       {orderPanes(
@@ -414,68 +537,50 @@ export function DeliveryRoom({
         { pane: panePane, table: tablePane },
         <RoomSplitter
           key="column-splitter"
-          tableWidth={tableWidth}
-          tableOnLeft={tableOnLeft}
-          defaultWidth={DELIVERY_TABLE_WIDTH_DEFAULT}
-          onResize={(px) => setTableWidth(Math.min(px, maxTableWidth))}
-          onReset={resetTableWidth}
+          size={paneWidth}
+          sizedOnLeft={paneOnLeft}
+          defaultSize={DELIVERY_PANE_WIDTH_DEFAULT}
+          onResize={(px) => setPaneWidth(Math.min(px, maxPaneWidth))}
+          onReset={resetPaneWidth}
         />,
       )}
-    </div>
-  );
-}
 
-function GroupByToggle({
-  value,
-  onChange,
-}: {
-  value: DeliveryGroupBy;
-  onChange: (v: DeliveryGroupBy) => void;
-}) {
-  return (
-    <div
-      role="tablist"
-      aria-label="묶는 기준"
-      className="inline-flex shrink-0 items-center rounded-md bg-surface-accent p-0.5"
-    >
-      {(
-        [
-          { id: "part", label: "부위별" },
-          { id: "entity", label: "개체별" },
-          { id: "partner", label: "거래처별" },
-        ] as const
-      ).map((o) => {
-        const active = o.id === value;
-        return (
-          <button
-            key={o.id}
-            type="button"
-            role="tab"
-            aria-selected={active}
-            onClick={() => onChange(o.id)}
-            className={cn(
-              "rounded-[5px] px-2.5 py-1 text-[11.5px] font-bold transition-colors",
-              active
-                ? "bg-surface text-content shadow-sm"
-                : "text-content-soft hover:text-content-mid",
-            )}
-          >
-            {o.label}
-          </button>
-        );
-      })}
+      {/*
+       * 사이드 독은 `fixed` 라 이 격자 밖에 뜬다 · 자리는 페이지 껍데기의 오른쪽
+       * 여백(`useDeliveryShellClass`)이 미리 비워 둔다. 여기서 그리는 까닭은 독이
+       * 쥐어야 할 것(커서·고치는 중인 배정·핀·메모)이 전부 이 방 안에 있어서다.
+       */}
+      <DeliverySideDock
+        partners={partners}
+        pinned={pinned}
+        onPin={(slot, partnerId) => setPin.mutate({ slot, partnerId })}
+        pinError={setPin.error?.message ?? null}
+        parts={parts}
+        effective={effective}
+        cursorPartId={cursorId}
+        onAssign={assign}
+        cursorLocked={!!focused && isLocked(focused)}
+        notes={notes.rows}
+        onJumpToPart={jumpToPart}
+        onDeleteNote={(partId, activeDate) =>
+          saveNote("part", partId, "", activeDate)
+        }
+      />
     </div>
   );
 }
 
 function SaveBar({
   dirtyCount,
+  overwriteCount,
   saving,
   error,
   onSave,
   onReset,
 }: {
   dirtyCount: number;
+  /** 그중 이미 지정돼 있던 것을 덮는 건수 · 넘기기 전에 한 번 말해 준다 */
+  overwriteCount: number;
   saving: boolean;
   error: string | null;
   onSave: () => void;
@@ -493,6 +598,11 @@ function SaveBar({
             <>
               저장하지 않은 변경{" "}
               <b className="font-bold text-content">{dirtyCount}</b>건
+              {overwriteCount > 0 ? (
+                <span className="pl-1.5 font-semibold text-pending">
+                  · 확정분 {overwriteCount}건 덮어씀
+                </span>
+              ) : null}
             </>
           ) : (
             "변경 사항 없음"

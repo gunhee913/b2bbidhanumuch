@@ -7,6 +7,9 @@ const supabase = getAdminClient();
 /** 메모 한 줄 길이 상한 · 쪽지로 읽을 만한 분량까지만 받는다 */
 const BODY_MAX = 500;
 
+/** 날짜 없이 전부 부를 때의 상한 · 최근 것부터 이만큼 (목록을 훑는 데 모자라지 않다) */
+const ALL_NOTES_LIMIT = 300;
+
 const TARGET_TYPES = ["listing", "part"];
 
 export async function GET(request: NextRequest) {
@@ -19,21 +22,39 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    /*
+     * 하루치와 기간치를 한 입구로 받는다. 경매장은 그날 하나만 보지만 배송지시는
+     * 조회기간 전체의 낙찰 부위를 한 줄기로 늘어놓아, 날마다 따로 부르면 열흘이면
+     * 열 번이 날아간다. `active_date` 가 `yyyy-MM-dd` 문자열이라 사전순이 곧 날짜순이다.
+     */
     const { searchParams } = new URL(request.url);
     const activeDate = searchParams.get("activeDate");
+    const from = searchParams.get("from") ?? activeDate;
+    const to = searchParams.get("to") ?? activeDate;
 
-    if (!activeDate) {
-      return NextResponse.json(
-        { error: "activeDate가 필요합니다." },
-        { status: 400 },
-      );
+    let query = supabase
+      .from("dealer_notes")
+      .select("active_date, target_type, target_id, body, updated_at")
+      .eq("dealer_id", auth.dealerId);
+
+    /*
+     * 날짜를 안 주면 「전부」다 · 사이드 메뉴 메모 목록이 그렇게 부른다.
+     *
+     * 적어 둔 말은 조회기간과 상관없이 찾고 싶은 것이다. 「지난달 그 집 등심에 뭐라고
+     * 적었더라」 를 보려고 기간을 다시 맞춰 조회하게 하면, 날짜를 기억하는 사람만
+     * 쓸 수 있는 목록이 된다. 대신 최근 것부터 상한을 두고 끊는다 — 한 중도매인이
+     * 몇 해에 걸쳐 쌓은 것을 한 번에 내릴 까닭은 없다.
+     */
+    if (from && to) {
+      query = query.gte("active_date", from).lte("active_date", to);
+    } else {
+      query = query
+        .order("active_date", { ascending: false })
+        .order("updated_at", { ascending: false })
+        .limit(ALL_NOTES_LIMIT);
     }
 
-    const { data, error } = await supabase
-      .from("dealer_notes")
-      .select("target_type, target_id, body, updated_at")
-      .eq("dealer_id", auth.dealerId)
-      .eq("active_date", activeDate);
+    const { data, error } = await query;
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
@@ -41,6 +62,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       notes: data.map((n) => ({
+        activeDate: n.active_date,
         targetType: n.target_type,
         targetId: n.target_id,
         body: n.body,

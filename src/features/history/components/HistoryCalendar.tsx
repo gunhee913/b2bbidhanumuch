@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, type CSSProperties, type Ref } from "react";
 import {
   addMonths,
   eachDayOfInterval,
@@ -21,6 +21,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { SURFACE_SHELL_CLASS } from "@/features/live-auction/constants/surface";
 
 const WEEK_LABELS = ["일", "월", "화", "수", "목", "금", "토"];
 
@@ -37,8 +38,15 @@ const formatCompactKrw = (value: number) =>
     : KRW_FORMATTER.format(value);
 
 /**
- * 낙찰금액 강도 히트맵 · 4단계 slate 톤.
- * 배경 강도가 올라갈수록 텍스트는 dark → light 로 전환하여 대비 확보.
+ * 낙찰금액 강도 히트맵 · 다섯 단계.
+ *
+ * 단계는 `inverse` 한 색의 투명도 사다리로만 만든다. slate-300/500 처럼 팔레트를 박아
+ * 두면 라이트에서만 「바탕에서 멀어지는」 방향이 맞고 다크에서는 거꾸로 밝은 회색
+ * 덩어리가 떠서 적게 먹은 날이 더 눈에 띄었다. `inverse` 는 두 모드에서 바탕의
+ * 반대편이라 어느 쪽이든 짙어지는 방향이 같다 — 라이트는 흰→검정, 다크는 검정→흰.
+ *
+ * 25% 다음을 75% 로 건너뛴 건 가운데 회색(40~60%)에서는 어떤 글자색을 얹어도 대비가
+ * 4.5 를 못 넘겨서다. 셀 안 금액은 11px 라 그 구간을 비워 두고 지나간다.
  */
 type HeatLevel = 0 | 1 | 2 | 3 | 4;
 
@@ -52,24 +60,24 @@ const HEAT_STYLE: Record<
     text: "text-content",
   },
   1: {
-    bg: "bg-surface-accent",
-    hover: "hover:bg-surface-strong",
+    bg: "bg-inverse/10",
+    hover: "hover:bg-inverse/16",
     text: "text-content",
   },
   2: {
-    bg: "bg-slate-300",
-    hover: "hover:bg-slate-400",
+    bg: "bg-inverse/25",
+    hover: "hover:bg-inverse/34",
     text: "text-content",
   },
   3: {
-    bg: "bg-slate-500",
-    hover: "hover:bg-slate-600",
-    text: "text-white",
+    bg: "bg-inverse/75",
+    hover: "hover:bg-inverse/85",
+    text: "text-inverse-content",
   },
   4: {
     bg: "bg-inverse",
     hover: "hover:bg-inverse",
-    text: "text-white",
+    text: "text-inverse-content",
   },
 };
 
@@ -95,27 +103,38 @@ export interface CalendarDayStat {
 }
 
 /** 셀 hover 카드를 띄울지 · 낙찰/미낙찰/진행중 중 하나라도 있으면 참여한 날 */
-const hasParticipation = (stat: CalendarDayStat | undefined): stat is CalendarDayStat =>
+const hasParticipation = (
+  stat: CalendarDayStat | undefined,
+): stat is CalendarDayStat =>
   !!stat && stat.wonCount + stat.lostCount + stat.activeCount > 0;
 
 export interface HistoryCalendarProps {
   cursor: Date;
   onChangeCursor: (next: Date) => void;
   selectedDate: string | null;
-  onSelectDate: (dateStr: string | null) => void;
+  onSelectDate: (dateStr: string) => void;
   stats: Record<string, CalendarDayStat>;
+  className?: string;
+  style?: CSSProperties;
+  ref?: Ref<HTMLDivElement>;
 }
 
 /**
  * 월간 캘린더 · 일자별 낙찰건수/낙찰금액 시각화.
  *
  * 디자인 방향:
- * - 셀 배경: slate 4단계 히트맵 (금액 강도)
- * - 요일 컬러: 헤더에만 (일/토), 셀 안 날짜는 무채색 통일
+ * - 셀 배경: `inverse` 투명도 다섯 단계 히트맵 (금액 강도)
+ * - 요일 구분: 색이 아니라 밝기로 · 토·일은 한 단계 흐리게 (장이 안 서는 날)
  * - 미낙찰 · "낙찰" 라벨 등 부가 정보 제거 → 카운트 + 금액만 노출
- * - 선택 강조: 다크셀 white, 라이트셀 slate-900 outline
- * - 좌측 400px 레일용 미니 캘린더 · 셀 52px · 셀 안에는 만 단위 금액만
- * - 건수·미낙찰·진행중·회차 등 상세는 hover 카드(`DayHoverCard`)로
+ * - 선택 강조: 짙은 셀은 `inverse-content`, 옅은 셀은 `content` 테두리
+ * - 셀 안에는 만 단위 금액만 · 건수·미낙찰·진행중·회차 상세는 hover 카드(`DayHoverCard`)
+ *
+ * 표 머리줄의 날짜 단추가 펼친다 (`HistoryDatePicker`). 왼쪽 열에 한 행으로 박혀
+ * 있던 것을 거기로 옮겼다 — 날짜는 고르고 나면 더 볼 일이 없는데 늘 자리를 깔고
+ * 앉아 있었다.
+ *
+ * 높이는 칸 바닥(44px)이 정한다. 다섯 줄인 달은 다섯 줄만큼만 서고 여섯 줄인 달은
+ * 한 줄 더 선다 — 펼친 자리라 남는 세로를 나눠 가질 바깥이 없다.
  */
 export function HistoryCalendar({
   cursor,
@@ -123,6 +142,9 @@ export function HistoryCalendar({
   selectedDate,
   onSelectDate,
   stats,
+  className,
+  style,
+  ref,
 }: HistoryCalendarProps) {
   const gridDays = useMemo(() => {
     const start = startOfWeek(startOfMonth(cursor), { weekStartsOn: 0 });
@@ -141,9 +163,16 @@ export function HistoryCalendar({
     return max;
   }, [gridDays, cursor, stats]);
 
+  /** 이 달이 몇 줄인가 · 다섯 줄인 달에서 여섯 줄짜리 자리를 잡으면 아래가 빈다 */
+  const weekCount = gridDays.length / 7;
+
   return (
-    <div className="border border-line bg-surface">
-      <header className="flex items-center justify-between border-b border-line px-4 py-3">
+    <div
+      ref={ref}
+      style={style}
+      className={cn("flex flex-col", SURFACE_SHELL_CLASS, className)}
+    >
+      <header className="flex shrink-0 items-center justify-between border-b border-line px-4 py-3">
         <div className="flex items-center gap-2">
           <button
             type="button"
@@ -170,24 +199,25 @@ export function HistoryCalendar({
               onChangeCursor(new Date());
               onSelectDate(format(new Date(), "yyyy-MM-dd"));
             }}
-            className="ml-1 inline-flex h-8 items-center border border-line bg-surface px-3 text-[11px] font-bold text-content-mid transition-colors hover:border-sky-400 hover:bg-sky-50 hover:text-sky-700"
+            className="ml-1 inline-flex h-8 items-center border border-line bg-surface px-3 text-[11px] font-bold text-content-mid transition-colors hover:border-content-ghost hover:bg-surface-muted hover:text-content"
           >
             오늘
           </button>
         </div>
       </header>
 
-      <div className="grid grid-cols-[repeat(7,minmax(0,1fr))] border-b border-line bg-slate-50/60">
+      <div className="grid shrink-0 grid-cols-[repeat(7,minmax(0,1fr))] border-b border-line bg-surface-muted">
         {WEEK_LABELS.map((label, i) => (
           <div
             key={label}
             className={cn(
               "px-2 py-2 text-center text-[11px] font-semibold tracking-wider",
-              i === 0
-                ? "text-rose-400"
-                : i === 6
-                  ? "text-sky-500"
-                  : "text-content-soft",
+              /*
+               * 토·일을 빨강·파랑으로 칠하지 않는다. 이 화면에서 그 두 색은 이미
+               * 미낙찰·낙찰이라 머리줄에까지 쓰면 요일이 결과처럼 읽힌다.
+               * 주말은 한 단계 흐리게만 둔다 — 어차피 장이 안 서는 날이다.
+               */
+              i === 0 || i === 6 ? "text-content-faint" : "text-content-soft",
             )}
           >
             {label}
@@ -195,7 +225,11 @@ export function HistoryCalendar({
         ))}
       </div>
 
-      <div className="grid grid-cols-[repeat(7,minmax(0,1fr))]">
+      {/* 줄 수를 박아 두지 않으면 다섯 줄인 달에서 여섯째 줄 자리가 빈다 */}
+      <div
+        className="grid min-h-0 flex-1 grid-cols-[repeat(7,minmax(0,1fr))]"
+        style={{ gridTemplateRows: `repeat(${weekCount}, minmax(0, 1fr))` }}
+      >
         {gridDays.map((day) => {
           const key = format(day, "yyyy-MM-dd");
           const stat = stats[key];
@@ -213,24 +247,23 @@ export function HistoryCalendar({
           const dayNumberColor = !inMonth
             ? "text-content-ghost"
             : isDarkCell
-              ? "text-white"
+              ? "text-inverse-content"
               : "text-content";
 
           const cell = (
             <button
               key={key}
               type="button"
-              onClick={() =>
-                onSelectDate(selectedDate === key ? null : key)
-              }
+              onClick={() => onSelectDate(key)}
               className={cn(
-                "relative flex h-[52px] min-w-0 flex-col items-stretch overflow-hidden border-b border-r border-line-soft px-1.5 pb-1 pt-1 text-left transition-colors",
+                /* 날짜 한 줄 + 금액 한 줄이 여유 있게 들어가는 바닥 */
+                "relative flex min-h-[44px] min-w-0 flex-col items-stretch overflow-hidden border-b border-r border-line-soft px-1.5 pb-1 pt-1 text-left transition-colors",
                 heat.bg,
                 heat.hover,
-                !inMonth && "bg-slate-50/30",
+                !inMonth && "bg-surface-muted",
                 isSelected && [
                   "z-10 outline outline-[1.5px] -outline-offset-[1.5px]",
-                  isDarkCell ? "outline-white" : "outline-slate-900",
+                  isDarkCell ? "outline-inverse-content" : "outline-content",
                 ],
               )}
               aria-pressed={isSelected}
@@ -254,7 +287,7 @@ export function HistoryCalendar({
                   <span
                     className={cn(
                       "h-1.5 w-1.5 rounded-full",
-                      isDarkCell ? "bg-surface" : "bg-sky-500",
+                      isDarkCell ? "bg-inverse-content" : "bg-focus",
                     )}
                     aria-label="오늘"
                   />
@@ -283,7 +316,10 @@ export function HistoryCalendar({
               <TooltipContent
                 side="top"
                 sideOffset={6}
-                className="rounded-md border border-line bg-surface p-0 text-content shadow-xl"
+                className={cn(
+                  SURFACE_SHELL_CLASS,
+                  "p-0 text-content shadow-xl",
+                )}
               >
                 <DayHoverCard day={day} stat={stat} />
               </TooltipContent>
@@ -314,16 +350,22 @@ function DayHoverCard({ day, stat }: { day: Date; stat: CalendarDayStat }) {
       </div>
 
       <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-[11.5px] tabular-nums">
-        <HoverStat label="낙찰" value={`${stat.wonCount}건`} dot="bg-sky-500" />
-        <HoverStat label="미낙찰" value={`${stat.lostCount}건`} dot="bg-rose-300" />
+        <HoverStat label="낙찰" value={`${stat.wonCount}건`} dot="bg-won" />
+        <HoverStat label="미낙찰" value={`${stat.lostCount}건`} dot="bg-lost" />
         {stat.activeCount > 0 ? (
-          <HoverStat label="진행중" value={`${stat.activeCount}건`} dot="bg-inverse" />
+          <HoverStat
+            label="진행중"
+            value={`${stat.activeCount}건`}
+            dot="bg-inverse"
+          />
         ) : null}
       </dl>
 
       {stat.wonAmount > 0 ? (
         <div className="mt-2 flex items-baseline justify-between border-t border-line-soft pt-2">
-          <span className="text-[10.5px] font-medium text-content-faint">낙찰금액</span>
+          <span className="text-[10.5px] font-medium text-content-faint">
+            낙찰금액
+          </span>
           <span className="text-[12.5px] font-extrabold tabular-nums text-content">
             {formatKrw(stat.wonAmount)}
           </span>

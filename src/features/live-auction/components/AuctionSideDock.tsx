@@ -31,6 +31,13 @@ import {
 import { OverlayScroll } from "@/components/ui/overlay-scroll";
 import { cn } from "@/lib/utils";
 import { useBidStore } from "@/stores/bidStore";
+import { SideDockRailItem as RailItem } from "@/features/side-dock/components/SideDockRailItem";
+import { ThemeRailButton } from "@/features/side-dock/components/ThemeRailButton";
+import { RoundRail } from "@/features/side-dock/components/RoundRail";
+import {
+  PanelEmpty,
+  PanelSectionHead,
+} from "@/features/side-dock/components/SideDockPanelParts";
 import type { RoundSchedule } from "@/features/round-schedules/types";
 import type { RoundInfo } from "@/features/main/api";
 import type { LiveListing } from "../api";
@@ -39,8 +46,6 @@ import { useDailyBriefing } from "../hooks/useDailyBriefing";
 import { useDeadlineTitle } from "../hooks/useDeadlineTitle";
 import { useAuctionNotes } from "../hooks/useAuctionNotes";
 import { useMyBids } from "../hooks/useMyBids";
-import { useRoundPeek } from "../hooks/useRoundPeek";
-import { isDeadlineTier } from "../lib/deadline";
 import { usePaneResize } from "../hooks/usePaneResize";
 import {
   FAV_SECTION_MIN_HEIGHT,
@@ -54,7 +59,6 @@ import { GradeBriefPeekCard } from "./GradeBriefPeekCard";
 import { MyBidsPanel } from "./MyBidsPanel";
 import { useRoundPhase, type RoundPhase } from "./RoundCountdownDial";
 import { RoundFloatingCard } from "./RoundFloatingCard";
-import { RoundPeekCard } from "./RoundPeekCard";
 import { BID_STEPS } from "../lib/bidKeys";
 import { PAGE_SHELL_CLASS } from "../constants/surface";
 import { buildShortcutGroups } from "../lib/shortcuts";
@@ -150,16 +154,7 @@ export function AuctionSideDock({
     currentRound?.round_no,
   );
 
-  const { peeking, hideNow } = useRoundPeek(phase, !open);
-  const [hovering, setHovering] = useState(false);
-  const leaveRail = useCallback(() => {
-    setHovering(false);
-    hideNow();
-  }, [hideNow]);
-
   const brief = useDailyBrief(briefOnEnter ? listingDate : null, open, openTab);
-  /* 두 카드가 같은 레일에서 겹쳐 나오지 않게 · 오늘의 상장이 먼저다 */
-  const peekOpen = !open && !brief.open && (peeking || hovering);
 
   return (
     /*
@@ -285,7 +280,7 @@ export function AuctionSideDock({
             aria-expanded={open}
             aria-controls="auction-side-panel"
             aria-label={open ? "사이드 메뉴 접기" : "사이드 메뉴 펼치기"}
-            className="my-2 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-content-faint transition-colors hover:bg-surface-accent hover:text-content"
+            className="my-2 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-content-faint transition-colors hover:bg-surface-accent hover:text-content focus:outline-none focus-visible:bg-surface-accent focus-visible:text-content focus-visible:outline-none"
           >
             {open ? (
               <ChevronsRight className="h-4 w-4" />
@@ -294,12 +289,19 @@ export function AuctionSideDock({
             )}
           </button>
         </ShortcutTooltip>
-        <RoundRailItem
+        {/*
+         * 회차 · 네 화면이 함께 쓰는 칸 (`RoundRail`). 여기서만 누를 것이 있다 —
+         * 회차 패널은 오늘 상장 목록이 있어야 그릴 수 있어 경매장에만 둔다.
+         *
+         * 튀어나오는 카드도 저 안에 들어 있다. 오늘의 상장 브리핑과 같은 자리를
+         * 쓰므로 브리핑이 떠 있는 동안은 눌러 둔다 (`peekBlocked`).
+         */}
+        <RoundRail
           phase={phase}
           active={open && tab === "round"}
-          onClick={() => toggleTab("round")}
-          onMouseEnter={() => setHovering(true)}
-          onMouseLeave={leaveRail}
+          onOpen={() => toggleTab("round")}
+          autoPeek={!open}
+          peekBlocked={open || brief.open}
         />
         <RailItem
           icon={CalendarDays}
@@ -349,14 +351,6 @@ export function AuctionSideDock({
         </div>
       </nav>
 
-      <RoundPeekCard
-        phase={phase}
-        open={peekOpen}
-        onMouseEnter={() => setHovering(true)}
-        onMouseLeave={leaveRail}
-        onClick={() => openTab("round")}
-      />
-
       <GradeBriefPeekCard
         date={listingDate}
         open={brief.open}
@@ -404,35 +398,6 @@ function useDailyBrief(
 }
 
 /**
- * 명암 전환 · 레일 맨 아래 · 경매장은 고기 사진 옆에서 색을 재는 화면이라 어두운 바탕을 쓰고 싶어 하는
- * 사람과 밝은 표를 쓰고 싶어 하는 사람이 갈린다. 취향이 아니라 작업 방식의 문제라 토글로 둔다.
- *
- * 상태는 `bidStore.isDarkMode` 한 곳에 있고 `DarkModeSync` 가 next-themes 로 흘려보낸다.
- */
-function ThemeRailButton() {
-  const isDarkMode = useBidStore((s) => s.isDarkMode);
-  const setIsDarkMode = useBidStore((s) => s.setIsDarkMode);
-  const label = isDarkMode ? "밝은 화면으로" : "어두운 화면으로";
-
-  return (
-    <button
-      type="button"
-      onClick={() => setIsDarkMode(!isDarkMode)}
-      aria-pressed={isDarkMode}
-      aria-label={label}
-      title={label}
-      className="group mb-3 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-content-faint transition-colors hover:bg-surface-accent hover:text-content"
-    >
-      {isDarkMode ? (
-        <Sun className="h-[18px] w-[18px]" strokeWidth={1.9} aria-hidden />
-      ) : (
-        <Moon className="h-[18px] w-[18px]" strokeWidth={1.9} aria-hidden />
-      )}
-    </button>
-  );
-}
-
-/**
  * 오른쪽 여백 · 레일(56)은 늘 비워 두고, 패널이 펴져 있으면 패널(304)만큼 더 비운다.
  * 페이지 껍데기(header + main + footer)에 붙여야 헤더까지 함께 물러난다.
  *
@@ -451,118 +416,6 @@ export function useAuctionShellClass() {
     PAGE_SHELL_CLASS,
     "transition-[padding] duration-200 ease-out",
     open ? "min-w-[1672px] pr-[360px]" : "min-w-[1368px] pr-14",
-  );
-}
-
-interface RailItemProps {
-  icon: ComponentType<LucideProps>;
-  label: string;
-  active: boolean;
-  onClick: () => void;
-  badge?: number;
-  labelClassName?: string;
-  /** 아이콘 상자를 덮어쓴다 · 마감 임박처럼 칸 전체가 말해야 할 때 (`cn` 이 뒤를 이긴다) */
-  iconClassName?: string;
-  onMouseEnter?: () => void;
-  onMouseLeave?: () => void;
-}
-
-/** 레일 한 칸 · 42×58 · 32px 아이콘 상자 + 12px 라벨 */
-function RailItem({
-  icon: Icon,
-  label,
-  active,
-  onClick,
-  badge,
-  labelClassName,
-  iconClassName,
-  onMouseEnter,
-  onMouseLeave,
-}: RailItemProps) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      onMouseEnter={onMouseEnter}
-      onMouseLeave={onMouseLeave}
-      aria-pressed={active}
-      className="group flex h-[58px] w-[42px] flex-col items-center justify-center gap-1"
-    >
-      <span
-        className={cn(
-          "relative inline-flex h-8 w-8 items-center justify-center rounded-lg transition-colors",
-          active
-            ? "bg-surface-strong text-content"
-            : "text-content-soft group-hover:bg-surface-accent group-hover:text-content",
-          iconClassName,
-        )}
-      >
-        <Icon className="h-[18px] w-[18px]" strokeWidth={1.9} />
-        {badge ? (
-          <span className="absolute -right-1 -top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold leading-none tabular-nums text-white">
-            {badge > 99 ? "99+" : badge}
-          </span>
-        ) : null}
-      </span>
-      <span
-        className={cn(
-          "whitespace-nowrap text-[12px] font-medium leading-none tabular-nums",
-          active ? "text-content" : "text-content-faint",
-          labelClassName,
-        )}
-      >
-        {label}
-      </span>
-    </button>
-  );
-}
-
-/**
- * 회차 · 진행 중이면 라벨 자리에 남은 시간 · 접혀 있어도 마감까지 얼마인지 보인다.
- *
- * 세는 동안에는 이 칸이 레일에서 제일 또렷해야 한다. 접어 두면 화면에 남는 건 이 42px
- * 뿐이고, 그때 알아야 하는 건 「몇 초 남았나」 하나다. 그런데 평소 라벨색(`content-faint`)을
- * 그대로 쓰고 있어서, 정작 세는 동안이 일정·최근 본과 똑같이 흐렸다.
- *
- * 단계 색은 카드(`CountdownDigits`)가 정한 규칙을 그대로 따른다 — 주의·직전을 시세 빨강
- * 하나로 묶고 그 전까지는 본문색. 여기서만 주황·장미로 갈라 놓았더니 같은 시간을 두 화면이
- * 다른 색으로 말하고 있었다.
- *
- * 마지막 30초에는 글자만으로 부족해 아이콘 상자까지 물들이고 숨을 쉰다. 12px 글자 하나가
- * 색을 바꾸는 것보다 32px 덩어리가 통째로 변하는 편이 곁눈으로 잡힌다.
- */
-function RoundRailItem({
-  phase,
-  active,
-  onClick,
-  onMouseEnter,
-  onMouseLeave,
-}: {
-  phase: RoundPhase;
-  active: boolean;
-  onClick: () => void;
-  onMouseEnter: () => void;
-  onMouseLeave: () => void;
-}) {
-  const isLive = phase.kind === "live";
-  const urgent = isLive && isDeadlineTier(phase.tier);
-  return (
-    <RailItem
-      icon={Timer}
-      label={isLive ? phase.formatted : "회차"}
-      active={active}
-      onClick={onClick}
-      onMouseEnter={onMouseEnter}
-      onMouseLeave={onMouseLeave}
-      labelClassName={cn(
-        isLive && "text-[13px] font-bold",
-        isLive && (urgent ? "text-rise" : "text-content"),
-      )}
-      iconClassName={cn(
-        urgent && "bg-rise/10 text-rise",
-        isLive && phase.tier === "critical" && "animate-pulse-soft",
-      )}
-    />
   );
 }
 
@@ -951,13 +804,26 @@ function NotesPanel({
                       <span className="line-clamp-2 text-[12.5px] leading-[1.45] text-content">
                         {body}
                       </span>
-                      <span className="mt-1 flex items-baseline gap-1.5 text-[11.5px] text-content-faint">
-                        <span className="min-w-0 truncate font-medium">
+                      {/*
+                       * 부위 · 접수번호 · 업체를 한 줄에 · 줄을 넘기지 않는다.
+                       *
+                       * 앞의 둘은 길이가 뻔하므로(부위 다섯 자 · 번호 열 자) 자리를
+                       * 지키게 두고(`shrink-0`), 길이를 모르는 업체 이름만 남는 폭에서
+                       * 줄인다. 셋 다 줄이게 두면 긴 이름 하나 때문에 접수번호까지
+                       * 잘려서, 정작 줄을 가려내는 열쇠가 사라진다.
+                       */}
+                      <span className="mt-1 flex items-baseline gap-1.5 whitespace-nowrap text-[11.5px] text-content-faint">
+                        <span className="shrink-0 font-medium">
                           {part.partName}
                         </span>
                         <span className="shrink-0 tabular-nums">
                           {listing.listingNo}
                         </span>
+                        {listing.companyName ? (
+                          <span className="min-w-0 truncate text-content-ghost">
+                            {listing.companyName}
+                          </span>
+                        ) : null}
                       </span>
                     </span>
                   </button>
@@ -977,37 +843,6 @@ function NotesPanel({
           </ul>
         </OverlayScroll>
       )}
-    </div>
-  );
-}
-
-function PanelSectionHead({
-  label,
-  count,
-  unit,
-}: {
-  label: string;
-  count: number;
-  unit: string;
-}) {
-  return (
-    <header className="flex shrink-0 items-baseline justify-between gap-2 px-4 pb-1.5 pt-2.5">
-      <h2 className="text-[13px] font-bold text-content">{label}</h2>
-      {count > 0 ? (
-        <span className="text-[12px] font-medium tabular-nums text-content-faint">
-          {count}
-          {unit}
-        </span>
-      ) : null}
-    </header>
-  );
-}
-
-/** 빈 칸은 한 줄로만 · 두 칸이 높이를 나눠 쓰는 자리라 안내가 길면 목록보다 커진다 */
-function PanelEmpty({ text }: { text: string }) {
-  return (
-    <div className="flex min-h-0 flex-1 items-center justify-center px-5 text-center">
-      <p className="text-[12px] text-content-faint">{text}</p>
     </div>
   );
 }

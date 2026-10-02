@@ -24,6 +24,60 @@ export function parseQualityGrade(grade: string | null | undefined): string {
   return match?.[1] ?? "";
 }
 
+export type YieldGradeLetter = "A" | "B" | "C";
+
+export interface ParsedGrade {
+  /** 육질등급 · `1++` `1+` `1` `2` `3` */
+  quality: string;
+  /** 육량등급 · 등급 글자에 안 적혀 있으면 null */
+  yieldGrade: YieldGradeLetter | null;
+  /** 근내지방도 · 등급 글자에 괄호로 붙어 있을 때만 (없으면 `marbling_score` 칸을 본다) */
+  marbling: number | null;
+}
+
+/**
+ * 등급 한 덩이를 셋으로 가른다 · `1++A(9)` → 1++ · A · 9.
+ *
+ * 한 칸에 셋이 들어 있고 뒤 둘은 있을 때도 없을 때도 있다 — `1++` · `1++(9)` ·
+ * `1++A` · `1++A(9)` 가 모두 실제로 담긴다 (`20260204_002_update_grade_format`
+ * 이후로 근내지방도를 붙여 쓰기 시작했는데 그 전 자료가 그대로 남아 있다).
+ *
+ * 그래서 꼬리에서 `[ABC]` 를 찾으면 안 된다. `1++A(9)` 는 `)` 로 끝나 육량을
+ * 놓치고, 놓친 자리는 조용히 「A」 로 메워져 B·C 물량이 A 더미에 섞인다.
+ */
+export function parseGrade(
+  grade: string | null | undefined,
+): ParsedGrade | null {
+  const match = (grade ?? "")
+    .trim()
+    .match(/^(1\+\+|1\+|1|2|3)([ABC])?(?:\((\d)\))?/);
+  if (!match) return null;
+  return {
+    quality: match[1],
+    yieldGrade: (match[2] as YieldGradeLetter | undefined) ?? null,
+    marbling: match[3] ? Number(match[3]) : null,
+  };
+}
+
+/**
+ * 등급 열쇠에 육량을 끼워 넣어 사람이 보는 꼴로 · `1++(9)` + `A` → `1++A(9)`.
+ *
+ * `parseGrade` 의 반대 방향이다. 육량은 육질 바로 뒤, 근내지방도 괄호 **앞**에
+ * 붙는다 — `1++(9)A` 가 아니라 `1++A(9)` 다. 등급표에 적힌 차례가 그렇고,
+ * 경매장·경매내역에 이미 그 꼴로 나가 있어 다르게 쓰면 같은 고기가 두 이름을 갖는다.
+ *
+ * 육량이 없으면(통합했거나 등급 글자에 안 적혀 있으면) 열쇠를 그대로 돌려준다.
+ */
+export function formatGradeWithYield(
+  grade: string,
+  yieldGrade: string | null,
+): string {
+  if (!yieldGrade) return grade;
+  const match = grade.match(/^(1\+\+|1\+|1|2|3)(\(\d\))?$/);
+  if (!match) return `${grade}${yieldGrade}`;
+  return `${match[1]}${yieldGrade}${match[2] ?? ""}`;
+}
+
 /** 사이드바·상장표 공용 등급 필터 옵션 · `1++` 는 근내지방도로 세분 */
 export const GRADE_FILTER_OPTIONS = [
   "1++(9)",

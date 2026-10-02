@@ -24,6 +24,8 @@ export interface WinningPart {
   gender: string;
   monthAge: number;
   carcassWeight: number;
+  /** 경락단가 (원/kg) · 지육 한 마리 값이라 부위 낙찰단가와 다르다 · 없으면 0 */
+  unitPrice: number;
   backFat: number;
   eyeMuscle: number;
   marbling: number;
@@ -39,6 +41,10 @@ export interface WinningPart {
   /** 개체 사진 (상장 등록 시 업로드) · 없으면 빈 배열 */
   images: string[];
   companyName: string;
+  /** 등급판정확인서 스캔본 유무 · 파일은 `useListingCerts` 로 따로 받는다 */
+  hasGradeCert: boolean;
+  /** 도축검사증명서 스캔본 유무 */
+  hasSlaughterCert: boolean;
 }
 
 export interface AssignmentInfo {

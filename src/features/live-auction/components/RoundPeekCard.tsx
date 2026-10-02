@@ -10,8 +10,11 @@ export interface RoundPeekCardProps {
   /** 카드 위에 마우스가 올라가 있는 동안은 저절로 닫히지 않게 */
   onMouseEnter: () => void;
   onMouseLeave: () => void;
-  /** 눌러서 사이드 메뉴를 펼친다 */
-  onClick: () => void;
+  /**
+   * 눌러서 사이드 메뉴를 펼친다 · **열 패널이 있는 화면만 준다.**
+   * 없으면 단추가 아니라 그냥 떠 있는 시계가 된다.
+   */
+  onClick?: () => void;
 }
 
 /**
@@ -27,6 +30,7 @@ export function RoundPeekCard({
   onMouseLeave,
   onClick,
 }: RoundPeekCardProps) {
+  const Body = onClick ? "button" : "div";
   return (
     <AnimatePresence>
       {open ? (
@@ -42,20 +46,19 @@ export function RoundPeekCard({
           onMouseEnter={onMouseEnter}
           onMouseLeave={onMouseLeave}
         >
-          <button
-            type="button"
-            onClick={onClick}
+          <Body
+            {...(onClick ? { type: "button" as const, onClick } : {})}
             className={cn(
               "flex w-[172px] flex-col items-center gap-2 rounded-xl border border-line bg-surface px-4 py-4",
               "shadow-[0_12px_32px_-8px_rgb(0_0_0/0.22),0_2px_8px_-4px_rgb(0_0_0/0.12)]",
-              "transition-colors hover:bg-surface-muted",
+              onClick && "transition-colors hover:bg-surface-muted",
             )}
           >
             <span className="text-[10.5px] font-bold tracking-tight text-content-faint">
               경매 시간
             </span>
             <RoundCountdownDial phase={phase} size={96} />
-          </button>
+          </Body>
         </motion.div>
       ) : null}
     </AnimatePresence>

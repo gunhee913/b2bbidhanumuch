@@ -1,18 +1,14 @@
 "use client";
 
 import { Fragment, useMemo, useState } from "react";
-import {
-  Cell,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  Tooltip,
-} from "recharts";
+import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import { parseISO } from "date-fns";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAppTheme } from "@/hooks/useAppTheme";
 import type { AuctionResult } from "@/features/bids/types";
 import { formatWon } from "@/features/live-auction/lib/masking";
+import { SURFACE_SHELL_CLASS } from "@/features/live-auction/constants/surface";
 
 export interface AuctionAnalysisPanelProps {
   /** 이미 기간 필터가 적용된 결과 목록 */
@@ -31,8 +27,14 @@ const KRW = new Intl.NumberFormat("ko-KR");
  *    - 각 행 확장 시 · 반대축 세부 + 요일별 평균단가 차트
  */
 export function AuctionAnalysisPanel({ results }: AuctionAnalysisPanelProps) {
-  const partsBreakdown = useMemo(() => buildPartsWithGrades(results), [results]);
-  const gradesBreakdown = useMemo(() => buildGradesWithParts(results), [results]);
+  const partsBreakdown = useMemo(
+    () => buildPartsWithGrades(results),
+    [results],
+  );
+  const gradesBreakdown = useMemo(
+    () => buildGradesWithParts(results),
+    [results],
+  );
 
   const gradeDist = useMemo(
     () => buildDistribution(results, toFineGrade, GRADE_BUCKETS),
@@ -44,13 +46,18 @@ export function AuctionAnalysisPanel({ results }: AuctionAnalysisPanelProps) {
   );
   const companyDist = useMemo(
     () =>
-      buildDistribution(results, (r) => r.companyName || "미지정", undefined, 6),
+      buildDistribution(
+        results,
+        (r) => r.companyName || "미지정",
+        undefined,
+        6,
+      ),
     [results],
   );
 
   return (
-    <div className="grid gap-4">
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+    <div className="grid gap-2">
+      <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
         <DonutCard title="등급 분포" data={gradeDist} />
         <DonutCard title="부위 분포" data={partDist} />
         <DonutCard title="가공업체 분포" data={companyDist} />
@@ -93,7 +100,11 @@ function toFineGrade(r: AuctionResult): string {
   const parsed = parseGradeParts(g, r.marblingScore);
   if (!parsed) return "기타";
   const { quality, marbling } = parsed;
-  if (quality === "1++" && marbling && (marbling === 9 || marbling === 8 || marbling === 7)) {
+  if (
+    quality === "1++" &&
+    marbling &&
+    (marbling === 9 || marbling === 8 || marbling === 7)
+  ) {
     return `1++(${marbling})`;
   }
   return quality;
@@ -109,7 +120,11 @@ function toFullGrade(r: AuctionResult): string {
   const parsed = parseGradeParts(g, r.marblingScore);
   if (!parsed) return "기타";
   const { quality, yieldG, marbling } = parsed;
-  if (quality === "1++" && marbling && (marbling === 9 || marbling === 8 || marbling === 7)) {
+  if (
+    quality === "1++" &&
+    marbling &&
+    (marbling === 9 || marbling === 8 || marbling === 7)
+  ) {
     return `${quality}${yieldG}(${marbling})`;
   }
   return `${quality}${yieldG}`;
@@ -133,7 +148,7 @@ function parseGradeParts(
   const inline = grade.match(/\((\d)\)/);
   const marbling = inline
     ? Number(inline[1])
-    : (fallbackMarbling ?? null) as number | null;
+    : ((fallbackMarbling ?? null) as number | null);
   return { quality, yieldG, marbling };
 }
 
@@ -148,10 +163,12 @@ function gradeScore(grade: string): number {
   const yieldG = match[2] || "";
   const marbling = match[3] ? Number(match[3]) : 0;
   const qualityRank =
-    ({ "1++": 100, "1+": 90, "1": 80, "2": 70, "3": 60 } as Record<
-      string,
-      number
-    >)[quality] ?? 0;
+    (
+      { "1++": 100, "1+": 90, "1": 80, "2": 70, "3": 60 } as Record<
+        string,
+        number
+      >
+    )[quality] ?? 0;
   const yieldRank =
     ({ A: 3, B: 2, C: 1 } as Record<string, number>)[yieldG] ?? 0;
   return qualityRank * 10000 + marbling * 100 + yieldRank;
@@ -589,9 +606,7 @@ function aggregateGradeRowsByYield(
         wonCount: v.wonCount,
         weight: v.weight,
         avgPrice:
-          v.priceCount > 0
-            ? Math.round(v.priceSumWeighted / v.priceCount)
-            : 0,
+          v.priceCount > 0 ? Math.round(v.priceSumWeighted / v.priceCount) : 0,
         totalAmount: v.totalAmount,
         partItems,
         dowStats,
@@ -658,24 +673,53 @@ function aggregateGradesForDisplay(
 // 뷰 · 카드 · 테이블 · 차트
 // ============================================================
 
-export const DONUT_PALETTE = [
-  "#0f172a", // slate-900
-  "#334155", // slate-700
-  "#64748b", // slate-500
-  "#94a3b8", // slate-400
-  "#cbd5e1", // slate-300
-  "#e2e8f0", // slate-200
-  "#f1f5f9", // slate-100
+/**
+ * 도넛 조각 색 · 무채색 사다리 일곱 단 · 큰 조각이 진하다.
+ *
+ * recharts 는 SVG `fill` 에 값을 직접 받으므로 CSS 변수 토큰을 못 쓴다. 그래서
+ * 명암마다 한 벌씩 손으로 적어 두고 훅이 고른다 (`PartMarketChart` 가 캔버스에
+ * 색을 칠하는 방식과 같다). 값은 `globals.css` 의 글자 사다리에서 따왔지만 그대로
+ * 쓰지는 않았다 — 다크의 `content-soft`(#9898a3)와 `content-faint`(#8d8d98)는
+ * 글자로는 갈라지는 두 단계라도 면으로 나란히 놓으면 한 색으로 보인다.
+ */
+const DONUT_PALETTE_LIGHT = [
+  "#17171c",
+  "#3d3d46",
+  "#6e6e7a",
+  "#9494a0",
+  "#b8b8c2",
+  "#d4d4dc",
+  "#e8e8ee",
 ];
+
+const DONUT_PALETTE_DARK = [
+  "#f2f2f5",
+  "#cbcbd3",
+  "#a3a3ae",
+  "#7d7d8a",
+  "#5c5c68",
+  "#41414b",
+  "#2f2f38",
+];
+
+/** 조각 사이 실선 · 패널 면과 같은 색이라야 「붙어 있지 않다」 로만 읽힌다 */
+const DONUT_STROKE = { light: "#ffffff", dark: "#17171c" } as const;
+
+function useDonutPalette() {
+  const theme = useAppTheme();
+  return theme === "dark"
+    ? { colors: DONUT_PALETTE_DARK, stroke: DONUT_STROKE.dark }
+    : { colors: DONUT_PALETTE_LIGHT, stroke: DONUT_STROKE.light };
+}
 
 /**
  * 요일별 평균 낙찰단가 인라인 차트 (확장 영역 임베드용).
  *
- * 색상 전략:
- * - 최고 평균단가 요일  : sky-600 (브랜드 강조)
- * - 데이터 있는 나머지  : slate-500/600 (강한 대비 · 최댓값 비율에 따라 그라데이션)
- * - 표본 3건 미만       : slate-300 (참고 · 톤 다운)
- * - 데이터 없음         : slate-100 (트랙만 표시)
+ * 막대 톤:
+ * - 최고 평균단가 요일 : 반전면 · 한 눈에 집히는 단 하나
+ * - 나머지             : 최댓값 대비 비율에 따라 글자 사다리 세 단
+ * - 표본 3건 미만      : 제일 묽게 · 숫자는 적되 믿을 것은 못 된다
+ * - 자료 없음          : 막대 없이 점선 바닥만
  */
 function InlineDowAvgPriceChart({ stats }: { stats: DowStat[] }) {
   const maxPrice = Math.max(0, ...stats.map((s) => s.avgPrice));
@@ -694,9 +738,7 @@ function InlineDowAvgPriceChart({ stats }: { stats: DowStat[] }) {
         {hasData && bestDow.avgPrice > 0 ? (
           <span className="text-[11px] tabular-nums text-content-soft">
             최고{" "}
-            <span className="font-bold text-content">
-              {bestDow.label}요일
-            </span>{" "}
+            <span className="font-bold text-content">{bestDow.label}요일</span>{" "}
             <span className="text-content-faint">
               ({KRW.format(bestDow.avgPrice)}원/kg)
             </span>
@@ -716,17 +758,22 @@ function InlineDowAvgPriceChart({ stats }: { stats: DowStat[] }) {
               bestDow &&
               s.label === bestDow.label &&
               !insufficient;
-            // DONUT_PALETTE 와 동일한 slate 계열 단계로 통일 (sky 제거).
-            // 최댓값 대비 비율에 따라 slate 톤 단계 (palette[0]=darkest 부터 사용).
+            /*
+             * 최댓값에 가까울수록 진하다 · 색은 하나도 안 쓴다.
+             *
+             * 글자색 토큰을 면으로 쓰는 건 밝기 사다리가 이미 거기 있어서다.
+             * 명암을 뒤집으면 `--content-*` 가 통째로 뒤집히므로, 어두운 바탕에서도
+             * 「진한 막대 = 높은 값」 이 그대로 뒤집혀 선다.
+             */
             const dataBarClass = isBest
               ? "bg-inverse"
               : insufficient
-                ? "bg-slate-300"
+                ? "bg-content-ghost"
                 : ratio >= 0.9
-                  ? "bg-slate-700"
+                  ? "bg-content-mid"
                   : ratio >= 0.75
-                    ? "bg-slate-500"
-                    : "bg-slate-400";
+                    ? "bg-content-soft"
+                    : "bg-content-faint";
             return (
               <div
                 key={s.label}
@@ -772,13 +819,7 @@ function InlineDowAvgPriceChart({ stats }: { stats: DowStat[] }) {
                 <span
                   className={cn(
                     "text-[10.5px] font-semibold",
-                    isBest
-                      ? "text-content"
-                      : s.label === "일"
-                        ? "text-rose-400"
-                        : s.label === "토"
-                          ? "text-content-soft"
-                          : "text-content-soft",
+                    isBest ? "text-content" : "text-content-soft",
                   )}
                 >
                   {s.label}
@@ -847,9 +888,9 @@ function PartsGradesBreakdown({
     (tab === "parts" ? expandedParts : expandedGrades).has(name);
 
   return (
-    <div className="flex flex-col border border-line bg-surface">
-      {/* 헤더 · 탭 + 카운트 + 육량 통합 토글 (전역 공유) */}
-      <header className="flex items-center justify-between border-b border-line px-4 py-2.5">
+    <div className={cn("flex flex-col", SURFACE_SHELL_CLASS)}>
+      {/* 머리 · 탭 + 건수 + 육량 통합 토글 (두 탭이 함께 쓴다) */}
+      <header className="flex items-center justify-between gap-2 border-b border-line-soft px-3 py-1.5">
         <div className="flex items-center gap-0.5">
           <TabButton
             active={tab === "parts"}
@@ -874,7 +915,7 @@ function PartsGradesBreakdown({
               type="checkbox"
               checked={yieldUnified}
               onChange={(e) => setYieldUnified(e.target.checked)}
-              className="h-3.5 w-3.5 cursor-pointer accent-slate-900"
+              className="h-3.5 w-3.5 cursor-pointer accent-inverse"
             />
             육량등급 통합
           </label>
@@ -888,7 +929,7 @@ function PartsGradesBreakdown({
       ) : (
         <table className="w-full text-[12px] tabular-nums">
           <thead>
-            <tr className="border-b border-line-soft bg-slate-50/80 text-[11px] font-semibold text-content-soft">
+            <tr className="border-b border-line bg-surface-muted text-[11px] font-medium text-content-faint">
               <th className="px-3 py-2 text-left">{nameLabel}</th>
               <th className="px-3 py-2 text-right">낙찰건</th>
               <th className="px-3 py-2 text-right">낙찰중량</th>
@@ -905,7 +946,7 @@ function PartsGradesBreakdown({
                     onClick={() => toggleExpansion(row.name)}
                     className={cn(
                       "cursor-pointer border-b border-line-soft transition-colors last:border-b-0",
-                      open ? "bg-surface-muted" : "hover:bg-slate-50/60",
+                      open ? "bg-surface-accent" : "hover:bg-surface-muted",
                     )}
                   >
                     <td className="truncate px-3 py-2 text-left font-semibold text-content">
@@ -935,9 +976,13 @@ function PartsGradesBreakdown({
                     <tr className="border-b border-line-soft last:border-b-0">
                       <td
                         colSpan={5}
-                        className="border-l-2 border-inverse bg-slate-50/70 px-4 py-4"
+                        className="border-l-2 border-inverse bg-surface-muted px-4 py-4"
                       >
-                        <ExpansionBody row={row} tab={tab} yieldUnified={yieldUnified} />
+                        <ExpansionBody
+                          row={row}
+                          tab={tab}
+                          yieldUnified={yieldUnified}
+                        />
                       </td>
                     </tr>
                   ) : null}
@@ -952,7 +997,7 @@ function PartsGradesBreakdown({
 }
 
 /**
- * 탭 헤더 버튼 · 활성 시 slate-900 + underline, 비활성 시 slate-400.
+ * 탭 머리 단추 · 고른 것만 먹색 + 밑줄 · 나머지는 흐리게.
  */
 function TabButton({
   active,
@@ -969,9 +1014,7 @@ function TabButton({
       onClick={onClick}
       className={cn(
         "relative inline-flex h-8 items-center px-3 text-[13px] font-bold transition-colors",
-        active
-          ? "text-content"
-          : "text-content-faint hover:text-content-mid",
+        active ? "text-content" : "text-content-faint hover:text-content-mid",
       )}
       aria-pressed={active}
     >
@@ -1005,10 +1048,7 @@ function ExpansionBody({
   const items = useMemo<BreakdownRow[]>(
     () =>
       tab === "parts"
-        ? aggregateGradesForDisplay(
-            (row as PartRow).gradeItems,
-            yieldUnified,
-          )
+        ? aggregateGradesForDisplay((row as PartRow).gradeItems, yieldUnified)
         : (row as GradeRow).partItems,
     [row, tab, yieldUnified],
   );
@@ -1080,8 +1120,7 @@ function ExpansionKpiStrip({
   const topByCount = useMemo(
     () =>
       items.reduce<BreakdownRow | null>(
-        (best, cur) =>
-          !best || cur.wonCount > best.wonCount ? cur : best,
+        (best, cur) => (!best || cur.wonCount > best.wonCount ? cur : best),
         null,
       ),
     [items],
@@ -1124,9 +1163,7 @@ function ExpansionKpiStrip({
         label={`최다 낙찰 ${innerLabel}`}
         value={topByCount?.name ?? "-"}
         sub={
-          topByCount
-            ? `${topByCount.wonCount}건 · ${topPct}%`
-            : "데이터 없음"
+          topByCount ? `${topByCount.wonCount}건 · ${topPct}%` : "데이터 없음"
         }
       />
       <ExpansionKpiCard
@@ -1178,12 +1215,17 @@ function ExpansionKpiCard({
   sub?: string;
 }) {
   return (
-    <div className="flex min-w-0 flex-col gap-0.5 border border-line bg-surface px-3 py-2.5">
-      <span className="text-[10px] font-semibold uppercase tracking-wider text-content-faint">
+    <div
+      className={cn(
+        "flex min-w-0 flex-col gap-0.5 px-3 py-2.5",
+        SURFACE_SHELL_CLASS,
+      )}
+    >
+      <span className="text-[11px] font-medium text-content-faint">
         {label}
       </span>
       <span
-        className="truncate text-[14.5px] font-extrabold leading-tight tabular-nums text-content"
+        className="truncate text-[14px] font-bold leading-tight tabular-nums text-content"
         title={value}
       >
         {value}
@@ -1215,6 +1257,8 @@ function BreakdownItemList({
   parentWonCount: number;
   emptyMessage: string;
 }) {
+  const { colors: palette } = useDonutPalette();
+
   if (items.length === 0) {
     return (
       <div className="py-2 text-[11px] text-content-faint">{emptyMessage}</div>
@@ -1228,7 +1272,7 @@ function BreakdownItemList({
           parentWonCount > 0
             ? Math.round((g.wonCount / parentWonCount) * 100)
             : 0;
-        const color = DONUT_PALETTE[i % DONUT_PALETTE.length];
+        const color = palette[i % palette.length];
         const tooltip = `${g.name} · ${g.wonCount}건 (${pct}%) · ${KRW.format(g.weight)}kg · 평균 ${g.avgPrice > 0 ? `${KRW.format(g.avgPrice)}원/kg` : "-"} · ${formatWon(g.totalAmount)}`;
         return (
           <li
@@ -1267,13 +1311,20 @@ function BreakdownItemList({
   );
 }
 
-export function DonutCard({ title, data }: { title: string; data: DistItem[] }) {
+export function DonutCard({
+  title,
+  data,
+}: {
+  title: string;
+  data: DistItem[];
+}) {
+  const { colors, stroke } = useDonutPalette();
   const total = useMemo(
     () => data.reduce((sum, d) => sum + d.count, 0),
     [data],
   );
   return (
-    <div className="border border-line bg-surface">
+    <div className={SURFACE_SHELL_CLASS}>
       <SectionHeader
         title={title}
         right={
@@ -1300,16 +1351,13 @@ export function DonutCard({ title, data }: { title: string; data: DistItem[] }) 
                     cy="50%"
                     innerRadius={38}
                     outerRadius={62}
-                    stroke="#ffffff"
+                    stroke={stroke}
                     strokeWidth={2}
                     startAngle={90}
                     endAngle={-270}
                   >
                     {data.map((entry, i) => (
-                      <Cell
-                        key={entry.name}
-                        fill={DONUT_PALETTE[i % DONUT_PALETTE.length]}
-                      />
+                      <Cell key={entry.name} fill={colors[i % colors.length]} />
                     ))}
                   </Pie>
                   <Tooltip content={<DonutTooltip />} />
@@ -1318,8 +1366,7 @@ export function DonutCard({ title, data }: { title: string; data: DistItem[] }) 
             </div>
             <ul className="flex min-w-0 flex-1 flex-col gap-1.5">
               {data.map((entry, i) => {
-                const hasChildren =
-                  entry.children && entry.children.length > 0;
+                const hasChildren = entry.children && entry.children.length > 0;
                 return (
                   <li
                     key={entry.name}
@@ -1328,8 +1375,7 @@ export function DonutCard({ title, data }: { title: string; data: DistItem[] }) 
                     <span
                       className="h-2.5 w-2.5 shrink-0"
                       style={{
-                        backgroundColor:
-                          DONUT_PALETTE[i % DONUT_PALETTE.length],
+                        backgroundColor: colors[i % colors.length],
                       }}
                       aria-hidden
                     />
@@ -1337,7 +1383,7 @@ export function DonutCard({ title, data }: { title: string; data: DistItem[] }) 
                       className={cn(
                         "min-w-0 flex-1 truncate",
                         hasChildren
-                          ? "cursor-help text-content-mid underline decoration-dotted decoration-slate-400 underline-offset-2"
+                          ? "cursor-help text-content-mid underline decoration-content-faint decoration-dotted underline-offset-2"
                           : "text-content-mid",
                       )}
                       title={
@@ -1357,7 +1403,7 @@ export function DonutCard({ title, data }: { title: string; data: DistItem[] }) 
                     </span>
                     {hasChildren ? (
                       <div className="pointer-events-none absolute right-0 top-full z-20 mt-1 hidden min-w-[180px] border border-line bg-surface p-2 text-[11px] shadow-lg group-hover:block">
-                        <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-content-faint">
+                        <div className="mb-1 text-[11px] font-medium text-content-faint">
                           기타 상세
                         </div>
                         <ul className="flex flex-col gap-0.5 tabular-nums">
@@ -1401,8 +1447,8 @@ function SectionHeader({
   right?: React.ReactNode;
 }) {
   return (
-    <header className="flex items-center justify-between border-b border-line px-4 py-2.5">
-      <span className="text-[13px] font-extrabold text-content">{title}</span>
+    <header className="flex items-center justify-between gap-2 border-b border-line-soft px-3 py-1.5">
+      <span className="text-[13px] font-bold text-content">{title}</span>
       {right}
     </header>
   );
@@ -1429,17 +1475,15 @@ function DonutTooltip({
   const pct = item?.payload?.pct ?? 0;
   const children = item?.payload?.children;
   return (
-    <div className="border border-line bg-surface px-3 py-2 shadow-lg">
+    <div className={cn("px-3 py-2 shadow-lg", SURFACE_SHELL_CLASS)}>
       <div className="text-[11px] font-bold text-content">{name}</div>
       <div className="mt-0.5 flex items-baseline gap-1.5 text-[12px] tabular-nums">
-        <span className="font-bold text-content">
-          {KRW.format(count)}건
-        </span>
+        <span className="font-bold text-content">{KRW.format(count)}건</span>
         <span className="text-content-soft">({pct}%)</span>
       </div>
       {children && children.length > 0 ? (
         <div className="mt-2 border-t border-line-soft pt-1.5">
-          <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-content-faint">
+          <div className="mb-1 text-[11px] font-medium text-content-faint">
             상세
           </div>
           <ul className="flex flex-col gap-0.5 text-[11px] tabular-nums">

@@ -134,24 +134,42 @@ export function ListingSpecSheet({
 }
 
 /**
- * 1열 정의 목록 행 · 라벨 고정폭(56px) + 값 좌측 정렬.
+ * 1열 정의 목록 행 · 라벨 고정폭 + 값 좌측 정렬.
  * 값 열이 한 세로줄에 서서 위→아래 스캔이 빠르다.
+ *
+ * 크기가 둘인 까닭은 이 줄이 서는 판 폭이 두 배 넘게 차이 나서다. 경매장 상세 1열은
+ * 사진·시세와 높이를 나눠 쓰는 좁은 칸이라 작은 쪽이 맞지만, 배송지시 개체 판은 그
+ * 두 배 넘는 폭을 혼자 쓴다 — 거기에 같은 11px 를 두면 남는 자리만 늘고 글자는 작다.
  */
 export function InfoRow({
   label,
+  size = "sm",
   children,
 }: {
   label: string;
+  /** `sm` 좁은 1열 (기본) · `md` 폭이 넉넉한 판 */
+  size?: "sm" | "md";
   children: ReactNode;
 }) {
   const stringValue = typeof children === "string" ? children : null;
+  const md = size === "md";
 
   return (
     <div className="flex min-w-0 items-center gap-3">
-      <dt className="w-14 shrink-0 text-[11px] font-medium text-content-faint">
+      <dt
+        className={cn(
+          "shrink-0 font-medium text-content-faint",
+          md ? "w-16 text-[12px]" : "w-14 text-[11px]",
+        )}
+      >
         {label}
       </dt>
-      <dd className="min-w-0 flex-1 text-[12px] font-semibold text-content">
+      <dd
+        className={cn(
+          "min-w-0 flex-1 font-semibold text-content",
+          md ? "text-[13.5px]" : "text-[12px]",
+        )}
+      >
         {stringValue ? (
           <TruncatedText
             value={stringValue}
