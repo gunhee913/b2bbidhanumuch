@@ -4,13 +4,22 @@ import { resolveAuth } from "@/lib/resolve-auth";
 
 const supabase = getAdminClient();
 
-/** 메모 한 줄 길이 상한 · 쪽지로 읽을 만한 분량까지만 받는다 */
-const BODY_MAX = 500;
+/**
+ * 글 길이 상한 · 대상에 따라 다르다.
+ *
+ * 개체·부위에 붙는 쪽지는 사진 위 작은 칸에서 읽는 것이라 짧게 끊는다. 메모장은
+ * 그날 하루를 통째로 적는 자리라 (「3번 트럭 4시 · 김사장 등심 더 달래」) 훨씬 길다.
+ */
+const BODY_MAX: Record<string, number> = {
+  listing: 500,
+  part: 500,
+  memo: 4000,
+};
 
 /** 날짜 없이 전부 부를 때의 상한 · 최근 것부터 이만큼 (목록을 훑는 데 모자라지 않다) */
 const ALL_NOTES_LIMIT = 300;
 
-const TARGET_TYPES = ["listing", "part"];
+const TARGET_TYPES = Object.keys(BODY_MAX);
 
 export async function GET(request: NextRequest) {
   try {
@@ -109,7 +118,9 @@ export async function PUT(request: NextRequest) {
     }
 
     const trimmed =
-      typeof body === "string" ? body.trim().slice(0, BODY_MAX) : "";
+      typeof body === "string"
+        ? body.trim().slice(0, BODY_MAX[targetType])
+        : "";
 
     if (!trimmed) {
       const { error } = await supabase

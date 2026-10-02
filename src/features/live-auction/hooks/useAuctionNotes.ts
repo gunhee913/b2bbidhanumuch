@@ -4,7 +4,16 @@ import { useCallback, useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRealtimeTable } from "@/hooks/useRealtimeTable";
 
-export type NoteTarget = "listing" | "part";
+/**
+ * 메모가 붙는 자리 · 개체 하나, 부위 하나, 또는 아무 데도.
+ *
+ * `memo` 는 가리키는 것이 없는 그날의 메모장이다 (`id` 는 늘 `day`). 목록을 그리는
+ * 쪽은 `part` 만 걸러 쓰므로 이 한 줄이 목록에 끼어들 일은 없다.
+ */
+export type NoteTarget = "listing" | "part" | "memo";
+
+/** 메모장 열쇠 · 날짜는 `activeDate` 가 들고 있어 하루에 하나면 족하다 */
+export const MEMO_PAD_ID = "day";
 
 export interface NoteRow {
   /** 메모가 붙은 날 · 같은 부위라도 날이 다르면 다른 메모다 */

@@ -28,6 +28,7 @@ import {
   Trash2,
   type LucideProps,
 } from "lucide-react";
+import { useDebounce } from "react-use";
 import { OverlayScroll } from "@/components/ui/overlay-scroll";
 import { cn } from "@/lib/utils";
 import { useBidStore } from "@/stores/bidStore";
@@ -44,7 +45,7 @@ import type { LiveListing } from "../api";
 import { isTypingInto } from "../lib/keyboard";
 import { useDailyBriefing } from "../hooks/useDailyBriefing";
 import { useDeadlineTitle } from "../hooks/useDeadlineTitle";
-import { useAuctionNotes } from "../hooks/useAuctionNotes";
+import { MEMO_PAD_ID, useAuctionNotes } from "../hooks/useAuctionNotes";
 import { useMyBids } from "../hooks/useMyBids";
 import { usePaneResize } from "../hooks/usePaneResize";
 import {
@@ -843,6 +844,75 @@ function NotesPanel({
           </ul>
         </OverlayScroll>
       )}
+      <MemoPad notes={notes} disabled={!listingDate} />
+    </div>
+  );
+}
+
+/** 메모장 길이 상한 · API 와 같은 값 (`dealer-notes` 라우트가 넘치면 잘라 낸다) */
+const MEMO_PAD_MAX = 4000;
+
+/**
+ * 그날의 메모장 · 아무 데도 붙지 않는 말을 적는 칸.
+ *
+ * 위 목록은 「어느 부위에 뭐라고 적었나」 지만, 적고 싶은 말이 늘 소에 붙지는 않는다 —
+ * 「3번 트럭 4시」, 「김사장 등심 더」. 그런 말을 둘 데가 없어 엉뚱한 부위에 붙이면
+ * 그 부위가 마감되는 순간 같이 묻힌다. 여기 적으면 하루 내내 같은 자리에 선다.
+ *
+ * 저장은 손이 멈추면 알아서 · 다른 데를 누르면 바로. 「저장」 단추를 두지 않은 건
+ * 경매 중에 누를 것을 하나라도 줄이려는 것이고, 안 눌러서 날아가는 일도 막는다.
+ * 같은 딜러의 다른 자리에서 고치면 realtime 으로 따라 들어온다 (내가 쓰는 중이 아닐 때만).
+ */
+function MemoPad({
+  notes,
+  disabled,
+}: {
+  notes: ReturnType<typeof useAuctionNotes>;
+  disabled: boolean;
+}) {
+  const saved = notes.get("memo", MEMO_PAD_ID) ?? "";
+  const [draft, setDraft] = useState(saved);
+  /* 내가 고치는 중인가 · 남이 고친 값이 타이핑을 덮어쓰지 않게 막는 빗장 */
+  const dirty = useRef(false);
+
+  useEffect(() => {
+    if (dirty.current) return;
+    setDraft(saved);
+  }, [saved]);
+
+  const commit = useCallback(() => {
+    if (!dirty.current) return;
+    dirty.current = false;
+    notes.save("memo", MEMO_PAD_ID, draft);
+  }, [notes, draft]);
+
+  /* 손이 멈추고 나서 · 글자마다 보내면 한 문장에 쓰기가 스무 번 날아간다 */
+  useDebounce(commit, 900, [draft]);
+
+  return (
+    <div className="shrink-0 border-t border-line-soft px-3 pb-3 pt-2">
+      <div className="mb-1.5 flex items-baseline justify-between gap-2 px-1">
+        <h3 className="text-[12px] font-bold text-content-mid">메모장</h3>
+        {/* 저장했다는 말은 저장 중일 때만 · 평소엔 아무 말도 없는 게 조용하다 */}
+        {notes.saving ? (
+          <span className="text-[11px] font-medium text-content-ghost">
+            저장 중
+          </span>
+        ) : null}
+      </div>
+      <textarea
+        value={draft}
+        disabled={disabled}
+        onChange={(e) => {
+          dirty.current = true;
+          setDraft(e.target.value.slice(0, MEMO_PAD_MAX));
+        }}
+        onBlur={commit}
+        /* 표의 숫자 단축키가 받아 가지 않게 · 여기서는 글자가 글자다 */
+        onKeyDown={(e) => e.stopPropagation()}
+        placeholder="오늘 적어 둘 말"
+        className="h-28 w-full resize-none rounded-lg border border-line bg-field px-2.5 py-2 text-[12.5px] leading-[1.55] text-content placeholder:text-content-ghost focus:border-focus focus:outline-none disabled:opacity-50"
+      />
     </div>
   );
 }
