@@ -70,10 +70,17 @@ export interface PartMarketChartProps {
   /** 카드 바깥 틀에 덧붙인다 · 판에 끼울 때 높이·끄는 동안의 그림자를 부르는 쪽이 쥔다 */
   className?: string;
   /**
-   * 헤더 좌측 slot · 부위명 `<h4>` 를 대체.
-   * `/insight` 는 부위 selector pill 을 여기에 주입해 title/filter 중복 제거.
+   * 헤더 좌측 slot · 부위명 `<h4>` 를 통째로 대체.
    */
   headerLeft?: React.ReactNode;
+  /**
+   * 부위 **이름 자리만** 바꿔 낀다 · 옆의 등급 라벨과 표본 표식은 그대로 둔다.
+   *
+   * `/insight` 시세는 부위 고르개를 여기에 꽂는다. `headerLeft` 로 머리 전체를
+   * 갈아 끼우면 등급 라벨과 「표본」 표식까지 같이 날아가는데, 둘 다 차트 안에서만
+   * 알 수 있는 값이라 바깥에서 되살릴 수가 없다.
+   */
+  partSlot?: React.ReactNode;
   /**
    * 헤더 우측 slot · 기간·집계 토글을 대체한다.
    * 축약형에서 토글이 사라진 자리를 부르는 쪽 필터로 채울 때 쓴다.
@@ -94,11 +101,20 @@ export interface PartMarketChartProps {
   /**
    * 「육량등급 통합」 을 바깥에서 쥔다 · 둘 다 주면 통제 모드, 안 주면 제가 들고 있는다.
    *
-   * `/insight` 시세 방은 표와 차트가 나란히 서 있어 상태가 하나여야 한다. 경매장·
-   * 상세처럼 차트만 있는 자리는 그대로 제 상태를 쓴다.
+   * `/insight` 시세는 화면을 갈아타도 이 값이 풀리지 않아야 해 바깥(`useInsightPrefs`)
+   * 이 쥔다. 경매장·상세처럼 한 번 보고 지나가는 자리는 그대로 제 상태를 쓴다.
    */
   yieldUnified?: boolean;
   onYieldUnifiedChange?: (unified: boolean) => void;
+  /**
+   * 등급 고르개를 바깥에서 준다 · 주면 범례 자리의 **등급 메뉴를 대신**하고 머리
+   * 둘째 줄 오른쪽에 선다.
+   *
+   * `/insight` 시세는 차트 아래에 같은 등급의 일자별 표를 세워 둔다. 등급을 차트가
+   * 혼자 쥐고 있으면 표는 그 선택을 알 길이 없어 위아래가 다른 등급을 보면서 나란히
+   * 서게 된다. 쥐는 쪽을 한 단 위로 올리면 둘이 같은 값을 보고 그린다.
+   */
+  gradeControl?: React.ReactNode;
   /**
    * 기준선 · 선택한 부위의 최저단가 등 "지금 이 값이 시세 대비 어디인가" 를 보여줄 1줄.
    * 먹색 점선 + 우측 축 라벨. null 이면 그리지 않음.
@@ -448,6 +464,7 @@ export function PartMarketChart({
   bordered = true,
   className,
   headerLeft,
+  partSlot,
   headerRight,
   headerAction,
   referencePrice,
@@ -455,6 +472,7 @@ export function PartMarketChart({
   yieldOverride = null,
   yieldUnified: yieldUnifiedProp,
   onYieldUnifiedChange,
+  gradeControl,
   theme,
   compact = false,
 }: PartMarketChartProps) {
@@ -553,9 +571,9 @@ export function PartMarketChart({
   /**
    * 통합이 바뀌면 켜 둔 선을 옮겨 심는다.
    *
-   * 누를 때가 아니라 **값이 바뀐 것을 보고** 움직인다. 통제 모드에서는 이 토글을
-   * 옆 판(부위별 시세 표)이 누를 수도 있어, 누른 쪽에서만 선을 옮기면 표로 켰을 때
-   * 차트가 A·B·C 선을 켜 둔 채 통합 모드로 들어가 아무것도 안 그린다.
+   * 누를 때가 아니라 **값이 바뀐 것을 보고** 움직인다. 통제 모드에서는 바깥에
+   * 담아 둔 값이 되살아나며 바뀔 수도 있어, 누른 쪽에서만 선을 옮기면 차트가
+   * A·B·C 선을 켜 둔 채 통합 모드로 들어가 아무것도 안 그린다.
    *
    * 첫 그림은 이미 맞는 꼴로 세워져 있으므로(`buildInitialLines`) 건너뛴다.
    */
@@ -724,7 +742,7 @@ export function PartMarketChart({
               palette.titleClass,
             )}
           >
-            {normalizedPart}
+            {partSlot ?? normalizedPart}
             {heroLine ? (
               <span
                 className={cn(
@@ -768,17 +786,23 @@ export function PartMarketChart({
         )}
       >
         {/* flex-1 로 두면 토글이 내려가는 대신 범례가 눌려 잘린다 · 제 폭을 갖고 줄을 넘긴다 */}
+        {/* 바깥이 등급을 쥐면 이 자리는 비운다 · 고르개는 오른쪽 묶음 맨 앞에 선다 */}
         <div className="flex items-center gap-2">
-          <LineLegend
-            selected={selectedLines}
-            heroGrade={shownGrade}
-            onToggle={toggleLine}
-            onPickGrade={(g) => (yieldUnified ? toggleLine(g) : toggleGroup(g))}
-            yieldUnified={yieldUnified}
-            palette={palette}
-          />
+          {gradeControl ? null : (
+            <LineLegend
+              selected={selectedLines}
+              heroGrade={shownGrade}
+              onToggle={toggleLine}
+              onPickGrade={(g) =>
+                yieldUnified ? toggleLine(g) : toggleGroup(g)
+              }
+              yieldUnified={yieldUnified}
+              palette={palette}
+            />
+          )}
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
+          {gradeControl}
           <OverlayToggles
             value={overlays}
             onToggle={toggleOverlay}

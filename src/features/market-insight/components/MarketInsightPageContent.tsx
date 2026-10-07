@@ -1,130 +1,44 @@
 "use client";
 
-import { useCallback, useState, type ReactNode } from "react";
-import { format, subDays } from "date-fns";
+import { type ReactNode } from "react";
 import { cn } from "@/lib/utils";
-import { TableScroll } from "@/components/ui/table-scroll";
 import { MainHeader } from "@/features/main/components/MainHeader";
 import {
   CANVAS_BG_CLASS,
   PAGE_GUTTER_CLASS,
 } from "@/features/live-auction/constants/surface";
-import { PeriodFilter } from "@/features/history/components/PeriodFilter";
 import {
   useInsightPrefs,
   useInsightPrefsHydration,
 } from "../hooks/useInsightPrefs";
 import { InsightSideRail, insightShellClass } from "./InsightSideRail";
 import { MarketRoom } from "./MarketRoom";
-import { MyWinsView } from "./MyWinsView";
-import { InsightPlaceholderView } from "./InsightPlaceholderView";
-
-const initialPeriod = () => {
-  const today = format(new Date(), "yyyy-MM-dd");
-  const weekAgo = format(subDays(new Date(), 6), "yyyy-MM-dd");
-  return { startDate: weekAgo, endDate: today };
-};
+import { AuctionStatsRoom } from "./AuctionStatsRoom";
 
 /**
  * `/insight` 분석·통계 PC 페이지 본문.
  *
- * 사이드 레일이 네 화면을 고른다 (`InsightSideRail`) · 시세 / 낙찰분석 / 거래처 /
- * 형질통계. 기간은 넷이 함께 쓴다 — 각도를 바꿀 때마다 다시 잡아야 하면 같은 기간을
- * 네 번 입력하는 일이 된다.
+ * 사이드 레일이 두 화면을 고른다 (`InsightSideRail`) · 시세 / 경매통계.
  *
- * **고르개가 서는 자리는 화면마다 다르다.** 시세 말고 셋은 판이 하나뿐이라 맨 위
- * 띠가 곧 그 판의 머리다. 시세는 표와 차트 두 판이 나란히 선 자리인데, 기간이
- * 정하는 건 왼쪽 표뿐이고 차트는 제 기간 토글로 몇 달 치 흐름을 그린다 — 맨 위에
- * 두면 둘 다 거느리는 것으로 읽혀 「전일」 을 눌렀는데 차트가 반 년을 그대로 그리는
- * 꼴이 된다. 그래서 시세에서는 고르개가 표 머리 안으로 들어간다.
+ * **머리에 기간 띠가 없다.** 남은 둘이 제 기간 고르개를 들고 있어서다 — 시세는
+ * 730일치를 받아 제 토글(1M·3M·6M·1Y·전체)로 자르고, 경매통계는 캘린더와 막대가 곧
+ * 기간이다. 위에 띠를 두면 아무것도 안 거는 장치가 하나 서 있게 된다. 「전일」 을
+ * 눌렀는데 차트는 반 년을 그대로 그리는 꼴이다.
  *
- * 기간은 draft(period) / applied(searchPeriod) 2단이다. 프리셋을 누르면 바로
- * 반영하고, 날짜를 직접 고친 것은 [조회] 로 못 박는다 — 날짜 칸을 한 글자씩 고치는
- * 동안 표가 네 번 다시 그려지지 않게.
+ * 띠를 쓰던 것은 걷어낸 낙찰분석·거래처·형질통계 셋이었다.
  */
 export function MarketInsightPageContent() {
   useInsightPrefsHydration();
   const view = useInsightPrefs((s) => s.view);
 
-  const [period, setPeriod] = useState(initialPeriod);
-  const [searchPeriod, setSearchPeriod] = useState(period);
-
-  const handleSearch = useCallback(() => {
-    setSearchPeriod(period);
-  }, [period]);
-
   return (
     <Shell>
-      {view === "market" ? null : (
-        <PeriodFilter
-          startDate={period.startDate}
-          endDate={period.endDate}
-          onChange={setPeriod}
-          onSearch={handleSearch}
-          className="shrink-0"
-        />
-      )}
+      {view === "market" ? <MarketRoom /> : null}
 
-      {view === "market" ? (
-        <MarketRoom
-          startDate={searchPeriod.startDate}
-          endDate={searchPeriod.endDate}
-          period={{
-            startDate: period.startDate,
-            endDate: period.endDate,
-            onChange: setPeriod,
-            onSearch: handleSearch,
-          }}
-        />
-      ) : null}
-
-      {/*
-       * 시세 말고 셋은 세로로 긴 내용이라 제 판 안에서 구른다 — 창은 한 화면에
-       * 묶여 있다 (경매내역 상장표와 같은 셈).
-       */}
-      {view === "myWins" ? (
-        <Scroller>
-          <MyWinsView
-            startDate={searchPeriod.startDate}
-            endDate={searchPeriod.endDate}
-          />
-        </Scroller>
-      ) : null}
-
-      {view === "partners" ? (
-        <Scroller>
-          <InsightPlaceholderView
-            title="거래처 분석"
-            summary="딴 것을 어디로 보냈는지 거래처 쪽에서 되짚는 자리입니다."
-            items={[
-              "거래처별 물량·금액·부위 쏠림",
-              "기간별 추이 · 늘어난 곳과 끊긴 곳",
-              "배송지시에서 아직 안 정한 것",
-            ]}
-          />
-        </Scroller>
-      ) : null}
-
-      {view === "traits" ? (
-        <Scroller>
-          <InsightPlaceholderView
-            title="형질 통계"
-            summary="등급·근내지방도·육량이 값과 어떻게 맞물리는지 보는 자리입니다."
-            items={[
-              "육질등급 × 근내지방도 단가 분포",
-              "육량등급(A·B·C)별 중량·단가",
-              "도축장·출하월에 따른 형질 차이",
-            ]}
-          />
-        </Scroller>
-      ) : null}
+      {/* 경매통계는 시세와 같이 제 판에 `TableScroll` 을 들고 있다 */}
+      {view === "stats" ? <AuctionStatsRoom /> : null}
     </Shell>
   );
-}
-
-/** 세로로 긴 화면이 쓰는 구르는 자리 · 바깥 높이는 창에 묶여 있다 */
-function Scroller({ children }: { children: ReactNode }) {
-  return <TableScroll>{children}</TableScroll>;
 }
 
 /**

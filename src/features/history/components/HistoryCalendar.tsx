@@ -22,6 +22,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { SURFACE_SHELL_CLASS } from "@/features/live-auction/constants/surface";
+import { computeHeatLevel, HEAT_STYLE, type HeatLevel } from "../lib/heatLevel";
 
 const WEEK_LABELS = ["일", "월", "화", "수", "목", "금", "토"];
 
@@ -36,60 +37,6 @@ const formatCompactKrw = (value: number) =>
   value >= 10_000
     ? `${KRW_FORMATTER.format(Math.round(value / 10_000))}만`
     : KRW_FORMATTER.format(value);
-
-/**
- * 낙찰금액 강도 히트맵 · 다섯 단계.
- *
- * 단계는 `inverse` 한 색의 투명도 사다리로만 만든다. slate-300/500 처럼 팔레트를 박아
- * 두면 라이트에서만 「바탕에서 멀어지는」 방향이 맞고 다크에서는 거꾸로 밝은 회색
- * 덩어리가 떠서 적게 먹은 날이 더 눈에 띄었다. `inverse` 는 두 모드에서 바탕의
- * 반대편이라 어느 쪽이든 짙어지는 방향이 같다 — 라이트는 흰→검정, 다크는 검정→흰.
- *
- * 25% 다음을 75% 로 건너뛴 건 가운데 회색(40~60%)에서는 어떤 글자색을 얹어도 대비가
- * 4.5 를 못 넘겨서다. 셀 안 금액은 11px 라 그 구간을 비워 두고 지나간다.
- */
-type HeatLevel = 0 | 1 | 2 | 3 | 4;
-
-const HEAT_STYLE: Record<
-  HeatLevel,
-  { bg: string; hover: string; text: string }
-> = {
-  0: {
-    bg: "bg-surface",
-    hover: "hover:bg-surface-muted",
-    text: "text-content",
-  },
-  1: {
-    bg: "bg-inverse/10",
-    hover: "hover:bg-inverse/16",
-    text: "text-content",
-  },
-  2: {
-    bg: "bg-inverse/25",
-    hover: "hover:bg-inverse/34",
-    text: "text-content",
-  },
-  3: {
-    bg: "bg-inverse/75",
-    hover: "hover:bg-inverse/85",
-    text: "text-inverse-content",
-  },
-  4: {
-    bg: "bg-inverse",
-    hover: "hover:bg-inverse",
-    text: "text-inverse-content",
-  },
-};
-
-/** 현재 월의 최대 낙찰금액 대비 ratio 를 0~4 단계로 매핑 */
-function computeHeatLevel(amount: number, monthMax: number): HeatLevel {
-  if (amount <= 0 || monthMax <= 0) return 0;
-  const ratio = amount / monthMax;
-  if (ratio > 0.75) return 4;
-  if (ratio > 0.5) return 3;
-  if (ratio > 0.25) return 2;
-  return 1;
-}
 
 export interface CalendarDayStat {
   dateStr: string;
@@ -240,15 +187,12 @@ export function HistoryCalendar({
             ? computeHeatLevel(stat?.wonAmount ?? 0, wonAmountMax)
             : 0;
           const heat = HEAT_STYLE[heatLevel];
-          const isDarkCell = heatLevel >= 3;
           const hasData =
             inMonth && stat && stat.wonCount > 0 && stat.wonAmount > 0;
 
-          const dayNumberColor = !inMonth
-            ? "text-content-ghost"
-            : isDarkCell
-              ? "text-inverse-content"
-              : "text-content";
+          const dayNumberColor = inMonth
+            ? "text-content"
+            : "text-content-ghost";
 
           const cell = (
             <button
@@ -261,10 +205,8 @@ export function HistoryCalendar({
                 heat.bg,
                 heat.hover,
                 !inMonth && "bg-surface-muted",
-                isSelected && [
-                  "z-10 outline outline-[1.5px] -outline-offset-[1.5px]",
-                  isDarkCell ? "outline-inverse-content" : "outline-content",
-                ],
+                isSelected &&
+                  "z-10 outline outline-[1.5px] -outline-offset-[1.5px] outline-content",
               )}
               aria-pressed={isSelected}
               aria-label={
@@ -285,10 +227,7 @@ export function HistoryCalendar({
                 </span>
                 {isToday(day) ? (
                   <span
-                    className={cn(
-                      "h-1.5 w-1.5 rounded-full",
-                      isDarkCell ? "bg-inverse-content" : "bg-focus",
-                    )}
+                    className="h-1.5 w-1.5 rounded-full bg-focus"
                     aria-label="오늘"
                   />
                 ) : null}
@@ -296,12 +235,7 @@ export function HistoryCalendar({
 
               {/* 우하단 · 낙찰금액만 · 건수 등 상세는 hover 카드 */}
               {hasData ? (
-                <span
-                  className={cn(
-                    "mt-auto self-end whitespace-nowrap text-[11px] font-extrabold tabular-nums leading-none -tracking-[0.02em]",
-                    heat.text,
-                  )}
-                >
+                <span className="mt-auto self-end whitespace-nowrap text-[11px] font-extrabold leading-none tabular-nums -tracking-[0.02em] text-content">
                   {formatCompactKrw(stat.wonAmount)}
                 </span>
               ) : null}

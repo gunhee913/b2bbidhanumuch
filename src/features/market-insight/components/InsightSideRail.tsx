@@ -1,13 +1,7 @@
 "use client";
 
 import type { ComponentType } from "react";
-import {
-  BarChart3,
-  ChartLine,
-  PieChart,
-  Users,
-  type LucideProps,
-} from "lucide-react";
+import { CalendarDays, ChartLine, type LucideProps } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PAGE_SHELL_CLASS } from "@/features/live-auction/constants/surface";
 import { sideDockShellClass } from "@/features/side-dock/components/SideDockShell";
@@ -18,11 +12,10 @@ import { useRoundPulse } from "@/features/side-dock/hooks/useRoundPulse";
 import { useInsightPrefs, type InsightView } from "../hooks/useInsightPrefs";
 
 /**
- * 바깥에서 안으로 · 시장 전체 → 그중 내 것 → 내 것을 보낸 곳 → 값을 가르는 형질.
+ * 바깥에서 안으로 · 시장 전체(시세) → 그중 내 것(경매통계).
  *
  * 레일 글자는 네 자를 넘기지 않는다. 칸이 42px 이라 다섯 자부터 옆 칸 위로 번지고,
- * 번지면 네 칸이 한 덩어리로 보여 어느 글자가 어느 칸인지 안 읽힌다. 화면 안에서
- * 쓰는 제 이름(「내 낙찰 분석」 · 「거래처 분석」)은 판 머리가 따로 적는다.
+ * 번지면 두 칸이 한 덩어리로 보여 어느 글자가 어느 칸인지 안 읽힌다.
  */
 const VIEWS: {
   key: InsightView;
@@ -30,9 +23,7 @@ const VIEWS: {
   icon: ComponentType<LucideProps>;
 }[] = [
   { key: "market", label: "시세", icon: ChartLine },
-  { key: "myWins", label: "낙찰분석", icon: PieChart },
-  { key: "partners", label: "거래처", icon: Users },
-  { key: "traits", label: "형질통계", icon: BarChart3 },
+  { key: "stats", label: "경매통계", icon: CalendarDays },
 ];
 
 /**
@@ -81,14 +72,14 @@ export function InsightSideRail() {
             icon={v.icon}
             label={v.label}
             active={view === v.key}
-            /* 보고 있는 칸을 다시 눌러도 그대로 둔다 · 화면은 늘 넷 중 하나여야 한다 */
+            /* 보고 있는 칸을 다시 눌러도 그대로 둔다 · 화면은 늘 둘 중 하나여야 한다 */
             onClick={() => setView(v.key)}
           />
         ))}
         {/*
          * 명암 단추는 경매장·배송지시·경매내역과 같은 자리 · 레일 맨 아래에 선 하나로
-         * 갈라 둔다. 위 넷은 보는 각도고 이것은 내 설정이라, 같은 줄기로 읽히면
-         * 「형질통계 다음에 밝기」 가 된다.
+         * 갈라 둔다. 위 둘은 보는 각도고 이것은 내 설정이라, 같은 줄기로 읽히면
+         * 「경매통계 다음에 밝기」 가 된다.
          */}
         <div className="mt-auto flex flex-col items-center pt-2">
           <span className="mb-1 h-px w-5 bg-line" aria-hidden />

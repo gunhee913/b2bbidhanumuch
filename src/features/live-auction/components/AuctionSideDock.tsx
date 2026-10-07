@@ -50,6 +50,7 @@ import { useMyBids } from "../hooks/useMyBids";
 import { usePaneResize } from "../hooks/usePaneResize";
 import {
   FAV_SECTION_MIN_HEIGHT,
+  MEMO_LIST_MIN_HEIGHT,
   SIDE_DOCK_WIDE_QUERY,
   useSideDock,
   type SideDockTab,
@@ -558,8 +559,10 @@ function FavoritesPanel({
         )}
       </section>
 
-      <FavoriteSplitHandle
+      <PanelSplitHandle
+        label="개체와 부위 사이 높이"
         height={topHeight}
+        grows="above"
         onResize={resize}
         onReset={resetTopHeight}
       />
@@ -749,6 +752,23 @@ function NotesPanel({
 }) {
   const notes = useAuctionNotes(listingDate);
 
+  const padHeight = useSideDock((s) => s.memoPadHeight);
+  const setPadHeight = useSideDock((s) => s.setMemoPadHeight);
+  const resetPadHeight = useSideDock((s) => s.resetMemoPadHeight);
+  const splitRef = useRef<HTMLDivElement>(null);
+
+  /* 끌어 온 px 를 그대로 믿지 않는다 · 위 칸 몫은 지금 패널 높이를 재야 나온다 */
+  const resizePad = useCallback(
+    (px: number) => {
+      const total = splitRef.current?.clientHeight ?? 0;
+      const ceiling = total
+        ? total - MEMO_LIST_MIN_HEIGHT
+        : Number.POSITIVE_INFINITY;
+      setPadHeight(Math.min(px, ceiling));
+    },
+    [setPadHeight],
+  );
+
   /* 차례는 관심과 같은 접수번호 순 · 두 목록을 번갈아 볼 때 눈이 길을 잃지 않게 */
   const rows = useMemo(() => {
     const bodyOf = new Map(
@@ -771,7 +791,7 @@ function NotesPanel({
   }, [notes.rows, listings]);
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <div ref={splitRef} className="flex min-h-0 flex-1 flex-col">
       <PanelSectionHead label="메모" count={rows.length} unit="개" />
       {rows.length === 0 ? (
         <PanelEmpty text="사진 왼쪽 위 「메모」를 누르면 모여요" />
@@ -844,7 +864,16 @@ function NotesPanel({
           </ul>
         </OverlayScroll>
       )}
-      <MemoPad notes={notes} disabled={!listingDate} />
+
+      <PanelSplitHandle
+        label="메모 목록과 메모장 사이 높이"
+        height={padHeight}
+        grows="below"
+        onResize={resizePad}
+        onReset={resetPadHeight}
+      />
+
+      <MemoPad notes={notes} disabled={!listingDate} height={padHeight} />
     </div>
   );
 }
@@ -862,13 +891,17 @@ const MEMO_PAD_MAX = 4000;
  * 저장은 손이 멈추면 알아서 · 다른 데를 누르면 바로. 「저장」 단추를 두지 않은 건
  * 경매 중에 누를 것을 하나라도 줄이려는 것이고, 안 눌러서 날아가는 일도 막는다.
  * 같은 딜러의 다른 자리에서 고치면 realtime 으로 따라 들어온다 (내가 쓰는 중이 아닐 때만).
+ *
+ * 높이는 위 눈금이 쥔다 · 글칸은 제목줄을 빼고 남는 만큼 늘어난다.
  */
 function MemoPad({
   notes,
   disabled,
+  height,
 }: {
   notes: ReturnType<typeof useAuctionNotes>;
   disabled: boolean;
+  height: number;
 }) {
   const saved = notes.get("memo", MEMO_PAD_ID) ?? "";
   const [draft, setDraft] = useState(saved);
@@ -890,8 +923,18 @@ function MemoPad({
   useDebounce(commit, 900, [draft]);
 
   return (
-    <div className="shrink-0 border-t border-line-soft px-3 pb-3 pt-2">
-      <div className="mb-1.5 flex items-baseline justify-between gap-2 px-1">
+    <div
+      /*
+       * 창을 줄이면 담아 둔 px 가 패널보다 커질 수 있다. 그때 목록이 0 이 되지 않게
+       * CSS 가 먼저 막는다 — 다시 늘리면 원래 높이로 돌아온다 (관심 패널과 같은 수법).
+       */
+      style={{
+        height,
+        maxHeight: `calc(100% - ${MEMO_LIST_MIN_HEIGHT}px)`,
+      }}
+      className="flex min-h-0 shrink-0 flex-col px-3 pb-3"
+    >
+      <div className="mb-1.5 flex shrink-0 items-baseline justify-between gap-2 px-1">
         <h3 className="text-[12px] font-bold text-content-mid">메모장</h3>
         {/* 저장했다는 말은 저장 중일 때만 · 평소엔 아무 말도 없는 게 조용하다 */}
         {notes.saving ? (
@@ -911,7 +954,7 @@ function MemoPad({
         /* 표의 숫자 단축키가 받아 가지 않게 · 여기서는 글자가 글자다 */
         onKeyDown={(e) => e.stopPropagation()}
         placeholder="오늘 적어 둘 말"
-        className="h-28 w-full resize-none rounded-lg border border-line bg-field px-2.5 py-2 text-[12.5px] leading-[1.55] text-content placeholder:text-content-ghost focus:border-focus focus:outline-none disabled:opacity-50"
+        className="min-h-0 w-full flex-1 resize-none rounded-lg border border-line bg-field px-2.5 py-2 text-[12.5px] leading-[1.55] text-content placeholder:text-content-ghost focus:border-focus focus:outline-none disabled:opacity-50"
       />
     </div>
   );
@@ -976,25 +1019,33 @@ function FavoriteRow({
 }
 
 /**
- * 개체와 부위 사이 눈금 · 방 안 눈금(`RoomStackSplitter`)과 같은 손놀림, 304px 판용.
+ * 패널 두 칸 사이 눈금 · 방 안 눈금(`RoomStackSplitter`)과 같은 손놀림, 304px 판용.
  *
  * 저 둘과 달리 실선을 함께 둔다. 방에서는 판끼리 테두리가 있어 틈만으로 경계가 읽히지만
- * 여기는 같은 바탕에 목록 두 개가 이어져 있어, 선이 없으면 끌 수 있다는 것 이전에
+ * 여기는 같은 바탕에 칸 두 개가 이어져 있어, 선이 없으면 끌 수 있다는 것 이전에
  * 나뉘어 있다는 것부터 안 보인다.
+ *
+ * `grows` 는 높이를 쥔 칸이 눈금의 어느 쪽에 있느냐다 — 관심은 위 칸(개체)이 쥐고,
+ * 메모는 아래 칸(메모장)이 쥔다. 포인터를 내리면 위 칸이 커지고 아래 칸은 작아지므로
+ * 부호가 뒤집힌다.
  */
-function FavoriteSplitHandle({
+function PanelSplitHandle({
+  label,
   height,
+  grows,
   onResize,
   onReset,
 }: {
+  label: string;
   height: number;
+  grows: "above" | "below";
   onResize: (px: number) => void;
   onReset: () => void;
 }) {
   const { dragging, handlers } = usePaneResize({
     size: height,
     axis: "y",
-    direction: 1,
+    direction: grows === "above" ? 1 : -1,
     onResize,
   });
 
@@ -1002,7 +1053,7 @@ function FavoriteSplitHandle({
     <div
       role="separator"
       aria-orientation="horizontal"
-      aria-label="개체와 부위 사이 높이"
+      aria-label={label}
       title="끌어서 높이 조절 · 두 번 누르면 처음으로"
       {...handlers}
       onDoubleClick={onReset}

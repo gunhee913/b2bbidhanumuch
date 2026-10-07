@@ -10,6 +10,11 @@ export interface SegmentedTabOption {
   title?: string;
   /** 읽어 줄 단축키 · 등급 탭의 숫자키처럼 */
   hotkey?: string;
+  /**
+   * 자리는 지키되 고를 수는 없는 칸 · 아직 오지 않은 달처럼.
+   * 빼 버리면 남은 칸들이 좌우로 밀려 눌러야 할 자리가 매번 달라진다.
+   */
+  disabled?: boolean;
   /** 칸에 그대로 다는 표식 · 방향키가 짚은 칸을 끌어올 때 쓴다 (`data-*`) */
   attrs?: Record<string, string>;
 }
@@ -86,15 +91,18 @@ export function SegmentedTabs({
             role="tab"
             aria-selected={active}
             aria-keyshortcuts={option.hotkey || undefined}
+            disabled={option.disabled}
             title={option.title ?? option.label}
             {...option.attrs}
             onClick={() => onChange(toggleable && active ? "" : option.value)}
             className={cn(
               "whitespace-nowrap rounded-[5px] text-[11px] font-semibold leading-6 tabular-nums transition-colors",
               dense ? "px-1.5" : "px-2",
-              active
-                ? "bg-surface text-content shadow-sm ring-1 ring-line"
-                : "text-content-soft hover:text-content",
+              option.disabled
+                ? "cursor-default text-content-ghost"
+                : active
+                  ? "bg-surface text-content shadow-sm ring-1 ring-line"
+                  : "text-content-soft hover:text-content",
             )}
           >
             {option.label}

@@ -26,6 +26,22 @@ export function formatKrw(value: number | null | undefined): string {
   return NUMBER_FORMATTER.format(Math.round(value));
 }
 
+/**
+ * 자릿수보다 규모가 중요한 자리 · `9,641,085원` 을 `964만원` 으로 줄인다.
+ *
+ * 좁은 패널(304px)과 요약 카드가 같이 쓴다. 억대부터는 소수 한 자리를 남긴다 —
+ * 「2억원」 과 「2.8억원」 은 사만큼 다른데 반올림하면 같은 글자가 된다.
+ */
+export function formatCompactWon(value: number | null | undefined): string {
+  if (value === null || value === undefined) return "-";
+  if (!Number.isFinite(value) || value <= 0) return "-";
+  if (value >= 100_000_000) return `${(value / 100_000_000).toFixed(1)}억원`;
+  if (value >= 10_000) {
+    return `${NUMBER_FORMATTER.format(Math.round(value / 10_000))}만원`;
+  }
+  return `${NUMBER_FORMATTER.format(Math.round(value))}원`;
+}
+
 export function formatWonPerKg(value: number | null | undefined): string {
   if (value === null || value === undefined) return "-";
   if (!Number.isFinite(value) || value <= 0) return "-";

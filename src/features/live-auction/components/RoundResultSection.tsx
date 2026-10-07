@@ -11,6 +11,7 @@ import {
   type RoundPartRow,
   type RoundResultCell,
 } from "../lib/roundResult";
+import { formatCompactWon } from "../lib/masking";
 
 /** 고른 회차를 결과로 보여줄 수 있는 상태인가 */
 export type RoundResultState = "closed" | "pending" | "none";
@@ -285,14 +286,4 @@ function PriceCell({
       {avg == null ? "-" : avg.toLocaleString("ko-KR")}
     </span>
   );
-}
-
-/** 304px 패널에서 9,641,085원은 너무 길다 · 자릿수보다 규모가 중요한 자리 */
-function formatCompactWon(value: number): string {
-  if (!Number.isFinite(value) || value <= 0) return "-";
-  if (value >= 100_000_000) return `${(value / 100_000_000).toFixed(1)}억원`;
-  if (value >= 10_000) {
-    return `${Math.round(value / 10_000).toLocaleString("ko-KR")}만원`;
-  }
-  return `${value.toLocaleString("ko-KR")}원`;
 }

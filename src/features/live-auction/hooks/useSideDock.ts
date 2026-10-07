@@ -30,6 +30,13 @@ export const FAV_SECTION_MIN_HEIGHT = 96;
 /** 위 칸 기본 높이 · 제목줄 + 개체 네 줄 · 나머지는 부위가 가져간다 */
 export const FAV_TOP_DEFAULT_HEIGHT = 268;
 
+/** 메모 목록이 지켜야 할 최소 높이 · 제목줄 + 한 줄 (관심 패널과 같은 뜻) */
+export const MEMO_LIST_MIN_HEIGHT = 96;
+/** 메모장이 지켜야 할 최소 높이 · 제목줄 + 두 줄 · 더 줄이면 적을 수 있다는 게 안 보인다 */
+export const MEMO_PAD_MIN_HEIGHT = 84;
+/** 메모장 기본 높이 · 제목줄 + 다섯 줄 남짓 · 나머지는 목록이 가져간다 */
+export const MEMO_PAD_DEFAULT_HEIGHT = 152;
+
 interface SideDockState {
   open: boolean;
   tab: SideDockTab;
@@ -56,6 +63,13 @@ interface SideDockState {
    * 방 안 눈금이 시세 높이만 쥐는 것과 같은 이유다.
    */
   favTopHeight: number;
+  /**
+   * 메모 패널 아래 칸(메모장) 높이 px · 위 칸(목록)은 남는 만큼 가져간다.
+   *
+   * 관심 패널과 쥐는 쪽이 반대다. 거기는 위 칸이 제 몫을 정하지만 여기는 아래 칸이
+   * 정한다 — 늘리고 싶은 것이 「적을 자리」 이지 「볼 자리」 가 아니기 때문이다.
+   */
+  memoPadHeight: number;
   /** 아이콘 클릭 · 이미 열린 그 탭이면 접고, 아니면 그 탭으로 편다 */
   toggleTab: (tab: SideDockTab) => void;
   /** 토글 없이 항상 편다 · 토스트 액션처럼 "보여 줘" 가 분명한 경로 */
@@ -67,6 +81,9 @@ interface SideDockState {
   /** 위 칸 높이 · 아래 칸 몫은 끄는 쪽에서 재서 넘긴다 */
   setFavTopHeight: (px: number) => void;
   resetFavTopHeight: () => void;
+  /** 메모장 높이 · 위 칸 몫은 끄는 쪽에서 재서 넘긴다 */
+  setMemoPadHeight: (px: number) => void;
+  resetMemoPadHeight: () => void;
 }
 
 /**
@@ -90,6 +107,7 @@ export const useSideDock = create<SideDockState>()(
         })),
       recent: [],
       favTopHeight: FAV_TOP_DEFAULT_HEIGHT,
+      memoPadHeight: MEMO_PAD_DEFAULT_HEIGHT,
       toggleTab: (tab) => {
         const { open, tab: current } = get();
         if (open && current === tab) {
@@ -128,17 +146,28 @@ export const useSideDock = create<SideDockState>()(
       setFavTopHeight: (px) =>
         set({ favTopHeight: Math.max(FAV_SECTION_MIN_HEIGHT, Math.round(px)) }),
       resetFavTopHeight: () => set({ favTopHeight: FAV_TOP_DEFAULT_HEIGHT }),
+      setMemoPadHeight: (px) =>
+        set({ memoPadHeight: Math.max(MEMO_PAD_MIN_HEIGHT, Math.round(px)) }),
+      resetMemoPadHeight: () => set({ memoPadHeight: MEMO_PAD_DEFAULT_HEIGHT }),
     }),
     {
       name: "live-auction-side-dock",
       storage: createJSONStorage(() => localStorage),
       skipHydration: true,
-      partialize: ({ open, tab, hasChosen, recent, favTopHeight }) => ({
+      partialize: ({
         open,
         tab,
         hasChosen,
         recent,
         favTopHeight,
+        memoPadHeight,
+      }) => ({
+        open,
+        tab,
+        hasChosen,
+        recent,
+        favTopHeight,
+        memoPadHeight,
       }),
     },
   ),

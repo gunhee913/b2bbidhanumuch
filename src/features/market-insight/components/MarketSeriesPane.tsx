@@ -1,44 +1,44 @@
 "use client";
 
-import { forwardRef, type CSSProperties, type ReactNode } from "react";
-import { useMeasure } from "react-use";
+import { useState, type CSSProperties } from "react";
 import { cn } from "@/lib/utils";
 import { PartMarketChart } from "@/features/live-auction/components/PartMarketChart";
 import { PaneFocusButton } from "@/features/live-auction/components/PaneFocusButton";
-import { RoomStackSplitter } from "@/features/live-auction/components/RoomStackSplitter";
 import type { YieldGrade } from "@/features/live-auction/lib/buildPartPriceSeries";
 import {
-  CHART_MIN_HEIGHT,
-  DAILY_DEFAULT_HEIGHT,
-  DAILY_MAX_HEIGHT,
-  DAILY_MIN_HEIGHT,
-  useInsightPrefs,
-} from "../hooks/useInsightPrefs";
+  formatGradeWithYield,
+  GRADE_FILTER_OPTIONS,
+} from "@/features/live-auction/lib/grade";
+import { useInsightPrefs } from "../hooks/useInsightPrefs";
+import { GradeTabs } from "./GradeTabs";
 import { MarketDailyTable } from "./MarketDailyTable";
+import { PartPicker } from "./PartPicker";
 
-/** 차트와 일자별 표 사이 틈 · 이 자리를 눈금(`RoomStackSplitter`)이 그대로 쓴다 */
-const STACK_SPLITTER_HEIGHT = 8;
+/**
+ * 차트가 잡아 두는 높이 · 아래 표와 함께 설 때.
+ *
+ * 창 높이를 나눠 갖던 것을 px 로 못 박았다. 이제 화면이 아래로 흐르므로 「남는
+ * 높이」 라는 것이 없다 — 누군가는 숫자를 들고 있어야 하는데, 받은 만큼 세로축이
+ * 펴지는 쪽은 차트다. 420 은 등락이 띠로 뭉개지지 않으면서 아래 표의 첫 서너 줄이
+ * 같은 화면에 걸리는 높이다.
+ */
+const CHART_HEIGHT = 420;
 
 export interface MarketSeriesPaneProps {
-  /** 왼쪽 표에서 짚은 부위 · 없으면 차트가 빈 채로 선다 */
+  /** 고를 수 있는 부위 · 머리의 쪽지가 세운다 */
+  parts: readonly string[];
   partName: string | null;
-  /** 짚은 줄의 등급 (`1++(9)` 꼴) · 차트의 기준 선이 된다 */
-  grade: string | null;
-  /** 짚은 줄의 육량등급 · 통합 중이면 null */
-  yieldGrade: YieldGrade | null;
-  /** 머리에 적을 등급 이름 (`1++A(9)`) */
-  gradeLabel: string | null;
-  /** 표와 함께 쥐는 「육량등급 통합」 · 어느 쪽을 눌러도 양쪽이 움직인다 */
+  onSelectPart: (part: string) => void;
+  /** 화면 바깥에 담아 둔 「육량등급 통합」 · 화면을 갈아타도 풀리지 않는다 */
   yieldUnified: boolean;
   onYieldUnifiedChange: (unified: boolean) => void;
 
   style?: CSSProperties;
   className?: string;
-  headerAction?: ReactNode;
 }
 
 /**
- * 시세 방 오른쪽 열 · 위에 차트, 아래에 그 등급의 일자별 시세.
+ * 시세 화면 · 위에 차트, 아래에 그 등급의 일자별 시세.
  *
  * 둘은 같은 자료를 두 말로 한다. 차트가 모양("두 달째 내리막")을, 표가 값("9월 30일
  * 네 건 95,550원")을 말한다. 입찰가를 정하는 순간에는 둘 다 필요한데, 차트만 있으면
@@ -48,119 +48,91 @@ export interface MarketSeriesPaneProps {
  * 육량·730일) 캐시를 그대로 나눠 쓴다 — 아래 표가 붙었다고 서버를 한 번 더 다녀오지
  * 않는다.
  *
- * 높이는 **일자별 표가 px 로** 쥐고 차트가 남는 만큼을 가져간다. 표는 몇 줄 보이느냐가
- * 전부라 어느 선부터는 더 받아도 그만이지만, 차트는 받은 만큼 세로축이 펴져 같은
- * 등락이 더 또렷해진다.
+ * **고르개는 셋 다 차트 머리에 있다.** 부위는 제목 자리의 쪽지(`PartPicker`),
+ * 등급은 둘째 줄 오른쪽의 탭(`GradeTabs`), 기간·집계는 첫째 줄 오른쪽이다. 셋 중
+ * 앞의 둘을 이 컴포넌트가 쥐는 건 아래 표가 같은 값을 봐야 하기 때문이다 — 차트
+ * 안에 두면 표가 그 선택을 알 길이 없어 위아래가 다른 등급을 그린다.
  *
- * 제 부위 고르개는 없다. 예전엔 머리에 부위 pill 이 있었는데, 표에도 부위가 있어 한
- * 가지를 두 군데서 고르는 꼴이었다 — 둘이 어긋나면 어느 쪽이 참인지 매번 확인해야 했다.
+ * 둘 사이에 눈금이 없다. 화면이 아래로 흐르므로 나눠 가질 높이라는 것이 없고,
+ * 아래로 밀면 표가 끝까지 따라 나온다 — 높이를 잡아 주던 까닭 자체가 사라졌다.
  */
-export const MarketSeriesPane = forwardRef<
-  HTMLDivElement,
-  MarketSeriesPaneProps
->(function MarketSeriesPane(
-  {
-    partName,
-    grade,
-    yieldGrade,
-    gradeLabel,
-    yieldUnified,
-    onYieldUnifiedChange,
-    style,
-    className,
-    headerAction,
-  },
-  ref,
-) {
-  const dailyHeight = useInsightPrefs((s) => s.dailyHeight);
-  const setDailyHeight = useInsightPrefs((s) => s.setDailyHeight);
-  const resetDailyHeight = useInsightPrefs((s) => s.resetDailyHeight);
-  const focus = useInsightPrefs((s) => s.focus);
-  const toggleFocus = useInsightPrefs((s) => s.toggleFocus);
+export function MarketSeriesPane({
+  parts,
+  partName,
+  onSelectPart,
+  yieldUnified,
+  onYieldUnifiedChange,
+  style,
+  className,
+}: MarketSeriesPaneProps) {
+  const chartOnly = useInsightPrefs((s) => s.chartOnly);
+  const toggleChartOnly = useInsightPrefs((s) => s.toggleChartOnly);
 
   /*
-   * 잡아 둔 높이를 지금 창에 맞춰 깎는다 · 저장값은 건드리지 않아 창을 다시 키우면
-   * 원래 자리로 돌아온다 (가로 눈금과 같은 셈).
+   * 등급을 차트가 아니라 여기가 쥔다 · 차트와 아래 표가 같은 값을 보고 그려야 한다.
+   * 차트에는 `gradeOverride`/`yieldOverride` 로 내려보내고, 차트 제 범례는 넘겨받은
+   * 고르개가 대신한다 (`gradeControl`).
    */
-  const [colRef, { height: colHeight }] = useMeasure<HTMLDivElement>();
-  const maxDailyHeight =
-    colHeight > 0
-      ? Math.max(
-          DAILY_MIN_HEIGHT,
-          Math.min(
-            DAILY_MAX_HEIGHT,
-            Math.round(colHeight) - CHART_MIN_HEIGHT - STACK_SPLITTER_HEIGHT,
-          ),
-        )
-      : DAILY_MAX_HEIGHT;
-  const effectiveDailyHeight = Math.min(dailyHeight, maxDailyHeight);
+  const [grade, setGrade] = useState<string>(GRADE_FILTER_OPTIONS[0]);
+  const [yieldGrade, setYieldGrade] = useState<YieldGrade>("A");
 
-  /* 1열은 높이를 재는 쪽과 자리를 옮기는 쪽이 같은 노드를 봐야 한다 */
-  const setRefs = (el: HTMLDivElement | null) => {
-    colRef(el);
-    if (typeof ref === "function") ref(el);
-    else if (ref) ref.current = el;
-  };
-
-  const chartFocused = focus === "chart";
-  const dailyFocused = focus === "daily";
+  /** 합쳐 보는 중이면 육량은 없는 값이다 (A·B·C 를 한 줄로 친 것) */
+  const appliedYield = yieldUnified ? null : yieldGrade;
 
   return (
-    <div ref={setRefs} style={style} className={cn("flex flex-col", className)}>
-      {dailyFocused ? null : (
-        <PartMarketChart
-          partName={partName}
-          listing={null}
-          gradeOverride={grade}
-          yieldOverride={yieldGrade}
-          yieldUnified={yieldUnified}
-          onYieldUnifiedChange={onYieldUnifiedChange}
-          height="fill"
-          className="min-h-0 flex-1"
-          headerAction={
-            <span className="flex items-center">
-              <PaneFocusButton
-                on={chartFocused}
-                label="시세 차트"
-                tone="card"
-                onToggle={() => toggleFocus("chart")}
-              />
-              {headerAction}
-            </span>
-          }
-        />
+    <div
+      style={style}
+      className={cn(
+        "flex min-h-0 flex-col gap-2",
+        /* 차트만 띄운 동안에는 이 열이 창 높이를 다 받아야 캔버스가 늘어난다 */
+        chartOnly && "flex-1",
+        className,
       )}
+    >
+      <PartMarketChart
+        partName={partName}
+        listing={null}
+        gradeOverride={grade}
+        yieldOverride={yieldGrade}
+        yieldUnified={yieldUnified}
+        onYieldUnifiedChange={onYieldUnifiedChange}
+        height={chartOnly ? "fill" : CHART_HEIGHT}
+        className={chartOnly ? "min-h-0 flex-1" : "shrink-0"}
+        partSlot={
+          <PartPicker parts={parts} value={partName} onChange={onSelectPart} />
+        }
+        gradeControl={
+          <GradeTabs
+            grade={grade}
+            onGradeChange={setGrade}
+            yieldGrade={yieldGrade}
+            onYieldChange={setYieldGrade}
+            yieldUnified={yieldUnified}
+          />
+        }
+        headerAction={
+          <PaneFocusButton
+            on={chartOnly}
+            label="시세 차트"
+            tone="card"
+            onToggle={toggleChartOnly}
+          />
+        }
+      />
 
-      {/* 한쪽을 키운 동안에는 나눌 것이 없으므로 눈금도 세우지 않는다 */}
-      {focus === "none" ? (
-        <RoomStackSplitter
-          height={effectiveDailyHeight}
-          sizedBelow
-          defaultHeight={DAILY_DEFAULT_HEIGHT}
-          label="차트와 일자별 시세 사이 높이"
-          onResize={(px) => setDailyHeight(px, maxDailyHeight)}
-          onReset={resetDailyHeight}
-        />
-      ) : null}
-
-      {chartFocused ? null : (
+      {/*
+       * 표에는 전체보기가 없다. 차트를 키우는 것은 「선을 더 펴서 본다」 는 뜻이라
+       * 키운 만큼 더 읽히지만, 표는 키워 봐야 같은 줄이 더 보일 뿐인데 그건 아래로
+       * 미는 것으로 이미 된다.
+       */}
+      {chartOnly ? null : (
         <MarketDailyTable
           partName={partName}
           grade={grade}
-          yieldGrade={yieldGrade}
-          gradeLabel={gradeLabel}
-          style={dailyFocused ? undefined : { height: effectiveDailyHeight }}
-          className={dailyFocused ? "min-h-0 flex-1" : "shrink-0"}
-          headerAction={
-            <PaneFocusButton
-              on={dailyFocused}
-              label="일자별 시세"
-              tone="card"
-              onToggle={() => toggleFocus("daily")}
-            />
-          }
+          yieldGrade={appliedYield}
+          gradeLabel={formatGradeWithYield(grade, appliedYield)}
         />
       )}
     </div>
   );
-});
+}
