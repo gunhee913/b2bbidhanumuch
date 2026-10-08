@@ -16,7 +16,7 @@ import { MarketRoom } from "./MarketRoom";
 import { AuctionStatsRoom } from "./AuctionStatsRoom";
 
 /**
- * `/insight` 분석·통계 PC 페이지 본문.
+ * `/insight` 시세·통계 PC 페이지 본문.
  *
  * 사이드 레일이 두 화면을 고른다 (`InsightSideRail`) · 시세 / 경매통계.
  *

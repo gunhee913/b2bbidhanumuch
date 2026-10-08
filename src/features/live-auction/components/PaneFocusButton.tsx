@@ -28,7 +28,7 @@ export function PaneFocusButton({
   label: string;
   tone: "dark" | "card";
   onToggle: () => void;
-  /** 화면마다 부르는 낱말이 다르다 · 상세 방은 「크게 보기」, 분석·통계는 「전체보기」 */
+  /** 화면마다 부르는 낱말이 다르다 · 상세 방은 「크게 보기」, 시세·통계는 「전체보기」 */
   verb?: string;
   className?: string;
 }) {

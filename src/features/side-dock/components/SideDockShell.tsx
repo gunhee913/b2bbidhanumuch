@@ -1,11 +1,12 @@
 "use client";
 
-import type { ComponentType, ReactNode } from "react";
+import { useRef, type ComponentType, type ReactNode } from "react";
 import { ChevronsLeft, ChevronsRight, type LucideProps } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PAGE_SHELL_CLASS } from "@/features/live-auction/constants/surface";
 import { ShortcutTooltip } from "@/features/live-auction/components/ShortcutTooltip";
 import { SideDockRailItem } from "./SideDockRailItem";
+import { useReserveToastInset } from "../hooks/useToastInset";
 
 /** 레일 폭 · 늘 보인다 */
 export const SIDE_DOCK_RAIL_WIDTH = 56;
@@ -68,6 +69,11 @@ export function SideDockShell<K extends string>({
 }) {
   const main = tabs.filter((t) => !t.footer);
   const footer = tabs.filter((t) => t.footer);
+  const frameRef = useRef<HTMLDivElement>(null);
+  useReserveToastInset(
+    frameRef,
+    SIDE_DOCK_RAIL_WIDTH + (open ? SIDE_DOCK_PANEL_WIDTH : 0),
+  );
 
   return (
     /*
@@ -81,6 +87,7 @@ export function SideDockShell<K extends string>({
      * 떠서 날아 들어온다.
      */
     <div
+      ref={frameRef}
       className={cn(
         "pointer-events-none fixed inset-y-0 left-0 right-0 z-[45] overflow-hidden",
         PAGE_SHELL_CLASS,

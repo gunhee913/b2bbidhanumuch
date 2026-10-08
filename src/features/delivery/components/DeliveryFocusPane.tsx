@@ -15,12 +15,10 @@ import {
   type ViewerMedia,
 } from "@/features/live-auction/components/ListingViewerDialog";
 import {
-  formatDate,
-  formatTraceNo,
-  InfoRow,
-} from "@/features/live-auction/components/ListingSpecSheet";
+  CattleInfoRows,
+  type CattleInfoFacts,
+} from "@/features/live-auction/components/CattleInfoRows";
 import { formatGradeLabel } from "@/features/live-auction/lib/grade";
-import { formatWonPerKg } from "@/features/live-auction/lib/masking";
 import { PaneGripHandle } from "@/features/live-auction/components/PaneGripHandle";
 import { RoomStackSplitter } from "@/features/live-auction/components/RoomStackSplitter";
 import { usePaneReorder } from "@/features/live-auction/hooks/usePaneReorder";
@@ -63,6 +61,24 @@ const CERT_SETTLE_MS = 260;
  * 배송지시 자료는 판정값이 0 이면 「안 적힘」 이다 · 경매장 자료형은 그 자리에 null 을 쓴다.
  * 같은 일곱을 그리는 데 두 규칙을 섞을 수 없어 여기서 한 번 맞춰 준다.
  */
+/** 배송지시 자료는 모르는 값을 0 · 빈 글자로 둔다 · 다섯 줄이 읽는 꼴로 맞춘다 */
+const infoFactsOf = (p: WinningPart): CattleInfoFacts => ({
+  breed: p.breed || null,
+  gender: p.gender || null,
+  grade: p.grade || null,
+  marblingScore: p.marbling || null,
+  monthAge: p.monthAge || null,
+  slaughterHouse: p.slaughterHouse || null,
+  slaughterDate: p.slaughterDate || null,
+  slaughterNo: p.slaughterNo || null,
+  unitPrice: p.unitPrice || null,
+  carcassWeight: p.carcassWeight || null,
+  companyName: p.companyName || null,
+  processDate: p.processDate || null,
+  processWeight: p.processWeight || null,
+  traceNo: p.traceNo || null,
+});
+
 const specValuesOf = (p: WinningPart): JudgedSpecValues => ({
   marblingScore: p.marbling || null,
   meatColor: p.meatColor || null,
@@ -109,8 +125,9 @@ export interface DeliveryFocusPaneProps {
  * 갇히고 가로로는 판의 절반이 남는다. 아래에 깔면 그 60px 를 높이에서 빼앗아 그림이
  * 그만큼 작아지지만, 옆에 세우면 남는 폭을 쓰는 것이라 공짜다.
  *
- * 아래 상세는 거래처가 되묻는 것들이다 — 이력번호·도축장·도축일은 송장과 원산지
- * 표시에 그대로 들어가고, 품종·성별·월령은 「무슨 소냐」 는 전화에 답하는 값이다.
+ * 아래 상세는 거래처가 되묻는 것들을 다섯 묶음으로 적는다 — 개체(무슨 소냐) ·
+ * 도축(어디서 언제) · 경매(얼마에) · 가공(누가 언제 몇 kg 으로) · 이력번호. 도축과
+ * 이력번호는 송장과 원산지 표시에 그대로 들어가, 이력번호는 눌러서 이력제로 바로 간다.
  */
 export function DeliveryFocusPane({
   focused,
@@ -240,30 +257,6 @@ export function DeliveryFocusPane({
   const current = media[safeIdx] ?? null;
   const values = specValuesOf(focused);
 
-  const join = (parts: (string | null)[]) =>
-    parts.filter((v) => v && v !== "-").join(" · ");
-
-  /* 판 머리에도 같은 등급이 있지만 거기 각인은 「지금 짚은 줄」 표시고, 이 줄은 거래처에
-   * 불러 주는 문장이다 — 품종·성별·등급·월령이 전화로 읊는 차례 그대로다 */
-  const animalLine = join([
-    focused.breed,
-    focused.gender,
-    formatGradeLabel(
-      focused.grade,
-      focused.marbling > 0 ? focused.marbling : null,
-    ),
-    focused.monthAge > 0 ? `${focused.monthAge}개월` : null,
-  ]);
-  const slaughterLine = join([
-    focused.slaughterHouse,
-    formatDate(focused.slaughterDate),
-    focused.slaughterNo ? `No.${focused.slaughterNo}` : null,
-  ]);
-  const listingLine = join([
-    focused.companyName,
-    formatDate(focused.listingDate),
-  ]);
-
   const stageCard = (
     <section
       key="stage"
@@ -378,25 +371,7 @@ export function DeliveryFocusPane({
 
       <OverlayScroll autoHideDelay={0} className="min-h-0 flex-1">
         <dl className="flex flex-col gap-2 px-3 py-2.5">
-          <InfoRow label="개체" size="md">
-            {animalLine || "-"}
-          </InfoRow>
-          <InfoRow label="도체중" size="md">
-            {focused.carcassWeight > 0 ? `${focused.carcassWeight}kg` : "-"}
-          </InfoRow>
-          <InfoRow label="도축" size="md">
-            {slaughterLine || "-"}
-          </InfoRow>
-          {/* 지육 한 마리 값이다 · 부위 낙찰단가는 표에 따로 있다 */}
-          <InfoRow label="경락단가" size="md">
-            {formatWonPerKg(focused.unitPrice)}
-          </InfoRow>
-          <InfoRow label="상장" size="md">
-            {listingLine || "-"}
-          </InfoRow>
-          <InfoRow label="이력" size="md">
-            {formatTraceNo(focused.traceNo)}
-          </InfoRow>
+          <CattleInfoRows facts={infoFactsOf(focused)} />
         </dl>
       </OverlayScroll>
     </section>

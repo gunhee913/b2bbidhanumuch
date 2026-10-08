@@ -10,6 +10,12 @@ import { isValid, parseISO, set } from "date-fns";
  * 잠그는 까닭은 자료가 아니라 **그 뒤 일**을 지키기 위해서다. 작업장이 이 목록대로
  * 집어 담기 시작한 뒤에 배송지가 소리 없이 바뀌면 고기가 엉뚱한 집으로 간다.
  */
+/**
+ * 마감을 쓰나 · 꺼 두면 아무것도 잠기지 않고 화면에서도 마감 문구가 빠진다.
+ * 서버(`/api/delivery/assignments`)도 같은 `isDeliveryLocked` 를 타므로 여기 하나로 같이 꺼진다.
+ */
+export const DELIVERY_DEADLINE_ENABLED = false;
+
 export const DELIVERY_DEADLINE_HOUR = 13;
 export const DELIVERY_DEADLINE_MINUTE = 30;
 export const DELIVERY_DEADLINE_LABEL = "13:30";
@@ -37,6 +43,7 @@ export function isDeliveryLocked(
   listingDate: string | null | undefined,
   now: Date = new Date(),
 ): boolean {
+  if (!DELIVERY_DEADLINE_ENABLED) return false;
   const deadline = deliveryDeadline(listingDate);
   if (!deadline) return false;
   return now.getTime() > deadline.getTime();

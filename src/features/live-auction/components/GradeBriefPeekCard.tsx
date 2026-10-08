@@ -50,7 +50,7 @@ export function GradeBriefPeekCard({
             </button>
 
             {/* 위쪽 여백은 닫기 버튼 자리 · 표 머리글이 X 밑으로 내려앉게 한다 */}
-            <GradeListingTable date={date} showDate className="pb-3 pt-9" />
+            <GradeListingTable date={date} className="pb-3 pt-9" />
           </div>
         </motion.div>
       ) : null}

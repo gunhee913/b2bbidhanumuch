@@ -573,6 +573,13 @@
  * 순서로 밀려 이 규칙이 통째로 죽는다.
  */
 [data-sonner-toaster] [data-sonner-toast][data-styled="true"] {
+  /*
+   * 글 토스트는 제 글 길이만큼만 · 토스터 폭(`--width`)은 영수증 표에 맞춘 폭이라,
+   * 「1회차 경매 시작」 한 줄에 그대로 쓰면 오른쪽이 텅 빈 띠가 된다.
+   * 오른쪽에 붙어 서므로(`right: 0`) 줄어도 화면 끝선은 그대로다.
+   */
+  width: auto;
+  max-width: var(--width);
   padding: 14px 36px 14px 16px;
   border-radius: 10px;
   border: 1px solid rgb(var(--line));
@@ -595,6 +602,11 @@
  */
 [data-sonner-toaster] [data-sonner-toast][data-styled="false"] {
   width: var(--width);
+}
+
+/* 사이드 메뉴를 펴고 접을 때 토스트도 같이 미끄러진다 · 패널과 같은 200ms ease-out */
+[data-sonner-toaster] {
+  transition: right 200ms ease-out;
 }
 
 [data-sonner-toast][data-styled="true"] [data-close-button] {

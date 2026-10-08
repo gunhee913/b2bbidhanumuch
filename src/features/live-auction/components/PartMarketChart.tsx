@@ -74,11 +74,11 @@ export interface PartMarketChartProps {
    */
   headerLeft?: React.ReactNode;
   /**
-   * 부위 **이름 자리만** 바꿔 낀다 · 옆의 등급 라벨과 표본 표식은 그대로 둔다.
+   * 부위 **이름 자리만** 바꿔 낀다 · 옆의 등급 라벨은 그대로 둔다.
    *
    * `/insight` 시세는 부위 고르개를 여기에 꽂는다. `headerLeft` 로 머리 전체를
-   * 갈아 끼우면 등급 라벨과 「표본」 표식까지 같이 날아가는데, 둘 다 차트 안에서만
-   * 알 수 있는 값이라 바깥에서 되살릴 수가 없다.
+   * 갈아 끼우면 등급 라벨까지 같이 날아가는데, 차트 안에서만 알 수 있는 값이라
+   * 바깥에서 되살릴 수가 없다.
    */
   partSlot?: React.ReactNode;
   /**
@@ -133,6 +133,20 @@ export interface PartMarketChartProps {
    * 사진을 보다 시세를 한 번 확인하는 자리에서는 조작부가 전부 잉여가 된다.
    */
   compact?: boolean;
+  /**
+   * 상장표 요약의 심플 차트 · 사진 아래에서 시세를 곁눈질하는 자리 (`compact` 전용).
+   *
+   * - 머리 · 부위·등급 / 현재가·전일 대비 두 줄을 차트 왼쪽 위에 얹는다 · 띠를 따로 두지 않아
+   *   그 높이만큼 카드가 준다
+   * - 가격축 눈금 숫자를 걷는다 · 여기서 읽을 값은 「지금 얼마」 하나라 현재가 배지만 남긴다
+   * - 선 끝에 맥박 점 · 선이 끝나는 자리(= 최근 시세)를 짚는다
+   */
+  minimal?: boolean;
+  /**
+   * 아래 거래 건수 막대 · 기본 켬 · 끄면 시세선이 높이를 다 쓴다.
+   * 상장표 요약은 곁눈질 자리라 「얼마냐」 만 읽으면 되고, 건수는 상세 시세에서 본다.
+   */
+  showVolume?: boolean;
 }
 
 const DEFAULT_CHART_HEIGHT = 320;
@@ -142,6 +156,23 @@ const DEFAULT_CHART_HEIGHT = 320;
  */
 const REFERENCE_AUTOSCALE_TOLERANCE = 0.25;
 const REFERENCE_CHIP_EDGE_INSET = 10;
+/**
+ * 심플 차트 선 끝 오른쪽에 비워 두는 폭 · 맥박 점과 현재가 배지가 선다.
+ * 배지 자리(점에서 10 + 일곱 자리 `102,500` 배지 56) 에 바깥 여백 6.
+ */
+const LIVE_TIP_RESERVE_PX = 72;
+/** 점 중심 → 현재가 배지 왼쪽 끝 · 점 반지름 4 + 테두리 2 + 틈 4 */
+const LIVE_TIP_BADGE_OFFSET_PX = 10;
+/**
+ * 심플 차트 시세선이 비워 두는 위쪽 높이 · 왼쪽 위에 얹은 머리(부위·등급 / 현재가 ≈ 45px)
+ * 에 틈 9 를 더했다. 차트 높이가 바뀌어도 머리와의 틈이 같도록 비율이 아니라 px 로 둔다.
+ */
+const BARE_AXIS_HEAD_CLEARANCE_PX = 54;
+/** 시간축 높이를 아직 못 쟀을 때의 어림값 · 글자 11px 기준 */
+const TIME_AXIS_FALLBACK_HEIGHT = 26;
+/** 호버 카드 폭 · 세로선 왼쪽·오른쪽 어느 쪽에 띄울지 이 값으로 정한다 */
+const HOVER_CARD_WIDTH = 164;
+const HOVER_CARD_GAP = 14;
 // 하단 pane · 상장/낙찰 누적 막대 · 옅은 막대(상장) 위에 진한 막대(낙찰) · 채워진 비율이 곧 낙찰률
 /**
  * 시세 pane : 건수 pane 높이 비.
@@ -247,6 +278,8 @@ interface ChartPalette {
   listedBar: string;
   /** 기준선 좌측 HTML 칩 */
   refChipClass: string;
+  /** 심플 차트 호버 카드 · 캔버스보다 한 단 떠 보이는 바탕 */
+  hoverCardClass: string;
   /** 헤더·히어로 등 차트 바깥 텍스트 */
   titleClass: string;
   subTextClass: string;
@@ -280,6 +313,7 @@ export const CHART_PALETTES: Record<ChartTheme, ChartPalette> = {
     volumeBar: "#9494a0", // 낙찰 건수
     listedBar: "#e2e2e7", // 상장 건수
     refChipClass: "border-zinc-300 bg-white/95 text-zinc-900",
+    hoverCardClass: "border-zinc-200 bg-white/95 shadow-lg shadow-zinc-900/10",
     titleClass: "text-zinc-900",
     subTextClass: "text-zinc-500",
     mutedTextClass: "text-zinc-400",
@@ -310,6 +344,7 @@ export const CHART_PALETTES: Record<ChartTheme, ChartPalette> = {
     volumeBar: "#3c3c46",
     listedBar: "#26262d",
     refChipClass: "border-white/15 bg-[#17171c]/90 text-zinc-200",
+    hoverCardClass: "border-white/10 bg-[#24242b]/95 shadow-xl shadow-black/40",
     titleClass: "text-white",
     subTextClass: "text-white/50",
     mutedTextClass: "text-white/35",
@@ -441,8 +476,6 @@ interface LineSeriesData {
   color: string;
   points: PricePoint[];
   latest: number | null;
-  /** 실 자료가 모자라 표본 곡선으로 그린 선인가 */
-  isSample: boolean;
 }
 
 /* ------------------------------------------------------------------ */
@@ -475,6 +508,8 @@ export function PartMarketChart({
   gradeControl,
   theme,
   compact = false,
+  minimal = false,
+  showVolume = true,
 }: PartMarketChartProps) {
   const appTheme = useAppTheme();
   const tone = theme ?? appTheme;
@@ -691,20 +726,11 @@ export function PartMarketChart({
         color: lineColorFor(grade, shownGrade, palette),
         points,
         latest: points[points.length - 1]?.value ?? null,
-        isSample: useDummy,
       };
     });
   }, [orderedLines, queries, granularity, normalizedPart, shownGrade, palette]);
 
   const hasAny = lineSeriesData.some((gs) => gs.points.length > 0);
-  /*
-   * 표본 곡선으로 떨어진 선이 하나라도 있나.
-   *
-   * 말없이 바꿔 그리면 안 된다. 바로 아래 일자별 표는 실 자료만 적는데, 위쪽 선이
-   * 꾸며 낸 값이면 둘이 어긋난 채로 나란히 서서 어느 쪽이 참인지 알 길이 없다.
-   */
-  const anySample = lineSeriesData.some((gs) => gs.isSample);
-
   // 시세 히어로 기준 라인 · 그려지는 등급의 라인 (육량 여러 개면 첫 줄)
   const heroLine = useMemo(
     () =>
@@ -714,14 +740,52 @@ export function PartMarketChart({
     [lineSeriesData, shownGrade],
   );
   const rangeDays = rangeDaysOf(range);
-  const heroStats = useMemo(
+  const minimalHead = compact && minimal;
+  const hoverValue = heroLine
+    ? (hover?.values.get(heroLine.key) ?? null)
+    : null;
+  const pointedStats = useMemo(
     () =>
       buildHeroStats({
         points: heroLine?.points ?? [],
         hoverDate: hover?.date ?? null,
-        hoverValue: heroLine ? (hover?.values.get(heroLine.key) ?? null) : null,
+        hoverValue,
       }),
-    [heroLine, hover],
+    [heroLine, hover, hoverValue],
+  );
+  const latestStats = useMemo(
+    () =>
+      buildHeroStats({
+        points: heroLine?.points ?? [],
+        hoverDate: null,
+        hoverValue: null,
+      }),
+    [heroLine],
+  );
+  // 심플 차트는 짚은 날을 차트 위 카드가 말한다 · 머리는 늘 최근 시세에 머문다
+  const heroStats = minimalHead ? latestStats : pointedStats;
+  const title = headerLeft ?? (
+    <h4
+      className={cn(
+        "flex shrink-0 items-baseline font-bold",
+        minimalHead ? "gap-2 text-[16px] leading-5" : "gap-1.5 text-[13px]",
+        palette.titleClass,
+      )}
+    >
+      {partSlot ?? normalizedPart}
+      {/* 심플 차트는 등급도 부위와 같은 글자색 · 둘이 합쳐 「무엇의 시세인가」 한 이름이다 */}
+      {heroLine ? (
+        <span
+          className={cn(
+            "font-semibold",
+            !minimalHead && "text-[11px]",
+            !minimalHead && palette.mutedTextClass,
+          )}
+        >
+          {formatLineLabel(heroLine.grade, heroLine.yieldG)}
+        </span>
+      ) : null}
+    </h4>
   );
 
   return (
@@ -734,48 +798,33 @@ export function PartMarketChart({
     >
       {/* Row 1 · 부위명(또는 커스텀 slot) + 기준 라인 등급 · 우측 단위 + 기간 + granularity */}
       {/* 좁은 자리(개체 페이지 1열)에서는 오른쪽 묶음이 아랫줄로 내려간다 · 잘리는 것보다 낫다 */}
-      <header className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5 px-3 pt-2.5">
-        {headerLeft ?? (
-          <h4
-            className={cn(
-              "flex items-baseline gap-1.5 text-[13px] font-bold",
-              palette.titleClass,
-            )}
-          >
-            {partSlot ?? normalizedPart}
-            {heroLine ? (
-              <span
-                className={cn(
-                  "text-[11px] font-semibold",
-                  palette.mutedTextClass,
-                )}
-              >
-                {formatLineLabel(heroLine.grade, heroLine.yieldG)}
-              </span>
-            ) : null}
-            {anySample ? <SampleBadge /> : null}
-          </h4>
-        )}
-        {compact ? (
-          headerRight
-        ) : (
-          // 「단위 : 원/kg」 는 바로 아래 현재가가 이미 달고 있어 뺐다 · 좁은 열에서 이 라벨이
-          // 탭을 밀어 눌렀고, 눌린 탭은 글자가 세로로 쪼개졌다
-          <div className="flex shrink-0 items-center gap-2">
-            <RangeTabs value={range} onChange={setRange} />
-            <GranularityTabs value={granularity} onChange={setGranularity} />
-            {headerAction}
-          </div>
-        )}
-      </header>
+      {minimalHead ? null : (
+        <header className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5 px-3 pt-2.5">
+          {title}
+          {compact ? (
+            headerRight
+          ) : (
+            // 「단위 : 원/kg」 는 바로 아래 현재가가 이미 달고 있어 뺐다 · 좁은 열에서 이 라벨이
+            // 탭을 밀어 눌렀고, 눌린 탭은 글자가 세로로 쪼개졌다
+            <div className="flex shrink-0 items-center gap-2">
+              <RangeTabs value={range} onChange={setRange} />
+              <GranularityTabs value={granularity} onChange={setGranularity} />
+              {headerAction}
+            </div>
+          )}
+        </header>
+      )}
 
       {/* Row 1.5 · 시세 히어로 · hover 시 그 시점 값, 아니면 최신값 · 우측 노출 기간 내 고가/저가 + 건수 */}
-      <PriceHero
-        stats={heroStats}
-        granularity={granularity}
-        palette={palette}
-        compact={compact}
-      />
+      {/* 심플 차트는 이 띠를 따로 두지 않는다 · 아래 차트 칸 왼쪽 위에 얹는다 */}
+      {minimalHead ? null : (
+        <PriceHero
+          stats={heroStats}
+          granularity={granularity}
+          palette={palette}
+          compact={compact}
+        />
+      )}
 
       {/* Row 2 · 켜진 등급 범례 + 등급 추가 · 우측 분석 오버레이 토글 + 통합 토글 */}
       {/* 등급 묶음(1++ A B C)은 줄바꿈이 안 되는 덩어리라 좁으면 토글을 아랫줄로 내린다 */}
@@ -844,8 +893,33 @@ export function PartMarketChart({
             overlays={overlays}
             onHover={setHover}
             palette={palette}
+            showVolume={showVolume}
+            bareAxis={minimalHead}
           />
         )}
+        {/*
+         * 머리를 차트 안에 얹어 띠 한 줄 높이를 아낀다 · 시세선은 위쪽 여백(`BARE_AXIS_HEAD_CLEARANCE_PX`)
+         * 만큼 내려와 이 자리를 피한다. 바탕은 비워 둔다 · 격자선이 글자 뒤로 그대로 지나간다.
+         */}
+        {minimalHead ? (
+          <div className="pointer-events-none absolute left-0 top-0 z-10 pt-1">
+            <PriceHero
+              stats={heroStats}
+              granularity={granularity}
+              palette={palette}
+              compact={compact}
+              leading={title}
+            />
+          </div>
+        ) : null}
+        {minimalHead && hasAny && hover && hoverValue !== null ? (
+          <HoverCard
+            stats={pointedStats}
+            x={hover.x}
+            paneWidth={hover.paneWidth}
+            palette={palette}
+          />
+        ) : null}
       </div>
     </div>
   );
@@ -859,6 +933,9 @@ export function PartMarketChart({
 interface ChartHoverInfo {
   date: Date;
   values: Map<LineKey, number>;
+  /** 세로선 x · 시세 pane 기준 (호버 카드를 그 옆에 띄운다) */
+  x: number;
+  paneWidth: number;
 }
 
 interface HeroStats {
@@ -983,11 +1060,17 @@ function PriceHero({
   granularity,
   palette,
   compact,
+  leading,
 }: {
   stats: HeroStats;
   granularity: PriceGranularity;
   palette: ChartPalette;
   compact: boolean;
+  /**
+   * 값 위에 세울 머리 (`minimal`) · 주면 띠의 테두리·여백을 벗고 머리 + 값 두 줄 덩어리만
+   * 남는다 · 차트 왼쪽 위에 얹는 자리는 부르는 쪽이 잡는다.
+   */
+  leading?: React.ReactNode;
 }) {
   const tone = getChangeTone(stats.diff);
   const arrow = tone === "up" ? "▲" : tone === "down" ? "▼" : "";
@@ -996,9 +1079,10 @@ function PriceHero({
   return (
     <div
       className={cn(
-        "flex flex-wrap items-center justify-between gap-x-5 gap-y-2 border-b px-3 pt-2",
-        compact ? "pb-2" : "pb-3",
-        palette.dividerClass,
+        "flex flex-wrap items-center justify-between gap-x-5 gap-y-2",
+        !leading && "border-b px-3 pt-2",
+        !leading && (compact ? "pb-2" : "pb-3"),
+        !leading && palette.dividerClass,
       )}
     >
       {/*
@@ -1009,90 +1093,106 @@ function PriceHero({
       <div
         className={cn(
           "min-w-0",
-          compact ? "flex w-full items-baseline gap-x-2.5" : "shrink-0",
+          leading
+            ? "flex flex-col gap-1.5"
+            : compact
+              ? "flex w-full items-baseline gap-x-2.5"
+              : "shrink-0",
         )}
       >
-        <div className="flex items-baseline gap-1">
-          <span
-            className={cn(
-              "font-bold leading-none tabular-nums tracking-[-0.02em]",
-              // 좁은 요약 레일에서는 28px 가 카드를 다 먹는다 · 값보다 선이 주인공
-              compact ? "text-[20px]" : "text-[28px]",
-              stats.latest === null ? palette.mutedTextClass : toneClass,
-            )}
-          >
-            {stats.latest !== null
-              ? NUMBER_FORMATTER.format(stats.latest)
-              : "—"}
-          </span>
-          <span
-            className={cn(
-              "font-semibold leading-none",
-              compact ? "text-[10.5px]" : "text-[11px]",
-              palette.subTextClass,
-            )}
-          >
-            원/kg
-          </span>
-        </div>
-        {/*
-         * 호버로 값이 바뀌어도 이 줄의 폭이 흔들리면 안 된다 · 폭이 변하면 줄바꿈
-         * 임계를 넘나들며 카드 높이가 튀고, 옆 칸(사진)이 그만큼 커졌다 작아진다.
-         * 자릿수가 늘어도 버티도록 바닥 폭을 주고, 날짜는 차트 축 배지에 맡긴다.
-         *
-         * 축약형은 값과 한 줄이라 그 위험이 더 크다 — 폭을 벌지 않으면 등락이 아래로
-         * 떨어져 방금 없앤 두 줄로 돌아간다. 그래서 캡션을 뺀 자리만큼만 쓴다.
-         */}
-        <div
-          title={compact ? COMPARE_LABEL[granularity] : undefined}
-          className={cn(
-            "flex items-baseline gap-2",
-            compact ? "whitespace-nowrap" : "mt-1.5 min-w-[132px]",
-          )}
-        >
-          {stats.diff !== null && stats.pct !== null ? (
+        {leading}
+        {/* 머리를 위에 세우면 값과 등락은 그 아래 한 줄로 묶인다 · 아니면 이 틀은 없는 셈 */}
+        <div className={leading ? "flex items-baseline gap-x-2.5" : "contents"}>
+          <div className="flex items-baseline gap-1">
             <span
               className={cn(
-                "flex items-baseline gap-1.5 font-semibold leading-none tabular-nums",
-                compact ? "text-[11.5px]" : "text-[12.5px]",
-                toneClass,
+                "font-bold leading-none tabular-nums tracking-[-0.02em]",
+                // 좁은 요약 레일에서는 28px 가 카드를 다 먹는다 · 값보다 선이 주인공
+                // 머리 아래에 서면 머리(16px)보다 한 단 작게 · 무엇의 시세인지가 먼저 읽힌다
+                leading
+                  ? "text-[15px]"
+                  : compact
+                    ? "text-[20px]"
+                    : "text-[28px]",
+                stats.latest === null ? palette.mutedTextClass : toneClass,
               )}
             >
-              <span>
-                {stats.pct > 0 ? "+" : ""}
-                {stats.pct.toFixed(2)}%
-              </span>
-              <span>
-                {arrow} {NUMBER_FORMATTER.format(Math.abs(stats.diff))}
-              </span>
+              {stats.latest !== null
+                ? NUMBER_FORMATTER.format(stats.latest)
+                : "—"}
             </span>
-          ) : (
             <span
               className={cn(
-                "text-[12.5px] leading-none",
-                palette.mutedTextClass,
+                "font-semibold leading-none",
+                compact && !leading ? "text-[10.5px]" : "text-[11px]",
+                palette.subTextClass,
               )}
             >
-              —
+              원/kg
             </span>
-          )}
+          </div>
           {/*
-           * 캡션은 기간을 고를 수 있는 곳에서만 자리값을 한다 — 축약형은 집계가 일 단위로
-           * 못박혀 있어 늘 같은 말을 되풀이하고, 좁은 레일에서 그 폭이 줄바꿈을 부른다.
-           * 눈에서만 걷어내고 읽어 주는 자리에는 남긴다 · 마우스에는 위 `title` 이 답한다.
+           * 호버로 값이 바뀌어도 이 줄의 폭이 흔들리면 안 된다 · 폭이 변하면 줄바꿈
+           * 임계를 넘나들며 카드 높이가 튀고, 옆 칸(사진)이 그만큼 커졌다 작아진다.
+           * 자릿수가 늘어도 버티도록 바닥 폭을 주고, 날짜는 차트 축 배지에 맡긴다.
+           *
+           * 축약형은 값과 한 줄이라 그 위험이 더 크다 — 폭을 벌지 않으면 등락이 아래로
+           * 떨어져 방금 없앤 두 줄로 돌아간다. 그래서 캡션을 뺀 자리만큼만 쓴다.
            */}
-          {compact ? (
-            <span className="sr-only">{COMPARE_LABEL[granularity]}</span>
-          ) : (
-            <span
-              className={cn(
-                "text-[10.5px] leading-none tabular-nums",
-                palette.mutedTextClass,
-              )}
-            >
-              {COMPARE_LABEL[granularity]}
-            </span>
-          )}
+          <div
+            title={compact ? COMPARE_LABEL[granularity] : undefined}
+            className={cn(
+              "flex items-baseline gap-2",
+              compact ? "whitespace-nowrap" : "mt-1.5 min-w-[132px]",
+            )}
+          >
+            {stats.diff !== null && stats.pct !== null ? (
+              <span
+                className={cn(
+                  "flex items-baseline gap-1.5 font-semibold leading-none tabular-nums",
+                  compact ? "text-[11.5px]" : "text-[12.5px]",
+                  toneClass,
+                )}
+              >
+                {/* 심플 차트 머리는 등락폭만 · 비율은 호버 카드가 날마다 말한다 */}
+                {leading ? null : (
+                  <span>
+                    {stats.pct > 0 ? "+" : ""}
+                    {stats.pct.toFixed(2)}%
+                  </span>
+                )}
+                <span>
+                  {arrow} {NUMBER_FORMATTER.format(Math.abs(stats.diff))}
+                </span>
+              </span>
+            ) : (
+              <span
+                className={cn(
+                  "text-[12.5px] leading-none",
+                  palette.mutedTextClass,
+                )}
+              >
+                —
+              </span>
+            )}
+            {/*
+             * 캡션은 기간을 고를 수 있는 곳에서만 자리값을 한다 — 축약형은 집계가 일 단위로
+             * 못박혀 있어 늘 같은 말을 되풀이하고, 좁은 레일에서 그 폭이 줄바꿈을 부른다.
+             * 눈에서만 걷어내고 읽어 주는 자리에는 남긴다 · 마우스에는 위 `title` 이 답한다.
+             */}
+            {compact ? (
+              <span className="sr-only">{COMPARE_LABEL[granularity]}</span>
+            ) : (
+              <span
+                className={cn(
+                  "text-[10.5px] leading-none tabular-nums",
+                  palette.mutedTextClass,
+                )}
+              >
+                {COMPARE_LABEL[granularity]}
+              </span>
+            )}
+          </div>
         </div>
       </div>
 
@@ -1191,6 +1291,13 @@ interface PriceLineChartProps {
   /** 크로스헤어 이동 → 부모 헤더 갱신 · 이탈 시 null */
   onHover: (info: ChartHoverInfo | null) => void;
   palette: ChartPalette;
+  /** 아래 건수 pane 을 세울지 · 끄면 시세 pane 하나가 높이를 다 쓴다 */
+  showVolume: boolean;
+  /**
+   * 심플 차트 (`minimal`) · 가격축 칸을 걷고 선 끝에 맥박 점 + 현재가 배지를 단다.
+   * 선은 A 육량 굵기·색 하나로, 끌기·확대는 끈다.
+   */
+  bareAxis: boolean;
 }
 
 type PriceSeriesApi = ISeriesApi<"Line">;
@@ -1206,8 +1313,12 @@ function PriceLineChart({
   overlays,
   onHover,
   palette,
+  showVolume,
+  bareAxis,
 }: PriceLineChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  /** 선 끝 맥박 점 좌표 · 차트가 그릴 때마다 `LastPointTracker` 가 다시 잰다 */
+  const [tip, setTip] = useState<ChartPoint | null>(null);
   const chartRef = useRef<IChartApi | null>(null);
   /* 차트를 만드는 effect 는 마운트 때 한 번만 돈다 · 그 안에서 최신 값을 읽을 통 */
   const fillRef = useRef(fill);
@@ -1316,6 +1427,10 @@ function PriceLineChart({
       },
       rightPriceScale: {
         borderColor: palette.axisBorder,
+        // 심플 차트는 가격축 칸을 통째로 걷어 격자가 끝까지 간다 · 격자는 숨긴 축의 눈금을
+        // 그대로 쓴다 · 현재가는 선 끝 배지(`LiveTip`), 짚은 날은 호버 카드가 말한다
+        visible: !bareAxis,
+        // 심플 차트는 높이가 정해진 뒤 `applyHeadClearance` 가 위쪽 여백을 다시 잡는다
         scaleMargins: { top: 0.1, bottom: 0.08 },
         entireTextOnly: true,
         ticksVisible: false,
@@ -1329,7 +1444,9 @@ function PriceLineChart({
         ticksVisible: false,
         // 마지막 바 우측 여백 · 마지막값 라벨과 선 끝이 겹치지 않게
         rightOffset: 4,
-        fixRightEdge: true,
+        // 오른쪽 끝을 묶으면 여백이 0 으로 눌린다 · 끝점 맥박 자리는 px 로 띄운다
+        fixRightEdge: !bareAxis,
+        ...(bareAxis ? { rightOffsetPixels: LIVE_TIP_RESERVE_PX } : {}),
         tickMarkFormatter: makeTickFormatter(granularity),
       },
       localization: {
@@ -1343,6 +1460,8 @@ function PriceLineChart({
           color: palette.crosshair,
           width: 1,
           style: LineStyle.Solid,
+          // 날짜는 호버 카드 첫 줄이 말한다
+          labelVisible: !bareAxis,
           labelBackgroundColor: palette.badgeBg,
         },
         horzLine: {
@@ -1350,21 +1469,27 @@ function PriceLineChart({
           labelVisible: false,
         },
       },
-      handleScroll: {
-        // 차트 몸통 마우스 드래그로 좌/우 시간축 팬
-        pressedMouseMove: true,
-        horzTouchDrag: true,
-        // 휠 팬은 끔 (스케일과 명확히 분리하기 위함)
-        mouseWheel: false,
-        vertTouchDrag: false,
-      },
-      handleScale: {
-        // 우측 가격축(Y) · 하단 시간축(X) 잡고 드래그하면 각각 스케일 조절
-        axisPressedMouseMove: true,
-        // 차트 위에서 마우스 휠 → 커서 기준 시간축 줌 인/아웃
-        mouseWheel: true,
-        pinch: true,
-      },
+      // 심플 차트는 곁눈질 자리라 끌기·확대를 다 끈다 · 3개월 창이 그대로 서 있고,
+      // 차트 위에서 굴린 휠은 확대 대신 요약 카드 스크롤로 흘러간다
+      handleScroll: bareAxis
+        ? false
+        : {
+            // 차트 몸통 마우스 드래그로 좌/우 시간축 팬
+            pressedMouseMove: true,
+            horzTouchDrag: true,
+            // 휠 팬은 끔 (스케일과 명확히 분리하기 위함)
+            mouseWheel: false,
+            vertTouchDrag: false,
+          },
+      handleScale: bareAxis
+        ? false
+        : {
+            // 우측 가격축(Y) · 하단 시간축(X) 잡고 드래그하면 각각 스케일 조절
+            axisPressedMouseMove: true,
+            // 차트 위에서 마우스 휠 → 커서 기준 시간축 줌 인/아웃
+            mouseWheel: true,
+            pinch: true,
+          },
       autoSize: false,
       width: el.clientWidth,
       height: fillRef.current ? el.clientHeight : height,
@@ -1466,7 +1591,13 @@ function PriceLineChart({
       // 상단 InfoBar 갱신
       const timeSec = param.time as unknown as number;
       const date = new Date(timeSec * 1000);
-      scheduleHover({ date, values });
+      const timeScale = chart.timeScale();
+      scheduleHover({
+        date,
+        values,
+        x: timeScale.timeToCoordinate(param.time) ?? param.point?.x ?? 0,
+        paneWidth: timeScale.width(),
+      });
     };
 
     chart.subscribeCrosshairMove(handleCrosshairMove);
@@ -1482,10 +1613,12 @@ function PriceLineChart({
       const w = box?.width ?? el.clientWidth;
       /* 세로는 판이 정하므로 여기서 읽는다 · 못 박은 높이면 아래 effect 가 넣는다 */
       const h = fillRef.current ? (box?.height ?? el.clientHeight) : null;
+      const nextHeight = h != null ? Math.max(120, Math.floor(h)) : null;
       chart.applyOptions({
         width: Math.max(240, Math.floor(w)),
-        ...(h != null ? { height: Math.max(120, Math.floor(h)) } : {}),
+        ...(nextHeight != null ? { height: nextHeight } : {}),
       });
+      if (bareAxis && nextHeight != null) applyHeadClearance(chart, nextHeight);
       handleRangeChange();
     });
     ro.observe(el);
@@ -1528,7 +1661,8 @@ function PriceLineChart({
         timeFormatter: makeTimeFormatter(granularity),
       },
     });
-  }, [fill, height, granularity]);
+    if (bareAxis && !fill) applyHeadClearance(chart, height);
+  }, [fill, height, granularity, bareAxis]);
 
   /* ─── 3. 시리즈 재구성 (데이터 변화) ─── */
   useEffect(() => {
@@ -1575,6 +1709,7 @@ function PriceLineChart({
     hoverVolumeLineRef.current = null;
     // 기준선은 시리즈와 함께 제거됨 · ref 만 비움 (아래 4번 effect 가 다시 그림)
     referenceLineRef.current = null;
+    setTip(null);
 
     if (seriesList.length === 0) return;
 
@@ -1590,7 +1725,9 @@ function PriceLineChart({
     seriesList.forEach((gs) => {
       if (gs.points.length === 0) return;
       const isHero = gs.key === heroKey;
-      const styleOpts = getLineStyleOptions(gs.yieldG);
+      // 심플 차트는 선이 하나뿐이라 육량별 굵기·농도로 견줄 상대가 없다 · 개체가 B·C 여도
+      // A 선과 같은 굵기·색으로 그린다 (옅고 가는 선은 「덜 중요한 선」 으로만 읽힌다)
+      const styleOpts = getLineStyleOptions(bareAxis ? "A" : gs.yieldG);
       // 농도는 흰색 혼합(불투명)으로 · rgba 를 쓰면 마지막값 축 라벨이 반투명해져 얼룩짐
       const lineColor = toneColor(gs.color, styleOpts.alpha);
       const lineData: LineData[] = gs.points.map((p) => ({
@@ -1664,6 +1801,16 @@ function PriceLineChart({
       }
     }
 
+    const heroLast = heroPoints[heroPoints.length - 1];
+    if (bareAxis && heroApi && heroLast) {
+      heroApi.attachPrimitive(
+        new LastPointTracker(
+          { time: dateToTime(heroLast.date), value: heroLast.value },
+          setTip,
+        ),
+      );
+    }
+
     // 하단 pane · 상장/낙찰 누적 막대 · 등급 별 합산
     //   옅은 막대 = 상장 건수, 그 위 진한 막대 = 낙찰 건수 → 채워진 비율이 낙찰률, 빈 윗부분이 유찰
     const volumeMap = new Map<
@@ -1694,7 +1841,7 @@ function PriceLineChart({
       color: palette.listedBar,
     }));
 
-    if (volumeData.length > 0) {
+    if (showVolume && volumeData.length > 0) {
       const panes = chart.panes();
       if (panes.length < 2) {
         chart.addPane();
@@ -1769,7 +1916,7 @@ function PriceLineChart({
     return () => cancelAnimationFrame(raf);
     // overlays.band 는 deps 에서 제외 · 아래 3c 에서 그리기만 토글 (시리즈·축 재생성 없음)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [seriesList, heroKey]);
+  }, [seriesList, heroKey, showVolume, bareAxis]);
 
   /* ─── 3c. 낙찰가 범위 표시 토글 · 축 범위는 그대로, 띠만 켜고 끈다 ─── */
   useEffect(() => {
@@ -1790,11 +1937,19 @@ function PriceLineChart({
     const lastDate = firstPoints[firstPoints.length - 1].date;
     const fromDate = new Date(lastDate);
     fromDate.setDate(fromDate.getDate() - rangeDays);
-    chart.timeScale().setVisibleRange({
+    const timeScale = chart.timeScale();
+    timeScale.setVisibleRange({
       from: dateToTime(fromDate),
       to: dateToTime(lastDate),
     });
-  }, [seriesList, rangeDays]);
+    if (!bareAxis) return;
+    // 기간을 맞추면 선 끝이 축에 붙는다 · 맥박 점 자리만큼 왼쪽으로 민다
+    const logical = timeScale.getVisibleLogicalRange();
+    const width = timeScale.width();
+    if (!logical || width <= 0 || logical.to <= logical.from) return;
+    const barSpacing = width / (logical.to - logical.from);
+    timeScale.scrollToPosition(LIVE_TIP_RESERVE_PX / barSpacing, false);
+  }, [seriesList, rangeDays, bareAxis]);
 
   /* ─── 4. 기준선(선택 부위 최저단가) ─────────── */
   useEffect(() => {
@@ -1862,6 +2017,8 @@ function PriceLineChart({
     return () => cancelAnimationFrame(raf);
   }, [seriesList, heroKey, referencePrice, rangeDays, palette.referenceLine]);
 
+  const heroSeries = seriesList.find((s) => s.key === heroKey);
+
   return (
     <div className={cn("relative", fill && "h-full")}>
       <div
@@ -1869,6 +2026,14 @@ function PriceLineChart({
         className={cn("w-full overflow-hidden", fill && "h-full")}
         style={fill ? undefined : { height, minHeight: height }}
       />
+      {tip && heroSeries && heroSeries.latest !== null ? (
+        <LiveTip
+          point={tip}
+          value={heroSeries.latest}
+          color={heroSeries.color}
+          ringColor={palette.canvasBg}
+        />
+      ) : null}
       {referencePrice && refLabel !== null ? (
         <span
           aria-hidden
@@ -2326,24 +2491,6 @@ function OverlayMarker({
   );
 }
 
-/**
- * 표본 자료 표식 · 실 낙찰이 모자라 꾸며 낸 곡선을 그리고 있을 때만 뜬다.
- *
- * 자료가 얇으면 차트가 표본 곡선으로 떨어지는데(`REAL_DATA_MIN_POINTS`), 그 사실을
- * 안 적으면 꾸며 낸 선을 실제 시세로 읽게 된다. 바로 아래 일자별 표는 실 자료만
- * 적으므로 둘이 어긋나 보이기도 한다 — 어긋난 게 아니라 위가 표본이라는 뜻이다.
- */
-function SampleBadge() {
-  return (
-    <span
-      title="실 낙찰 자료가 모자라 표본 곡선을 그리고 있습니다 · 아래 일자별 시세는 실제 값입니다"
-      className="rounded-[3px] border border-line px-1 py-px text-[10px] font-bold text-content-faint"
-    >
-      표본
-    </span>
-  );
-}
-
 function YieldSegmented({
   value,
   onChange,
@@ -2591,6 +2738,247 @@ class BandRenderer implements IPrimitivePaneRenderer {
       ctx.restore();
     });
   }
+}
+
+/* ------------------------------------------------------------------ */
+/*  선 끝 맥박 점 · 심플 차트 (`bareAxis`)                             */
+/* ------------------------------------------------------------------ */
+
+/**
+ * 왼쪽 위에 얹은 머리 아래로 시세선을 내린다 · 여백 비율을 차트 높이에서 거꾸로 구한다.
+ * 비율을 못 박으면 차트가 커질수록 머리 아래 빈 띠도 같이 커져 선이 쓸 높이를 잃는다.
+ */
+function applyHeadClearance(chart: IChartApi, chartHeight: number) {
+  const paneHeight =
+    chartHeight - (chart.timeScale().height() || TIME_AXIS_FALLBACK_HEIGHT);
+  if (paneHeight <= 0) return;
+  chart.priceScale("right").applyOptions({
+    scaleMargins: {
+      top: Math.min(0.5, BARE_AXIS_HEAD_CLEARANCE_PX / paneHeight),
+      bottom: 0.08,
+    },
+  });
+}
+
+/** 시세 pane 안 좌표 · pane 이 캔버스 왼쪽 위에서 시작하므로 감싼 상자 기준과 같다 */
+interface ChartPoint {
+  x: number;
+  y: number;
+}
+
+/**
+ * 시리즈 끝점이 화면 어디에 있는지 알려 준다 · 그리는 것은 없다.
+ *
+ * 차트가 그릴 때마다 다시 재므로 끌기·확대·창 크기·가격축 자동 맞춤이 바뀌어도 점이
+ * 선 끝을 놓치지 않는다. 끝점이 pane 밖으로 밀려나면(지난 시세로 끌었을 때) null.
+ */
+class LastPointTracker implements ISeriesPrimitive<Time> {
+  private chart: IChartApi | null = null;
+  private series: ISeriesApi<SeriesType> | null = null;
+  private reported: ChartPoint | null = null;
+
+  constructor(
+    private readonly point: { time: Time; value: number },
+    private readonly onMove: (point: ChartPoint | null) => void,
+  ) {}
+
+  attached({ chart, series }: SeriesAttachedParameter<Time>) {
+    this.chart = chart;
+    this.series = series;
+  }
+
+  detached() {
+    this.chart = null;
+    this.series = null;
+  }
+
+  updateAllViews() {
+    if (!this.chart || !this.series) return;
+    const timeScale = this.chart.timeScale();
+    const x = timeScale.timeToCoordinate(this.point.time);
+    const y = this.series.priceToCoordinate(this.point.value);
+    const inside = x !== null && y !== null && x >= 0 && x <= timeScale.width();
+    const next = inside ? { x: Math.round(x), y: Math.round(y) } : null;
+    if (next?.x === this.reported?.x && next?.y === this.reported?.y) return;
+    this.reported = next;
+    this.onMove(next);
+  }
+
+  paneViews() {
+    return EMPTY_PANE_VIEWS;
+  }
+}
+
+/**
+ * 맥박 점 + 현재가 배지 · 캔버스 위에 얹은 HTML 이다.
+ * 캔버스에서 돌리면 매 프레임 차트를 통째로 다시 그려야 해, 퍼지는 고리는 CSS 가 맡는다.
+ * 바탕색 테두리는 크로스헤어 마커와 같은 문법 · 선 위에서 점이 떠 보이게 한다.
+ *
+ * 배지는 축 칸이 아니라 점 바로 옆에 붙는다 · 끌어서 선 끝이 움직여도 값이 끝을 따라간다.
+ */
+function LiveTip({
+  point,
+  value,
+  color,
+  ringColor,
+}: {
+  point: ChartPoint;
+  value: number;
+  color: string;
+  ringColor: string;
+}) {
+  return (
+    <>
+      <span
+        aria-hidden
+        className="pointer-events-none absolute z-10 h-2 w-2 -translate-x-1/2 -translate-y-1/2"
+        style={{ left: point.x, top: point.y }}
+      >
+        <span
+          className="absolute inset-0 rounded-full motion-safe:animate-tip-pulse"
+          style={{ backgroundColor: color }}
+        />
+        <span
+          className="absolute inset-0 rounded-full"
+          style={{
+            backgroundColor: color,
+            boxShadow: `0 0 0 2px ${ringColor}`,
+          }}
+        />
+      </span>
+      <span
+        className="pointer-events-none absolute z-10 -translate-y-1/2 whitespace-nowrap rounded-[3px] px-1.5 py-[3px] text-[11px] font-semibold leading-none tabular-nums"
+        style={{
+          left: point.x + LIVE_TIP_BADGE_OFFSET_PX,
+          top: point.y,
+          backgroundColor: color,
+          color: "#ffffff",
+        }}
+      >
+        {formatPriceAxis(value)}
+      </span>
+    </>
+  );
+}
+
+/**
+ * 심플 차트 호버 카드 · 짚은 날의 시세를 세로선 옆에 띄운다.
+ *
+ * 가격축 배지 하나로는 평균가만 읽히고 그날 최고·최저·건수는 볼 길이가 없었다. 머리줄을
+ * 호버에 따라 바꾸면 「지금 얼마」 가 손을 따라 흔들린다 — 머리는 최근 시세에 두고 짚은 날은
+ * 여기서 읽는다. 세로선 오른쪽 자리가 모자라면 왼쪽으로 넘어간다.
+ */
+function HoverCard({
+  stats,
+  x,
+  paneWidth,
+  palette,
+}: {
+  stats: HeroStats;
+  x: number;
+  paneWidth: number;
+  palette: ChartPalette;
+}) {
+  const fitsRight = x + HOVER_CARD_GAP + HOVER_CARD_WIDTH <= paneWidth;
+  const left = fitsRight
+    ? x + HOVER_CARD_GAP
+    : Math.max(0, x - HOVER_CARD_GAP - HOVER_CARD_WIDTH);
+  const toneClass = CHANGE_TONE_CLASS[getChangeTone(stats.diff)];
+
+  return (
+    <div
+      aria-hidden
+      className={cn(
+        "pointer-events-none absolute top-2 z-20 rounded-xl border p-2.5 backdrop-blur-sm",
+        palette.hoverCardClass,
+      )}
+      style={{ left, width: HOVER_CARD_WIDTH }}
+    >
+      <p
+        className={cn(
+          "mb-2 text-[13px] font-bold leading-none tabular-nums",
+          palette.titleClass,
+        )}
+      >
+        {stats.hoverDate
+          ? format(stats.hoverDate, "yyyy.MM.dd(eee)", { locale: ko })
+          : "—"}
+      </p>
+      <dl className="flex flex-col gap-1.5">
+        <HoverCardRow
+          label="평균가"
+          value={formatPriceOrDash(stats.latest)}
+          palette={palette}
+        />
+        <HoverCardRow
+          label="최고가"
+          value={formatPriceOrDash(stats.high)}
+          palette={palette}
+        />
+        <HoverCardRow
+          label="최저가"
+          value={formatPriceOrDash(stats.low)}
+          palette={palette}
+        />
+        <HoverCardRow
+          label="낙찰(상장)"
+          value={formatSettledCount(stats.count, stats.listed)}
+          palette={palette}
+        />
+        <HoverCardRow
+          label="등락률"
+          value={
+            stats.pct !== null
+              ? `${stats.pct > 0 ? "+" : ""}${stats.pct.toFixed(2)}%`
+              : "—"
+          }
+          valueClass={stats.pct !== null ? toneClass : undefined}
+          palette={palette}
+        />
+      </dl>
+    </div>
+  );
+}
+
+function HoverCardRow({
+  label,
+  value,
+  valueClass,
+  palette,
+}: {
+  label: string;
+  value: string;
+  valueClass?: string;
+  palette: ChartPalette;
+}) {
+  return (
+    <div className="flex items-baseline justify-between gap-3 text-[12px] leading-none">
+      <dt className={cn("font-medium", palette.subTextClass)}>{label}</dt>
+      <dd
+        className={cn(
+          "font-semibold tabular-nums",
+          valueClass ?? palette.titleClass,
+        )}
+      >
+        {value}
+      </dd>
+    </div>
+  );
+}
+
+function formatPriceOrDash(price: number | null): string {
+  return price !== null ? formatPriceKRW(price) : "—";
+}
+
+/** `25 / 30건` · 상장 건수를 모르면 낙찰만 */
+function formatSettledCount(
+  count: number | null,
+  listed: number | null,
+): string {
+  if (count === null) return "—";
+  const settled = NUMBER_FORMATTER.format(count);
+  if (!listed) return `${settled}건`;
+  return `${settled} / ${NUMBER_FORMATTER.format(listed)}건`;
 }
 
 /** `#rrggbb` → `rgba(r, g, b, alpha)` */

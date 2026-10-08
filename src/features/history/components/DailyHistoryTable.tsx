@@ -437,15 +437,21 @@ export function DailyHistoryTable({
                 <td
                   className={cn(
                     ROW_H,
-                    "border-t border-line px-2 py-1 text-right tabular-nums",
+                    "whitespace-nowrap border-t border-line px-2 py-1 text-right tabular-nums",
                   )}
                 >
                   <WeightValue weight={summary.committedWeight} muted={false} />
                 </td>
                 <td className="border-t border-line" />
                 <td className="border-t border-line" />
-                <td className="border-t border-line" />
-                <td className="border-t border-line px-2 py-1 text-right tabular-nums">
+                {/*
+                 * 빈 낙찰단가 칸까지 함께 쓴다 · 하루 합계는 천만~억 단위라 줄마다의
+                 * 금액에 맞춘 98px 에 안 들어가 「원」 이 아랫줄로 떨어졌다.
+                 */}
+                <td
+                  colSpan={2}
+                  className="whitespace-nowrap border-t border-line px-2 py-1 text-right tabular-nums"
+                >
                   <Measured
                     value={formatKrw(summary.committedAmount)}
                     unit="원"

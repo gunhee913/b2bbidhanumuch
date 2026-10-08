@@ -36,6 +36,11 @@ import { SideDockRailItem as RailItem } from "@/features/side-dock/components/Si
 import { ThemeRailButton } from "@/features/side-dock/components/ThemeRailButton";
 import { RoundRail } from "@/features/side-dock/components/RoundRail";
 import {
+  SIDE_DOCK_PANEL_WIDTH,
+  SIDE_DOCK_RAIL_WIDTH,
+} from "@/features/side-dock/components/SideDockShell";
+import { useReserveToastInset } from "@/features/side-dock/hooks/useToastInset";
+import {
   PanelEmpty,
   PanelSectionHead,
 } from "@/features/side-dock/components/SideDockPanelParts";
@@ -45,7 +50,17 @@ import type { LiveListing } from "../api";
 import { isTypingInto } from "../lib/keyboard";
 import { useDailyBriefing } from "../hooks/useDailyBriefing";
 import { useDeadlineTitle } from "../hooks/useDeadlineTitle";
-import { MEMO_PAD_ID, useAuctionNotes } from "../hooks/useAuctionNotes";
+import {
+  useAuctionNotes,
+  useMemoPad,
+  type AuctionNotes,
+} from "../hooks/useAuctionNotes";
+import {
+  buildFavoriteRows,
+  buildPartNoteRows,
+  type FavoriteRows,
+  type PartNoteRow,
+} from "../lib/dockRows";
 import { useMyBids } from "../hooks/useMyBids";
 import { usePaneResize } from "../hooks/usePaneResize";
 import {
@@ -84,6 +99,8 @@ interface AuctionSideDockProps {
   /** 관심으로 찍은 것 · 개체는 접수번호, 부위는 UUID · 상장표·부위 표와 같은 목록을 본다 */
   favoriteIds: ReadonlySet<string>;
   onToggleFavorite: (id: string) => void;
+  /** 그날 찍어 둔 관심을 통째로 비운다 */
+  onClearFavorites: () => void;
 }
 
 /**
@@ -107,6 +124,7 @@ export function AuctionSideDock({
   onNavigateListing,
   favoriteIds,
   onToggleFavorite,
+  onClearFavorites,
 }: AuctionSideDockProps) {
   const open = useSideDock((s) => s.open);
   const tab = useSideDock((s) => s.tab);
@@ -115,6 +133,28 @@ export function AuctionSideDock({
   const openTab = useSideDock((s) => s.openTab);
   const setOpen = useSideDock((s) => s.setOpen);
   const applyDefaultOpen = useSideDock((s) => s.applyDefaultOpen);
+  const frameRef = useRef<HTMLDivElement>(null);
+  useReserveToastInset(
+    frameRef,
+    SIDE_DOCK_RAIL_WIDTH + (open ? SIDE_DOCK_PANEL_WIDTH : 0),
+  );
+
+  /*
+   * 관심·메모 줄은 여기서 한 번만 만들어 레일 배지와 패널에 **같은 배열**을 내려보낸다.
+   *
+   * 양쪽이 따로 세면 배지는 3인데 열어 보니 한 줄인 일이 생긴다 — 둘 다 「오늘 상장에
+   * 실제로 있는 것」 만 남기는 거름망을 거쳐야 하는데, 한쪽만 거치면 어긋난다. 메모
+   * 조회도 한 번으로 줄어든다 (훅마다 realtime 채널이 하나씩 열린다).
+   */
+  const notes = useAuctionNotes(listingDate);
+  const favoriteRows = useMemo(
+    () => buildFavoriteRows(listings, favoriteIds),
+    [listings, favoriteIds],
+  );
+  const noteRows = useMemo(
+    () => buildPartNoteRows(listings, notes.rows),
+    [listings, notes.rows],
+  );
 
   // 저장값을 되살린 뒤, 한 번도 직접 고른 적이 없으면 표가 줄어도 넉넉한 넓은 화면만 펼친 채로 시작
   useEffect(() => {
@@ -170,6 +210,7 @@ export function AuctionSideDock({
      * 떠서 날아 들어온다.
      */
     <div
+      ref={frameRef}
       className={cn(
         "pointer-events-none fixed inset-y-0 left-0 right-0 z-[45] overflow-hidden",
         PAGE_SHELL_CLASS,
@@ -226,9 +267,9 @@ export function AuctionSideDock({
           )}
         >
           <FavoritesPanel
-            listings={listings}
-            favoriteIds={favoriteIds}
+            rows={favoriteRows}
             onToggleFavorite={onToggleFavorite}
+            onClear={onClearFavorites}
             onNavigateListing={onNavigateListing}
           />
         </div>
@@ -240,8 +281,8 @@ export function AuctionSideDock({
           )}
         >
           <NotesPanel
-            listings={listings}
-            listingDate={listingDate}
+            rows={noteRows}
+            notes={notes}
             onNavigateListing={onNavigateListing}
           />
         </div>
@@ -322,12 +363,16 @@ export function AuctionSideDock({
           label="관심"
           active={open && tab === "favorites"}
           onClick={() => toggleTab("favorites")}
+          /* 개체와 부위를 합쳐 하나로 · 몇 마리인지는 열어서 본다 */
+          badge={favoriteRows.listings.length + favoriteRows.parts.length}
         />
         <RailItem
           icon={Pencil}
           label="메모"
           active={open && tab === "notes"}
           onClick={() => toggleTab("notes")}
+          /* 부위에 붙은 것만 · 메모장 한 칸은 목록에 없으니 안 센다 */
+          badge={noteRows.length}
         />
         <RailItem
           icon={History}
@@ -458,46 +503,22 @@ function MyBidsRailItem({
  * 실제로 있는 것만 걸러 쓴다 — 담아 둔 뒤 상장이 내려가면 열 곳이 없는 줄이 된다.
  */
 function FavoritesPanel({
-  listings,
-  favoriteIds,
+  rows,
   onToggleFavorite,
+  onClear,
   onNavigateListing,
 }: {
-  listings: LiveListing[];
-  favoriteIds: ReadonlySet<string>;
+  /** 레일 배지와 같은 밑그림 · 방 머리에서 한 번 만든다 (`dockRows`) */
+  rows: FavoriteRows;
   onToggleFavorite: (id: string) => void;
+  onClear: () => void;
   onNavigateListing: (listingId: string, partNo?: number | null) => void;
 }) {
+  const { listings: listingRows, parts: partRows } = rows;
   const topHeight = useSideDock((s) => s.favTopHeight);
   const setTopHeight = useSideDock((s) => s.setFavTopHeight);
   const resetTopHeight = useSideDock((s) => s.resetFavTopHeight);
   const splitRef = useRef<HTMLDivElement>(null);
-
-  /* 차례는 찍은 순서가 아니라 접수번호 순이다. 찍은 순서로 두면 같은 개체가 상장표에서는
-     위쪽, 여기서는 아래쪽에 있어 두 목록을 번갈아 볼 때 눈이 자꾸 길을 잃는다. */
-  const listingRows = useMemo(
-    () =>
-      listings
-        .filter((l) => favoriteIds.has(l.listingNo))
-        .sort((a, b) => a.listingNo.localeCompare(b.listingNo)),
-    [listings, favoriteIds],
-  );
-
-  const partRows = useMemo(
-    () =>
-      listings
-        .flatMap((listing) =>
-          listing.parts
-            .filter((part) => favoriteIds.has(part.id))
-            .map((part) => ({ listing, part })),
-        )
-        .sort(
-          (a, b) =>
-            a.listing.listingNo.localeCompare(b.listing.listingNo) ||
-            a.part.partNo - b.part.partNo,
-        ),
-    [listings, favoriteIds],
-  );
 
   /* 끌어 온 px 를 그대로 믿지 않는다 · 아래 칸 몫은 지금 패널 높이를 재야 나온다 */
   const resize = useCallback(
@@ -524,7 +545,22 @@ function FavoritesPanel({
         }}
         className="flex min-h-0 shrink-0 flex-col"
       >
-        <PanelSectionHead label="개체" count={listingRows.length} unit="두" />
+        <PanelSectionHead
+          label="개체"
+          count={listingRows.length}
+          unit="두"
+          /*
+           * 「전체 삭제」 는 개체만이 아니라 **판 전체**를 비운다. 판에 머리가 따로
+           * 없어 위 칸 머리에 얹는데, 그 자리가 곧 판의 오른쪽 위다. 어디까지
+           * 지우는지는 누른 뒤 물음말이 두 칸을 모두 적어 밝힌다.
+           */
+          action={
+            <ClearFavoritesButton
+              count={listingRows.length + partRows.length}
+              onClear={onClear}
+            />
+          }
+        />
         {listingRows.length === 0 ? (
           <PanelEmpty text="상장표 접수번호 옆 별을 누르면 모여요" />
         ) : (
@@ -742,16 +778,16 @@ function BidStepPicker() {
  * 오늘 상장에 없는 것은 거른다 — 메모를 남긴 뒤 상장이 내려가면 열 곳이 없는 줄이 된다.
  */
 function NotesPanel({
-  listings,
-  listingDate,
+  rows,
+  notes,
   onNavigateListing,
 }: {
-  listings: LiveListing[];
-  listingDate: string | null;
+  /** 레일 배지와 같은 밑그림 · 방 머리에서 한 번 만든다 (`dockRows`) */
+  rows: PartNoteRow[];
+  /** 지우기에 쓴다 · 조회는 방 머리가 이미 걸어 뒀다 */
+  notes: AuctionNotes;
   onNavigateListing: (listingId: string, partNo?: number | null) => void;
 }) {
-  const notes = useAuctionNotes(listingDate);
-
   const padHeight = useSideDock((s) => s.memoPadHeight);
   const setPadHeight = useSideDock((s) => s.setMemoPadHeight);
   const resetPadHeight = useSideDock((s) => s.resetMemoPadHeight);
@@ -768,27 +804,6 @@ function NotesPanel({
     },
     [setPadHeight],
   );
-
-  /* 차례는 관심과 같은 접수번호 순 · 두 목록을 번갈아 볼 때 눈이 길을 잃지 않게 */
-  const rows = useMemo(() => {
-    const bodyOf = new Map(
-      notes.rows
-        .filter((n) => n.targetType === "part")
-        .map((n) => [n.targetId, n.body]),
-    );
-    if (bodyOf.size === 0) return [];
-    return listings
-      .flatMap((listing) =>
-        listing.parts
-          .filter((part) => bodyOf.has(part.id))
-          .map((part) => ({ listing, part, body: bodyOf.get(part.id)! })),
-      )
-      .sort(
-        (a, b) =>
-          a.listing.listingNo.localeCompare(b.listing.listingNo) ||
-          a.part.partNo - b.part.partNo,
-      );
-  }, [notes.rows, listings]);
 
   return (
     <div ref={splitRef} className="flex min-h-0 flex-1 flex-col">
@@ -873,7 +888,7 @@ function NotesPanel({
         onReset={resetPadHeight}
       />
 
-      <MemoPad notes={notes} disabled={!listingDate} height={padHeight} />
+      <MemoPad height={padHeight} />
     </div>
   );
 }
@@ -882,11 +897,15 @@ function NotesPanel({
 const MEMO_PAD_MAX = 4000;
 
 /**
- * 그날의 메모장 · 아무 데도 붙지 않는 말을 적는 칸.
+ * 메모장 · 아무 데도 붙지 않는 말을 적는 칸.
  *
  * 위 목록은 「어느 부위에 뭐라고 적었나」 지만, 적고 싶은 말이 늘 소에 붙지는 않는다 —
  * 「3번 트럭 4시」, 「김사장 등심 더」. 그런 말을 둘 데가 없어 엉뚱한 부위에 붙이면
- * 그 부위가 마감되는 순간 같이 묻힌다. 여기 적으면 하루 내내 같은 자리에 선다.
+ * 그 부위가 마감되는 순간 같이 묻힌다.
+ *
+ * **날이 바뀌어도 적어 둔 것이 그대로 있다** (`MEMO_PAD_DATE`). 위 목록은 그날 것만
+ * 남지만 여기는 아니다 — 「김사장 등심 계속 찾음」 같은 말은 하루짜리가 아닌데 날마다
+ * 새 칸이 열리면 어제 것을 보려고 달력을 거슬러야 하고, 그러느니 안 적게 된다.
  *
  * 저장은 손이 멈추면 알아서 · 다른 데를 누르면 바로. 「저장」 단추를 두지 않은 건
  * 경매 중에 누를 것을 하나라도 줄이려는 것이고, 안 눌러서 날아가는 일도 막는다.
@@ -894,16 +913,9 @@ const MEMO_PAD_MAX = 4000;
  *
  * 높이는 위 눈금이 쥔다 · 글칸은 제목줄을 빼고 남는 만큼 늘어난다.
  */
-function MemoPad({
-  notes,
-  disabled,
-  height,
-}: {
-  notes: ReturnType<typeof useAuctionNotes>;
-  disabled: boolean;
-  height: number;
-}) {
-  const saved = notes.get("memo", MEMO_PAD_ID) ?? "";
+function MemoPad({ height }: { height: number }) {
+  const pad = useMemoPad();
+  const saved = pad.body;
   const [draft, setDraft] = useState(saved);
   /* 내가 고치는 중인가 · 남이 고친 값이 타이핑을 덮어쓰지 않게 막는 빗장 */
   const dirty = useRef(false);
@@ -916,8 +928,8 @@ function MemoPad({
   const commit = useCallback(() => {
     if (!dirty.current) return;
     dirty.current = false;
-    notes.save("memo", MEMO_PAD_ID, draft);
-  }, [notes, draft]);
+    pad.save(draft);
+  }, [pad, draft]);
 
   /* 손이 멈추고 나서 · 글자마다 보내면 한 문장에 쓰기가 스무 번 날아간다 */
   useDebounce(commit, 900, [draft]);
@@ -937,7 +949,7 @@ function MemoPad({
       <div className="mb-1.5 flex shrink-0 items-baseline justify-between gap-2 px-1">
         <h3 className="text-[12px] font-bold text-content-mid">메모장</h3>
         {/* 저장했다는 말은 저장 중일 때만 · 평소엔 아무 말도 없는 게 조용하다 */}
-        {notes.saving ? (
+        {pad.saving ? (
           <span className="text-[11px] font-medium text-content-ghost">
             저장 중
           </span>
@@ -945,7 +957,6 @@ function MemoPad({
       </div>
       <textarea
         value={draft}
-        disabled={disabled}
         onChange={(e) => {
           dirty.current = true;
           setDraft(e.target.value.slice(0, MEMO_PAD_MAX));
@@ -953,10 +964,32 @@ function MemoPad({
         onBlur={commit}
         /* 표의 숫자 단축키가 받아 가지 않게 · 여기서는 글자가 글자다 */
         onKeyDown={(e) => e.stopPropagation()}
-        placeholder="오늘 적어 둘 말"
-        className="min-h-0 w-full flex-1 resize-none rounded-lg border border-line bg-field px-2.5 py-2 text-[12.5px] leading-[1.55] text-content placeholder:text-content-ghost focus:border-focus focus:outline-none disabled:opacity-50"
+        placeholder="적어 둘 말"
+        className="min-h-0 w-full flex-1 resize-none rounded-lg border border-line bg-field px-2.5 py-2 text-[12.5px] leading-[1.55] text-content placeholder:text-content-ghost focus:border-focus focus:outline-none"
       />
     </div>
+  );
+}
+
+/** 관심 전체 삭제 · 담아 둔 것이 없으면 아예 안 선다. */
+function ClearFavoritesButton({
+  count,
+  onClear,
+}: {
+  count: number;
+  onClear: () => void;
+}) {
+  if (count === 0) return null;
+
+  return (
+    <button
+      type="button"
+      aria-label="관심 전체 삭제"
+      onClick={onClear}
+      className="-mr-1.5 rounded-md px-1.5 py-0.5 text-[11.5px] font-medium text-content-faint transition-colors hover:bg-surface-strong"
+    >
+      전체 삭제
+    </button>
   );
 }
 

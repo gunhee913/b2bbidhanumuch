@@ -60,7 +60,7 @@ const ENTRY_FEATURES: ReadonlyArray<{
   },
   {
     icon: ChartLine,
-    title: "부위별 분석·통계",
+    title: "부위별 시세·통계",
     description: "지난 낙찰가 흐름을 보고 입찰가 결정",
   },
   {

@@ -62,6 +62,8 @@ import {
   BID_ENTER_HINT,
   focusBidInput,
   focusFirstBidInput,
+  enterBidInput,
+  isSheetBidInput,
   isSheetBidNav,
 } from "../lib/bidKeys";
 import { isTypingInto } from "../lib/keyboard";
@@ -747,13 +749,29 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
       const at = selected
         ? rows.findIndex((r) => r.part.id === selected.part.id)
         : -1;
+      /*
+       * 손으로 고른 행이 아니면(들어오자마자 내려앉은 첫 미마감 행 · 지목돼 온 행 ·
+       * 개체를 넘기며 이어 온 행) 첫 ↑↓ 는 옮기지 않고 그 행부터 잡는다. 칸이 아직
+       * 파랗지 않은데 한 칸 옮기면 1행을 건너뛰고 2행부터 든다.
+       */
+      const pickedByHand = !!selected && pick.id === selected.part.id;
       const next =
-        rows[at < 0 ? 0 : Math.min(Math.max(at + dir, 0), rows.length - 1)];
+        at >= 0 && !pickedByHand
+          ? rows[at]
+          : rows[at < 0 ? 0 : Math.min(Math.max(at + dir, 0), rows.length - 1)];
       if (!next) return;
       selectRow(next);
       scrollPartRowIntoView(next.part.id);
+      /*
+       * 옮긴 행의 입찰칸을 고르기로 잡는다 · 칸이 파랗게 서 있어야 Enter 한 번에
+       * 쓰기로 들고 ↑↓ 가 값을 만진다. 칸이 없는 행(마감·열리기 전)이면 보던 칸을
+       * 놓는다 — 쥔 채로 두면 다른 줄을 보면서 앞 줄 칸에 숫자가 들어간다.
+       */
+      if (focusBidInput(next.part.id)) return;
+      const el = document.activeElement;
+      if (el instanceof HTMLElement && isSheetBidInput(el)) el.blur();
     },
-    [rows, selected, selectRow],
+    [rows, selected, selectRow, pick.id],
   );
 
   /* Enter 는 「고른 행의 칸으로」 다 · 키 처리기는 한 번만 매다는 쪽이라 ref 로 본다 */
@@ -871,22 +889,21 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
        * (`useSheetCursor`)와 같은 규칙이라 두 화면에서 손이 따로 놀지 않는다.
        */
       if (e.key === "ArrowUp" || e.key === "ArrowDown") {
-        if (typing) return;
+        if (typing && !isSheetBidNav(el)) return;
         e.preventDefault();
         moveRow(e.key === "ArrowDown" ? 1 : -1);
         return;
       }
 
       /*
-       * Enter 로 고른 행의 입찰칸에 들어간다 · 한 단계씩 깊어지는 차례다
-       * (행 고르기 → Enter → 칸 고르기 → Enter → 값 쓰기).
+       * Enter 로 고른 행의 입찰칸에 쓰기로 곧장 든다 · 들어가자마자 ↑↓ 가 값을 만진다.
        *
        * 단추나 링크에 초점이 가 있으면 그쪽 일이다 · 가로채면 한 번 눌러 둘이 일어난다.
        */
       if (e.key === "Enter") {
         if (typing || el?.closest("button, a, [role=button]")) return;
         const partId = selectedRef.current?.part.id;
-        if (partId && focusBidInput(partId)) e.preventDefault();
+        if (partId && enterBidInput(partId)) e.preventDefault();
         else if (focusFirstBidInput()) e.preventDefault();
         return;
       }
@@ -1059,6 +1076,7 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
       }
       favoriteIds={favorites.ids}
       onToggleFavorite={toggleFavorite}
+      onClearFavorites={favorites.clear}
     />
   );
 

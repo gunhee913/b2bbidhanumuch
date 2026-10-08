@@ -199,12 +199,18 @@ const config = {
           "0%, 30%": { backgroundColor: "rgb(var(--focus) / 0.28)" },
           "100%": { backgroundColor: "rgb(var(--surface-accent))" },
         },
+        // 시세선 끝점 · 퍼지면서 흐려져 점 자체와 옆의 현재가 배지는 가리지 않는다
+        "tip-pulse": {
+          "0%": { transform: "scale(1)", opacity: "0.55" },
+          "100%": { transform: "scale(3.2)", opacity: "0" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
         "pulse-soft": "pulse-soft 1s ease-in-out infinite",
         "row-land": "row-land 1.1s ease-out 1",
+        "tip-pulse": "tip-pulse 1.8s cubic-bezier(0, 0, 0.2, 1) infinite",
       },
     },
   },

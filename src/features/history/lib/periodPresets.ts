@@ -35,7 +35,7 @@ const fmt = (d: Date) => format(d, "yyyy-MM-dd");
  * 먼저 하는 날이 많아 「전일」 이 「오늘」 바로 옆에 선다 — 그래야 손이 간다.
  *
  * 고르개 컴포넌트 바깥에 둔 건 같은 목록을 두 군데가 쓰기 때문이다. 경매내역·
- * 배송지시는 한 줄짜리 띠(`PeriodFilter`)로, 분석·통계 시세 표는 머리에 접어 둔
+ * 배송지시는 한 줄짜리 띠(`PeriodFilter`)로, 시세·통계의 시세 표는 머리에 접어 둔
  * 쪽지(`PeriodRangePicker`)로 보인다. 생김새는 달라도 고를 수 있는 기간은 하나다.
  */
 export const PERIOD_PRESETS: readonly PeriodPreset[] = [

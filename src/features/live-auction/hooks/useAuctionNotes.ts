@@ -7,13 +7,26 @@ import { useRealtimeTable } from "@/hooks/useRealtimeTable";
 /**
  * 메모가 붙는 자리 · 개체 하나, 부위 하나, 또는 아무 데도.
  *
- * `memo` 는 가리키는 것이 없는 그날의 메모장이다 (`id` 는 늘 `day`). 목록을 그리는
- * 쪽은 `part` 만 걸러 쓰므로 이 한 줄이 목록에 끼어들 일은 없다.
+ * `memo` 는 가리키는 것이 없는 메모장이다 (`id` 는 늘 `day`). 목록을 그리는 쪽은
+ * `part` 만 걸러 쓰므로 이 한 줄이 목록에 끼어들 일은 없다.
  */
 export type NoteTarget = "listing" | "part" | "memo";
 
-/** 메모장 열쇠 · 날짜는 `activeDate` 가 들고 있어 하루에 하나면 족하다 */
+/** 메모장 열쇠 · 딜러마다 한 칸이라 `targetId` 는 한 값이면 족하다 */
 export const MEMO_PAD_ID = "day";
+
+/**
+ * 메모장이 담기는 날짜 자리 · **상장일과 상관없는 고정값**.
+ *
+ * 메모장은 날이 바뀌어도 적어 둔 것이 그대로 있어야 한다. 「3번 트럭 4시」 는 하루
+ * 짜리지만 「김사장 등심 계속 찾음」 은 아니고, 날마다 새 칸이 열리면 어제 적은 것을
+ * 보려고 달력을 거슬러 올라가야 한다 — 그러느니 안 적게 된다.
+ *
+ * 표(`dealer_notes`)의 유니크 열쇠가 (딜러 · 날짜 · 종류 · 대상) 이라 날짜 자리에
+ * 늘 같은 값을 넣으면 딜러마다 한 줄이 된다. `-` 인 것은 실제 상장일(`yyyy-MM-dd`)과
+ * 절대 겹치지 않으면서, 아스키로 숫자보다 앞서 날짜 범위 조회에 걸려들지 않아서다.
+ */
+export const MEMO_PAD_DATE = "-";
 
 export interface NoteRow {
   /** 메모가 붙은 날 · 같은 부위라도 날이 다르면 다른 메모다 */
@@ -169,6 +182,37 @@ export function useDealerNotes({
   );
 
   return { rows: data ?? EMPTY_ROWS, get, save, saving: mutation.isPending };
+}
+
+export interface MemoPadNote {
+  body: string;
+  save: (body: string) => void;
+  saving: boolean;
+}
+
+/**
+ * 메모장 한 칸 · 날짜를 안 받는다.
+ *
+ * 부위 메모(`useAuctionNotes`)와 조회를 따로 가져간다. 저쪽은 보고 있는 상장일로
+ * 범위를 잡는데 메모장은 그 범위 밖(`MEMO_PAD_DATE`)에 있어서, 한 조회에 묶으면
+ * 날을 넘길 때마다 메모장이 딸려 사라진다.
+ */
+export function useMemoPad(): MemoPadNote {
+  const {
+    get,
+    save: saveWithDate,
+    saving,
+  } = useDealerNotes({
+    from: MEMO_PAD_DATE,
+    to: MEMO_PAD_DATE,
+  });
+
+  const save = useCallback(
+    (body: string) => saveWithDate("memo", MEMO_PAD_ID, body, MEMO_PAD_DATE),
+    [saveWithDate],
+  );
+
+  return { body: get("memo", MEMO_PAD_ID) ?? "", save, saving };
 }
 
 export interface AuctionNotes extends Omit<DealerNotes, "save"> {

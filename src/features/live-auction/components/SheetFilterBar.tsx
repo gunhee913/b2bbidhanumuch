@@ -25,7 +25,21 @@ const GRADE_TABS: readonly SegmentedTabOption[] = [
 });
 
 /**
- * 상장표 필터 행 · 등급 · 업체 · (부위 표에서만) 부위 탭.
+ * `cattle_listings.gender` 값 그대로 · 빈 값이 전체.
+ * 수소(`수`)는 경매에 거의 나오지 않아 칸을 두지 않고 전체에만 든다.
+ */
+const GENDER_TABS: readonly SegmentedTabOption[] = [
+  { value: "", label: "전체" },
+  { value: "거세", label: "거세" },
+  { value: "암", label: "암" },
+];
+
+/**
+ * 상장표 필터 행 · 등급 · 성별 · 업체 · (부위 표에서만) 부위 탭.
+ *
+ * 경매장 상장표 전용이라 탭 · 업체 · 초기화 모두 큰 크기(`lg` · 32px · 13px)다 — 표 본문이
+ * 15px 인데 머리 줄만 11px 로 남으면, 눈이 표에서 필터로 올라올 때마다 초점을 다시 맞춰야 한다.
+ * 본문보다는 한 단 작게 둔다 — 같은 크기면 거르개가 표보다 먼저 눈에 걸린다.
  *
  * 탭·표와 한 섹션 안에 있으므로 카드 외곽선을 두르지 않는다 —
  * 섹션 안에서 줄을 가르는 것은 아래쪽 hairline 하나면 충분하다.
@@ -37,8 +51,10 @@ const GRADE_TABS: readonly SegmentedTabOption[] = [
  */
 export function SheetFilterBar({
   gradeFilter,
+  genderFilter,
   companyFilter,
   onGradeChange,
+  onGenderChange,
   onCompanyChange,
   companyOptions,
   partFilter,
@@ -46,8 +62,10 @@ export function SheetFilterBar({
   partTabs,
 }: {
   gradeFilter: string;
+  genderFilter: string;
   companyFilter: string;
   onGradeChange: (v: string) => void;
+  onGenderChange: (v: string) => void;
   onCompanyChange: (v: string) => void;
   companyOptions: string[];
   /** 부위 표에서만 · 아래 줄에 부위 탭 바를 펼친다 (`partTabs`) */
@@ -55,19 +73,33 @@ export function SheetFilterBar({
   onPartChange?: (v: string) => void;
   partTabs?: ReactNode;
 }) {
-  const isFiltered = !!gradeFilter || !!companyFilter || !!partFilter;
+  const isFiltered =
+    !!gradeFilter || !!genderFilter || !!companyFilter || !!partFilter;
 
   return (
     <div className="border-b border-b-line-soft bg-surface">
       <div className="flex items-center justify-between gap-2 px-3 py-2">
-        <div className="flex min-w-0 flex-1 items-center gap-1.5">
-          <GradeFilterTabs value={gradeFilter} onChange={onGradeChange} />
+        <div className="flex min-w-0 flex-1 items-center gap-2">
+          <GradeFilterTabs
+            value={gradeFilter}
+            onChange={onGradeChange}
+            size="lg"
+          />
+          <SegmentedTabs
+            label="성별"
+            value={genderFilter}
+            options={GENDER_TABS}
+            onChange={onGenderChange}
+            toggleable
+            size="lg"
+          />
           <CompactFilterPill
             label="업체"
             value={companyFilter}
             onChange={onCompanyChange}
             options={companyOptions}
             valueOnlyWhenActive
+            size="lg"
             className={cn(!companyOptions.length && "opacity-60")}
           />
           {isFiltered ? (
@@ -75,13 +107,15 @@ export function SheetFilterBar({
               type="button"
               onClick={() => {
                 onGradeChange("");
+                onGenderChange("");
                 onCompanyChange("");
                 onPartChange?.("");
               }}
-              className="ml-0.5 inline-flex h-8 items-center px-1 text-cap font-semibold text-content-soft hover:text-content"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-md text-content-soft transition-colors hover:bg-surface-muted"
               title="필터 초기화"
+              aria-label="필터 초기화"
             >
-              <RotateCcw className="h-3 w-3" />
+              <RotateCcw className="h-3.5 w-3.5" />
             </button>
           ) : null}
         </div>
@@ -113,9 +147,11 @@ export function SheetFilterBar({
 export function GradeFilterTabs({
   value,
   onChange,
+  size,
 }: {
   value: string;
   onChange: (v: string) => void;
+  size?: "md" | "lg";
 }) {
   useGradeHotkeys(value, onChange);
 
@@ -127,6 +163,7 @@ export function GradeFilterTabs({
       options={GRADE_TABS}
       onChange={onChange}
       toggleable
+      size={size}
     />
   );
 }

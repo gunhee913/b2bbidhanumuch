@@ -1,3 +1,4 @@
+import { partition } from "es-toolkit";
 import type { AssignmentInfo, WinningPart } from "../types";
 import type { DeliveryGroupBy } from "../hooks/useDeliveryPrefs";
 
@@ -108,6 +109,28 @@ export function groupWinningParts(
     (a, b) =>
       b.rows.length - a.rows.length || a.title.localeCompare(b.title, "ko-KR"),
   );
+}
+
+/**
+ * 미정 먼저 · 미정이 낀 묶음을 위로, 묶음 안에서도 미정 줄을 위로. 나머지는 제 차례대로.
+ *
+ * 무엇이 미정인지는 부르는 쪽이 **저장된 값**으로 묻는다. 고치는 중인 값으로 물으면
+ * 숫자 키로 거래처를 넣는 순간 그 줄이 아래로 사라져, 방금 넣은 것을 눈으로 확인할
+ * 수가 없다. 저장된 값이면 넣은 줄은 제자리에 남고 커서만 다음 미정으로 내려간다.
+ */
+export function liftUndecided(
+  groups: readonly PartGroup[],
+  isUndecided: (part: WinningPart) => boolean,
+): PartGroup[] {
+  const lifted = groups.map((g) => {
+    const [undecided, decided] = partition(g.rows, isUndecided);
+    return {
+      group: { ...g, rows: [...undecided, ...decided] },
+      hasUndecided: undecided.length > 0,
+    };
+  });
+  const [withUndecided, rest] = partition(lifted, (x) => x.hasUndecided);
+  return [...withUndecided, ...rest].map((x) => x.group);
 }
 
 /** 커서(↑/↓)가 훑는 차례 · 화면에 보이는 줄 순서 그대로 */

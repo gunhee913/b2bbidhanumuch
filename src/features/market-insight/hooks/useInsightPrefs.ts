@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect } from "react";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
+import { usePersistedView } from "@/hooks/usePersistedView";
 
 /**
  * 사이드 레일이 고르는 화면 · 같은 자료를 두 각도에서 본다.
@@ -92,9 +92,15 @@ export const useInsightPrefs = create<InsightPrefsState>()(
   ),
 );
 
-/** 저장값 되살리기 · `skipHydration` 이라 이걸 부르지 않으면 늘 시세로 뜬다 */
+/* effect 안에서 쓰는 것들 · 모듈 바깥에 세워 둬야 매 그림마다 안 바뀐다 */
+const rehydrate = () => useInsightPrefs.persist.rehydrate();
+const setView = (view: InsightView) => useInsightPrefs.setState({ view });
+
+/**
+ * 저장값 되살리기 · `skipHydration` 이라 이걸 부르지 않으면 늘 시세로 뜬다.
+ *
+ * 머리 메뉴가 `?view=stats` 로 집어 주면 되살린 뒤에 그걸 얹는다 (`usePersistedView`).
+ */
 export function useInsightPrefsHydration() {
-  useEffect(() => {
-    void useInsightPrefs.persist.rehydrate();
-  }, []);
+  usePersistedView({ rehydrate, setView, isView: isInsightView });
 }

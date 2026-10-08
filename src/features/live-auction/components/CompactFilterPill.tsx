@@ -11,6 +11,20 @@ import { cn } from "@/lib/utils";
 
 const ALL_SENTINEL = "__all__";
 
+/** `lg` · 경매장 상장표 머리 줄 · 옆 등급 탭(`SegmentedTabs` `lg`)과 같은 32px */
+const PILL_SIZE_CLASS = {
+  md: {
+    trigger: "h-7 max-w-[132px] px-2 text-label [&>svg]:h-3 [&>svg]:w-3",
+    label: "text-cap",
+    item: undefined,
+  },
+  lg: {
+    trigger: "h-8 max-w-[156px] px-2.5 text-[13px] [&>svg]:h-3.5 [&>svg]:w-3.5",
+    label: "text-[12px]",
+    item: "py-1.5 text-[14px]",
+  },
+} as const;
+
 export interface CompactFilterPillProps {
   value: string;
   onChange: (v: string) => void;
@@ -24,6 +38,7 @@ export interface CompactFilterPillProps {
    * 육량 `A/B/C` 처럼 값이 자립하지 못하는 필터는 기본값(false) 유지.
    */
   valueOnlyWhenActive?: boolean;
+  size?: keyof typeof PILL_SIZE_CLASS;
   className?: string;
 }
 
@@ -44,8 +59,10 @@ export function CompactFilterPill({
   allLabel = "전체",
   allowAll = true,
   valueOnlyWhenActive = false,
+  size = "md",
   className,
 }: CompactFilterPillProps) {
+  const sized = PILL_SIZE_CLASS[size];
   const isActive = value !== "";
   const showLabel = !isActive || !valueOnlyWhenActive;
 
@@ -58,7 +75,8 @@ export function CompactFilterPill({
         title={isActive ? `${label} · ${value}` : label}
         aria-label={isActive ? `${label} ${value}` : label}
         className={cn(
-          "h-7 w-auto min-w-0 max-w-[132px] gap-1 rounded-md border px-2 text-label transition-colors focus:ring-1 focus:ring-offset-0 [&>svg]:h-3 [&>svg]:w-3 [&>svg]:shrink-0",
+          "w-auto min-w-0 gap-1 rounded-md border transition-colors focus:ring-1 focus:ring-offset-0 [&>svg]:shrink-0",
+          sized.trigger,
           isActive
             ? "border-inverse bg-inverse text-inverse-content hover:border-inverse focus:ring-slate-300"
             : "shrink-0 border-line bg-surface text-content-mid hover:border-line focus:ring-line",
@@ -69,7 +87,8 @@ export function CompactFilterPill({
           {showLabel ? (
             <span
               className={cn(
-                "shrink-0 text-cap font-medium tracking-tight",
+                "shrink-0 font-medium tracking-tight",
+                sized.label,
                 isActive ? "text-white/60" : "text-content-faint",
               )}
             >
@@ -95,7 +114,10 @@ export function CompactFilterPill({
           <>
             <SelectItem
               value={ALL_SENTINEL}
-              className="text-content-soft focus:text-content-mid"
+              className={cn(
+                "text-content-soft focus:text-content-mid",
+                sized.item,
+              )}
             >
               {allLabel}
             </SelectItem>
@@ -103,7 +125,7 @@ export function CompactFilterPill({
           </>
         ) : null}
         {options.map((opt) => (
-          <SelectItem key={opt} value={opt}>
+          <SelectItem key={opt} value={opt} className={sized.item}>
             {opt}
           </SelectItem>
         ))}

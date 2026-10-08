@@ -20,6 +20,8 @@ export interface AuctionFavorites {
   ids: ReadonlySet<string>;
   /** 개체면 접수번호를, 부위면 부위 UUID 를 넘긴다 */
   toggle: (id: string) => void;
+  /** 그날 찍어 둔 것을 통째로 비운다 · 사이드 메뉴 「전체 삭제」 */
+  clear: () => void;
 }
 
 /**
@@ -38,6 +40,7 @@ export function useAuctionFavorites(
 ): AuctionFavorites {
   const favorites = useBidStore((s) => s.favorites);
   const toggle = useBidStore((s) => s.toggleFavorite);
+  const clear = useBidStore((s) => s.clearFavorites);
   const loadFromServer = useBidStore((s) => s.loadFavoritesFromServer);
 
   /*
@@ -64,5 +67,5 @@ export function useAuctionFavorites(
     [ready, favorites],
   );
 
-  return { ids, toggle };
+  return { ids, toggle, clear };
 }

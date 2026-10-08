@@ -35,6 +35,26 @@ export function filterTabs(
 }
 
 /**
+ * 탭 크기 · `lg` 는 경매장 상장표 머리 줄이다.
+ * 표 본문을 15px 로 키운 화면이라 탭도 32px · 13px 로 한 단 올린다. 같은 탭을 쓰는
+ * 경매결과 · 입찰내역 · 상세 방은 그대로 `md`(28px · 11px)다.
+ */
+const TAB_SIZE_CLASS = {
+  md: {
+    bar: "h-7 rounded-md",
+    tab: "rounded-[5px] text-[11px] leading-6",
+    pad: "px-2",
+    densePad: "px-1.5",
+  },
+  lg: {
+    bar: "h-8 rounded-md",
+    tab: "rounded-[5px] text-[13px] leading-6",
+    pad: "px-2.5",
+    densePad: "px-1.5",
+  },
+} as const;
+
+/**
  * 분절 탭 · 고를 수 있는 것과 고른 것을 한 줄에 함께 보인다.
  *
  * 경매장 상장표 등급 탭에서 시작해 화면마다 한 벌씩 베껴 두었던 것을 한곳으로 모았다.
@@ -54,6 +74,7 @@ export function SegmentedTabs({
   onChange,
   toggleable = false,
   dense = false,
+  size = "md",
   className,
 }: {
   /** 읽어 줄 이름 · 「등급」 「묶는 기준」 처럼 이 줄이 무엇을 고르는지 */
@@ -71,14 +92,17 @@ export function SegmentedTabs({
    * 시세 표의 부위 탭 열일곱 칸이 기본 여백으로는 판 밖으로 나간다.
    */
   dense?: boolean;
+  size?: keyof typeof TAB_SIZE_CLASS;
   className?: string;
 }) {
+  const sized = TAB_SIZE_CLASS[size];
   return (
     <div
       role="tablist"
       aria-label={label}
       className={cn(
-        "inline-flex h-7 shrink-0 items-center gap-0.5 rounded-md border border-line bg-surface-muted p-0.5",
+        "inline-flex shrink-0 items-center gap-0.5 border border-line bg-surface-muted p-0.5",
+        sized.bar,
         className,
       )}
     >
@@ -96,8 +120,9 @@ export function SegmentedTabs({
             {...option.attrs}
             onClick={() => onChange(toggleable && active ? "" : option.value)}
             className={cn(
-              "whitespace-nowrap rounded-[5px] text-[11px] font-semibold leading-6 tabular-nums transition-colors",
-              dense ? "px-1.5" : "px-2",
+              "whitespace-nowrap font-semibold tabular-nums transition-colors",
+              sized.tab,
+              dense ? sized.densePad : sized.pad,
               option.disabled
                 ? "cursor-default text-content-ghost"
                 : active

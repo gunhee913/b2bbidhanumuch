@@ -12,6 +12,13 @@ const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"] as const;
 /** 주 수가 달마다 달라져 패널 아래가 들썩이지 않도록 6주 고정 */
 const WEEKS = 6;
 
+/** 날짜 밑 글자 · 아직 안 정한 날은 아무것도 적지 않는다 */
+const DAY_LABEL: Record<AuctionDay["status"], string | null> = {
+  open: "개장",
+  closed: "휴일",
+  unset: null,
+};
+
 export interface AuctionScheduleCalendarProps {
   /** yyyy-MM-dd · 지금 보고 있는 경매일 */
   listingDate: string;
@@ -22,15 +29,15 @@ export interface AuctionScheduleCalendarProps {
   days: AuctionDay[];
   isLoading?: boolean;
   selected: string;
-  onSelect: (date: string, day: AuctionDay | null) => void;
+  onSelect: (date: string) => void;
 }
 
 /**
  * 경매 일정 달력 · 어느 날에 장이 서는지를 한 달 단위로.
  *
- * 개장은 점, 휴장은 짧은 가로줄, 아직 안 정한 날은 아무 표시도 없다. 휴장과 미정을
- * 똑같이 빈칸으로 두면 "쉬는 날" 과 "관리자가 아직 안 채운 날" 이 구분되지 않아,
- * 다음 장을 잡으려는 사람이 달력을 믿지 못하게 된다.
+ * 날짜 밑에 「개장」 · 「휴일」 을 글자로 적는다. 점과 줄로 말하면 무엇이 무엇인지 한 번
+ * 배워야 읽혔다. 관리자가 아직 안 채운 날은 빈칸이다 — 「미정」 을 적어 두면 달 대부분이
+ * 그 글자로 덮여 정작 개장일이 묻힌다.
  */
 export function AuctionScheduleCalendar({
   listingDate,
@@ -91,7 +98,7 @@ export function AuctionScheduleCalendar({
               entry={entry}
               isToday={key === listingDate}
               isSelected={key === selected}
-              onClick={() => onSelect(key, entry)}
+              onClick={() => onSelect(key)}
             />
           );
         })}
@@ -127,10 +134,10 @@ function MonthStepButton({
 }
 
 /**
- * 날짜 한 칸.
+ * 날짜 한 칸 · 숫자 밑에 개장/휴일 한 마디.
  *
- * 칸이 22px 밖에 안 돼 두수까지 적으면 숫자 둘이 한 칸에서 다툰다. 여기서 알고 싶은 건
- * "서나 안 서나" 하나뿐이라 점·줄 하나로만 말하고, 두수는 달력 아래 상세 줄에 맡긴다.
+ * 두수는 적지 않는다 — 칸 폭이 40px 남짓이라 글자와 숫자가 한 칸에서 다툰다. 그날
+ * 몇 두가 나오는지는 달력 밑 상장두수 표가 말한다. 휴일 사유는 올렸을 때 뜬다.
  */
 function DayCell({
   day,
@@ -146,6 +153,7 @@ function DayCell({
   onClick: () => void;
 }) {
   const status = entry?.status ?? "unset";
+  const label = DAY_LABEL[status];
   const isOpen = status === "open";
   const isClosed = status === "closed";
   const isSunday = day.getDay() === 0;
@@ -156,8 +164,9 @@ function DayCell({
       onClick={onClick}
       aria-current={isToday ? "date" : undefined}
       aria-pressed={isSelected}
-      aria-label={`${day.getDate()}일 ${isOpen ? "경매" : isClosed ? "휴장" : "미정"}`}
-      className="group flex h-[34px] flex-col items-center justify-center gap-[3px]"
+      aria-label={label ? `${day.getDate()}일 ${label}` : `${day.getDate()}일`}
+      title={entry?.note ?? undefined}
+      className="group flex h-[38px] flex-col items-center justify-center gap-0.5"
     >
       <span
         className={cn(
@@ -179,41 +188,17 @@ function DayCell({
       >
         {day.getDate()}
       </span>
-      <Marker status={status} isSelected={isSelected} />
+      <span
+        aria-hidden
+        className={cn(
+          "h-3 text-[10px] font-semibold leading-3",
+          isOpen ? "text-content-mid" : "text-rise/70",
+        )}
+      >
+        {label}
+      </span>
     </button>
   );
-}
-
-function Marker({
-  status,
-  isSelected,
-}: {
-  status: AuctionDay["status"];
-  isSelected: boolean;
-}) {
-  if (status === "open") {
-    return (
-      <span
-        className={cn(
-          "h-1 w-1 rounded-full",
-          isSelected ? "bg-content-faint" : "bg-inverse",
-        )}
-        aria-hidden
-      />
-    );
-  }
-  if (status === "closed") {
-    return (
-      <span
-        className={cn(
-          "h-[1.5px] w-2 rounded-full",
-          isSelected ? "bg-content-faint" : "bg-content-ghost",
-        )}
-        aria-hidden
-      />
-    );
-  }
-  return <span className="h-1 w-1" aria-hidden />;
 }
 
 export function startOfMonthOf(iso: string): Date {

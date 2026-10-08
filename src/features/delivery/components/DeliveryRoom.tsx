@@ -14,7 +14,6 @@ import { cn } from "@/lib/utils";
 import { OverlayScroll } from "@/components/ui/overlay-scroll";
 import {
   SegmentedTabs,
-  ToggleChip,
   type SegmentedTabOption,
 } from "@/components/ui/segmented-tabs";
 import { formatKrw } from "@/features/live-auction/lib/masking";
@@ -25,13 +24,18 @@ import { useDealerNotes } from "@/features/live-auction/hooks/useAuctionNotes";
 import { usePaneReorder } from "@/features/live-auction/hooks/usePaneReorder";
 import type { PaneOrder } from "@/features/live-auction/hooks/useRoomLayout";
 import { useSheetCursor } from "@/features/live-auction/hooks/useSheetCursor";
-import { DELIVERY_DEADLINE_LABEL, isDeliveryLocked } from "../lib/deadline";
+import {
+  DELIVERY_DEADLINE_ENABLED,
+  DELIVERY_DEADLINE_LABEL,
+  isDeliveryLocked,
+} from "../lib/deadline";
 import type { AssignmentInfo, Partner, WinningPart } from "../types";
 import {
   countAssignments,
   effectivePartnerId,
   flattenGroups,
   groupWinningParts,
+  liftUndecided,
 } from "../lib/groupWinningParts";
 import {
   DELIVERY_PANE_MIN_WIDTH,
@@ -110,6 +114,8 @@ const EMPTY_PINS: (string | null)[] = Array.from(
 );
 
 export interface DeliveryRoomProps {
+  /** 표 머리줄 맨 앞 조회기간 · 기간을 쥔 건 부르는 쪽이라 다 그린 채로 받는다 */
+  periodControl: ReactNode;
   parts: WinningPart[];
   partners: Partner[];
   savedAssignments: Record<string, AssignmentInfo>;
@@ -126,7 +132,7 @@ export interface DeliveryRoomProps {
 /**
  * 배송지시 · 왼쪽 사진, 오른쪽 표의 두 열 작업 화면.
  *
- *   ┌ 머리 · [개체별|부위별] · 미정만 · 집계 ──────────────────┐
+ *   ┌ 머리 · ‹기간› · [부위별|개체별|거래처별] · 집계 ─────────┐
  *   │ 사진 · 판정 일곱   │ 낙찰 열 | 거래처 열                   │
  *   │                    ├───────────────────────────────────────┤
  *   │                    │ 숫자 띠            [ 변경 n건 저장 ]   │
@@ -142,6 +148,7 @@ export interface DeliveryRoomProps {
  *    따라오게 했다 (`/auction/live` 요약 판과 같은 방식).
  */
 export function DeliveryRoom({
+  periodControl,
   parts,
   partners,
   savedAssignments,
@@ -154,6 +161,10 @@ export function DeliveryRoom({
 }: DeliveryRoomProps) {
   const groupBy = useDeliveryPrefs((s) => s.groupBy);
   const setGroupBy = useDeliveryPrefs((s) => s.setGroupBy);
+  const undecidedFirst = useDeliveryPrefs((s) => s.undecidedFirst);
+  const toggleUndecidedFirst = useDeliveryPrefs((s) => s.toggleUndecidedFirst);
+  /* 거래처별은 묶음 자체가 미정을 맨 위에 세운다 · 거기서 머리글을 눌러도 바뀔 게 없다 */
+  const canLiftUndecided = groupBy !== "partner";
   const storedPaneWidth = useDeliveryPrefs((s) => s.paneWidth);
   const setPaneWidth = useDeliveryPrefs((s) => s.setPaneWidth);
   const resetPaneWidth = useDeliveryPrefs((s) => s.resetPaneWidth);
@@ -189,31 +200,31 @@ export function DeliveryRoom({
   const paneWidth = Math.min(storedPaneWidth, maxPaneWidth);
 
   const [dirty, setDirty] = useState<Record<string, string | null>>({});
-  const [onlyUndecided, setOnlyUndecided] = useState(false);
   useEffect(() => setDirty({}), [resetKey]);
-
-  /* 거른 목록이 곧 표의 「전부」다 · 커서가 훑는 차례도 여기서 나온다 */
-  const shown = useMemo(() => {
-    if (!onlyUndecided) return parts;
-    return parts.filter(
-      (p) => !effectivePartnerId(p.partId, savedAssignments, dirty),
-    );
-  }, [parts, onlyUndecided, savedAssignments, dirty]);
 
   const partnerNameById = useMemo(
     () => new Map(partners.map((p) => [p.id, p.name])),
     [partners],
   );
 
-  const groups = useMemo(
-    () =>
-      groupWinningParts(shown, groupBy, {
-        partnerNameById,
-        saved: savedAssignments,
-        dirty,
-      }),
-    [shown, groupBy, partnerNameById, savedAssignments, dirty],
-  );
+  /* 보이는 차례가 곧 커서가 훑는 차례다 · 「미정 먼저」 는 저장된 값으로 가른다 */
+  const groups = useMemo(() => {
+    const grouped = groupWinningParts(parts, groupBy, {
+      partnerNameById,
+      saved: savedAssignments,
+      dirty,
+    });
+    if (!undecidedFirst || !canLiftUndecided) return grouped;
+    return liftUndecided(grouped, (p) => !savedAssignments[p.partId]);
+  }, [
+    parts,
+    groupBy,
+    partnerNameById,
+    savedAssignments,
+    dirty,
+    undecidedFirst,
+    canLiftUndecided,
+  ]);
   const rowIds = useMemo(() => flattenGroups(groups), [groups]);
   const partById = useMemo(
     () => new Map(parts.map((p) => [p.partId, p])),
@@ -230,6 +241,28 @@ export function DeliveryRoom({
   useEffect(() => {
     if (!cursorId && rowIds.length > 0) setCursor(rowIds[0]);
   }, [rowIds, cursorId, setCursor]);
+
+  /*
+   * 「미정 먼저」 를 켜면 첫 미정 줄을 짚는다 · 켜는 까닭이 그것들을 처리하려는 것이라.
+   * 끌 때는 짚던 줄을 그대로 두고 새 차례에서 그 줄이 보이게만 굴린다.
+   * 새 차례(`rowIds`)는 다음 그림에서야 나오므로 한 번 미뤘다가 짚는다.
+   */
+  const [sortMoved, setSortMoved] = useState<"top" | "keep" | null>(null);
+  const handleToggleUndecidedFirst = useCallback(() => {
+    setSortMoved(undecidedFirst ? "keep" : "top");
+    toggleUndecidedFirst();
+  }, [undecidedFirst, toggleUndecidedFirst]);
+  useEffect(() => {
+    if (!sortMoved) return;
+    setSortMoved(null);
+    const top = rowIds[0];
+    /* 미정이 하나도 없으면 맨 윗줄은 그냥 첫 줄이다 · 거기로 끌고 가지 않는다 */
+    const target =
+      sortMoved === "top" && top && !savedAssignments[top] ? top : cursorId;
+    if (!target) return;
+    setCursor(target);
+    scrollDeliveryRowIntoView(target);
+  }, [sortMoved, rowIds, cursorId, savedAssignments, setCursor]);
 
   const assign = useCallback((partId: string, partnerId: string | null) => {
     setDirty((prev) => ({ ...prev, [partId]: partnerId }));
@@ -326,18 +359,12 @@ export function DeliveryRoom({
    */
   useEffect(() => {
     if (!pendingJump || isLoading) return;
-    const reachable = rowIds.includes(pendingJump);
-    /* 「미정만」 에 가려 있을 뿐이면 거르개를 푼다 · 짚어 가기가 거르개보다 세다 */
-    if (!reachable && onlyUndecided && partById.has(pendingJump)) {
-      setOnlyUndecided(false);
-      return;
-    }
-    if (reachable) {
+    if (rowIds.includes(pendingJump)) {
       setCursor(pendingJump);
       scrollDeliveryRowIntoView(pendingJump);
     }
     setPendingJump(null);
-  }, [pendingJump, isLoading, rowIds, onlyUndecided, partById, setCursor]);
+  }, [pendingJump, isLoading, rowIds, setCursor]);
 
   const focusedNote = useMemo(
     () =>
@@ -379,7 +406,7 @@ export function DeliveryRoom({
     if (
       overwriteCount > 0 &&
       !window.confirm(
-        `이미 지정한 ${overwriteCount}건의 거래처가 바뀝니다.\n상장일 ${DELIVERY_DEADLINE_LABEL} 이 지나면 중도매인은 더 고칠 수 없습니다.\n\n저장할까요?`,
+        `이미 지정한 ${overwriteCount}건의 거래처가 바뀝니다.\n${DELIVERY_DEADLINE_ENABLED ? `상장일 ${DELIVERY_DEADLINE_LABEL} 이 지나면 중도매인은 더 고칠 수 없습니다.\n` : ""}\n저장할까요?`,
       )
     ) {
       return;
@@ -438,20 +465,16 @@ export function DeliveryRoom({
           "transition-transform duration-200",
       )}
     >
-      <header className="flex shrink-0 items-center gap-2 border-b border-line-soft px-3 py-1.5">
+      {/* 판이 좁으면 집계 묶음이 아랫줄로 내려선다 · 기간과 묶는 기준은 늘 첫 줄에 */}
+      <header className="flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1.5 border-b border-line-soft px-3 py-1.5">
+        {periodControl}
+        <span className="h-4 w-px bg-line-soft" aria-hidden />
         <SegmentedTabs
           label="묶는 기준"
           value={groupBy}
           options={GROUP_BY_TABS}
           onChange={(v) => setGroupBy(v as DeliveryGroupBy)}
         />
-        <ToggleChip
-          pressed={onlyUndecided}
-          onPressedChange={setOnlyUndecided}
-          title="아직 거래처를 안 정한 것만 추린다"
-        >
-          미정만
-        </ToggleChip>
         <p className="ml-1 flex min-w-0 items-baseline gap-2 text-[12px] tabular-nums text-content-faint">
           <span className="shrink-0">
             낙찰 <b className="font-bold text-content">{counts.total}</b>건
@@ -499,6 +522,10 @@ export function DeliveryRoom({
           isLocked={isLocked}
           onCursor={setCursor}
           onAssign={assign}
+          undecidedFirst={undecidedFirst && canLiftUndecided}
+          onToggleUndecidedFirst={
+            canLiftUndecided ? handleToggleUndecidedFirst : undefined
+          }
           isLoading={isLoading}
         />
       </OverlayScroll>

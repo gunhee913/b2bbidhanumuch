@@ -1,10 +1,14 @@
 "use client";
 
-import type { ComponentType } from "react";
+import { useRef, type ComponentType } from "react";
 import { CalendarCheck, History, Rows3, type LucideProps } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PAGE_SHELL_CLASS } from "@/features/live-auction/constants/surface";
-import { sideDockShellClass } from "@/features/side-dock/components/SideDockShell";
+import {
+  SIDE_DOCK_RAIL_WIDTH,
+  sideDockShellClass,
+} from "@/features/side-dock/components/SideDockShell";
+import { useReserveToastInset } from "@/features/side-dock/hooks/useToastInset";
 import { SideDockRailItem } from "@/features/side-dock/components/SideDockRailItem";
 import { ThemeRailButton } from "@/features/side-dock/components/ThemeRailButton";
 import { RoundRail } from "@/features/side-dock/components/RoundRail";
@@ -43,6 +47,8 @@ export function HistorySideRail() {
   const view = useHistoryPrefs((s) => s.view);
   const setView = useHistoryPrefs((s) => s.setView);
   const roundPhase = useRoundPulse();
+  const frameRef = useRef<HTMLDivElement>(null);
+  useReserveToastInset(frameRef, SIDE_DOCK_RAIL_WIDTH);
 
   return (
     /*
@@ -53,6 +59,7 @@ export function HistorySideRail() {
      * 전체를 덮어 아무것도 안 눌린다.
      */
     <div
+      ref={frameRef}
       className={cn(
         "pointer-events-none fixed inset-y-0 left-0 right-0 z-[45]",
         PAGE_SHELL_CLASS,

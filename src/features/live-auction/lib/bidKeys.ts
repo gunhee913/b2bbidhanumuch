@@ -34,8 +34,8 @@ export type BidMode = "nav" | "edit";
 export const bidKeyHint = (step: number): string =>
   `Enter 입찰 · Esc 되돌리기 · +/- ${step.toLocaleString("ko-KR")} · Shift+↑↓ 1,000 · ↑↓ 이동`;
 
-/** 표 어디서든 ↑↓ 로 행을 옮기고 Enter 로 그 행의 입찰칸에 든다 · 머리글 안내가 쓰는 문구 */
-export const BID_ENTER_HINT = "↑↓ 행 · Enter 입찰칸으로";
+/** 표 어디서든 ↑↓ 로 행을 옮기고 숫자로 곧장 그 행의 입찰가를 쓴다 · 머리글 안내가 쓰는 문구 */
+export const BID_ENTER_HINT = "↑↓ 행 · Enter 입찰가 쓰기";
 
 /**
  * 상장표 칸 안내 · 모드마다 살아 있는 키가 달라 문구도 갈라 둔다.
@@ -50,8 +50,8 @@ export function bidModeHint(
   step: number,
 ): string {
   return mode === "nav"
-    ? `고르기 · 숫자 입력 · ↑↓ ${rowLabel} · ←→ ${pivotLabel} · Enter 고치기`
-    : `쓰기 · Enter 입찰 · Esc 취소 · ↑↓ ${step.toLocaleString("ko-KR")} · Shift 1,000 · Alt 1`;
+    ? `고르기 · Enter 입찰가 쓰기 · ↑↓ ${rowLabel} · ←→ ${pivotLabel}`
+    : `쓰기 · Enter 입찰 · Esc 취소 · ↑↓ ${step.toLocaleString("ko-KR")}`;
 }
 
 /** 상장표 입찰칸인가 · 제 화면에서 개체를 넘기는 개체 뷰어 독의 칸은 뺀다 */
@@ -68,14 +68,45 @@ export function isSheetBidNav(el: Element | null): boolean {
   return isSheetBidInput(el) && el?.getAttribute(BID_MODE_ATTR) === "nav";
 }
 
-/** 특정 부위의 입찰칸으로 · 고정축을 넘긴 뒤 같은 손자리를 잇는다 */
-export function focusBidInput(partId: string): boolean {
-  const el = document.querySelector<HTMLInputElement>(
+const bidInputOf = (partId: string) =>
+  document.querySelector<HTMLInputElement>(
     `[${BID_INPUT_ATTR}="${CSS.escape(partId)}"]:not([disabled])`,
   );
+
+/** 특정 부위의 입찰칸으로 · 고르기로 든다 · 고정축을 넘긴 뒤 같은 손자리를 잇는다 */
+export function focusBidInput(partId: string): boolean {
+  const el = bidInputOf(partId);
   if (!el) return false;
   el.focus();
   el.select();
+  return true;
+}
+
+/** 쓰기로 곧장 들 칸 · `enterBidInput` 이 맡기고 칸의 `onFocus` 가 찾아간다 */
+let pendingEditPartId: string | null = null;
+
+/**
+ * 행에서 그 행의 입찰칸에 **쓰기로 곧장** 든다 · 옮겼으면 `true`.
+ *
+ * 고르기를 거쳐 들어가면 칸에 드는 Enter 와 쓰기로 바꾸는 Enter 가 따로라
+ * ↑↓ 로 값을 만지기까지 Enter 를 두 번 친다.
+ *
+ * 「쓰기로」 는 키 이벤트로 못 넘긴다 — 누른 순간의 대상은 칸이 아니라 행이다. 그래서
+ * 여기 맡겨 두고 칸의 `onFocus` 가 `takePendingEdit` 로 받아 간다(`focus()` 는 그
+ * 자리에서 `onFocus` 를 부르므로 맡긴 것이 다른 칸으로 새지 않는다).
+ */
+export function enterBidInput(partId: string): boolean {
+  const el = bidInputOf(partId);
+  if (!el) return false;
+  pendingEditPartId = partId;
+  el.focus();
+  pendingEditPartId = null;
+  return true;
+}
+
+export function takePendingEdit(partId: string): boolean {
+  if (pendingEditPartId !== partId) return false;
+  pendingEditPartId = null;
   return true;
 }
 
@@ -126,12 +157,12 @@ export function focusSiblingBidInput(
 
 export interface SheetBidKeyHandlers {
   mode: BidMode;
-  /** 지금 값을 들고 쓰기로 · 커서는 끝에 둔다 */
+  /** 지금 값을 통째로 골라 쓰기로 · 숫자를 치면 갈리고 ↑↓ 는 그 값에서 움직인다 */
   onEdit: () => void;
   /** 고르기로 돌아간다 */
   onNav: () => void;
-  /** 이 숫자부터 새로 쓴다 · 빈 문자열이면 지우고 쓰기로 */
-  onTypeOver: (digit: string) => void;
+  /** 값을 지우고 쓰기로 */
+  onClear: () => void;
   onSubmit: () => void;
   onRevert: () => void;
   /** 현재 값에 `delta` 를 더한다 · 하한 0 은 부르는 쪽에서 */
@@ -140,6 +171,8 @@ export interface SheetBidKeyHandlers {
   step: number;
   /** 빈 칸인가 · 넣을 게 없으니 Enter 가 그냥 다음 줄로 간다 */
   isEmpty: boolean;
+  /** 고쳐 두고 아직 안 넣은 값이 있나 · 고르기에서도 Enter 한 번에 넣는다 */
+  hasDraft: boolean;
   /** 넣을 수 있는 값인가 */
   canSubmit: boolean;
 }
@@ -151,8 +184,10 @@ export interface SheetBidKeyHandlers {
  * 놓고 다툰다. 예전엔 값 조절을 Shift+↑↓ 로 밀어 풀었는데, 그래서 관례와 거꾸로가 됐고
  * ←/→ 는 글자 커서를 잃었다. 모드를 나누면 두 관례가 각자 제 모드에서 그대로 산다.
  *
- * 모드를 따로 켤 일은 없다 — 고르기에서 숫자를 누르면 그 숫자부터 바로 써진다.
- * 훑는 동안(고르기)에는 값이 변하지 않으므로, 훑다가 실수로 초안을 만들어
+ * **고르기에서 숫자는 칸 것이 아니다** · 방의 등급 거르개(`useGradeHotkeys`)로 간다.
+ * ↑↓ 로 행을 옮기기만 해도 칸이 고르기로 잡히는데, 거기서 숫자가 입찰가로 들어가면
+ * 표를 훑는 동안 등급 단축키가 통째로 죽는다. 값은 Enter 로 쓰기에 든 뒤에만 친다.
+ * 그래서 훑는 동안(고르기)에는 값이 변하지 않고, 훑다가 실수로 초안을 만들어
  * 일괄 입찰에 딸려 들어가는 일도 없다.
  */
 export function handleSheetBidKeyDown(
@@ -161,17 +196,35 @@ export function handleSheetBidKeyDown(
     mode,
     onEdit,
     onNav,
-    onTypeOver,
+    onClear,
     onSubmit,
     onRevert,
     onStep,
     step,
     isEmpty,
+    hasDraft,
     canSubmit,
   }: SheetBidKeyHandlers,
 ): void {
   const input = e.currentTarget;
   const bare = !e.metaKey && !e.ctrlKey && !e.altKey;
+
+  /*
+   * 빈 칸은 넣을 게 없으니 그냥 다음 줄 — 훑다가 Enter 를 눌러도 쓸데없는 오류가 안 뜬다.
+   * 값은 썼는데 못 넣는 값(최저 미달 등)이면 그 자리에 세워 둔다. 조용히 넘어가면
+   * 왜 안 들어갔는지 모른 채 스무 줄을 지나간다.
+   */
+  const submitAndAdvance = () => {
+    if (!isEmpty) {
+      onSubmit();
+      if (!canSubmit) {
+        onEdit();
+        return;
+      }
+    }
+    onNav();
+    focusSiblingBidInput(input, 1);
+  };
 
   // `+`/`-` 는 두 모드 공통 · 한 손으로 한 칸 올리고 내리던 손버릇을 남긴다
   if (bare && (e.key === "+" || e.key === "=" || e.key === "-")) {
@@ -181,26 +234,24 @@ export function handleSheetBidKeyDown(
   }
 
   if (mode === "nav") {
-    if (bare && /^[0-9]$/.test(e.key)) {
-      e.preventDefault();
-      onTypeOver(e.key);
-      return;
-    }
+    // 숫자는 먹지 않는다 · 방의 등급 단축키가 받는다
     if (e.key === "Backspace" || e.key === "Delete") {
       e.preventDefault();
-      onTypeOver("");
+      onClear();
       return;
     }
+    /* 고쳐 둔 값이 있으면 곧장 넣는다 · 고치러 들어가는 Enter 를 한 번 더 치게 하지 않는다 */
     if (e.key === "Enter") {
       e.preventDefault();
-      onEdit();
+      if (hasDraft) submitAndAdvance();
+      else onEdit();
       return;
     }
-    if (e.key === "ArrowUp" || e.key === "ArrowDown") {
-      e.preventDefault();
-      focusSiblingBidInput(input, e.key === "ArrowDown" ? 1 : -1);
-      return;
-    }
+    /*
+     * ↑/↓ 는 먹지 않는다 · 방이 받아 행을 옮기고 옮긴 행의 칸을 다시 잡는다.
+     * 칸끼리 건너뛰면 마감돼 칸이 없는 행을 못 지나가고, 고른 행과 칸이 갈린다.
+     */
+    if (e.key === "ArrowUp" || e.key === "ArrowDown") return;
     // 두 번째 Esc · 쓰기에서 빠져나온 뒤 한 번 더 누르면 표로 돌아간다
     if (e.key === "Escape") {
       e.preventDefault();
@@ -210,19 +261,9 @@ export function handleSheetBidKeyDown(
     return;
   }
 
-  /*
-   * 빈 칸은 넣을 게 없으니 그냥 다음 줄 — 훑다가 Enter 를 눌러도 쓸데없는 오류가 안 뜬다.
-   * 값은 썼는데 못 넣는 값(최저 미달 등)이면 그 자리에 세워 둔다. 조용히 넘어가면
-   * 왜 안 들어갔는지 모른 채 스무 줄을 지나간다.
-   */
   if (e.key === "Enter") {
     e.preventDefault();
-    if (!isEmpty) {
-      onSubmit();
-      if (!canSubmit) return;
-    }
-    onNav();
-    focusSiblingBidInput(input, 1);
+    submitAndAdvance();
     return;
   }
   if (e.key === "Escape") {

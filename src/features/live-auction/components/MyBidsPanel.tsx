@@ -6,6 +6,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type ReactNode,
   type Ref,
 } from "react";
 import {
@@ -23,12 +24,7 @@ import { useMyBids, type MyBidEntry } from "../hooks/useMyBids";
 import { useSideDock } from "../hooks/useSideDock";
 import { useRealtimeBids } from "@/hooks/useRealtimeBids";
 import { formatGradeLabel } from "../lib/grade";
-import {
-  formatKrw,
-  formatWeightKg,
-  formatWon,
-  formatWonPerKg,
-} from "../lib/masking";
+import { formatKrw, formatWeightKg, formatWon } from "../lib/masking";
 
 type ViewMode = "entity" | "part";
 
@@ -44,13 +40,19 @@ const normalizePartName = (name: string): string =>
 const sumAmount = (list: MyBidEntry[]) =>
   list.reduce((sum, b) => sum + b.bidAmount, 0);
 
+/** 줄 설명에 붙는 개체 사정 · 등급과 중량, 모르는 값은 빼고 */
+const listingDetails = (b: MyBidEntry): string[] =>
+  [
+    formatGradeLabel(b.listing?.grade, b.listing?.marblingScore),
+    formatWeightKg(b.part?.weight ?? null),
+  ].filter((s) => s !== "-");
+
 /** 회차 한 칸 · 그 회차에 넣은 것 전부와, 그 회차가 스스로 내는 숫자들 */
 interface RoundSection {
   id: string;
   roundNo: number;
   status: RoundStatus;
   bids: MyBidEntry[];
-  openCount: number;
   wonCount: number;
   lostCount: number;
   /** 머리에 적는 금액 · 진행 중이면 넣은 돈, 마감이면 **딴** 돈 */
@@ -92,7 +94,6 @@ function buildRoundSections(
         roundNo: r.round_no,
         status: r.status,
         bids: list,
-        openCount: open.length,
         wonCount: won.length,
         lostCount: lost.length,
         amount: open.length > 0 ? sumAmount(open) : sumAmount(won),
@@ -104,26 +105,22 @@ function buildRoundSections(
     });
 }
 
-/** 한 회차 안 · 접수번호로 묶고, 묶음 안은 부위번호 순 */
-function groupByListing(bids: MyBidEntry[]) {
-  const map = new Map<
-    string,
-    { listing: NonNullable<MyBidEntry["listing"]>; bids: MyBidEntry[] }
-  >();
-  bids.forEach((b) => {
-    if (!b.listing) return;
-    const hit = map.get(b.listing.id);
-    if (hit) hit.bids.push(b);
-    else map.set(b.listing.id, { listing: b.listing, bids: [b] });
-  });
-  return Array.from(map.values())
-    .map((g) => ({
-      ...g,
-      bids: [...g.bids].sort(
-        (a, b) => (a.part?.partNo ?? 0) - (b.part?.partNo ?? 0),
-      ),
-    }))
-    .sort((a, b) => compareListingNo(a.listing.listingNo, b.listing.listingNo));
+/**
+ * 한 회차 안 · 접수번호 순, 같은 개체 안은 부위번호 순.
+ *
+ * 개체마다 띠를 깔아 묶지 않는다 — 입찰 1건짜리 개체도 띠 한 줄을 더 먹어 세로가 배로
+ * 늘었다. 이 순서면 같은 개체가 저절로 붙어 서고, 접수번호는 줄마다 설명에 적힌다.
+ */
+function sortByListing(bids: MyBidEntry[]) {
+  return bids
+    .filter((b) => b.listing)
+    .sort(
+      (a, b) =>
+        compareListingNo(
+          a.listing?.listingNo ?? "",
+          b.listing?.listingNo ?? "",
+        ) || (a.part?.partNo ?? 0) - (b.part?.partNo ?? 0),
+    );
 }
 
 /**
@@ -218,9 +215,6 @@ export function MyBidsPanel({
     return () => clearTimeout(id);
   }, [focusRoundId, setRoundOpen]);
 
-  const openBids = bids.filter((b) => b.rank == null);
-  const wonBids = bids.filter((b) => b.rank != null && b.isWinning);
-
   return (
     <section aria-label="내 입찰" className="flex h-full min-h-0 flex-col">
       <header className="flex items-center justify-between gap-2 px-4 pb-1.5 pt-2.5">
@@ -229,27 +223,7 @@ export function MyBidsPanel({
       </header>
 
       {/* 하루 전체 셈 · 아래 회차 칸들을 더한 값이라, 접어 둔 채로도 오늘이 읽힌다 */}
-      {bids.length > 0 ? (
-        <p className="flex items-baseline gap-1.5 truncate px-4 pb-2 text-[11px] tabular-nums text-content-faint">
-          {openBids.length > 0 ? (
-            <span>
-              대기 {openBids.length}건{" "}
-              <NumberFlow
-                value={sumAmount(openBids)}
-                locales="ko-KR"
-                suffix="원"
-                willChange
-              />
-            </span>
-          ) : null}
-          {openBids.length > 0 && wonBids.length > 0 ? <span>·</span> : null}
-          {wonBids.length > 0 ? (
-            <span className="font-semibold text-won">
-              낙찰 {wonBids.length}건 {formatWon(sumAmount(wonBids))}
-            </span>
-          ) : null}
-        </p>
-      ) : null}
+      {bids.length > 0 ? <DaySummary bids={bids} /> : null}
 
       <OverlayScroll autoHideDelay={0} className="min-h-0 flex-1">
         {isLoading ? (
@@ -312,12 +286,21 @@ function RoundBlock({
   onNavigateListing?: (listingId: string, partNo?: number | null) => void;
 }) {
   const live = section.status === "open";
-  const groups = useMemo(() => groupByListing(section.bids), [section.bids]);
+  const rows = useMemo(() => sortByListing(section.bids), [section.bids]);
 
+  /*
+   * 열린 회차의 입찰은 전부 결과 전이라 「N건 대기」 는 「진행 중」 을 한 번 더 하는
+   * 말이다. 마감 회차만 낙찰·미낙찰을 적는다.
+   */
   const facts: string[] = [];
-  if (section.openCount > 0) facts.push(`${section.openCount}건 대기`);
   if (section.wonCount > 0) facts.push(`낙찰 ${section.wonCount}`);
   if (section.lostCount > 0) facts.push(`미낙찰 ${section.lostCount}`);
+  const factLine =
+    facts.length > 0
+      ? facts.join(" · ")
+      : section.bids.length === 0
+        ? "아직 없음"
+        : null;
 
   return (
     <li ref={ref} className="border-b border-line-soft last:border-b-0">
@@ -335,21 +318,23 @@ function RoundBlock({
         <span className="flex min-w-0 flex-1 flex-col gap-0.5">
           <span className="flex items-center gap-1.5">
             {live ? <LiveDot /> : null}
-            <span className="text-[12.5px] font-bold tabular-nums text-content">
+            <span className="text-[13.5px] font-bold tabular-nums text-content">
               {section.roundNo}회차
             </span>
             <span className="text-[11px] text-content-faint">
               {live ? "진행 중" : "마감"}
             </span>
           </span>
-          <span className="truncate text-[11px] tabular-nums text-content-faint">
-            {facts.length > 0 ? facts.join(" · ") : "아직 없음"}
-          </span>
+          {factLine ? (
+            <span className="truncate text-[11px] tabular-nums text-content-faint">
+              {factLine}
+            </span>
+          ) : null}
         </span>
         {section.amount > 0 ? (
           <span
             className={cn(
-              "shrink-0 text-[12.5px] font-bold tabular-nums",
+              "shrink-0 text-[13.5px] font-bold tabular-nums",
               live ? "text-content" : "text-won",
             )}
           >
@@ -358,46 +343,23 @@ function RoundBlock({
         ) : null}
       </button>
 
-      {open && groups.length > 0 ? (
-        <div className="pb-1.5">
-          {groups.map(({ listing, bids }) => (
-            <div key={listing.id}>
-              {/* 접수번호는 묶는 이름표일 뿐 · 금액은 아래 줄들이 들고 있다 */}
-              <div className="flex items-center gap-1 px-3 pb-0.5 pt-1.5">
-                <span className="text-[11px] font-semibold tabular-nums text-content-soft">
-                  {listing.listingNo}
-                </span>
-                <span className="text-[11px] tabular-nums text-content-ghost">
-                  {formatGradeLabel(listing.grade, listing.marblingScore)}
-                </span>
-                {onNavigateListing ? (
-                  <NavigateLink
-                    onClick={() => onNavigateListing(listing.id)}
-                    label={`${listing.listingNo} 경매장에서 열기`}
-                  />
-                ) : null}
-              </div>
-              <ul>
-                {bids.map((b) => (
-                  <BidRow
-                    key={b.id}
-                    bid={b}
-                    primary={b.part?.partName ?? "-"}
-                    onNavigate={
-                      onNavigateListing
-                        ? () =>
-                            onNavigateListing(
-                              listing.id,
-                              b.part?.partNo ?? null,
-                            )
-                        : undefined
-                    }
-                  />
-                ))}
-              </ul>
-            </div>
+      {open && rows.length > 0 ? (
+        <ul className="px-2 pb-2">
+          {rows.map((b) => (
+            <BidRow
+              key={b.id}
+              bid={b}
+              title={b.part?.partName ?? "-"}
+              details={[b.listing?.listingNo ?? "-", ...listingDetails(b)]}
+              onNavigate={
+                onNavigateListing && b.listing
+                  ? () =>
+                      onNavigateListing(b.listing!.id, b.part?.partNo ?? null)
+                  : undefined
+              }
+            />
           ))}
-        </div>
+        </ul>
       ) : null}
     </li>
   );
@@ -423,69 +385,70 @@ function PartBlock({
     <li className="pb-1.5">
       <div className="flex items-baseline justify-between gap-2 px-2 pb-0.5 pt-2">
         <span className="flex min-w-0 items-baseline gap-1.5">
-          <span className="truncate text-[12.5px] font-bold text-content">
+          <span className="truncate text-[13.5px] font-bold text-content">
             {partName}
           </span>
           <span className="shrink-0 text-[11px] tabular-nums text-content-faint">
             {facts.join(" · ")}
           </span>
         </span>
-        <span className="shrink-0 text-[12.5px] font-bold tabular-nums text-content">
+        <span className="shrink-0 text-[13.5px] font-bold tabular-nums text-content">
           {formatWon(sumAmount(bids))}
         </span>
       </div>
       <ul>
-        {bids.map((b) => (
-          <BidRow
-            key={b.id}
-            bid={b}
-            primary={b.listing?.listingNo ?? "-"}
-            round={b.auctionId ? roundNoById.get(b.auctionId) : undefined}
-            onNavigate={
-              onNavigateListing && b.listing
-                ? () => onNavigateListing(b.listing!.id, b.part?.partNo ?? null)
-                : undefined
-            }
-          />
-        ))}
+        {bids.map((b) => {
+          const round = b.auctionId ? roundNoById.get(b.auctionId) : undefined;
+          return (
+            <BidRow
+              key={b.id}
+              bid={b}
+              title={b.listing?.listingNo ?? "-"}
+              details={[
+                ...(round ? [`${round}회차`] : []),
+                ...listingDetails(b),
+              ]}
+              onNavigate={
+                onNavigateListing && b.listing
+                  ? () =>
+                      onNavigateListing(b.listing!.id, b.part?.partNo ?? null)
+                  : undefined
+              }
+            />
+          );
+        })}
       </ul>
     </li>
   );
 }
 
 /**
- * 입찰 한 줄 · 왼쪽은 무엇에 넣었나, 오른쪽은 얼마나.
+ * 입찰 한 줄 · 관심 패널 줄과 같은 꼴(굵은 제목 + 흐린 설명)에 오른쪽 숫자 두 단.
  *
- * 예전엔 단가와 금액을 84/92px 고정 칸에 세워 뒀는데, 그건 400px 짜리 떠 있는 판을
- * 재고 짠 값이다. 304px 안에서는 왼쪽에 80px 밖에 안 남아 「등심 12.4kg」 조차
- * 잘렸다. 단가를 금액 아래가 아니라 **왼쪽 설명에 섞어** 두면 한 줄에 다 들어간다.
+ * 오른쪽 굵은 숫자는 **단가**다. 중도매인이 치고 견주는 값은 원/kg 이라 위에 세우고,
+ * 총액은 단가 × 중량을 확인하는 값이라 바로 아래 작게 둔다.
  *
- * 미낙찰만 둘째 줄을 받는다. 떨어진 입찰을 다시 보는 이유는 「얼마에 갔나, 다음엔
- * 얼마를 얹어야 하나」 라서, 내 입찰가만 있고 낙찰가가 없으면 볼 이유가 없는 줄이다.
- * 차액을 따로 적는 것은 그 뺄셈이 곧 다음 회차에 올릴 금액이기 때문이다.
+ * 결과는 예외만 적는다. 마감 회차는 머리가 이미 「낙찰 14」 라고 말하므로 낙찰 줄은
+ * 아무 표시 없이 둔다 — 줄마다 파란 막대를 세웠더니 전부 낙찰인 회차가 온통 파래져서
+ * 정작 아무것도 가려 주지 못했다. 미낙찰만 글자를 흐리고 총액 자리를 「낙찰가 · 차액」
+ * 으로 바꾼다 · 떨어진 입찰을 다시 보는 이유가 「얼마에 갔나, 얼마를 더 얹어야 하나」 라서.
  *
  * 줄 전체가 누름단추다 — 화살표 아이콘만 과녁으로 두면 16px 를 겨눠야 하고, 한 회차에
  * 스무 줄이 서는 판이라 늘 띄워 두면 아이콘이 숫자보다 많아진다. 올렸을 때만 보인다.
  */
 function BidRow({
   bid,
-  primary,
-  round,
+  title,
+  details,
   onNavigate,
 }: {
   bid: MyBidEntry;
-  primary: string;
-  round?: number;
+  title: string;
+  details: string[];
   onNavigate?: () => void;
 }) {
   const lost = bid.rank != null && !bid.isWinning;
   const won = bid.rank != null && bid.isWinning;
-
-  const meta: string[] = [];
-  if (round) meta.push(`${round}회차`);
-  const weight = formatWeightKg(bid.part?.weight ?? null);
-  if (weight !== "-") meta.push(weight);
-  meta.push(formatWonPerKg(bid.bidPrice));
 
   /* 낙찰가는 회차를 닫을 때 부위에 박힌다 (`cattle_parts.bid_price`, 원/kg) */
   const winPrice = lost ? (bid.part?.bidPrice ?? null) : null;
@@ -496,19 +459,19 @@ function BidRow({
 
   const body = (
     <>
-      <div className="flex items-baseline gap-2">
-        <span className="flex min-w-0 flex-1 items-baseline gap-1.5">
+      <span className="min-w-0 flex-1">
+        <span className="flex items-center gap-1">
           <span
             className={cn(
-              "shrink-0 text-[12px] font-semibold tabular-nums",
+              "truncate text-[13px] font-semibold leading-[18px]",
               lost ? "text-content-soft" : "text-content",
             )}
           >
-            {primary}
+            {title}
           </span>
-          <span className="min-w-0 truncate text-[10.5px] tabular-nums text-content-faint">
-            {meta.join(" · ")}
-          </span>
+          {won || lost ? (
+            <span className="sr-only">{won ? "낙찰" : "미낙찰"}</span>
+          ) : null}
           {onNavigate ? (
             <ArrowUpRight
               className="h-3 w-3 shrink-0 text-content-ghost opacity-0 transition-opacity group-hover:opacity-100"
@@ -516,29 +479,42 @@ function BidRow({
             />
           ) : null}
         </span>
+        <span className="mt-px block truncate text-[12px] leading-4 text-content-faint">
+          {details.length > 0 ? details.join(" · ") : "-"}
+        </span>
+      </span>
+      <span className="shrink-0 text-right">
         <span
           className={cn(
-            "shrink-0 text-[12px] font-bold tabular-nums",
-            lost && "text-content-faint line-through decoration-line",
-            won && "text-won",
-            !lost && !won && "text-content",
+            "block text-[13px] font-bold leading-[18px]",
+            lost ? "text-content-soft" : "text-content",
           )}
         >
-          {formatWon(bid.bidAmount)}
+          {formatKrw(bid.bidPrice)}
+          <span className="ml-0.5 text-[10.5px] font-medium text-content-faint">
+            원/kg
+          </span>
         </span>
-      </div>
-      {winPrice != null && winPrice > 0 ? (
-        <p className="text-[10.5px] tabular-nums text-content-faint">
-          낙찰 {formatWonPerKg(winPrice)}
-          {gap != null ? (
-            <span className="pl-1.5 font-bold text-lost">
-              −{formatKrw(gap)}
-            </span>
-          ) : null}
-        </p>
-      ) : null}
+        <span className="mt-px block text-[12px] leading-4 text-content-faint">
+          {winPrice != null && winPrice > 0 ? (
+            <>
+              낙찰가 {formatKrw(winPrice)}
+              {gap != null ? (
+                <span className="pl-1 font-bold text-lost">
+                  −{formatKrw(gap)}
+                </span>
+              ) : null}
+            </>
+          ) : (
+            formatWon(bid.bidAmount)
+          )}
+        </span>
+      </span>
     </>
   );
+
+  const rowClass =
+    "flex w-full items-center gap-3 rounded-lg px-2 py-1.5 text-left tabular-nums";
 
   return (
     <li>
@@ -546,15 +522,83 @@ function BidRow({
         <button
           type="button"
           onClick={onNavigate}
-          title={`${primary} 경매장에서 열기`}
-          className="group block w-full py-[3px] pl-6 pr-3 text-left transition-colors hover:bg-surface-accent"
+          title={`${title} 경매장에서 열기`}
+          className={cn(
+            rowClass,
+            "group transition-colors hover:bg-surface-accent",
+          )}
         >
           {body}
         </button>
       ) : (
-        <div className="py-[3px] pl-6 pr-3">{body}</div>
+        <div className={rowClass}>{body}</div>
       )}
     </li>
+  );
+}
+
+/**
+ * 오늘 셈 · 세 칸 숫자 판.
+ *
+ * 한 줄 글로 적어 두면(「대기 14건 12,576,060원 · 낙찰 …」) 11px 흐린 글씨라 눈이
+ * 지나친다. 칸을 나눠 숫자를 굵게 세우면 회차를 다 접어 둔 채로도 오늘이 읽힌다.
+ *
+ * 건수 칸만 좁다 · 두 자리 수면 끝이라, 금액 두 칸에 폭을 몰아줘야 억 단위도 안 잘린다.
+ */
+function DaySummary({ bids }: { bids: MyBidEntry[] }) {
+  const open = bids.filter((b) => b.rank == null);
+  const won = bids.filter((b) => b.rank != null && b.isWinning);
+
+  return (
+    <dl className="mx-3 mb-2 grid grid-cols-[60px_minmax(0,1fr)_minmax(0,1fr)] divide-x divide-line-soft rounded-md border border-line-soft">
+      <SummaryCell label="입찰" value={`${bids.length}건`} />
+      <SummaryCell
+        label="진행 중"
+        value={
+          open.length > 0 ? (
+            <NumberFlow
+              value={sumAmount(open)}
+              locales="ko-KR"
+              suffix="원"
+              willChange
+            />
+          ) : null
+        }
+      />
+      <SummaryCell
+        label={won.length > 0 ? `낙찰 ${won.length}건` : "낙찰"}
+        value={won.length > 0 ? formatWon(sumAmount(won)) : null}
+        tone="won"
+      />
+    </dl>
+  );
+}
+
+function SummaryCell({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  /** 없으면 「-」 · 0원을 적으면 넣었는데 0원인 것처럼 읽힌다 */
+  value: ReactNode;
+  tone?: "won";
+}) {
+  const empty = value == null;
+  return (
+    <div className="min-w-0 px-2.5 py-1.5">
+      <dt className="truncate text-[10.5px] text-content-faint">{label}</dt>
+      <dd
+        className={cn(
+          "truncate text-[13px] font-bold tabular-nums",
+          empty && "text-content-ghost",
+          !empty && tone === "won" && "text-won",
+          !empty && !tone && "text-content",
+        )}
+      >
+        {empty ? "-" : value}
+      </dd>
+    </div>
   );
 }
 
@@ -607,29 +651,6 @@ function ViewModeToggle({
         );
       })}
     </div>
-  );
-}
-
-function NavigateLink({
-  onClick,
-  label,
-}: {
-  onClick: () => void;
-  label: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={(e) => {
-        e.stopPropagation();
-        onClick();
-      }}
-      aria-label={label}
-      title={label}
-      className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded text-content-ghost transition-colors hover:bg-surface-accent hover:text-content"
-    >
-      <ArrowUpRight className="h-3 w-3" strokeWidth={2.25} />
-    </button>
   );
 }
 

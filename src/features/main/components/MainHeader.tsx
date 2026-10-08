@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -15,6 +15,7 @@ import { Wordmark } from "@/components/brand/Wordmark";
 import { HouseLabel } from "@/features/entry/components/HouseLabel";
 import { useCurrentHouse } from "@/features/entry/hooks/useCurrentHouse";
 import { HOUSE_QUERY_KEY } from "@/features/entry/constants";
+import { viewHref } from "@/hooks/usePersistedView";
 import { cn } from "@/lib/utils";
 
 const LOGO_SRC = "/cyber_symbol%203.gif";
@@ -24,13 +25,42 @@ interface GnbItem {
   href: string;
   /** 딜러(중도매인/직원) 로그인 시에만 노출 */
   dealerOnly?: boolean;
+  /**
+   * 아래로 열리는 하위 메뉴 · 페이지 안 사이드 레일과 같은 이름·같은 차례.
+   *
+   * 둘이 어긋나면 안 된다. 머리에서 「상장표」 로 들어왔는데 왼쪽 레일에는 그런
+   * 이름이 없으면, 방금 누른 것이 어디로 갔는지 찾을 데가 없다.
+   */
+  views?: { label: string; view: string }[];
 }
 
+/**
+ * 머리 메뉴 차례 · 경매가 끝난 뒤 손이 가는 순서대로.
+ *
+ * 경매장에서 따면 그날 안에 거래처로 보내야 하고(배송지시), 지난 것을 되짚는 일
+ * (경매내역·시세·통계)은 그 다음이다. 배송지시를 경매내역 뒤에 두었을 때는 가장
+ * 급한 일이 가장 뒤에 서 있었다.
+ */
 const GNB_ITEMS: GnbItem[] = [
   { label: "경매장", href: "/auction/live" },
-  { label: "경매내역", href: "/history" },
   { label: "배송지시", href: "/delivery", dealerOnly: true },
-  { label: "분석·통계", href: "/insight" },
+  {
+    label: "경매내역",
+    href: "/history",
+    views: [
+      { label: "경매결과", view: "history" },
+      { label: "입찰내역", view: "bids" },
+      { label: "상장표", view: "sheet" },
+    ],
+  },
+  {
+    label: "시세·통계",
+    href: "/insight",
+    views: [
+      { label: "시세", view: "market" },
+      { label: "경매통계", view: "stats" },
+    ],
+  },
 ];
 
 /**
@@ -94,25 +124,13 @@ export function MainHeader({ fluid = false }: MainHeaderProps) {
 
           <nav>
             <ul className="flex items-center">
-              {visibleItems.map((item) => {
-                const isActive = isGnbActive(pathname, item.href);
-                return (
-                  <li key={item.href}>
-                    <Link
-                      href={item.href}
-                      aria-current={isActive ? "page" : undefined}
-                      className={cn(
-                        "flex h-12 items-center px-3 text-[14px] font-semibold transition-colors",
-                        isActive
-                          ? "text-content"
-                          : "text-content-soft hover:text-content",
-                      )}
-                    >
-                      {item.label}
-                    </Link>
-                  </li>
-                );
-              })}
+              {visibleItems.map((item) => (
+                <GnbEntry
+                  key={item.href}
+                  item={item}
+                  active={isGnbActive(pathname, item.href)}
+                />
+              ))}
             </ul>
           </nav>
         </div>
@@ -124,6 +142,90 @@ export function MainHeader({ fluid = false }: MainHeaderProps) {
         </div>
       </div>
     </header>
+  );
+}
+
+/**
+ * 머리 메뉴 한 칸 · 하위 화면이 있으면 아래로 연다.
+ *
+ * **윗글자는 그대로 링크다.** 열리는 메뉴는 「어디로 갈까」 를 미리 집어 주는 지름길일
+ * 뿐이고, 그냥 누르면 지난번에 보던 화면으로 들어간다 — 늘 같은 곳만 보는 사람에게
+ * 메뉴를 한 번 더 고르게 할 까닭이 없다.
+ *
+ * 마우스(hover)와 키보드(focus) 둘 다로 열린다. hover 로만 열면 Tab 으로 머리를
+ * 훑는 사람에게는 하위 화면이 아예 없는 것이 되고, 누르기로만 열면 손이 한 번 더
+ * 간다. 닫는 길은 셋이다 — 떠나기, 포커스가 밖으로 나가기, Esc.
+ */
+function GnbEntry({ item, active }: { item: GnbItem; active: boolean }) {
+  const [open, setOpen] = useState(false);
+
+  const trigger = (
+    <Link
+      href={item.href}
+      aria-current={active ? "page" : undefined}
+      aria-expanded={item.views ? open : undefined}
+      className={cn(
+        "flex h-12 items-center gap-1 px-3 text-[14px] font-semibold transition-colors",
+        active ? "text-content" : "text-content-soft hover:text-content",
+      )}
+    >
+      {item.label}
+      {item.views ? (
+        <ChevronDown
+          className={cn(
+            "h-3 w-3 shrink-0 transition-transform",
+            open && "rotate-180",
+          )}
+          aria-hidden
+        />
+      ) : null}
+    </Link>
+  );
+
+  if (!item.views) return <li>{trigger}</li>;
+
+  return (
+    <li
+      className="relative"
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
+      onFocus={() => setOpen(true)}
+      /* 포커스가 이 칸 **안에서** 옮겨다니는 동안은 안 닫는다 (윗글자 → 메뉴 줄) */
+      onBlur={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+          setOpen(false);
+        }
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Escape") setOpen(false);
+      }}
+    >
+      {trigger}
+      {open ? (
+        /*
+         * 머리 바닥에 딱 붙인다(`top-full`). 사이를 띄우면 윗글자에서 메뉴로 내려가는
+         * 동안 마우스가 틈에 빠져 메뉴가 닫힌다.
+         */
+        <ul
+          className={cn(
+            HEADER_POPOVER_CLASS,
+            "absolute left-0 top-full z-50 min-w-[132px] overflow-hidden py-1",
+          )}
+        >
+          {item.views.map((v) => (
+            <li key={v.view}>
+              <Link
+                href={viewHref(item.href, v.view)}
+                onClick={() => setOpen(false)}
+                className="block px-4 py-2 text-[13.5px] font-medium text-content-mid outline-none hover:bg-surface-muted hover:text-content focus-visible:bg-surface-muted"
+              >
+                {v.label}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </li>
   );
 }
 
@@ -319,7 +421,7 @@ function AuthMenu() {
  * 현재 pathname 이 GNB 항목의 활성 상태인지 판정.
  *
  * - 정확히 일치하거나, 하위 경로(`/history/xxx`, `/auction/live/xxx`) 인 경우 활성
- * - 배송지시(`/delivery`) · 분석통계(`/insight`) 등도 하위 경로 포함
+ * - 배송지시(`/delivery`) · 시세·통계(`/insight`) 등도 하위 경로 포함
  */
 function isGnbActive(pathname: string | null, href: string): boolean {
   if (!pathname) return false;

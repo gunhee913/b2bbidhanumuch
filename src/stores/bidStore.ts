@@ -771,6 +771,7 @@ interface BidStore {
   _favSyncInProgress: boolean;
   _favReloadTimer: ReturnType<typeof setTimeout> | null;
   toggleFavorite: (id: string) => void;
+  clearFavorites: () => void;
   isFavorite: (id: string) => boolean;
   loadFavoritesFromServer: (activeDate: string) => Promise<void>;
   reloadFavoritesDebounced: () => void;
@@ -937,6 +938,42 @@ export const useBidStore = create<BidStore>()(
                 _favSyncInProgress: false,
               }));
             }
+          });
+      },
+      /**
+       * 그날 찍어 둔 관심을 통째로 비운다 · 서버에도 한 번만 부른다.
+       *
+       * 실패하면 되돌리되 **그 사이 새로 찍은 것은 지킨다**. 왕복하는 동안에도 별은
+       * 눌릴 수 있어서, 비우기 전 목록으로 통째로 덮으면 방금 찍은 것이 조용히
+       * 사라진다 (`toggleFavorite` 의 되돌리기가 한 건만 손대는 것과 같은 뜻).
+       */
+      clearFavorites: () => {
+        const state = get();
+        const removed = state.favorites;
+        if (removed.length === 0) return;
+
+        const activeDate = state.favActiveDate;
+        if (!activeDate) {
+          set({ favorites: [] });
+          return;
+        }
+
+        set({ favorites: [], _favSyncInProgress: true });
+
+        fetch("/api/dealer-favorites", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ activeDate, all: true }),
+        })
+          .then((res) => {
+            if (!res.ok) throw new Error("API error");
+            set({ _favSyncInProgress: false });
+          })
+          .catch(() => {
+            set((s) => ({
+              favorites: [...new Set([...removed, ...s.favorites])],
+              _favSyncInProgress: false,
+            }));
           });
       },
       isFavorite: (id) => get().favorites.includes(id),

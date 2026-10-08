@@ -1,3 +1,5 @@
+import { isSheetBidNav } from "./bidKeys";
+
 /**
  * 글자 단축키(`/` · `b`)를 살릴지 말지 가르는 한 가지 기준.
  *
@@ -17,11 +19,13 @@ export function isTypingInto(el: Element | null): boolean {
 /**
  * 글자가 들어갈 수 있는 칸인가 · 숫자 단축키(등급 거르기)가 쓰는 기준.
  *
- * 위와 달리 `readOnly` 를 봐주지 않는다. 고르기 모드 상장표 칸은 읽기전용이지만
- * 거기서 숫자는 「그 숫자부터 입찰을 쓴다」 는 칸 제 키다(`handleSheetBidKeyDown`).
- * `/`·`b` 처럼 살려 두면 한 번 누른 `9` 가 입찰 초안과 등급 필터를 함께 건드린다.
+ * 위와 달리 `readOnly` 를 대체로 봐주지 않는다 — 날짜 고르개처럼 읽기전용이어도 숫자를
+ * 제 키로 쓰는 칸이 있다. **고르기 모드 상장표 칸만 뺀다.** 거기서 숫자는 칸이 먹지
+ * 않고(`handleSheetBidKeyDown`) 이 단축키로 오게 짜여 있다. ↑↓ 로 행만 옮겨도 칸이
+ * 고르기로 잡히므로, 이걸 안 빼면 표를 훑는 동안 등급 단축키가 내내 죽는다.
  */
 export function isFieldFocused(el: Element | null): boolean {
+  if (isSheetBidNav(el)) return false;
   return (
     el instanceof HTMLInputElement ||
     el instanceof HTMLTextAreaElement ||

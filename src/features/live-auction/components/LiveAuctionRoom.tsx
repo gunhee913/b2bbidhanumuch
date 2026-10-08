@@ -7,9 +7,9 @@ import { cn } from "@/lib/utils";
 import { AuctionSideDock } from "./AuctionSideDock";
 import { LiveListingSheet } from "./LiveListingSheet";
 import { MainFooter } from "@/features/main/components/MainFooter";
-import { SURFACE_SHELL_CLASS } from "../constants/surface";
+import { OverlayScroll } from "@/components/ui/overlay-scroll";
 import { LoginGateOverlay } from "./LoginGateOverlay";
-import { SUMMARY_PANEL_MIN_ROOM } from "./SheetSummaryPanel";
+import { SUMMARY_PANEL_MIN_ROOM } from "../lib/sheetLayout";
 import { useAuctionRoom } from "../hooks/useAuctionRoom";
 import { useAuctionFavorites } from "../hooks/useAuctionFavorites";
 import { HOUSE_QUERY_KEY, HOUSE_STORAGE_KEY } from "@/features/entry/constants";
@@ -97,7 +97,8 @@ export function LiveAuctionRoom() {
    * 섹션이 아니라 본문 전체 폭을 재야 한다 — 섹션 폭은 아래 컨테이너 상한에 걸려 있어
    * 그걸로 판단하면 "좁아서 접음 → 접었으니 좁음" 으로 맞물린다.
    */
-  const [roomRef, { width: roomWidth }] = useMeasure<HTMLDivElement>();
+  const [roomRef, { width: roomWidth, height: roomHeight }] =
+    useMeasure<HTMLDivElement>();
   const showSummary = roomWidth - SHEET_PADDING_X * 2 >= SUMMARY_PANEL_MIN_ROOM;
   const sheetGridClass = cn("px-6 py-3", !showSummary && ROOM_CONTAINER_CLASS);
 
@@ -115,6 +116,7 @@ export function LiveAuctionRoom() {
   }, [legacyView, searchParams, router]);
 
   const [gradeFilter, setGradeFilter] = useState("");
+  const [genderFilter, setGenderFilter] = useState("");
   const [companyFilter, setCompanyFilter] = useState("");
 
   /*
@@ -175,34 +177,43 @@ export function LiveAuctionRoom() {
         onNavigateListing={openListing}
         favoriteIds={favorites.ids}
         onToggleFavorite={toggleFavorite}
+        onClearFavorites={favorites.clear}
       />
 
-      {/* 상장표 · 필터 · 표 · 요약이 칸막이 없는 한 섹션 */}
-      <div className={cn(sheetGridClass, "flex min-h-0 flex-1 flex-col")}>
-        <section
-          className={cn(
-            "flex min-h-0 min-w-0 flex-1 flex-col",
-            SURFACE_SHELL_CLASS,
-          )}
+      {/*
+       * 상장표 카드 · 눈금 · 요약 카드 (개체 = 1행 · 행을 누르면 개체 상세로) + 바닥글.
+       *
+       * 두 카드는 한 화면 높이에 묶여 제각각 구르고, 바닥글은 그 밑에 두 카드를 다 덮는
+       * 폭으로 붙는다. 표를 끝까지 내리고 더 굴리면 화면이 통째로 올라가며 바닥글이 나온다.
+       * 늘 바닥에 붙여 두면 한 화면 높이에서 표가 그만큼 짧아지는데, 여기 적힌 것
+       * (약관 · 문의처)은 하루에 한 번 볼까 말까다.
+       *
+       * 카드 줄 높이는 잰 값으로 준다 · 구르는 통이 자식을 높이 없는 상자로 한 겹 감싸
+       * `h-full` 이 먹지 않는다.
+       */}
+      <OverlayScroll autoHideDelay={0} className="min-h-0 flex-1">
+        <div
+          className={cn(sheetGridClass, "flex flex-col")}
+          style={roomHeight > 0 ? { height: roomHeight } : undefined}
         >
-          {/* 개체 = 1행 · 행을 누르면 개체 상세로 */}
           <LiveListingSheet
             listings={listings}
             isLoading={listingsLoading}
-            dealerId={dealerId}
             onOpenListing={(id) => openListing(id)}
             gradeFilter={gradeFilter}
+            genderFilter={genderFilter}
             companyFilter={companyFilter}
             onGradeChange={setGradeFilter}
+            onGenderChange={setGenderFilter}
             onCompanyChange={setCompanyFilter}
             companyOptions={companyOptions}
             canShowSummary={showSummary}
             favoriteIds={favorites.ids}
             onToggleFavorite={toggleFavorite}
-            tail={<MainFooter fluid />}
           />
-        </section>
-      </div>
+        </div>
+        <MainFooter fluid />
+      </OverlayScroll>
 
       <LoginGateOverlay
         open={loginPromptOpen}

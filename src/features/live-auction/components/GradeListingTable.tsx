@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { format, parse } from "date-fns";
 import { ko } from "date-fns/locale";
 import { useAuctionDayStats } from "@/features/auction-days/hooks/useAuctionDayStats";
@@ -10,17 +11,24 @@ import { cn } from "@/lib/utils";
 /** 데이터가 아직 없어도 표 모양은 유지한다 · 칸이 비는 것도 그날의 정보다 */
 const GRADE_ROWS = ["1++(9)", "1++(8)", "1++(7)", "1+", "1", "2", "3"] as const;
 
+/** `cattle_listings.gender` 값 그대로 · 「전체」 만 거르지 않는다는 뜻의 자리표 */
+const GENDER_TABS = [
+  { value: "all", label: "전체" },
+  { value: "거세", label: "거세" },
+  { value: "암", label: "암" },
+] as const;
+
+type GenderFilter = (typeof GENDER_TABS)[number]["value"];
+
 export interface GradeListingTableProps {
   /** yyyy-MM-dd · 달력에서 고른 날 */
   date: string;
-  /** 바깥에 날짜를 적어 주는 자리가 없을 때만 켠다 (모달 등) */
-  showDate?: boolean;
   /** 감싸는 쪽의 테두리·여백 · 패널 안인지 카드 안인지에 따라 다르다 */
   className?: string;
 }
 
 /**
- * 고른 날의 등급별 상장 두수 · 육질(1++ 는 근내지방도까지) × 육량 A/B/C 매트릭스.
+ * 고른 날의 상장두수 · 육질(1++ 는 근내지방도까지) × 육량 A/B/C 매트릭스, 성별로 거른다.
  *
  * 달력은 "장이 서느냐" 까지만 말한다. 정작 나갈지 말지를 가르는 건 그날 어떤 등급이
  * 얼마나 나오느냐라서, 고른 날마다 이 표가 따라 바뀌어야 달력을 누르는 의미가 생긴다.
@@ -28,13 +36,14 @@ export interface GradeListingTableProps {
  * 합계 열을 따로 두는 건 A/B/C 를 눈으로 더하게 하지 않으려는 것이고, 등급 행을 늘
  * 일곱 개 다 세우는 건 「1++ 가 없는 날」 과 「아직 안 불러온 날」 을 구분하기 위해서다.
  */
-export function GradeListingTable({
-  date,
-  showDate,
-  className,
-}: GradeListingTableProps) {
+export function GradeListingTable({ date, className }: GradeListingTableProps) {
   const { house } = useCurrentHouse();
-  const { data, isLoading } = useAuctionDayStats(date, house?.name ?? null);
+  const [gender, setGender] = useState<GenderFilter>("all");
+  const { data, isLoading } = useAuctionDayStats(
+    date,
+    house?.name ?? null,
+    gender === "all" ? null : gender,
+  );
 
   const byGrade = new Map(
     (data?.byGrade ?? []).map((g) => [g.grade, g] as const),
@@ -42,22 +51,27 @@ export function GradeListingTable({
   const total = data?.totalListings ?? 0;
 
   return (
-    <section className={cn("px-2", className)} aria-label="등급별 상장">
-      {/* 달력 밑에서는 바로 위 블록이 날짜를 이미 크게 적고 있어 또 적지 않는다 */}
-      <header className="flex items-baseline justify-between gap-2 px-2">
-        <h3 className="text-[12px] font-bold tracking-tight text-content">
-          등급별 상장
-        </h3>
-        {showDate ? (
+    <section className={cn("px-2", className)} aria-label="상장두수">
+      {/* 좁은 카드(오늘의 상장)에서 탭이 날짜와 부딪히면 아래 줄로 내려선다 */}
+      <header className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5 px-2">
+        <span className="flex min-w-0 items-baseline gap-1.5">
+          <h3 className="text-[12px] font-bold tracking-tight text-content">
+            상장두수
+          </h3>
           <span className="text-[11px] font-medium tabular-nums text-content-soft">
             {formatDayLabel(date)}
           </span>
-        ) : null}
+        </span>
+        <GenderTabs value={gender} onChange={setGender} />
       </header>
 
       {total === 0 ? (
         <p className="px-2 pt-2 text-[11.5px] font-medium text-content-soft">
-          {isLoading ? "불러오는 중..." : "이 날은 상장 기록이 없습니다"}
+          {isLoading
+            ? "불러오는 중..."
+            : gender === "all"
+              ? "이 날은 상장 기록이 없습니다"
+              : `이 날은 ${gender} 상장이 없습니다`}
         </p>
       ) : (
         <>
@@ -91,6 +105,43 @@ export function GradeListingTable({
         </>
       )}
     </section>
+  );
+}
+
+function GenderTabs({
+  value,
+  onChange,
+}: {
+  value: GenderFilter;
+  onChange: (next: GenderFilter) => void;
+}) {
+  return (
+    <div
+      role="tablist"
+      aria-label="성별"
+      className="inline-flex shrink-0 items-center rounded-md bg-surface-accent p-0.5"
+    >
+      {GENDER_TABS.map((tab) => {
+        const active = tab.value === value;
+        return (
+          <button
+            key={tab.value}
+            type="button"
+            role="tab"
+            aria-selected={active}
+            onClick={() => onChange(tab.value)}
+            className={cn(
+              "rounded-[5px] px-2 py-0.5 text-[11px] font-bold transition-colors",
+              active
+                ? "bg-surface text-content shadow-sm"
+                : "text-content-soft hover:text-content-mid",
+            )}
+          >
+            {tab.label}
+          </button>
+        );
+      })}
+    </div>
   );
 }
 

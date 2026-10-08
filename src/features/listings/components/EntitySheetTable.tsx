@@ -10,7 +10,9 @@ import {
   type ReactNode,
 } from "react";
 import Image from "next/image";
-import { ChevronRight, ImageOff, Star } from "lucide-react";
+import { ArrowUp, ChevronRight, ImageOff, Star } from "lucide-react";
+import { useMeasure } from "react-use";
+import { sum } from "es-toolkit";
 import { cn } from "@/lib/utils";
 import { formatGradeLabel } from "@/features/live-auction/lib/grade";
 import { formatKrw } from "@/features/live-auction/lib/masking";
@@ -19,6 +21,17 @@ import {
   type GalleryItem,
 } from "@/features/live-auction/components/ListingImageGallery";
 import type { SheetEntity, SheetFocus } from "../lib/sheetEntity";
+import {
+  COMPACT_COLUMN_PX,
+  COMPACT_EXPAND_COLUMN_PX,
+  spreadColumns,
+} from "../lib/sheetColumns";
+import {
+  describeSheetSort,
+  nextSheetSort,
+  type SheetSort,
+  type SheetSortKey,
+} from "../lib/sheetSort";
 
 /** 그룹 첫 열 · 얇은 좌측 구분선 (헤더·바디 공통) · 개체 / 등급판정 / 상장 / 결과 */
 export const SHEET_GROUP_START = "border-l border-line pl-3";
@@ -43,15 +56,36 @@ export const SHEET_PART_CELL =
   "whitespace-nowrap px-1 py-[6px] align-middle tabular-nums";
 const QUALITY_CELL = cn(SHEET_CELL, "text-center text-content-mid");
 /**
- * 좁은 표(`compact`) 전용 여백.
+ * 경매장 상장표(`compact`) 칸 여백 · 정렬 갈래마다 하나씩 · 표가 바닥 폭일 때의 최소 틈이다.
  *
- * 기본 `px-2` 는 열 16개에서만 여백으로 202px 을 먹는다 — 표 폭의 5분의 1이다.
- * 본문 열은 4분의 3(`px-1.5`), 값이 한 자리 숫자인 등급판정 7열은 절반(`px-1`),
- * 그룹 경계의 들여쓰기도 `pl-3` → `pl-2` 로 줄여 아낀 폭을 전 열에 되돌린다.
+ * 왼쪽에 붙는 칸은 별+사진+접수번호 하나뿐이다 — 표 테두리 쪽 12px, 다음 칸 쪽 6px.
+ * 나머지는 모두 가운데 정렬이라(등급 · 축종 · 성별 · 개월 · 상장업체 6px · 등급판정 일곱 4px)
+ * 남는 폭이 양쪽에 저절로 나뉘어 여백이 된다. 바닥 폭에서 이웃한 값 사이 틈은 12px,
+ * 표가 넓어지면 열마다 같은 몫이 얹혀 다 같이 벌어진다 (`COMPACT_COLUMN_PX`).
+ * 전에는 칸마다 6 · 4 · 8 이 섞여 틈이 칸 따라 들쑥날쑥했다.
+ *
+ * 등급과 상장업체는 길이가 들쭉날쭉한 글자라도 가운데에 둔다. 왼쪽에 붙이면 짧은 값
+ * (`2B(3)` · 세 자 업체) 뒤로 빈 폭이 한쪽에만 몰려, 가운데 칸 사이에서 그 둘만 틈이 커 보인다.
+ *
+ * 그룹 경계(상장업체 | 근내지방)는 선만 긋고 들여쓰지 않는다 — 가운데 칸을 들여쓰면
+ * 숫자가 칸 한가운데서 벗어나, 고르게 세운 일곱의 간격이 첫 칸에서만 어긋난다.
  */
+const DENSE_TEXT_CELL = "pl-3 pr-1.5";
 const DENSE_CELL = "px-1.5";
 const QUALITY_TIGHT = "px-1";
-const DENSE_GROUP_START = "pl-2";
+const DENSE_GROUP_START = "border-l border-line";
+
+/**
+ * 단위(원 · mm · ㎠)와 분모 글자.
+ *
+ * 경매장 상장표(`compact`)는 큰 글씨다 — 실무자 시연에서 중도매인 연령대에 13px 이 작다는
+ * 말이 나와 본문을 15px 로 올렸다. 흐린 회색(`content-faint`)은 흰 바탕에서 3:1 남짓이라
+ * 글자를 키워도 여전히 안 읽혀 한 단계 진한 `content-soft`(5:1)로 같이 올린다.
+ */
+const unitTextClass = (large: boolean) =>
+  large
+    ? "text-[12.5px] font-medium text-content-soft"
+    : "text-[11px] font-medium text-content-faint";
 
 /** 행 표식 · 값은 개체 id · 키보드로 짚은 줄을 찾아 굴릴 때 쓴다 */
 const SHEET_ROW_ATTR = "data-sheet-row";
@@ -73,40 +107,42 @@ export function scrollSheetRowIntoView(entityId: string): boolean {
 
 const QUALITY_COLUMN_COUNT = 7;
 /**
- * 등급판정 7열 폭 · 근내지방 · 육색 · 지방색 · 조직도 · 성숙도 · 등지방두께 · 등심면적.
- * compact 비율은 표 폭 980px(요약을 편 최소 폭)에서 머리글이 잘리지 않는 값으로 잡았다.
+ * 넓은 표(경매내역) 등급판정 7열 폭 · 근내지방 · 육색 · 지방색 · 조직도 · 성숙도 · 등지방두께 · 등심면적.
+ * `compact` 는 비율이 아니라 px 바닥 폭에 남는 폭을 똑같이 얹는다 (`COMPACT_COLUMN_PX`).
  */
-const QUALITY_WIDTHS = {
-  compact: [
-    "w-[5.7%]",
-    "w-[3.2%]",
-    "w-[4.3%]",
-    "w-[4.3%]",
-    "w-[4.3%]",
-    "w-[6.3%]",
-    "w-[5.3%]",
-  ],
-  wide: [
-    "w-[4.4%]",
-    "w-[3.1%]",
-    "w-[3.7%]",
-    "w-[3.7%]",
-    "w-[3.7%]",
-    "w-[5.2%]",
-    "w-[4.4%]",
-  ],
-} as const;
+const QUALITY_WIDTHS = [
+  "w-[4.4%]",
+  "w-[3.1%]",
+  "w-[3.7%]",
+  "w-[3.7%]",
+  "w-[3.7%]",
+  "w-[5.2%]",
+  "w-[4.4%]",
+] as const;
+/** 등급판정 일곱 머리글 · 칸 차례와 같다 · 첫 칸 앞에 그룹 경계선이 선다 */
+const QUALITY_HEADS: ReadonlyArray<{ label: string; sortKey: SheetSortKey }> = [
+  { label: "근내지방", sortKey: "marblingScore" },
+  { label: "육색", sortKey: "meatColor" },
+  { label: "지방색", sortKey: "fatColor" },
+  { label: "조직도", sortKey: "texture" },
+  { label: "성숙도", sortKey: "maturity" },
+  { label: "등지방두께", sortKey: "backFat" },
+  { label: "등심면적", sortKey: "eyeMuscle" },
+];
 /** 머리글 높이 · 초점 이동으로 스크롤할 때 고정 머리글 밑에 행이 숨지 않도록 여유를 준다 */
 const STICKY_HEAD_HEIGHT = 36;
 const EMPTY_EXPANDED: ReadonlySet<string> = new Set();
+const NO_SUMMARY_COLUMNS: SheetSummaryColumn[] = [];
 
 export interface SheetSummaryColumn {
   label: string;
   align: "left" | "center" | "right";
   /** 이 열 앞에 그룹 구분선 */
   groupStart?: boolean;
-  /** `w-[7.5%]` 같은 colgroup 폭 클래스 */
-  widthClass: string;
+  /** `w-[7.5%]` 같은 colgroup 폭 클래스 · 넓은 표(경매내역)용 */
+  widthClass?: string;
+  /** 바닥 폭 px · `compact` 표용 · 남는 폭은 본문 열과 똑같이 나눠 받는다 */
+  basePx?: number;
   /** 마지막 열 우측 여백 등 헤더 추가 클래스 */
   headClass?: string;
 }
@@ -126,11 +162,15 @@ export interface EntitySheetTableProps {
   focus?: SheetFocus | null;
   /**
    * 경매장 상장표용 · 도축장/도축일 열 제거(당일 한 도축장) · 나머지 열 구성은 경매내역과 동일.
+   * 글자는 오히려 크다 (본문 15px · 사진 48px · 행 64px) — 이름은 열이 적다는 뜻이다.
    */
   compact?: boolean;
-  /** 우측 결과/요약 열 정의 · 셀은 `renderSummary` 가 같은 순서로 `<td>` 를 돌려준다 */
-  summaryColumns: SheetSummaryColumn[];
-  renderSummary: (entity: SheetEntity) => ReactNode;
+  /**
+   * 우측 결과/요약 열 정의 · 셀은 `renderSummary` 가 같은 순서로 `<td>` 를 돌려준다.
+   * 경매장 상장표는 두지 않는다 — 낙찰 결과는 경매내역이 맡는다.
+   */
+  summaryColumns?: SheetSummaryColumn[];
+  renderSummary?: (entity: SheetEntity) => ReactNode;
   /** 펼침 영역 · 부위 표 등 · `flashPartNo` 는 focus 로 진입한 부위 번호(2.2초) */
   renderExpanded?: (
     entity: SheetEntity,
@@ -162,6 +202,13 @@ export interface EntitySheetTableProps {
    */
   favoriteIds?: ReadonlySet<string>;
   onToggleFavorite?: (listingNo: string) => void;
+  /**
+   * 열 머리글 정렬 · `onSortChange` 를 주면 머리글이 정렬 단추가 된다 · `null` 은 원래대로.
+   * 표는 받은 차례대로 그릴 뿐이고, 줄을 세우는 건 부르는 쪽이다 (`sortSheetEntities`) —
+   * ↑/↓ 커서와 오른쪽 요약도 같은 차례를 따라야 하기 때문이다.
+   */
+  sort?: SheetSort | null;
+  onSortChange?: (next: SheetSort | null) => void;
   className?: string;
 }
 
@@ -182,7 +229,7 @@ export function EntitySheetTable({
   selectedId = null,
   focus = null,
   compact = false,
-  summaryColumns,
+  summaryColumns = NO_SUMMARY_COLUMNS,
   renderSummary,
   renderExpanded,
   isLoading = false,
@@ -193,16 +240,38 @@ export function EntitySheetTable({
   onHoverEntity,
   favoriteIds,
   onToggleFavorite,
+  sort,
+  onSortChange,
   className,
 }: EntitySheetTableProps) {
   const isStickyHead = stickyHeadTop != null;
   /** 펼침이 없으면 화살표 열 자체를 두지 않는다 · 행은 다른 화면으로 가는 링크다 */
   const expandable = !!renderExpanded;
+  const textCell = compact ? DENSE_TEXT_CELL : undefined;
+  const labelCell = compact ? cn(DENSE_CELL, "text-center") : "text-left";
   const dense = compact ? DENSE_CELL : undefined;
   const quality = compact ? QUALITY_TIGHT : undefined;
-  const groupStart = cn(SHEET_GROUP_START, compact && DENSE_GROUP_START);
+  const groupStart = compact ? DENSE_GROUP_START : SHEET_GROUP_START;
+  const sorting = onSortChange
+    ? { sort: sort ?? null, onChange: onSortChange }
+    : null;
   const [lightbox, setLightbox] = useState<SheetEntity | null>(null);
   const [lightboxIdx, setLightboxIdx] = useState(0);
+  const [measureRef, { width: measuredWidth }] = useMeasure<HTMLDivElement>();
+  const compactBase = useMemo(
+    () =>
+      compact
+        ? [
+            ...(expandable ? [COMPACT_EXPAND_COLUMN_PX] : []),
+            ...COMPACT_COLUMN_PX,
+            ...summaryColumns.map((c) => c.basePx ?? 0),
+          ]
+        : null,
+    [compact, expandable, summaryColumns],
+  );
+  const compactWidths = compactBase
+    ? spreadColumns(compactBase, measuredWidth)
+    : null;
   const lightboxItems = useMemo<GalleryItem[]>(
     () =>
       (lightbox?.images ?? []).map((src) => ({
@@ -245,34 +314,32 @@ export function EntitySheetTable({
   }
 
   return (
-    <div className={cn(!isStickyHead && "overflow-x-auto", className)}>
+    <div
+      ref={compact ? measureRef : undefined}
+      className={cn(!isStickyHead && "overflow-x-auto", className)}
+    >
       <table
+        style={
+          compactBase && !minWidthClass
+            ? { minWidth: sum(compactBase) }
+            : undefined
+        }
         className={cn(
-          "w-full table-fixed text-[13px] font-semibold text-content",
-          minWidthClass ?? (compact ? "min-w-[900px]" : "min-w-[1200px]"),
+          "w-full table-fixed font-semibold text-content",
+          compact ? "text-[15px]" : "text-[13px]",
+          minWidthClass ?? (compact ? undefined : "min-w-[1200px]"),
         )}
       >
-        {/* 비율 폭 · 남는 폭이 한 열에 몰리지 않고 전체에 나눠진다 (합 ≈ 100%) */}
+        {/*
+         * compact · px 바닥 폭 + 남는 폭을 똑같이 (`spreadColumns`)
+         * 넓은 표 · 비율 폭 (합 ≈ 100%)
+         */}
         <colgroup>
-          {expandable ? (
-            <col className={compact ? "w-[2.5%]" : "w-[2.2%]"} />
-          ) : null}
-          {compact ? (
-            <>
-              {/* 별 + 사진 + 접수번호 한 칸 · 18 + 36 + 6 + 80 + 좌우 12 = 152px (표 980 기준) */}
-              <col className="w-[15.7%]" />
-              <col className="w-[6.9%]" />
-              <col className="w-[3.8%]" />
-              <col className="w-[3.8%]" />
-              <col className="w-[3.6%]" />
-              {/* 상장업체는 유일하게 잘려도 되는 열(`truncate`) · 남는 폭을 여기서 꾼다 */}
-              <col className="w-[6.7%]" />
-              {QUALITY_WIDTHS.compact.map((w, i) => (
-                <col key={i} className={w} />
-              ))}
-            </>
+          {compactWidths ? (
+            compactWidths.map((px, i) => <col key={i} style={{ width: px }} />)
           ) : (
             <>
+              {expandable ? <col className="w-[2.2%]" /> : null}
               <col className="w-[3.7%]" />
               <col className="w-[9.5%]" />
               <col className="w-[6%]" />
@@ -280,20 +347,23 @@ export function EntitySheetTable({
               <col className="w-[3.5%]" />
               <col className="w-[3.5%]" />
               <col className="w-[8.6%]" />
-              {QUALITY_WIDTHS.wide.map((w, i) => (
+              {QUALITY_WIDTHS.map((w, i) => (
                 <col key={i} className={w} />
               ))}
               <col className="w-[11.6%]" />
+              {summaryColumns.map((c) => (
+                <col key={c.label} className={c.widthClass} />
+              ))}
             </>
           )}
-          {summaryColumns.map((c) => (
-            <col key={c.label} className={c.widthClass} />
-          ))}
         </colgroup>
         <thead
           style={isStickyHead ? { top: stickyHeadTop } : undefined}
           className={cn(
-            "bg-surface-muted text-[12px] font-medium text-content-faint",
+            "bg-surface-muted font-medium",
+            compact
+              ? "text-[13px] text-content-soft"
+              : "text-[12px] text-content-faint",
             isStickyHead && "sticky z-10",
           )}
         >
@@ -302,29 +372,62 @@ export function EntitySheetTable({
               <th className={cn(SHEET_HEAD, "px-1")} aria-label="펼침" />
             ) : null}
             {compact ? (
-              <th className={cn(SHEET_HEAD, dense, "text-left")}>접수번호</th>
+              <SheetHead
+                label="접수번호"
+                sortKey="listingNo"
+                sorting={sorting}
+                className={cn(SHEET_HEAD, textCell, "text-left")}
+              />
             ) : (
               <>
                 <th className={cn(SHEET_HEAD, "px-1")}>사진</th>
-                <th className={cn(SHEET_HEAD, groupStart, "text-left")}>
-                  접수번호
-                </th>
+                <SheetHead
+                  label="접수번호"
+                  sortKey="listingNo"
+                  sorting={sorting}
+                  className={cn(SHEET_HEAD, groupStart, "text-left")}
+                />
               </>
             )}
-            <th className={cn(SHEET_HEAD, dense, "text-left")}>등급</th>
-            <th className={cn(SHEET_HEAD, dense)}>축종</th>
-            <th className={cn(SHEET_HEAD, dense)}>성별</th>
-            <th className={cn(SHEET_HEAD, dense)}>개월</th>
-            <th className={cn(SHEET_HEAD, dense, "text-left")}>상장업체</th>
-            <th className={cn(SHEET_HEAD, groupStart, quality && "pr-1")}>
-              근내지방
-            </th>
-            <th className={cn(SHEET_HEAD, quality)}>육색</th>
-            <th className={cn(SHEET_HEAD, quality)}>지방색</th>
-            <th className={cn(SHEET_HEAD, quality)}>조직도</th>
-            <th className={cn(SHEET_HEAD, quality)}>성숙도</th>
-            <th className={cn(SHEET_HEAD, quality)}>등지방두께</th>
-            <th className={cn(SHEET_HEAD, quality)}>등심면적</th>
+            <SheetHead
+              label="등급"
+              sortKey="grade"
+              sorting={sorting}
+              className={cn(SHEET_HEAD, labelCell)}
+            />
+            <SheetHead
+              label="축종"
+              sortKey="breed"
+              sorting={sorting}
+              className={cn(SHEET_HEAD, dense)}
+            />
+            <SheetHead
+              label="성별"
+              sortKey="gender"
+              sorting={sorting}
+              className={cn(SHEET_HEAD, dense)}
+            />
+            <SheetHead
+              label="개월"
+              sortKey="monthAge"
+              sorting={sorting}
+              className={cn(SHEET_HEAD, dense)}
+            />
+            <SheetHead
+              label="상장업체"
+              sortKey="companyName"
+              sorting={sorting}
+              className={cn(SHEET_HEAD, labelCell)}
+            />
+            {QUALITY_HEADS.map((head, i) => (
+              <SheetHead
+                key={head.sortKey}
+                label={head.label}
+                sortKey={head.sortKey}
+                sorting={sorting}
+                className={cn(SHEET_HEAD, i === 0 && groupStart, quality)}
+              />
+            ))}
             {compact ? null : (
               <th className={cn(SHEET_HEAD, groupStart, "text-left")}>
                 도축장 · 도축일
@@ -402,6 +505,78 @@ export function EntitySheetTable({
   );
 }
 
+/* ───────────────────────── 머리글 · 정렬 단추 ───────────────────────── */
+
+/**
+ * 열 머리글 · `sorting` 을 주면 칸 전체가 정렬 단추다.
+ *
+ * 누를 때마다 첫 방향 → 반대 방향 → 원래대로(접수번호 순)를 돈다 (`nextSheetSort`).
+ * 손을 올려도 아무것도 바뀌지 않는다 — 머리글 줄에서 칸마다 배경이 켜졌다 꺼지면 표보다
+ * 머리글이 먼저 눈에 걸린다. 무엇을 할지는 말풍선이 알려 준다.
+ *
+ * 화살표는 정렬한 열에만 선다. 열세 칸에 다 세워 두면 머리글 줄이 화살표로 덮이고, 칸마다
+ * 화살표 몫(≈10px)을 비워 둬야 해 표가 그만큼 덜 줄어든다 — 사이드 메뉴를 폈을 때 사진 ·
+ * 시세가 그 폭을 떠안는다. 방향이 바뀔 때는 같은 화살표가 뒤집히며 돈다.
+ *
+ * 화살표는 글자 옆에 붙어 칸 가운데에 함께 선다. 칸 밖으로 매달면 바닥 폭(이웃 글자까지
+ * 12px)에서 이웃 머리글에 닿는다.
+ */
+function SheetHead({
+  label,
+  sortKey,
+  sorting,
+  className,
+}: {
+  label: string;
+  sortKey: SheetSortKey;
+  sorting: {
+    sort: SheetSort | null;
+    onChange: (next: SheetSort | null) => void;
+  } | null;
+  className: string;
+}) {
+  if (!sorting) return <th className={className}>{label}</th>;
+
+  const active = sorting.sort?.key === sortKey ? sorting.sort : null;
+  const next = nextSheetSort(sorting.sort, sortKey);
+
+  return (
+    <th
+      aria-sort={
+        active
+          ? active.direction === "asc"
+            ? "ascending"
+            : "descending"
+          : "none"
+      }
+      className={cn(className, "relative", active && "text-content")}
+    >
+      <button
+        type="button"
+        onClick={() => sorting.onChange(next)}
+        title={
+          next
+            ? `${describeSheetSort(label, next)}으로 정렬`
+            : "원래대로 (접수번호 순)"
+        }
+        className="inline-flex items-center outline-none after:absolute after:inset-0 focus-visible:after:ring-2 focus-visible:after:ring-inset focus-visible:after:ring-content-faint"
+      >
+        {label}
+        {active ? (
+          <ArrowUp
+            aria-hidden
+            strokeWidth={2.5}
+            className={cn(
+              "-mr-[2.5px] ml-px h-3 w-3 shrink-0 transition-transform duration-200",
+              active.direction === "desc" && "rotate-180",
+            )}
+          />
+        ) : null}
+      </button>
+    </th>
+  );
+}
+
 /* ───────────────────────── 개체 행 + 펼침 행 ───────────────────────── */
 
 function EntityRows({
@@ -436,7 +611,7 @@ function EntityRows({
   /** `null` 이면 관심을 쓰지 않는 화면 · 별 자체를 그리지 않는다 */
   favorited: boolean | null;
   onToggleFavorite?: () => void;
-  renderSummary: (entity: SheetEntity) => ReactNode;
+  renderSummary?: (entity: SheetEntity) => ReactNode;
   renderExpanded?: (
     entity: SheetEntity,
     ctx: { flashPartNo: number | null },
@@ -446,9 +621,11 @@ function EntityRows({
   const [flashPartNo, setFlashPartNo] = useState<number | null>(null);
   /** 펼침 영역이 없으면 행은 다른 화면으로 가는 링크 · 화살표도 돌지 않는다 */
   const expandable = !!renderExpanded;
+  const textCell = compact ? DENSE_TEXT_CELL : undefined;
+  const labelCell = compact ? cn(DENSE_CELL, "text-center") : "text-left";
   const dense = compact ? DENSE_CELL : undefined;
   const quality = compact ? QUALITY_TIGHT : undefined;
-  const groupStart = cn(SHEET_GROUP_START, compact && DENSE_GROUP_START);
+  const groupStart = compact ? DENSE_GROUP_START : SHEET_GROUP_START;
 
   const gradeLabel = formatGradeLabel(entity.grade, entity.marblingScore);
   const cover = entity.images[0] ?? null;
@@ -485,7 +662,7 @@ function EntityRows({
         e.stopPropagation();
         onOpenPhotos();
       }}
-      className={compact ? "mx-0" : undefined}
+      className={compact ? "mx-0 h-12 w-12" : undefined}
     />
   );
 
@@ -518,7 +695,8 @@ function EntityRows({
           </td>
         ) : null}
         {compact ? (
-          <td className={cn(SHEET_CELL, dense)}>
+          /* 행 높이는 이 칸이 정한다 · 사진 48 + 위아래 8 = 64px */
+          <td className={cn(SHEET_CELL, textCell, "py-2")}>
             <span className="flex items-center gap-1.5">
               {favorited != null && onToggleFavorite ? (
                 <FavoriteStar
@@ -547,11 +725,17 @@ function EntityRows({
             </td>
           </>
         )}
+        {/*
+         * 위계는 세 단 · 어느 개체인지(접수번호 · 등급)는 굵은 먹색, 나머지 값은 한 가지
+         * 회색 · 단위와 머리글은 한 단 작고 옅게. 경매장 표에서는 근내지방만 따로 띄우지
+         * 않는다 — 그 점수는 등급 괄호 `1++A(9)` 에 이미 굵게 서 있다.
+         */}
         <td
           className={cn(
             SHEET_CELL,
-            dense,
-            "text-left font-semibold text-content",
+            labelCell,
+            "text-content",
+            compact ? "font-bold" : "font-semibold",
           )}
         >
           {gradeLabel}
@@ -565,21 +749,15 @@ function EntityRows({
         <td className={cn(SHEET_CELL, dense, "text-center text-content-mid")}>
           {dash(entity.monthAge)}
         </td>
-        <td
-          className={cn(
-            SHEET_CELL,
-            dense,
-            "truncate text-left text-content-mid",
-          )}
-        >
+        <td className={cn(SHEET_CELL, labelCell, "truncate text-content-mid")}>
           {entity.companyName || "-"}
         </td>
         <td
           className={cn(
             QUALITY_CELL,
             groupStart,
-            quality && "pr-1",
-            "font-semibold text-content",
+            quality,
+            !compact && "font-semibold text-content",
           )}
         >
           {dash(entity.marblingScore)}
@@ -589,10 +767,10 @@ function EntityRows({
         <td className={cn(QUALITY_CELL, quality)}>{dash(entity.texture)}</td>
         <td className={cn(QUALITY_CELL, quality)}>{dash(entity.maturity)}</td>
         <td className={cn(QUALITY_CELL, quality)}>
-          <UnitValue value={entity.backFat} unit="mm" />
+          <UnitValue value={entity.backFat} unit="mm" large={compact} />
         </td>
         <td className={cn(QUALITY_CELL, quality)}>
-          <UnitValue value={entity.eyeMuscle} unit="㎠" />
+          <UnitValue value={entity.eyeMuscle} unit="㎠" large={compact} />
         </td>
         {compact ? null : (
           <td
@@ -605,7 +783,7 @@ function EntityRows({
             {slaughter || "-"}
           </td>
         )}
-        {renderSummary(entity)}
+        {renderSummary?.(entity)}
       </tr>
 
       {open && renderExpanded ? (
@@ -653,7 +831,7 @@ function FavoriteStar({
         onToggle();
       }}
       className={cn(
-        "inline-flex h-5 w-5 shrink-0 items-center justify-center rounded transition-colors",
+        "inline-flex h-6 w-6 shrink-0 items-center justify-center rounded transition-colors",
         "active:scale-[0.9]",
         on
           ? "text-fav"
@@ -661,7 +839,7 @@ function FavoriteStar({
       )}
     >
       <Star
-        className={cn("h-3.5 w-3.5", on && "fill-current")}
+        className={cn("h-4 w-4", on && "fill-current")}
         strokeWidth={2.2}
         aria-hidden
       />
@@ -781,11 +959,11 @@ export interface SheetResultSummary {
 }
 
 /**
- * 개체 행 오른쪽 세 칸 · 낙찰 n/총 · 총 낙찰대금 · 내 낙찰대금.
+ * 개체 행 오른쪽 세 칸 · 낙찰 n/총 · 총 낙찰대금 · 내 낙찰대금 · 경매내역 상장표 전용.
  *
- * 경매장 상장표와 경매내역 상장표가 같은 것을 쓴다. 한때 화면마다 한 벌씩 있었는데
- * 「원」 꼬리가 한쪽에만 붙고 미낙찰 색이 한쪽은 토큰, 한쪽은 생색(`rose-500`)이라
- * 같은 열이 화면 따라 다르게 보였다.
+ * 한때 경매장 상장표에도 있었다. 화면마다 한 벌씩 두었을 때는 「원」 꼬리가 한쪽에만
+ * 붙고 미낙찰 색이 한쪽은 토큰, 한쪽은 생색(`rose-500`)이라 같은 열이 화면 따라 달랐다.
+ * 경매장에서 뺀 것은 경매가 도는 동안 칸 대부분이 비어 있어서다 — 결과는 끝나고 본다.
  */
 export function SheetResultCells({ summary }: { summary: SheetResultSummary }) {
   const participated = summary.myBidCount > 0;
@@ -838,9 +1016,7 @@ function WonAmount({ value }: { value: number }) {
   return (
     <>
       {formatKrw(value)}
-      <span className="pl-px text-[11px] font-medium text-content-faint">
-        원
-      </span>
+      <span className={cn("pl-px", unitTextClass(false))}>원</span>
     </>
   );
 }
@@ -852,9 +1028,11 @@ function WonAmount({ value }: { value: number }) {
 export function UnitValue({
   value,
   unit,
+  large = false,
 }: {
   value: number | null | undefined;
   unit: string;
+  large?: boolean;
 }) {
   if (value === null || value === undefined) {
     return <span className="text-content-ghost">-</span>;
@@ -862,9 +1040,7 @@ export function UnitValue({
   return (
     <>
       {value}
-      <span className="pl-0.5 text-[11px] font-medium text-content-faint">
-        {unit}
-      </span>
+      <span className={cn("pl-0.5", unitTextClass(large))}>{unit}</span>
     </>
   );
 }

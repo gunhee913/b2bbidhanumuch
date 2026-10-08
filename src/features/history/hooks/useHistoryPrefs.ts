@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect } from "react";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
+import { usePersistedView } from "@/hooks/usePersistedView";
 import {
   applyStagePlacement,
   STAGE_PLACEMENT_DEFAULT,
@@ -49,10 +49,10 @@ export const SIDE_DEFAULT_WIDTH = 400;
 export const TABLE_MIN_WIDTH = 560;
 
 /**
- * 개체정보 카드 높이 한계 · 배송지시와 같은 여섯 줄을 담는다.
+ * 개체정보 카드 높이 한계 · 배송지시와 같은 다섯 줄을 담는다.
  *
- * 기본 176 은 머리 32 + 여섯 줄(줄 높이 ~18, 사이 8) + 위아래 여백 20 — 구르지
- * 않고 다 보이는 높이다. 최소 72 는 두 줄만 보이고 나머지는 안에서 구르는 지점으로,
+ * 기본 188 은 머리 32 + 다섯 줄(줄 높이 ~20, 사이 8) + 위아래 여백 20 + 테두리 2 —
+ * 구르지 않고 다 보이는 높이다. 최소 72 는 두 줄만 보이고 나머지는 안에서 구르는 지점으로,
  * 사진을 크게 보고 싶은 날 접어 두는 자리다.
  *
  * **천장은 없다.** 올릴 수 있는 데까지는 사진이 제 바닥(`PHOTO_MIN_HEIGHT`)에 닿는
@@ -61,7 +61,7 @@ export const TABLE_MIN_WIDTH = 560;
  * 사진은 썸네일만큼만 두는 날이 있고, 그 자리를 막을 까닭이 없다.
  */
 export const INFO_MIN_HEIGHT = 72;
-export const INFO_DEFAULT_HEIGHT = 176;
+export const INFO_DEFAULT_HEIGHT = 188;
 
 /** 사진 판 최소 높이 · 개체정보를 키울 때 이만큼은 남긴다 (배송지시 그림판과 같은 값) */
 export const PHOTO_MIN_HEIGHT = 200;
@@ -103,7 +103,13 @@ const clampSideWidth = (px: number) =>
  * 담긴 값이 `history` 인 것은 예전 이름(경매내역)의 자국이다. 바꾸면 쓰던 사람의
  * 브라우저에 남은 값이 어느 화면도 가리키지 않게 되어 그대로 둔다.
  */
-export type HistoryView = "history" | "bids" | "sheet";
+export const HISTORY_VIEWS = ["history", "bids", "sheet"] as const;
+
+export type HistoryView = (typeof HISTORY_VIEWS)[number];
+
+/** 머리 메뉴가 주소로 집어 준 이름이 아직 있는 것인가 (`usePersistedView`) */
+const isHistoryView = (value: unknown): value is HistoryView =>
+  HISTORY_VIEWS.includes(value as HistoryView);
 
 interface HistoryPrefsState {
   view: HistoryView;
@@ -184,14 +190,16 @@ export const useHistoryPrefs = create<HistoryPrefsState>()(
     {
       name: "history-prefs",
       storage: createJSONStorage(() => localStorage),
-      /* 왼쪽 열 행 수가 바뀔 때마다 올린다 (`normalizeSideOrder`) */
-      version: 2,
-      migrate: (persisted) => ({
-        ...(persisted as Partial<HistoryPrefsState>),
-        sideOrder: normalizeSideOrder(
-          (persisted as Partial<HistoryPrefsState>)?.sideOrder,
-        ),
-      }),
+      /*
+       * 왼쪽 열 행 수가 바뀔 때마다 올린다 (`normalizeSideOrder`).
+       * v3 · 개체정보가 다섯 줄로 바뀌어 담아 둔 높이를 버린다 · 늘려 둔 만큼 아래가 빈다.
+       */
+      version: 3,
+      migrate: (persisted, version) => {
+        const prev = { ...(persisted as Partial<HistoryPrefsState>) };
+        if (version < 3) delete prev.infoHeight;
+        return { ...prev, sideOrder: normalizeSideOrder(prev.sideOrder) };
+      },
       /*
        * 고른 화면이 곧 「어떤 표를 그리느냐」 라 바로 되살리면 안 된다. 서버가 그린
        * 경매내역과 담아 둔 상장표가 어긋나 하이드레이션이 깨진다. 잡아 둔 열 폭과
@@ -203,9 +211,15 @@ export const useHistoryPrefs = create<HistoryPrefsState>()(
   ),
 );
 
-/** 저장값 되살리기 · `skipHydration` 이라 이걸 부르지 않으면 늘 경매내역으로 뜬다 */
+/* effect 안에서 쓰는 것들 · 모듈 바깥에 세워 둬야 매 그림마다 안 바뀐다 */
+const rehydrate = () => useHistoryPrefs.persist.rehydrate();
+const setView = (view: HistoryView) => useHistoryPrefs.setState({ view });
+
+/**
+ * 저장값 되살리기 · `skipHydration` 이라 이걸 부르지 않으면 늘 경매내역으로 뜬다.
+ *
+ * 머리 메뉴가 `?view=bids` 로 집어 주면 되살린 뒤에 그걸 얹는다 (`usePersistedView`).
+ */
 export function useHistoryPrefsHydration() {
-  useEffect(() => {
-    void useHistoryPrefs.persist.rehydrate();
-  }, []);
+  usePersistedView({ rehydrate, setView, isView: isHistoryView });
 }

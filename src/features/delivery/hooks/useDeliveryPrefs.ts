@@ -46,21 +46,23 @@ export const DELIVERY_PANE_MIN_WIDTH = GRADE_STAMP_WIDTH + STAGE_CHROME_WIDTH;
  * 표 **판**의 바닥 · 표 자체의 바닥(`DELIVERY_TABLE_MIN_WIDTH`)과 다른 값이다.
  *
  * 표는 958 이 있어야 제 모습인데 판은 그보다 좁아도 된다 — 모자란 만큼 판 안에서
- * 가로로 민다. 그래서 판의 바닥을 정하는 건 표가 아니라 **밀리지 않는 머리줄**이다
- * (묶는 기준 163 · 미정만 51 · 건수 133 · 총액 82 · 손잡이 18 · 여백과 틈 64 = 511).
+ * 가로로 민다. 그래서 판의 바닥을 정하는 건 표가 아니라 **머리줄 첫 줄**이다. 머리줄은
+ * 좁으면 집계 묶음을 아랫줄로 내리므로, 첫 줄에 남는 것만 들어가면 된다
+ * (기간 205 · 가름선과 틈 17 · 묶는 기준 163 · 여백 24 = 409 · 기간이 여러 날일 때).
  *
  * 둘을 한 값으로 묶으면 페이지 최소 폭이 516 만큼 더 넓어지고, 그만큼 창이 작은
  * 기기에서는 화면 전체가 가로로 밀린다 — 머리도 사이드 메뉴도 같이 끌려간다.
  */
-export const DELIVERY_TABLE_PANE_MIN_WIDTH = 520;
+export const DELIVERY_TABLE_PANE_MIN_WIDTH = 460;
 
 /*
  * 개체정보가 높이를 px 로 쥐고 그림판이 남는 높이를 가져간다 (`RoomStackSplitter` 참고).
  * 내용 높이가 거의 고정인 쪽이 px 를 쥐어야 창을 늘렸을 때 그 여유가 사진으로 간다.
- * 기본값은 머리줄 28 + 일곱 칸 띠 46 + 여섯 줄 174 를 담는 높이다.
+ * 기본값은 머리줄 33 + 다섯 줄 153 + 테두리 2 를 담는 높이다 · 판정 일곱 칸은 사진
+ * 위 각인으로 올라가 여기 자리를 먹지 않는다.
  */
-export const DELIVERY_INFO_HEIGHT_DEFAULT = 252;
-/** 일곱 칸 띠와 두 줄은 남는 높이 · 이보다 낮으면 접어 두는 편이 낫다 */
+export const DELIVERY_INFO_HEIGHT_DEFAULT = 190;
+/** 머리와 두어 줄은 남는 높이 · 이보다 낮으면 접어 두는 편이 낫다 */
 export const DELIVERY_INFO_MIN_HEIGHT = 96;
 /** 그림판 바닥 · 이보다 낮으면 썸네일 레일이 사진보다 길어진다 */
 export const DELIVERY_STAGE_MIN_HEIGHT = 200;
@@ -75,6 +77,10 @@ export const DELIVERY_STAGE_MIN_HEIGHT = 200;
 interface DeliveryPrefsState {
   groupBy: DeliveryGroupBy;
   setGroupBy: (v: DeliveryGroupBy) => void;
+
+  /** 거래처 머리글을 눌러 켜는 「미정 먼저」 · 거래처별은 묶음이 이미 미정을 맨 위에 둔다 */
+  undecidedFirst: boolean;
+  toggleUndecidedFirst: () => void;
 
   paneWidth: number;
   setPaneWidth: (px: number) => void;
@@ -108,6 +114,10 @@ export const useDeliveryPrefs = create<DeliveryPrefsState>()(
     (set) => ({
       groupBy: "part",
       setGroupBy: (groupBy) => set({ groupBy }),
+
+      undecidedFirst: false,
+      toggleUndecidedFirst: () =>
+        set((s) => ({ undecidedFirst: !s.undecidedFirst })),
 
       paneWidth: DELIVERY_PANE_WIDTH_DEFAULT,
       setPaneWidth: (px) =>
@@ -150,7 +160,7 @@ export const useDeliveryPrefs = create<DeliveryPrefsState>()(
     }),
     {
       name: "delivery-prefs",
-      version: 6,
+      version: 8,
       /*
        * 없는 항목은 zustand 가 처음값으로 채운다 (기본 merge 가 얕은 덮어쓰기라).
        * 그래서 **더하기만** 한 번호는 받아 둔 것을 그대로 돌려주면 되고, 이름이
@@ -164,6 +174,8 @@ export const useDeliveryPrefs = create<DeliveryPrefsState>()(
        *   v4 · 개체정보 높이와 위아래 차례
        *   v5 · 사진 위 겹(판정 각인 · 메모 쪽지)의 자리와 배율
        *   v6 · px 를 쥐는 쪽이 표에서 사진 판으로 넘어갔다 (`tableWidth` → `paneWidth`)
+       *   v7 · 거래처 머리글의 「미정 먼저」
+       *   v8 · 개체정보가 다섯 줄로 줄어 기본 높이가 252 → 190
        */
       migrate: (persisted, version) => {
         if (!persisted || typeof persisted !== "object") {
@@ -181,6 +193,13 @@ export const useDeliveryPrefs = create<DeliveryPrefsState>()(
            * 그 창 폭은 어디에도 안 남아 있다. 기본값에서 다시 잡는 편이 낫다.
            */
           delete next.tableWidth;
+        }
+        if (version < 8) {
+          /*
+           * 담아 둔 개체정보 높이는 버린다 · 판정 띠와 한 줄이 빠진 자리에 맞춰 잡은
+           * 252 가 그대로 남으면 아래가 60px 넘게 빈 채로 선다.
+           */
+          delete next.infoHeight;
         }
         return next as unknown as DeliveryPrefsState;
       },

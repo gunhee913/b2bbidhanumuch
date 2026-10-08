@@ -1,6 +1,6 @@
 "use client";
 
-import { Lock } from "lucide-react";
+import { ArrowDown, ArrowUpDown, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatGradeLabel } from "@/features/live-auction/lib/grade";
 import { formatKrw } from "@/features/live-auction/lib/masking";
@@ -60,6 +60,10 @@ export interface DeliveryPartTableProps {
   isLocked: (part: WinningPart) => boolean;
   onCursor: (partId: string) => void;
   onAssign: (partId: string, partnerId: string | null) => void;
+  /** 거래처 머리글이 「미정 먼저」 로 켜져 있는가 */
+  undecidedFirst: boolean;
+  /** 없으면 머리글이 눌리지 않는다 · 거래처별은 묶음이 이미 미정을 맨 위에 둔다 */
+  onToggleUndecidedFirst?: () => void;
   isLoading: boolean;
 }
 
@@ -82,6 +86,8 @@ export function DeliveryPartTable({
   isLocked,
   onCursor,
   onAssign,
+  undecidedFirst,
+  onToggleUndecidedFirst,
   isLoading,
 }: DeliveryPartTableProps) {
   if (isLoading) {
@@ -146,7 +152,19 @@ export function DeliveryPartTable({
           <th className={cn(HEAD, "text-right")}>중량</th>
           <th className={cn(HEAD, "text-right")}>낙찰단가</th>
           <th className={cn(HEAD, "text-right")}>낙찰금액</th>
-          <th className={cn(HEAD, GROUP_START, "text-left")}>거래처</th>
+          <th
+            className={cn(HEAD, GROUP_START, "text-left")}
+            aria-sort={undecidedFirst ? "other" : undefined}
+          >
+            {onToggleUndecidedFirst ? (
+              <PartnerSortButton
+                active={undecidedFirst}
+                onToggle={onToggleUndecidedFirst}
+              />
+            ) : (
+              "거래처"
+            )}
+          </th>
           <th className={cn(HEAD, "text-left")}>대표</th>
           <th className={cn(HEAD, "text-left")}>연락처</th>
           <th className={cn(HEAD, "text-left")}>주소</th>
@@ -182,6 +200,41 @@ export function DeliveryPartTable({
         </tbody>
       ))}
     </table>
+  );
+}
+
+/**
+ * 거래처 머리글 · 누를 때마다 「기본 순서」 ↔ 「미정 먼저」.
+ *
+ * 가나다 정렬은 두지 않는다 — 거래처 이름으로 줄 세우는 일은 「거래처별」 묶기가 한다.
+ * 다른 머리글은 눌리지 않으므로 이 칸만 화살표를 달아 눌린다는 것을 먼저 알린다.
+ */
+function PartnerSortButton({
+  active,
+  onToggle,
+}: {
+  active: boolean;
+  onToggle: () => void;
+}) {
+  const Icon = active ? ArrowDown : ArrowUpDown;
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-pressed={active}
+      title={active ? "기본 순서로 되돌리기" : "미정을 맨 위로"}
+      className="-mx-1 inline-flex items-center gap-1 rounded px-1 transition-colors hover:bg-surface-accent"
+    >
+      거래처
+      <Icon
+        className={cn(
+          "h-3 w-3 shrink-0",
+          active ? "text-content-mid" : "text-content-ghost",
+        )}
+        strokeWidth={2.25}
+        aria-hidden
+      />
+    </button>
   );
 }
 

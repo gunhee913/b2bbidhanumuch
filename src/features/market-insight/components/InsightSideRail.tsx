@@ -1,10 +1,14 @@
 "use client";
 
-import type { ComponentType } from "react";
+import { useRef, type ComponentType } from "react";
 import { CalendarDays, ChartLine, type LucideProps } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PAGE_SHELL_CLASS } from "@/features/live-auction/constants/surface";
-import { sideDockShellClass } from "@/features/side-dock/components/SideDockShell";
+import {
+  SIDE_DOCK_RAIL_WIDTH,
+  sideDockShellClass,
+} from "@/features/side-dock/components/SideDockShell";
+import { useReserveToastInset } from "@/features/side-dock/hooks/useToastInset";
 import { SideDockRailItem } from "@/features/side-dock/components/SideDockRailItem";
 import { ThemeRailButton } from "@/features/side-dock/components/ThemeRailButton";
 import { RoundRail } from "@/features/side-dock/components/RoundRail";
@@ -27,7 +31,7 @@ const VIEWS: {
 ];
 
 /**
- * 분석·통계 사이드 레일 · 56px · 본문을 통째로 갈아 끼운다.
+ * 시세·통계 사이드 레일 · 56px · 본문을 통째로 갈아 끼운다.
  *
  * 경매내역 레일(`HistorySideRail`)과 하는 일도 생김새도 같다. 경매장·배송지시에서
  * 레일은 304px 패널을 여는 손잡이지만, 여기와 경매내역에서는 화면을 고르는
@@ -40,6 +44,8 @@ export function InsightSideRail() {
   const view = useInsightPrefs((s) => s.view);
   const setView = useInsightPrefs((s) => s.setView);
   const roundPhase = useRoundPulse();
+  const frameRef = useRef<HTMLDivElement>(null);
+  useReserveToastInset(frameRef, SIDE_DOCK_RAIL_WIDTH);
 
   return (
     /*
@@ -48,13 +54,14 @@ export function InsightSideRail() {
      * 본문 전체를 덮어 아무것도 안 눌린다.
      */
     <div
+      ref={frameRef}
       className={cn(
         "pointer-events-none fixed inset-y-0 left-0 right-0 z-[45]",
         PAGE_SHELL_CLASS,
       )}
     >
       <nav
-        aria-label="분석·통계 화면"
+        aria-label="시세·통계 화면"
         className="pointer-events-auto absolute inset-y-0 right-0 flex w-14 flex-col items-center gap-1 border-l border-line-soft bg-canvas pt-2"
       >
         {/*

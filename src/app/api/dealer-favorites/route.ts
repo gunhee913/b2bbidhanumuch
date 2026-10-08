@@ -91,19 +91,32 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: '로그인이 필요합니다.' }, { status: 401 });
     }
 
-    const { activeDate, targetType, targetId } = await request.json();
+    const { activeDate, targetType, targetId, all } = await request.json();
 
-    if (!activeDate || !targetType || !targetId) {
+    if (!activeDate) {
       return NextResponse.json({ error: '필수 정보가 누락되었습니다.' }, { status: 400 });
     }
 
-    const { error } = await supabase
+    let query = supabase
       .from('dealer_favorites')
       .delete()
       .eq('dealer_id', auth.dealerId)
-      .eq('active_date', activeDate)
-      .eq('target_type', targetType)
-      .eq('target_id', targetId);
+      .eq('active_date', activeDate);
+
+    /*
+     * `all` 이면 그날 찍어 둔 것을 통째로 · 사이드 메뉴 「전체 삭제」가 쓴다.
+     *
+     * 한 건씩 스무 번 부르지 않는 건 중간에 하나가 실패하면 반만 지워진 목록이
+     * 남기 때문이다. 어디까지 지워졌는지 모르는 채로 되돌릴 수가 없다.
+     */
+    if (!all) {
+      if (!targetType || !targetId) {
+        return NextResponse.json({ error: '필수 정보가 누락되었습니다.' }, { status: 400 });
+      }
+      query = query.eq('target_type', targetType).eq('target_id', targetId);
+    }
+
+    const { error } = await query;
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });

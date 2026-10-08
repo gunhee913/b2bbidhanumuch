@@ -10,7 +10,6 @@ import { LoginGateCard } from "@/features/main/components/LoginGateCard";
 import {
   CANVAS_BG_CLASS,
   PAGE_GUTTER_CLASS,
-  SURFACE_SHELL_CLASS,
 } from "@/features/live-auction/constants/surface";
 import { useRealtimeDelivery } from "@/hooks/useRealtimeDelivery";
 import {
@@ -24,7 +23,7 @@ import {
 } from "../hooks/useDeliveryAssignments";
 import { useDealerPartners } from "../hooks/useDealerPartners";
 import type { AssignmentInfo } from "../types";
-import { DeliveryHeader } from "./DeliveryHeader";
+import { DeliveryPeriodPicker, type Period } from "./DeliveryPeriodPicker";
 import { DeliveryRoom } from "./DeliveryRoom";
 
 /*
@@ -32,7 +31,7 @@ import { DeliveryRoom } from "./DeliveryRoom";
  * 오면 이미 보낸 건이 표를 채워 오늘치를 찾아 내려가야 한다. 지난 것은 「이번주」 를
  * 눌러 보면 된다.
  */
-const initialPeriod = () => {
+const initialPeriod = (): Period => {
   const today = format(new Date(), "yyyy-MM-dd");
   return { startDate: today, endDate: today };
 };
@@ -41,7 +40,8 @@ const initialPeriod = () => {
  * `/delivery` 배송지시 페이지.
  *
  * 자료를 모아 `DeliveryRoom` 에 넘기는 일만 한다 — 화면 짜임은 거기 있다.
- * 머리(기간·새로고침)와 본문을 한 화면 높이 안에 가두고 스크롤은 열마다 안에서 돈다.
+ * 조회기간은 따로 한 줄을 깔지 않고 표 머리줄 맨 앞에 접어 넣는다 (`DeliveryPeriodPicker`).
+ * 본문을 한 화면 높이 안에 가두고 스크롤은 열마다 안에서 돈다.
  */
 export function DeliveryPageContent() {
   useDeliveryDockHydration();
@@ -50,13 +50,12 @@ export function DeliveryPageContent() {
   const queryClient = useQueryClient();
 
   const [period, setPeriod] = useState(initialPeriod);
-  const [searchPeriod, setSearchPeriod] = useState(period);
   const [saveError, setSaveError] = useState<string | null>(null);
 
   const partsQuery = useWinningParts({
     dealerId,
-    startDate: searchPeriod.startDate,
-    endDate: searchPeriod.endDate,
+    startDate: period.startDate,
+    endDate: period.endDate,
   });
   const assignmentsQuery = useDeliveryAssignments();
   const partnersQuery = useDealerPartners(dealerId);
@@ -104,15 +103,8 @@ export function DeliveryPageContent() {
    * 달라 보여 어디로 간 것인지 되짚어야 한다.
    */
   const handleRequestDate = useCallback((date: string) => {
-    const next = { startDate: date, endDate: date };
-    setPeriod(next);
-    setSearchPeriod(next);
+    setPeriod({ startDate: date, endDate: date });
   }, []);
-
-  const handleRefresh = useCallback(() => {
-    partsQuery.refetch();
-    assignmentsQuery.refetch();
-  }, [partsQuery, assignmentsQuery]);
 
   const isAuthReady = status !== "loading";
 
@@ -145,18 +137,14 @@ export function DeliveryPageContent() {
 
   return (
     <Shell>
-      {/* 머리는 제 카드 · 본문 두 판은 각자 카드로 서서 8px 틈을 눈금이 쓴다 */}
-      <div className={cn("shrink-0", SURFACE_SHELL_CLASS)}>
-        <DeliveryHeader
-          startDate={period.startDate}
-          endDate={period.endDate}
-          onChangePeriod={setPeriod}
-          onSearch={() => setSearchPeriod(period)}
-          isRefreshing={partsQuery.isFetching || assignmentsQuery.isFetching}
-          onRefresh={handleRefresh}
-        />
-      </div>
       <DeliveryRoom
+        periodControl={
+          <DeliveryPeriodPicker
+            startDate={period.startDate}
+            endDate={period.endDate}
+            onChange={setPeriod}
+          />
+        }
         parts={parts}
         partners={partners}
         savedAssignments={savedAssignments}
@@ -164,7 +152,7 @@ export function DeliveryPageContent() {
         saving={saveMutation.isPending}
         saveError={fetchError ?? saveError}
         onSave={handleSave}
-        resetKey={`${dealerId}|${searchPeriod.startDate}|${searchPeriod.endDate}`}
+        resetKey={`${dealerId}|${period.startDate}|${period.endDate}`}
         onRequestDate={handleRequestDate}
       />
     </Shell>

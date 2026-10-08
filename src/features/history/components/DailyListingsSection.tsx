@@ -62,7 +62,8 @@ const PRINT_BODY_CLASS = "print-daily-listings";
 
 /**
  * 우측 결과 열 · 낙찰 n/총 · 총 낙찰대금 · 내 낙찰대금.
- * 경매장 상장표(`LiveListingSheet`)와 **같은 비율**이다 — 같은 표의 같은 열이다.
+ * 경매장 상장표(`LiveListingSheet`)와 앞 두 열이 같다. 내 낙찰대금은 여기에만 있다 —
+ * 경매 중에는 칸 대부분이 「진행중」 이라 경매장에서는 그 폭을 큰 글씨에 돌렸다.
  */
 const SUMMARY_COLUMNS: SheetSummaryColumn[] = [
   { label: "낙찰", align: "center", groupStart: true, widthClass: "w-[4.5%]" },

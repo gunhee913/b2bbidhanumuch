@@ -9,6 +9,7 @@ import {
   BID_MODE_ATTR,
   bidModeHint,
   handleSheetBidKeyDown,
+  takePendingEdit,
   type BidMode,
 } from "../lib/bidKeys";
 
@@ -197,17 +198,20 @@ export function SheetBidCell({
     onChange(partId, Math.max(0, base + delta));
   };
 
-  /** 고르기에서 숫자를 눌렀을 때 · 그 숫자 하나로 갈아 끼우고 쓰기로 */
-  const typeOver = (digit: string) => {
+  /** 고르기에서 지우개를 눌렀을 때 · 비우고 쓰기로 */
+  const clearAndEdit = () => {
     setMode("edit");
-    onChange(partId, digit ? Number(digit) : null);
+    onChange(partId, null);
   };
 
-  /** Enter 로 고치러 들어갈 때 · 통째로 골라 두지 않고 커서를 끝에 세운다 */
+  /**
+   * Enter 로 쓰기에 들 때 · 값을 통째로 골라 둔다.
+   * 고르기에서 숫자로 바로 쓰는 길이 없어서, 새 값은 여기서 친다 — 커서를 끝에 세우면
+   * 97,000 뒤에 숫자가 붙는다. 골라 둔 채로 ↑↓ 를 누르면 그 값에서 움직인다.
+   */
   const beginEdit = () => {
     setMode("edit");
-    const el = inputRef.current;
-    el?.setSelectionRange(el.value.length, el.value.length);
+    inputRef.current?.select();
   };
 
   const handleChange = (raw: string) => {
@@ -362,8 +366,9 @@ export function SheetBidCell({
             setFocused(true);
             setFlipDown(!hasRoomAbove(e.currentTarget));
             setMode(pointer ? "edit" : "nav");
-            // 키보드로 들어오면 값을 통째로 골라 둔다 · 숫자를 누르면 그대로 갈린다
+            // 키보드로 들어오면 값을 통째로 골라 둔다 · 고르기 면이 칸 전체에 찬다
             if (!pointer) e.currentTarget.select();
+            if (takePendingEdit(partId)) beginEdit();
             onFocus?.();
           }}
           onBlur={() => {
@@ -377,11 +382,12 @@ export function SheetBidCell({
               step: bidStep,
               onEdit: beginEdit,
               onNav: () => setMode("nav"),
-              onTypeOver: typeOver,
+              onClear: clearAndEdit,
               onSubmit,
               onRevert,
               onStep: step,
               isEmpty: value == null || value <= 0,
+              hasDraft: isDirty,
               canSubmit,
             })
           }

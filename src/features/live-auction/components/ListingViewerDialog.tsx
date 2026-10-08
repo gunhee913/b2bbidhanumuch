@@ -575,6 +575,10 @@ export const GRADE_STAMP_WIDTH = 268;
  * 굵다 — 사진에 대고 묻는 것은 「몇 등급이냐」 가 먼저고 「어느 개체냐」 가 그다음이다.
  * 상장표 요약 사진(`SheetSummaryPanel`)도 같은 셋을 같은 차례 · 같은 굵기로 쓴다.
  *
+ * 접수번호 · 업체는 흐리게 두지 않는다. 거래처에 불러 주고 표와 맞춰 보는 값이라
+ * 등급 바로 다음으로 읽혀야 한다 — 반투명 판 위에서 55% 흰색은 사진 무늬에 묻혔다.
+ * 위계는 크기(1.5em · 1.2em)와 굵기로만 준다.
+ *
  * **라벨을 값 옆이 아니라 위에 두는 이유.** 옆에 두면 칸 폭이 라벨＋값이라 일곱을
  * 늘어놓는 데 437px 가 든다. 1열을 최소(460)까지 좁히면 썸네일 레일과 여백을 빼고
  * 사진 무대가 360px 뿐이라 그대로 터진다. 위로 올리면 칸 폭이 둘 중 큰 쪽이라
@@ -639,11 +643,11 @@ export function GradeStamp({
             <span className="text-[1.5em] font-bold leading-none tabular-nums text-white">
               {formatGradeLabel(heading.grade, heading.marblingScore)}
             </span>
-            <span className="text-[1.2em] font-medium leading-none tabular-nums text-white/55">
+            <span className="text-[1.2em] font-semibold leading-none tabular-nums text-white/90">
               {heading.listingNo}
             </span>
             {heading.companyName ? (
-              <span className="max-w-[10em] truncate text-[1.2em] font-medium leading-none text-white/55">
+              <span className="max-w-[10em] truncate text-[1.2em] font-semibold leading-none text-white/90">
                 {heading.companyName}
               </span>
             ) : null}

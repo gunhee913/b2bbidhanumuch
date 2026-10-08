@@ -1,5 +1,7 @@
 "use client";
 
+import type { ReactNode } from "react";
+
 /**
  * 사이드 메뉴 패널 공용 조각 · 머리줄과 빈 칸.
  *
@@ -12,21 +14,27 @@ export function PanelSectionHead({
   label,
   count,
   unit,
+  action,
 }: {
   label: string;
   /** 0 이면 적지 않는다 · 「0개」 는 빈 칸 안내가 이미 하는 말이다 */
   count: number;
   unit: string;
+  /** 오른쪽 끝 손잡이 · 수 뒤에 선다 (관심 「전체 삭제」) */
+  action?: ReactNode;
 }) {
   return (
     <header className="flex shrink-0 items-baseline justify-between gap-2 px-4 pb-1.5 pt-2.5">
       <h2 className="text-[13px] font-bold text-content">{label}</h2>
-      {count > 0 ? (
-        <span className="text-[12px] font-medium tabular-nums text-content-faint">
-          {count}
-          {unit}
-        </span>
-      ) : null}
+      <span className="flex shrink-0 items-baseline gap-2">
+        {count > 0 ? (
+          <span className="text-[12px] font-medium tabular-nums text-content-faint">
+            {count}
+            {unit}
+          </span>
+        ) : null}
+        {action}
+      </span>
     </header>
   );
 }

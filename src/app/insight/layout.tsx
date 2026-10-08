@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 
 export const metadata: Metadata = {
-  title: "분석·통계 | 부분육 온라인경매",
+  title: "시세·통계 | 부분육 온라인경매",
   description:
     "부위별 낙찰 시세 시계열과 등급 분포·요일별 평균단가 통계를 한 곳에서 확인하세요.",
 };
