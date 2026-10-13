@@ -20,10 +20,18 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import {
+  FORM_PHOTO_SOURCE_LABEL,
   MAX_PART_PHOTOS,
   moveToCover,
   uploadPhotoFiles,
+  type FormPhotoSource,
 } from "../lib/listingPhotos";
+
+/** 부위 사진이 없을 때 대신 나갈 사진 · `resolveFormPartCover` 의 결과 */
+export interface PartPhotoFallback {
+  src: string | null;
+  source: FormPhotoSource;
+}
 
 export interface PartPhotoDialogProps {
   open: boolean;
@@ -33,6 +41,8 @@ export interface PartPhotoDialogProps {
   images: string[];
   /** 개체 사진 · 다시 올리지 않고 골라 붙일 수 있는 풀 */
   listingImages: string[];
+  /** 비워 뒀을 때 화면에 나갈 사진 · 「지금 이게 나간다」 를 모달 안에서 보여 준다 */
+  fallback: PartPhotoFallback;
   onChange: (images: string[]) => void;
   /** 부위 사진 한 장을 개체 대표로 세운다 (개체 사진 맨 앞에 넣는다) */
   onSetListingCover: (src: string) => void;
@@ -48,7 +58,8 @@ export interface PartPhotoDialogProps {
  * 표 안에 썸네일을 직접 깔지 않는 까닭 · 10두 × 20부위 = 200칸이라 표가 세로로 두세 배
  * 길어지고 엑셀 업로드 흐름이 무너진다. 모달 하나를 ←/→ 로 옮겨 가며 채운다.
  *
- * 비워 두는 것이 기본이다 — 비어 있으면 화면은 개체 대표 사진을 보여 준다.
+ * 비워 두는 것이 기본이다 — 비어 있으면 화면은 업체 부위 대표이미지, 그것도 없으면
+ * 개체 대표 사진을 보여 준다(`fallback`).
  */
 export function PartPhotoDialog({
   open,
@@ -56,6 +67,7 @@ export function PartPhotoDialog({
   listingPartNo,
   images,
   listingImages,
+  fallback,
   onChange,
   onSetListingCover,
   onPrev,
@@ -116,7 +128,8 @@ export function PartPhotoDialog({
               </span>
             </DialogTitle>
             <DialogDescription className="mt-0.5 text-[11.5px] text-gray-500">
-              비워 두면 개체 대표 사진이 보입니다 · ←/→ 로 다른 부위
+              비워 두면 업체 부위 대표이미지 → 개체 대표 사진 순으로 보입니다 ·
+              ←/→ 로 다른 부위
             </DialogDescription>
           </div>
           <NavButton icon={ChevronRight} label="다음 부위" onClick={onNext} />
@@ -152,27 +165,30 @@ export function PartPhotoDialog({
                     </span>
                   ) : null}
                 </div>
-                <figcaption className="mt-1 flex items-center justify-between gap-1">
+                {/*
+                 * 아이콘만 · 글자를 붙이면 96px 안에 셋이 못 서서 두 줄로 꺾였다.
+                 * 뜻은 `title`(마우스) 과 `aria-label`(읽기) 이 말한다. 첫 장은 사진 위
+                 * 「대표」 띠가 이미 말하므로 그 자리는 비워 둔다.
+                 */}
+                <figcaption className="mt-1 flex items-center justify-between">
                   {index === 0 ? (
-                    <span className="h-5 text-[10px] leading-5 text-gray-400">
-                      첫 장
-                    </span>
+                    <span className="h-6 w-6" aria-hidden />
                   ) : (
                     <ThumbAction
                       icon={Star}
-                      label="대표로"
+                      label="이 부위 대표로"
                       onClick={() => onChange(moveToCover(images, index))}
                     />
                   )}
                   <ThumbAction
                     icon={Crown}
-                    label="개체 대표"
-                    title="이 사진을 개체 대표 사진으로"
+                    label="개체 대표 사진으로"
                     onClick={() => onSetListingCover(src)}
                   />
                   <ThumbAction
                     icon={Trash2}
                     label="삭제"
+                    danger
                     onClick={() =>
                       onChange(images.filter((_, i) => i !== index))
                     }
@@ -209,9 +225,35 @@ export function PartPhotoDialog({
             ) : null}
           </div>
           {images.length === 0 ? (
-            <p className="mt-2 text-[11.5px] text-gray-400">
-              아직 없습니다 · 이 부위는 개체 대표 사진으로 보입니다.
-            </p>
+            /* 비어 있을 때 실제로 나갈 사진을 옆에 세운다 · 「대표 사용」 이 무엇을 뜻하는지 눈으로 확인 */
+            <div className="mt-3 flex items-center gap-3 border border-dashed border-gray-200 bg-gray-50 p-2">
+              <div className="relative aspect-[4/3] w-20 shrink-0 overflow-hidden bg-gray-100">
+                {fallback.src ? (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img
+                    src={fallback.src}
+                    alt={FORM_PHOTO_SOURCE_LABEL[fallback.source]}
+                    className="h-full w-full object-cover opacity-80"
+                  />
+                ) : (
+                  <span className="flex h-full w-full items-center justify-center text-gray-300">
+                    <Camera className="h-4 w-4" strokeWidth={1.75} />
+                  </span>
+                )}
+              </div>
+              <p className="text-[11.5px] leading-relaxed text-gray-500">
+                부위 사진이 없어 지금은{" "}
+                <span className="font-semibold text-gray-700">
+                  {FORM_PHOTO_SOURCE_LABEL[fallback.source]}
+                </span>
+                {fallback.source === "none"
+                  ? " 상태로 나갑니다."
+                  : "이 대신 나갑니다."}
+                {fallback.source === "listing"
+                  ? " 업체 부위 대표이미지를 등록해 두면 그것이 먼저 나갑니다."
+                  : null}
+              </p>
+            </div>
           ) : null}
         </section>
 
@@ -283,7 +325,7 @@ export function PartPhotoDialog({
             onClick={() => onChange([])}
             className="text-[11.5px] font-medium text-gray-600 underline-offset-2 hover:underline disabled:cursor-not-allowed disabled:text-gray-300 disabled:no-underline"
           >
-            개체 대표 사진 사용 (부위 사진 비우기)
+            부위 사진 비우기 (대표이미지 사용)
           </button>
           <button
             type="button"
@@ -299,27 +341,30 @@ export function PartPhotoDialog({
 }
 
 /**
- * 부위 표 칸의 카메라 단추 · 장수 배지가 붙고, 없으면 흐리게 서서 「대표 사용」 을 알린다.
+ * 부위 표 칸의 작은 사진 · 누르면 부위 사진 모달이 열린다.
+ *
+ * 카메라 아이콘만 두었을 때는 「이 부위에 어떤 사진이 걸릴지」 를 모달을 열어야 알았다.
+ * 라이브 화면과 같은 순서(`resolveFormPartCover`)로 고른 한 장을 36×27 로 미리 보여 주고,
+ * 부위 사진이면 장수 배지, 대표이미지가 대신 나가는 것이면 「대표」 띠를 붙여 가른다.
  * 미상장(체크 해제) 부위는 누를 수 없다.
  */
-export function PartPhotoButton({
+export function PartPhotoThumb({
+  cover,
   count,
-  hasListingCover,
   disabled,
   onClick,
 }: {
+  cover: PartPhotoFallback;
+  /** 이 부위에 올린 사진 수 */
   count: number;
-  /** 개체 사진이 있어 비워 둬도 보여 줄 것이 있다 */
-  hasListingCover: boolean;
   disabled?: boolean;
   onClick: () => void;
 }) {
   const title =
     count > 0
-      ? `부위 사진 ${count}장`
-      : hasListingCover
-        ? "부위 사진 없음 · 개체 대표 사진 사용"
-        : "부위 사진 없음";
+      ? `부위 사진 ${count}장 · 눌러서 고치기`
+      : `부위 사진 없음 · ${FORM_PHOTO_SOURCE_LABEL[cover.source]}${cover.source === "none" ? "" : " 사용"} · 눌러서 올리기`;
+  const isSubstitute = count === 0 && !!cover.src;
   return (
     <button
       type="button"
@@ -328,17 +373,32 @@ export function PartPhotoButton({
       title={title}
       aria-label={title}
       className={cn(
-        "relative inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-sm transition-colors",
-        count > 0
-          ? "text-gray-800 hover:bg-gray-200"
-          : "text-gray-300 hover:bg-gray-100 hover:text-gray-500",
-        disabled && "cursor-not-allowed opacity-30 hover:bg-transparent",
+        "relative h-[27px] w-9 shrink-0 overflow-hidden rounded-[3px] bg-gray-100 ring-1 ring-gray-200 transition-opacity hover:ring-gray-500",
+        disabled && "cursor-not-allowed opacity-30 hover:ring-gray-200",
       )}
     >
-      <Camera className="h-3.5 w-3.5" strokeWidth={2} />
+      {cover.src ? (
+        /* eslint-disable-next-line @next/next/no-img-element */
+        <img
+          src={cover.src}
+          alt=""
+          className={cn(
+            "h-full w-full object-cover",
+            isSubstitute && "opacity-60",
+          )}
+        />
+      ) : (
+        <span className="flex h-full w-full items-center justify-center text-gray-300">
+          <Camera className="h-3.5 w-3.5" strokeWidth={2} />
+        </span>
+      )}
       {count > 0 ? (
-        <span className="absolute -right-1 -top-1 flex h-3.5 min-w-[14px] items-center justify-center rounded-full bg-gray-700 px-0.5 text-[8.5px] font-bold leading-none text-white">
+        <span className="absolute right-0 top-0 flex h-3.5 min-w-[14px] items-center justify-center rounded-bl-[3px] bg-gray-700 px-0.5 text-[8.5px] font-bold leading-none text-white">
           {count}
+        </span>
+      ) : isSubstitute ? (
+        <span className="pointer-events-none absolute inset-x-0 bottom-0 bg-black/55 text-center text-[7.5px] font-semibold leading-[10px] text-white">
+          대표
         </span>
       ) : null}
     </button>
@@ -374,26 +434,31 @@ function NavButton({
   );
 }
 
+/** 썸네일 아래 아이콘 단추 · 24px 정사각 · 뜻은 title/aria-label 로 */
 function ThumbAction({
   icon: Icon,
   label,
-  title,
+  danger,
   onClick,
 }: {
   icon: typeof Star;
   label: string;
-  title?: string;
+  /** 삭제처럼 되돌리기 어려운 일 · 손이 닿을 때만 붉게 */
+  danger?: boolean;
   onClick: () => void;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      title={title ?? label}
-      className="inline-flex h-5 items-center gap-0.5 text-[10px] text-gray-500 hover:text-gray-900"
+      title={label}
+      aria-label={label}
+      className={cn(
+        "inline-flex h-6 w-6 items-center justify-center rounded-sm text-gray-400 transition-colors hover:bg-gray-100",
+        danger ? "hover:text-red-600" : "hover:text-gray-900",
+      )}
     >
-      <Icon className="h-3 w-3" strokeWidth={2} />
-      {label}
+      <Icon className="h-3.5 w-3.5" strokeWidth={2} />
     </button>
   );
 }

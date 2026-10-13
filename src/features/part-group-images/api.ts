@@ -20,26 +20,41 @@ export interface PartGroupImageTarget {
   groupName: string;
 }
 
+/**
+ * 누가 고치는가 · 관리자는 아무 업체·전체 기본을, 업체는 제 것만.
+ * 업체 쪽 API 는 company_id 를 세션에서 가져가므로 몸통에 싣지 않는다.
+ */
+export type PartGroupImageScope = "admin" | "company";
+
+const ENDPOINT: Record<PartGroupImageScope, string> = {
+  admin: "/api/admin/part-group-images",
+  company: "/api/company/part-group-images",
+};
+
 export async function upsertPartGroupImage(
   payload: PartGroupImageTarget & { imageUrl: string },
+  scope: PartGroupImageScope = "admin",
 ): Promise<PartGroupImage> {
-  return requestJson<PartGroupImage>("/api/admin/part-group-images", {
+  const body =
+    scope === "admin"
+      ? payload
+      : { groupName: payload.groupName, imageUrl: payload.imageUrl };
+  return requestJson<PartGroupImage>(ENDPOINT[scope], {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
+    body: JSON.stringify(body),
   });
 }
 
-export async function deletePartGroupImage({
-  companyId,
-  groupName,
-}: PartGroupImageTarget): Promise<void> {
+export async function deletePartGroupImage(
+  { companyId, groupName }: PartGroupImageTarget,
+  scope: PartGroupImageScope = "admin",
+): Promise<void> {
   const params = new URLSearchParams({ group: groupName });
-  if (companyId) params.set("companyId", companyId);
-  await requestJson<{ ok: true }>(
-    `/api/admin/part-group-images?${params.toString()}`,
-    { method: "DELETE" },
-  );
+  if (scope === "admin" && companyId) params.set("companyId", companyId);
+  await requestJson<{ ok: true }>(`${ENDPOINT[scope]}?${params.toString()}`, {
+    method: "DELETE",
+  });
 }
 
 /** base64 data URL → storage 업로드 → public URL · 기존 `/api/upload` 재사용 */

@@ -18,3 +18,22 @@ export function clearFromSheet() {
 export function cameFromSheet(): boolean {
   return window.sessionStorage.getItem(FROM_SHEET_KEY) === "1";
 }
+
+/**
+ * 상장표의 「부위별」 단추로 들어왔다는 표식 · 부위별 방이 열리자마자 부위 선택기를 편다.
+ *
+ * 단추는 어느 부위로 갈지 묻지 않고 등심으로 꽂는다 — 묻는 단계를 하나 두면 그만큼 느리다.
+ * 대신 도착해서 선택기를 바로 펴 주면 「등심이 아니라 안심」 인 사람도 한 번만 더 누른다.
+ * 한 번 읽으면 지운다 · 새로고침이나 ←/→ 이동에서 또 열리면 안 된다.
+ */
+const OPEN_PART_PICKER_KEY = "live-auction:open-part-picker";
+
+export function markOpenPartPicker() {
+  window.sessionStorage.setItem(OPEN_PART_PICKER_KEY, "1");
+}
+
+export function consumeOpenPartPicker(): boolean {
+  const on = window.sessionStorage.getItem(OPEN_PART_PICKER_KEY) === "1";
+  if (on) window.sessionStorage.removeItem(OPEN_PART_PICKER_KEY);
+  return on;
+}

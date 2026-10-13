@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { ChevronRight } from "lucide-react";
 import { useDebounce, useMeasure } from "react-use";
 import { cn } from "@/lib/utils";
 import { SURFACE_SHELL_CLASS } from "../constants/surface";
@@ -39,6 +40,8 @@ export interface LiveListingSheetProps {
   isLoading: boolean;
   /** 행 클릭 · 개체 페이지로 넘어간다 */
   onOpenListing: (listingId: string) => void;
+  /** 필터 줄 끝 「부위별」 · 짚고 있는 개체(없으면 null)를 들고 부위별 방으로 */
+  onOpenPartRoom: (listingId: string | null) => void;
   gradeFilter: string;
   /** `cattle_listings.gender` 값 그대로 (`거세` · `암`) · 빈 값은 전체 */
   genderFilter: string;
@@ -68,6 +71,7 @@ export function LiveListingSheet({
   listings,
   isLoading,
   onOpenListing,
+  onOpenPartRoom,
   gradeFilter,
   genderFilter,
   companyFilter,
@@ -159,6 +163,17 @@ export function LiveListingSheet({
           onGenderChange={onGenderChange}
           onCompanyChange={onCompanyChange}
           companyOptions={companyOptions}
+          trailing={
+            /* 표는 개체 축이다 · 부위로 보고 싶으면 여기서 바로 부위별 방으로 (짚은 개체를 들고) */
+            <button
+              type="button"
+              onClick={() => onOpenPartRoom(cursor.id ?? cursorIds[0] ?? null)}
+              className="inline-flex h-8 items-center gap-1 rounded-md bg-surface-muted pl-3 pr-2 text-[13px] font-semibold text-content transition-colors hover:bg-surface-strong"
+            >
+              부위별
+              <ChevronRight className="h-3.5 w-3.5" strokeWidth={2.2} />
+            </button>
+          }
         />
       </div>
       <OverlayScroll

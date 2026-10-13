@@ -14,8 +14,15 @@ import { useAuctionRoom } from "../hooks/useAuctionRoom";
 import { useAuctionFavorites } from "../hooks/useAuctionFavorites";
 import { HOUSE_QUERY_KEY, HOUSE_STORAGE_KEY } from "@/features/entry/constants";
 import { useCurrentHouse } from "@/features/entry/hooks/useCurrentHouse";
-import { listingDetailHref } from "../lib/listingHref";
-import { clearFromSheet, markFromSheet } from "../lib/detailNavigation";
+import { listingDetailHref, partDetailHref } from "../lib/listingHref";
+import {
+  clearFromSheet,
+  markFromSheet,
+  markOpenPartPicker,
+} from "../lib/detailNavigation";
+
+/** 상장표 「부위별」 이 처음 꽂는 부위 · 가장 많이 보는 부위라 여기서 시작한다 */
+const PART_ROOM_ENTRY_GROUP = "등심";
 
 /** 예전 「상장표(부위별)」 · 「부위별」 뷰 · 지금은 개체/부위 상세가 맡는다 */
 const VIEW_QUERY_KEY = "view";
@@ -152,6 +159,27 @@ export function LiveAuctionRoom() {
     [listings, house, router],
   );
 
+  /**
+   * 부위별 방으로 · 등심부터 · 짚고 있던 개체가 그 방에서도 선택된 채로 선다.
+   * 어느 부위로 갈지 묻지 않는 대신 도착하자마자 부위 선택기를 펴 준다(`markOpenPartPicker`).
+   */
+  const openPartRoom = useCallback(
+    (listingId: string | null) => {
+      const listing = listingId
+        ? listings.find((l) => l.id === listingId)
+        : undefined;
+      markFromSheet();
+      markOpenPartPicker();
+      router.push(
+        partDetailHref(PART_ROOM_ENTRY_GROUP, {
+          houseKey: house?.key ?? null,
+          listingNo: listing?.listingNo ?? null,
+        }),
+      );
+    },
+    [listings, house, router],
+  );
+
   // 업체 필터 옵션 · 상장 companyName 유니크 집합
   const companyOptions = useMemo(() => {
     const set = new Set<string>();
@@ -200,6 +228,7 @@ export function LiveAuctionRoom() {
             listings={listings}
             isLoading={listingsLoading}
             onOpenListing={(id) => openListing(id)}
+            onOpenPartRoom={openPartRoom}
             gradeFilter={gradeFilter}
             genderFilter={genderFilter}
             companyFilter={companyFilter}

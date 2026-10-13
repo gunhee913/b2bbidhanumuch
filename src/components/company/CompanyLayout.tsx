@@ -11,6 +11,7 @@ import {
   Gavel,
   ClipboardList,
   Truck,
+  Settings,
   Menu,
   X,
 } from 'lucide-react';
@@ -53,6 +54,14 @@ const menuItems = [
     icon: Truck,
     subItems: [
       { title: '출고지시서', href: '/company/delivery' },
+    ],
+  },
+  {
+    title: '설정',
+    href: '/company/settings',
+    icon: Settings,
+    subItems: [
+      { title: '부위 대표이미지 설정', href: '/company/settings/part-images' },
     ],
   },
 ];

@@ -662,7 +662,8 @@ function EntityRows({
         e.stopPropagation();
         onOpenPhotos();
       }}
-      className={compact ? "mx-0 h-12 w-12" : undefined}
+      /* 상세 방 표 1열(`RowThumb`)과 같은 40×40 */
+      className={compact ? "mx-0 h-10 w-10 rounded-[3px]" : undefined}
     />
   );
 
@@ -695,8 +696,8 @@ function EntityRows({
           </td>
         ) : null}
         {compact ? (
-          /* 행 높이는 이 칸이 정한다 · 사진 48 + 위아래 8 = 64px */
-          <td className={cn(SHEET_CELL, textCell, "py-2")}>
+          /* 행 높이는 이 칸이 정한다 · 사진 40 + 위아래 5 = 50px · 상세 방 부위표 행과 같다 */
+          <td className={cn(SHEET_CELL, textCell, "py-[5px]")}>
             <span className="flex items-center gap-1.5">
               {favorited != null && onToggleFavorite ? (
                 <FavoriteStar
@@ -881,9 +882,10 @@ export function SheetThumb({
           src={src}
           alt={alt}
           fill
-          sizes="36px"
+          sizes="40px"
           loading="lazy"
-          className="object-cover"
+          /* 잘라 내지 않는다 · 단면은 잘리면 판정을 못 한다 · 비율이 달라도 위아래가 조금 빌 뿐 */
+          className="object-contain"
           unoptimized
         />
       ) : (

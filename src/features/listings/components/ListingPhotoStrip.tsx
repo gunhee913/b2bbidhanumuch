@@ -41,7 +41,9 @@ export function ListingPhotoStrip({
 
   return (
     <>
-      <span className="text-xs font-medium text-gray-600">사진:</span>
+      <span className="text-xs font-medium text-gray-600">
+        메인페이지 대표 사진:
+      </span>
       <span className="text-[10px] text-gray-400">
         ({images.length}/{MAX_LISTING_PHOTOS})
       </span>

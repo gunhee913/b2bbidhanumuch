@@ -373,6 +373,32 @@
   .scrollbar-thin::-webkit-scrollbar-thumb:hover {
     background-color: rgb(var(--content-faint) / 0.75) !important;
   }
+  /*
+   * 막대는 손이 올라와 있을 때만 보인다 · `scrollbar-thin` 과 함께 쓴다.
+   *
+   * 자리(8px)는 늘 잡아 두고 막대 색만 끈다. 막대 자체를 없앴다 켜면 그 8px 만큼
+   * 판이 들썩여서, 헤더 사양표처럼 아래에 사진이 붙은 자리에서는 호버할 때마다
+   * 사진이 내려갔다 올라온다.
+   */
+  .scrollbar-hover::-webkit-scrollbar-thumb,
+  .scrollbar-hover::-webkit-scrollbar-thumb:window-inactive {
+    background-color: transparent !important;
+  }
+  .scrollbar-hover:hover::-webkit-scrollbar-thumb,
+  .scrollbar-hover:hover::-webkit-scrollbar-thumb:window-inactive {
+    background-color: rgb(var(--content-ghost) / 0.5) !important;
+  }
+  .scrollbar-hover:hover::-webkit-scrollbar-thumb:hover {
+    background-color: rgb(var(--content-faint) / 0.75) !important;
+  }
+  @supports (-moz-appearance: none) {
+    .scrollbar-hover {
+      scrollbar-color: transparent transparent;
+    }
+    .scrollbar-hover:hover {
+      scrollbar-color: rgb(var(--content-ghost) / 0.55) transparent;
+    }
+  }
 }
 
 /*

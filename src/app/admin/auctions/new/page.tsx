@@ -10,8 +10,9 @@ import { useCompanies } from '@/features/companies/hooks';
 import { CreateListingInput, CreatePartInput } from '@/features/listings/types';
 import { uploadImage } from '@/lib/upload';
 import { ListingPhotoStrip } from '@/features/listings/components/ListingPhotoStrip';
-import { PartPhotoButton, PartPhotoDialog } from '@/features/listings/components/PartPhotoDialog';
-import { MAX_LISTING_PHOTOS, moveToCover, uploadPhotoFiles } from '@/features/listings/lib/listingPhotos';
+import { PartPhotoDialog, PartPhotoThumb } from '@/features/listings/components/PartPhotoDialog';
+import { MAX_LISTING_PHOTOS, moveToCover, resolveFormPartCover, uploadPhotoFiles } from '@/features/listings/lib/listingPhotos';
+import { usePartGroupImageLookup } from '@/features/part-group-images/hooks/usePartGroupImages';
 
 // number input 스피너, date input 달력 아이콘 숨기기 스타일
 const hideSpinnerStyle = `
@@ -393,6 +394,17 @@ export default function NewAuctionPage() {
       return { ...c, parts: c.parts.map(p => (p.id === partId ? { ...p, images } : p)) };
     }));
   };
+
+  // 부위 칸 썸네일 · 부위 사진 → 업체 부위 대표이미지 → 개체 대표 (라이브 화면과 같은 순서)
+  const groupImage = usePartGroupImageLookup();
+  const partCoverOf = (cattle: CattleData, part: PartData) =>
+    resolveFormPartCover({
+      partImages: part.images,
+      listingImages: cattle.images,
+      companyId: companyId || null,
+      partName: part.name,
+      lookup: groupImage,
+    });
 
   // 부위 사진 모달 · 어느 개체의 어느 부위를 열었나
   const [photoTarget, setPhotoTarget] = useState<{ cattleId: number; partId: number } | null>(null);
@@ -1068,7 +1080,7 @@ export default function NewAuctionPage() {
                           <React.Fragment key={col}>
                             <th className={`${thClass} w-[28px]`}></th>
                             <th className={`${thClass} w-[110px]`}>상장번호</th>
-                            <th className={`${thClass} w-[96px]`}>부위</th>
+                            <th className={`${thClass} w-[124px]`}>부위</th>
                             <th className={`${thClass} w-[70px]`}>중량</th>
                             <th className={`${thClass} w-[85px]`}>최저가격</th>
                           </React.Fragment>
@@ -1113,9 +1125,9 @@ export default function NewAuctionPage() {
                                 <td className={`${tdClass} font-medium whitespace-nowrap ${!isIncluded ? 'bg-gray-100' : 'bg-gray-50'}`}>
                                   <span className="flex items-center justify-between gap-1">
                                     <span className={!isIncluded ? 'text-gray-400 line-through' : 'text-gray-900'}>{part.name}</span>
-                                    <PartPhotoButton
+                                    <PartPhotoThumb
+                                      cover={partCoverOf(cattle, part)}
                                       count={part.images.length}
-                                      hasListingCover={cattle.images.length > 0}
                                       disabled={!isIncluded}
                                       onClick={() => setPhotoTarget({ cattleId: cattle.id, partId: part.id })}
                                     />
@@ -1271,6 +1283,13 @@ export default function NewAuctionPage() {
           listingPartNo={getListingNo(photoCattle.seqNo, photoCattle.parts.indexOf(photoPart))}
           images={photoPart.images}
           listingImages={photoCattle.images}
+          fallback={resolveFormPartCover({
+            partImages: [],
+            listingImages: photoCattle.images,
+            companyId: companyId || null,
+            partName: photoPart.name,
+            lookup: groupImage,
+          })}
           onChange={(images) => updatePartImages(photoCattle.id, photoPart.id, images)}
           onSetListingCover={(src) => setCoverFromPartPhoto(photoCattle.id, src)}
           onPrev={photoPrev ? () => setPhotoTarget({ cattleId: photoCattle.id, partId: photoPrev.id }) : undefined}

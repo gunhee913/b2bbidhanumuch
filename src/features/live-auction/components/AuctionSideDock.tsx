@@ -83,6 +83,14 @@ import { PAGE_SHELL_CLASS } from "../constants/surface";
 import { buildShortcutGroups } from "../lib/shortcuts";
 import { ShortcutTooltip } from "./ShortcutTooltip";
 
+/**
+ * 독 목록(관심·쪽지·최근 본 개체)의 작은 사진 · 상세 방 표 1열(`RowThumb`)과 같은 40×40.
+ * 사진은 잘라 내지 않고 통째로(`DOCK_THUMB_IMG`) · 표에서 본 그림과 같은 그림이어야 같은 소로 읽힌다.
+ */
+const DOCK_THUMB =
+  "relative h-10 w-10 shrink-0 overflow-hidden rounded-[3px] bg-surface-accent ring-1 ring-line";
+const DOCK_THUMB_IMG = "object-contain";
+
 interface AuctionSideDockProps {
   currentRound: RoundInfo | null;
   lastClosedRound: RoundInfo | null;
@@ -824,18 +832,18 @@ function NotesPanel({
                     onClick={() => onNavigateListing(listing.id, part.partNo)}
                     className="flex min-w-0 flex-1 items-start gap-3 text-left"
                   >
-                    <span className="relative mt-0.5 h-10 w-10 shrink-0 overflow-hidden rounded-md bg-surface-accent">
+                    <span className={cn(DOCK_THUMB, "mt-0.5")}>
                       {listing.images[0] ? (
                         <Image
                           src={listing.images[0]}
                           alt=""
                           fill
                           sizes="40px"
-                          className="object-cover"
+                          className={DOCK_THUMB_IMG}
                           unoptimized
                         />
                       ) : (
-                        <ImageOff className="absolute inset-0 m-auto h-4 w-4 text-content-ghost" />
+                        <ImageOff className="absolute inset-0 m-auto h-3.5 w-3.5 text-content-ghost" />
                       )}
                     </span>
                     <span className="min-w-0 flex-1">
@@ -1019,18 +1027,18 @@ function FavoriteRow({
         onClick={onOpen}
         className="flex min-w-0 flex-1 items-center gap-3 text-left"
       >
-        <span className="relative h-10 w-10 shrink-0 overflow-hidden rounded-md bg-surface-accent">
+        <span className={DOCK_THUMB}>
           {image ? (
             <Image
               src={image}
               alt=""
               fill
               sizes="40px"
-              className="object-cover"
+              className={DOCK_THUMB_IMG}
               unoptimized
             />
           ) : (
-            <ImageOff className="absolute inset-0 m-auto h-4 w-4 text-content-ghost" />
+            <ImageOff className="absolute inset-0 m-auto h-3.5 w-3.5 text-content-ghost" />
           )}
         </span>
         <span className="min-w-0 flex-1">
@@ -1170,18 +1178,18 @@ function RecentListingsPanel({
                   onClick={() => onNavigateListing(listing.id)}
                   className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition-colors hover:bg-surface-accent"
                 >
-                  <span className="relative h-10 w-10 shrink-0 overflow-hidden rounded-md bg-surface-accent">
+                  <span className={DOCK_THUMB}>
                     {listing.images[0] ? (
                       <Image
                         src={listing.images[0]}
                         alt=""
                         fill
                         sizes="40px"
-                        className="object-cover"
+                        className={DOCK_THUMB_IMG}
                         unoptimized
                       />
                     ) : (
-                      <ImageOff className="absolute inset-0 m-auto h-4 w-4 text-content-ghost" />
+                      <ImageOff className="absolute inset-0 m-auto h-3.5 w-3.5 text-content-ghost" />
                     )}
                   </span>
                   <span className="min-w-0 flex-1">

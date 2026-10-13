@@ -25,17 +25,17 @@ const CHART_HEIGHT = 180;
  * 297 은 사진 위(머리 48 · 여백 12 · 테두리 1 · 카드 안 12)와 사진 아래(차트 · 여백 ≈ 218 ·
  * 바닥 여백 12 · 테두리 1)의 합 — 세로가 모자라면 사진만 위아래를 조금 덜어 낸다.
  * 시세 머리는 차트 안에 얹혀 따로 세로를 쓰지 않는다. 필터 줄은 상장표 카드에만 있어
- * 여기서는 빼지 않는다. 썸네일 줄이 서면 그 높이(`THUMB_STRIP_HEIGHT`)만큼 더 뺀다.
+ * 여기서는 빼지 않는다. 썸네일 줄은 늘 서므로 그 높이(`THUMB_STRIP_HEIGHT`)도 뺀다.
  */
 const PHOTO_CHROME_HEIGHT = 297;
-const PHOTO_MIN_HEIGHT = 180;
+/** 사진 가로 바닥 · 4:3 이라 세로 180 · 이보다 작으면 곁눈질로 마블링이 안 읽힌다 */
+const PHOTO_MIN_WIDTH = 240;
 /** 썸네일 한 칸 높이 48 + 사진과의 틈 8 */
 const THUMB_STRIP_HEIGHT = 56;
 
-/** 사진 아래 줄에서 넘겨 보는 한 장 · 개체 사진 · 부위 사진 · 증명서 스캔본 */
+/** 사진 아래 줄에서 넘겨 보는 한 장 · 개체 사진 · 증명서 스캔본 */
 type SummaryMedia =
   | { kind: "photo"; src: string | null; label: string }
-  | { kind: "part"; src: string; label: string; short: string }
   | { kind: "doc"; src: string | null; label: string; short: string };
 
 /**
@@ -51,7 +51,7 @@ type SummaryMedia =
  * 사진이 없는 개체(대부분이다)에도 각인은 빈 판 위에 그대로 선다. 사진이 없다고 판정까지
  * 숨기면 요약에서 등급 · 근내지방을 볼 길이 없어진다.
  *
- * 사진이 여러 장이거나 증명서가 있으면 사진 아래에 썸네일 줄이 서고 ←/→ 로 넘긴다.
+ * 사진 아래에는 썸네일 줄이 늘 선다(한 장뿐이어도) · 여러 장이면 ←/→ 로 넘긴다.
  * 증명서는 사진 뒤에 붙는다 · 표의 ↑/↓ 가 개체를 옮기는 동안 ←/→ 는 그 개체 안의 장을 옮긴다.
  */
 export function SheetSummaryPanel({
@@ -79,7 +79,6 @@ export function SheetSummaryPanel({
   const hasAnyCert =
     !!listing && (listing.hasGradeCert || listing.hasSlaughterCert);
   const { data: certs } = useListingCerts(listing?.id ?? null, hasAnyCert);
-
   const media = useMemo<SummaryMedia[]>(
     () => (listing ? buildSummaryMedia(listing, certs ?? null) : []),
     [listing, certs],
@@ -95,9 +94,8 @@ export function SheetSummaryPanel({
   }
   const safeIdx = Math.min(mediaIdx, Math.max(0, media.length - 1));
   const current = media[safeIdx] ?? null;
-  const hasStrip = media.length > 1;
 
-  useArrowKeys(hasStrip, media.length, setMediaIdx);
+  useArrowKeys(media.length > 1, media.length, setMediaIdx);
 
   if (!listing) {
     return (
@@ -110,21 +108,25 @@ export function SheetSummaryPanel({
   }
 
   const isDoc = current?.kind === "doc";
-  const isPart = current?.kind === "part";
-  const photoMaxHeight = `calc(100vh - ${PHOTO_CHROME_HEIGHT + (hasStrip ? THUMB_STRIP_HEIGHT : 0)}px)`;
+  const photoMaxHeight = `calc(100vh - ${PHOTO_CHROME_HEIGHT + THUMB_STRIP_HEIGHT}px)`;
+  /*
+   * 4:3 을 언제나 지킨다 · 세로가 모자라면 높이를 자르는 대신 **폭을 줄여** 가운데 세운다.
+   * `max-height` 로 누르면 상자만 납작해져 사진이 다른 비율로 잘려 보였다.
+   */
+  const photoWidth = `min(100%, max(${PHOTO_MIN_WIDTH}px, calc(${photoMaxHeight} * 4 / 3)))`;
 
   return (
     <div className="flex flex-col gap-2 p-3">
       {/*
        * 미리보기 · 누를 곳은 표의 행과 썸네일이고, 여기는 커서를 따라 보여 주기만 한다.
        * 여백을 두르지 않는다 · 재는 상자에 패딩이 있으면 각인이 그만큼 밖으로 샌다.
-       * 증명서는 흰 종이라 잘라 내지 않고(contain) 통째로 담는다.
+       * 사진도 증명서도 잘라 내지 않고(contain) 통째로 담는다 · 상자만 4:3 으로 고정.
        */}
       <div
         ref={stageRef}
-        style={{ maxHeight: photoMaxHeight, minHeight: PHOTO_MIN_HEIGHT }}
+        style={{ width: photoWidth }}
         className={cn(
-          "relative block aspect-[4/3] w-full overflow-hidden rounded-lg",
+          "relative mx-auto block aspect-[4/3] overflow-hidden rounded-lg",
           isDoc ? "bg-surface-muted" : "bg-surface-accent",
         )}
       >
@@ -134,7 +136,8 @@ export function SheetSummaryPanel({
             alt={`${listing.listingNo} ${current.label}`}
             fill
             sizes="760px"
-            className={isDoc ? "object-contain" : "object-cover"}
+            /* 늘 통째로 · 4:3 상자에서 벗어나는 비율은 위아래가 비지, 잘리진 않는다 — 단면은 잘리면 판정을 못 한다 */
+            className="object-contain"
             unoptimized
           />
         ) : isDoc ? (
@@ -158,12 +161,6 @@ export function SheetSummaryPanel({
             {current.label}
           </span>
         ) : null}
-        {isPart ? (
-          /* 부위 사진에는 어느 부위인지 적는다 · 단면만 봐서는 등심인지 채끝인지 가르기 어렵다 */
-          <span className="absolute right-2 top-2 rounded bg-black/60 px-2 py-0.5 text-[10px] font-semibold text-white backdrop-blur-sm">
-            {current.label}
-          </span>
-        ) : null}
         {isDoc ? null : (
           /* 증명서 스캔본에는 찍지 않는다 · 흰 종이라 가릴 것이 있고, 등급은 그 안에 이미 적혀 있다 */
           <StagePlacementScope store={placementStore}>
@@ -182,14 +179,13 @@ export function SheetSummaryPanel({
         )}
       </div>
 
-      {hasStrip ? (
-        <SummaryThumbs
-          media={media}
-          activeIdx={safeIdx}
-          listingNo={listing.listingNo}
-          onSelect={setMediaIdx}
-        />
-      ) : null}
+      {/* 한 장뿐이어도 띠는 선다 · 「사진이 이것뿐」 임이 보이고, 개체를 넘길 때 띠가 생겼다 사라지며 차트가 들썩이지 않는다 */}
+      <SummaryThumbs
+        media={media}
+        activeIdx={safeIdx}
+        listingNo={listing.listingNo}
+        onSelect={setMediaIdx}
+      />
 
       <PartMarketChart
         compact
@@ -205,13 +201,16 @@ export function SheetSummaryPanel({
 }
 
 /**
- * 넘겨 볼 장 목록 · 개체 사진 → 부위 사진(부위번호 순) → 등급판정확인서 → 도축검사증명서.
+ * 넘겨 볼 장 목록 · 개체 사진(메인페이지 대표 사진들) → 등급판정확인서 → 도축검사증명서.
  *
  * 사진이 없어도 첫 칸은 「사진」 빈 판으로 둔다 · 각인이 설 자리다. 증명서를 첫 칸에 세우면
  * 사진 없는 개체(대부분이다)에서 판정 일곱이 사라진다. 없는 증명서는 칸을 만들지 않는다 —
  * 상세 방은 「미등록」 자리를 지키지만, 곁눈질 자리에서는 있는 것만 보이는 쪽이 조용하다.
  *
- * 부위 사진으로 개체 사진을 그대로 붙인 경우(등록 폼 「개체 사진에서 고르기」)는 한 번만 센다.
+ * **부위 사진과 업체 대표이미지는 여기 세우지 않는다.** 상장표는 개체를 고르는 자리라
+ * 요약도 개체 단위다. 부위마다 어떤 사진이 걸리는지는 상세 방(부위 표 1열 · 사진 판)이
+ * 말한다 — 여기에 부위 열여섯을 늘어놓으면 띠가 길어져 개체 사진 몇 장을 넘기는 손이 느려지고,
+ * 대표이미지가 섞이면서 「이 소의 사진」 과 「그냥 그 부위의 사진」 이 한 줄에 서 버렸다.
  */
 function buildSummaryMedia(
   listing: LiveListing,
@@ -225,20 +224,6 @@ function buildSummaryMedia(
           label: listing.images.length > 1 ? `사진 ${i + 1}` : "사진",
         }))
       : [{ kind: "photo", src: null, label: "사진" }];
-  const seen = new Set(listing.images);
-  const partPhotos: SummaryMedia[] = [];
-  for (const part of [...listing.parts].sort((a, b) => a.partNo - b.partNo)) {
-    const fresh = part.images.filter((src) => !seen.has(src));
-    fresh.forEach((src) => seen.add(src));
-    fresh.forEach((src, i) =>
-      partPhotos.push({
-        kind: "part",
-        src,
-        label: fresh.length > 1 ? `${part.partName} ${i + 1}` : part.partName,
-        short: part.partName,
-      }),
-    );
-  }
   const docs: SummaryMedia[] = [];
   if (listing.hasGradeCert) {
     docs.push({
@@ -256,7 +241,7 @@ function buildSummaryMedia(
       short: "도축검사",
     });
   }
-  return [...photos, ...partPhotos, ...docs];
+  return [...photos, ...docs];
 }
 
 /**
@@ -305,17 +290,36 @@ function SummaryThumbs({
   listingNo: string;
   onSelect: (idx: number) => void;
 }) {
+  /*
+   * 고른 칸을 띠 안으로 굴린다 · ←/→ 로 넘기면 띠는 가만히 있고 고른 칸만 오른쪽으로
+   * 나가 버려, 지금 몇째 장인지 띠에서 알 길이 없었다. `nearest` 라 이미 보이는 칸은
+   * 건드리지 않고, `block: "nearest"` 라 바깥 세로 스크롤도 끌지 않는다.
+   */
+  const activeRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    activeRef.current?.scrollIntoView({
+      inline: "nearest",
+      block: "nearest",
+    });
+  }, [activeIdx]);
+
   return (
+    /*
+     * 안쪽 2px 여백 + 바깥 -2px · 가로로 구르는 상자는 세로도 함께 자르므로(overflow-x 만
+     * 켤 수 없다) 고른 칸의 2px 테두리(ring-2)가 위아래로 잘려 나갔다. 여백만큼 안으로
+     * 들여 그리고 같은 만큼 바깥으로 물려 줄 높이는 그대로 둔다.
+     */
     <div
       role="tablist"
       aria-label="사진·증명서"
-      className="flex items-center gap-1.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      className="-m-0.5 flex items-center gap-1.5 overflow-x-auto p-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
     >
       {media.map((item, idx) => {
         const active = idx === activeIdx;
         return (
           <button
             key={`${item.kind}-${idx}`}
+            ref={active ? activeRef : undefined}
             type="button"
             role="tab"
             aria-selected={active}
@@ -323,7 +327,7 @@ function SummaryThumbs({
             title={item.label}
             onClick={() => onSelect(idx)}
             className={cn(
-              "relative h-12 w-16 shrink-0 overflow-hidden rounded bg-surface-muted ring-1 transition-opacity",
+              "relative h-12 w-12 shrink-0 overflow-hidden rounded bg-surface-muted ring-1 transition-opacity",
               active
                 ? "opacity-100 ring-2 ring-content"
                 : "opacity-60 ring-line hover:opacity-100",
@@ -334,8 +338,8 @@ function SummaryThumbs({
                 src={item.src}
                 alt={`${listingNo} ${item.label}`}
                 fill
-                sizes="64px"
-                className="object-cover"
+                sizes="48px"
+                className="object-contain"
                 unoptimized
               />
             ) : (

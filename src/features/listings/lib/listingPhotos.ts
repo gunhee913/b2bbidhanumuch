@@ -1,4 +1,39 @@
 import { uploadImage } from "@/lib/upload";
+import { toPartGroupName } from "@/features/live-auction/lib/partGrouping";
+import type { PartGroupImageLookup } from "@/features/part-group-images/types";
+
+/** 등록 폼의 부위 칸에 걸릴 사진이 어디서 온 것인가 */
+export type FormPhotoSource = "part" | "company" | "listing" | "none";
+
+export const FORM_PHOTO_SOURCE_LABEL: Record<FormPhotoSource, string> = {
+  part: "부위 사진",
+  company: "업체 부위 대표이미지",
+  listing: "개체 대표 사진",
+  none: "사진 없음",
+};
+
+/**
+ * 등록 폼에서 「이 부위는 화면에 어떤 사진으로 나가나」 · 라이브 화면의 `partCover` 와 같은 순서.
+ *
+ * 부위 사진 → 업체 부위 대표이미지(없으면 전체 기본) → 개체 대표 사진. 폼이 저장 전이라
+ * `LiveListing` 이 아직 없어 같은 함수를 못 쓰고, 값만 받아 같은 규칙을 다시 적는다.
+ * 순서가 둘로 갈리면 등록할 때 본 사진과 경매장에 나간 사진이 달라진다.
+ */
+export function resolveFormPartCover(input: {
+  partImages: string[];
+  listingImages: string[];
+  companyId: string | null;
+  partName: string;
+  lookup: PartGroupImageLookup;
+}): { src: string | null; source: FormPhotoSource } {
+  const own = input.partImages[0];
+  if (own) return { src: own, source: "part" };
+  const rep = input.lookup(input.companyId, toPartGroupName(input.partName));
+  if (rep) return { src: rep, source: "company" };
+  const cover = input.listingImages[0];
+  if (cover) return { src: cover, source: "listing" };
+  return { src: null, source: "none" };
+}
 
 /** 개체 사진 · 부위 사진 모두 한 묶음에 최대 4장 */
 export const MAX_LISTING_PHOTOS = 4;

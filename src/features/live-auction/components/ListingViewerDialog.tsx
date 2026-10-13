@@ -1,6 +1,8 @@
 "use client";
 
 import {
+  Fragment,
+  forwardRef,
   useCallback,
   useEffect,
   useMemo,
@@ -29,7 +31,12 @@ import {
 } from "../lib/judgedSpecs";
 import { isTypingInto } from "../lib/keyboard";
 import { toPartGroupName } from "../lib/partGrouping";
-import { resolvePartPhotos } from "../lib/partPhotos";
+import {
+  collectPartPhotos,
+  flattenPartPhotos,
+  PHOTO_SCOPE_ORDER,
+  PHOTO_SCOPE_TITLE,
+} from "../lib/partPhotos";
 import { usePartGroupImageLookup } from "@/features/part-group-images/hooks/usePartGroupImages";
 import { useListingCerts } from "../hooks/useListingCerts";
 import type { StageSlot } from "../hooks/useRoomLayout";
@@ -44,7 +51,7 @@ export type ViewerMedia =
       kind: "photo";
       src: string;
       label: string;
-      /** 업체 부위 대표이미지 · 이 소의 사진이 아니라 각인을 찍지 않고 이름표를 붙인다 */
+      /** 업체 부위 대표이미지 · 이름표에 「대표이미지」 라고 적는다 */
       rep?: boolean;
     }
   | { kind: "doc"; src: string | null; label: string };
@@ -62,6 +69,8 @@ export interface MediaTab {
   /** 사진 칸은 이 그림을 줄여 그린다 · 문서 칸은 아이콘이라 쓰지 않는다 */
   src: string | null;
   mediaIdx: number | null;
+  /** 이 칸부터 새 묶음 · 레일에 작은 제목을 세운다 (「부위 사진」 「대표이미지」 「등심 단면」 「증명서」) */
+  section?: string;
 }
 
 export interface ListingViewerDialogProps {
@@ -337,6 +346,8 @@ export function ViewerMediaPane({
   part = null,
   mediaIdx,
   onMediaIdxChange,
+  onMediaCountChange,
+  thumbs = "side",
   hasMany = false,
   canPrev = false,
   canNext = false,
@@ -348,12 +359,16 @@ export function ViewerMediaPane({
 }: {
   listing: LiveListing;
   /**
-   * 지금 보고 있는 부위 · 그 부위 사진이 앞에 서고 개체 사진이 뒤따른다 (`resolvePartPhotos`).
-   * 비우면 개체 사진만 · 부위 사진이 없는 개체는 어느 쪽이든 똑같이 보인다.
+   * 지금 보고 있는 부위 · 레일이 「부위 사진(없으면 대표이미지) · 등심 단면 · 증명서」 로
+   * 선다 (`collectPartPhotos`). 비우면 등심 단면과 증명서만.
    */
   part?: LivePart | null;
   mediaIdx: number;
   onMediaIdxChange: (idx: number) => void;
+  /** 레일에 선 장 수가 바뀔 때 · 바깥이 ←/→ 로 넘기며 끝을 알아야 할 때 받는다 */
+  onMediaCountChange?: (count: number) => void;
+  /** 썸네일 자리 · 전체화면 뷰어는 옆(`side`), 상세 방은 아래(`bottom`) */
+  thumbs?: "side" | "bottom";
   hasMany?: boolean;
   canPrev?: boolean;
   canNext?: boolean;
@@ -385,37 +400,71 @@ export function ViewerMediaPane({
   const groupImage = usePartGroupImageLookup();
 
   const { media, tabs } = useMemo(() => {
-    const items: ViewerMedia[] = resolvePartPhotos(
-      listing,
-      part,
-      groupImage,
-    ).map(({ src, label, scope }) => ({
-      kind: "photo",
-      src,
-      label,
-      rep: scope === "company",
-    }));
-    const tabList: MediaTab[] = items.map((item, i) => ({
-      label: item.label,
-      kind: "photo",
-      src: item.kind === "photo" ? item.src : null,
-      mediaIdx: i,
-    }));
+    const groups = collectPartPhotos(listing, part, groupImage);
+    const items: ViewerMedia[] = flattenPartPhotos(groups).map(
+      ({ src, label, scope }) => ({
+        kind: "photo",
+        src,
+        label,
+        rep: scope === "company",
+      }),
+    );
+
+    /* 묶음마다 제목 · 비어 있는 묶음은 통째로 뺀다 · 첫 장이 곧 처음 뜨는 장 */
+    const tabList: MediaTab[] = [];
+    let cursor = 0;
+    for (const scope of PHOTO_SCOPE_ORDER) {
+      const photos = groups[scope];
+      if (photos.length === 0) continue;
+      photos.forEach((photo, i) => {
+        tabList.push({
+          label: photo.label,
+          kind: "photo",
+          src: photo.src,
+          mediaIdx: cursor + i,
+          section: i === 0 ? PHOTO_SCOPE_TITLE[scope] : undefined,
+        });
+      });
+      cursor += photos.length;
+    }
     if (tabList.length === 0) {
-      tabList.push({ label: "사진", kind: "photo", src: null, mediaIdx: null });
+      tabList.push({
+        label: "사진",
+        kind: "photo",
+        src: null,
+        mediaIdx: null,
+        section: PHOTO_SCOPE_TITLE.listing,
+      });
     }
 
+    let firstDoc = true;
     const addDoc = (
       label: string,
       short: string,
       has: boolean,
       src: string | null,
     ) => {
+      const section = firstDoc ? "증명서" : undefined;
+      firstDoc = false;
       if (!has) {
-        tabList.push({ label, short, kind: "doc", src: null, mediaIdx: null });
+        tabList.push({
+          label,
+          short,
+          kind: "doc",
+          src: null,
+          mediaIdx: null,
+          section,
+        });
         return;
       }
-      tabList.push({ label, short, kind: "doc", src, mediaIdx: items.length });
+      tabList.push({
+        label,
+        short,
+        kind: "doc",
+        src,
+        mediaIdx: items.length,
+        section,
+      });
       items.push({ kind: "doc", src, label });
     };
     addDoc(
@@ -438,20 +487,158 @@ export function ViewerMediaPane({
   const current = media[safeIdx] ?? null;
   const [stageRef, stage] = useMeasure<HTMLDivElement>();
 
+  /* 바깥이 ←/→ 로 넘기려면 몇 장인지 알아야 한다 · 끝에서 멈추는 기준 */
+  const mediaCount = media.length;
+  useEffect(() => {
+    onMediaCountChange?.(mediaCount);
+  }, [mediaCount, onMediaCountChange]);
+
+  const rail = (
+    <MediaTabs
+      tabs={tabs}
+      activeIdx={media.length > 0 ? safeIdx : null}
+      onSelect={onMediaIdxChange}
+      orientation={thumbs}
+    />
+  );
+
+  /*
+   * 아래 썸네일(`bottom`)일 때 무대는 4:3 상자로 고정하고, 남는 자리에 맞춰 **상자 크기**를
+   * 잰다. 판 전체를 무대로 쓰면 그림은 가운데 작게 뜨고 썸네일은 판 바닥에 남아 둘 사이가
+   * 비었다(세로가 넉넉할수록 더). 상자를 그림 크기로 재서 그 바로 아래 썸네일을 붙이고,
+   * 상자+썸네일 덩어리를 가운데 세운다 · 상장표 요약(4:3 · 아래 띠)과 같은 모양.
+   */
+  const [areaRef, area] = useMeasure<HTMLDivElement>();
+  const [railRef, railSize] = useMeasure<HTMLDivElement>();
+  const box =
+    thumbs === "bottom" && area.width > 0
+      ? fitPhotoBox(area.width, area.height - railSize.height - RAIL_GAP)
+      : null;
+
+  /*
+   * 각인·쪽지 층의 바닥 · 아래 배치에서 층은 판 너비 전체를 쓰되 사진 상자 **바닥**에서 끝난다.
+   * 상자+띠 덩어리가 가운데 서 있으니, 아래 남는 자리(절반) + 틈 + 띠 높이만큼 위다.
+   * 띠 위까지 내려오면 끌어다 놓은 각인이 썸네일을 덮어 누를 수 없게 된다.
+   */
+  const overlayBottom = box
+    ? Math.max(
+        0,
+        (area.height - (box.height + RAIL_GAP + railSize.height)) / 2 +
+          RAIL_GAP +
+          railSize.height,
+      )
+    : 0;
+
+  /* 그림 자체 · 화살표와 출처 이름표는 그림에 붙는다 */
+  const picture = (
+    <>
+      {hasMany && onPrev ? (
+        <ViewerArrow side="left" disabled={!canPrev} onClick={onPrev} />
+      ) : null}
+      {/* 늘 통째로(`contain`) · 4:3 상자에서 벗어나는 비율은 위아래가 비지, 잘리진 않는다 — 단면은 잘리면 판정을 못 한다 */}
+      <ViewerStage listingNo={listing.listingNo} item={current} />
+      {hasMany && onNext ? (
+        <ViewerArrow side="right" disabled={!canNext} onClick={onNext} />
+      ) : null}
+      {/* 부위를 보는 중엔 이게 부위 사진인지 대표이미지인지 개체 사진(등심 단면)인지 적어 둔다 */}
+      {current?.kind === "photo" && part ? (
+        <span className="pointer-events-none absolute left-2 top-2 z-10 rounded bg-black/60 px-2 py-0.5 text-[10.5px] font-semibold text-white backdrop-blur-sm">
+          {current.rep ? `${current.label}이미지` : current.label}
+        </span>
+      ) : null}
+    </>
+  );
+
+  /*
+   * 끌어다 놓는 겹(각인 · 쪽지) · 자리를 비율로 담으니 무대(`stage`) 크기를 알아야 px 로 편다.
+   * 옆 배치에서는 그림 상자가 곧 무대고, 아래 배치에서는 판 너비 전체가 무대다 — 그림 옆에
+   * 남는 자리가 넓은데 상자 안에만 가두면 그림을 가리는 자리밖에 못 간다.
+   */
+  const overlays = (
+    <>
+      {/*
+       * 증명서 스캔본에만 찍지 않는다 · 흰 종이라 가릴 것이 있고 등급은 그 안에 이미 적혀 있다.
+       * 대표이미지에도 찍는다 — 판정은 사진이 아니라 **이 소**의 것이라 어느 장을 보든 같은
+       * 자리에 있어야 한다. 「○○ 대표이미지」 이름표가 그림 출처를 따로 말한다.
+       */}
+      {stamp && current?.kind === "photo" ? (
+        <GradeStamp
+          heading={{
+            grade: listing.grade,
+            marblingScore: listing.marblingScore,
+            listingNo: listing.listingNo,
+            companyName: listing.companyName,
+          }}
+          values={listing}
+          stageWidth={stage.width}
+          stageHeight={stage.height}
+        />
+      ) : null}
+      {note && current?.kind === "photo" ? (
+        <StageNote
+          partId={note.partId}
+          partLabel={note.partLabel}
+          body={note.body}
+          onSave={note.onSave}
+          stageWidth={stage.width}
+          stageHeight={stage.height}
+        />
+      ) : null}
+    </>
+  );
+
+  if (thumbs === "bottom") {
+    return (
+      <div className={cn("flex min-h-0 flex-1", className ?? "pb-6 pl-6 pr-4")}>
+        <div
+          ref={areaRef}
+          className="relative flex min-h-0 min-w-0 flex-1 flex-col items-center justify-center"
+        >
+          <div
+            style={box ? { width: box.width } : undefined}
+            className={cn("flex min-h-0 flex-col", box ? "" : "w-full flex-1")}
+          >
+            <div
+              style={box ? { height: box.height } : undefined}
+              className={cn(
+                "relative flex items-center justify-center overflow-hidden rounded-lg",
+                current?.kind === "doc" ? "bg-white/[0.08]" : "bg-white/[0.04]",
+                box ? "" : "min-h-0 flex-1",
+              )}
+            >
+              {picture}
+            </div>
+            <div ref={railRef} className="pt-2">
+              {rail}
+            </div>
+          </div>
+          {/*
+           * 각인·쪽지 층 · 판 너비 전체 × 그림 상자 바닥까지. 층 자체는 손을 안 받고
+           * (`pointer-events-none`) 그 위의 각인·쪽지만 받는다 — 안 그러면 층이 그림을 덮어
+           * 화살표를 못 누른다.
+           */}
+          <div
+            ref={stageRef}
+            style={{ bottom: overlayBottom }}
+            className="pointer-events-none absolute inset-x-0 top-0 overflow-hidden [&>*]:pointer-events-auto"
+          >
+            {overlays}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       className={cn("flex min-h-0 flex-1 gap-3", className ?? "pb-6 pl-6 pr-4")}
     >
       {/*
-       * 썸네일은 세로로 세운다 · 단면 사진은 거의 정사각(1.19)이라 늘 높이에 먼저 갇히고
-       * 가로로는 판의 절반이 남는다. 아래에 깔면 그 60px 를 높이에서 빼앗아
+       * 전체화면 뷰어는 썸네일을 옆에 세운다 · 단면 사진은 거의 정사각(1.19)이라 늘 높이에
+       * 먼저 갇히고 가로로는 판의 절반이 남는다. 아래에 깔면 그 60px 를 높이에서 빼앗아
        * 그림이 그만큼 작아지지만, 옆에 세우면 남는 폭을 쓰는 것이라 공짜다.
        */}
-      <MediaTabs
-        tabs={tabs}
-        activeIdx={media.length > 0 ? safeIdx : null}
-        onSelect={onMediaIdxChange}
-      />
+      {rail}
 
       {/*
        * 각인을 끌어다 놓는 판 · 자리를 비율로 담으니 무대 크기를 알아야 px 로 편다.
@@ -465,46 +652,23 @@ export function ViewerMediaPane({
         ref={stageRef}
         className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden"
       >
-        {hasMany && onPrev ? (
-          <ViewerArrow side="left" disabled={!canPrev} onClick={onPrev} />
-        ) : null}
-        <ViewerStage listingNo={listing.listingNo} item={current} />
-        {hasMany && onNext ? (
-          <ViewerArrow side="right" disabled={!canNext} onClick={onNext} />
-        ) : null}
-        {/* 업체 대표이미지는 이 소가 아니다 · 그렇게 적어 두지 않으면 실물로 읽힌다 */}
-        {current?.kind === "photo" && current.rep ? (
-          <span className="pointer-events-none absolute left-2 top-2 z-10 rounded bg-black/60 px-2 py-0.5 text-[10.5px] font-semibold text-white backdrop-blur-sm">
-            {current.label}이미지 · 실물 아님
-          </span>
-        ) : null}
-        {/* 증명서 스캔본과 대표이미지에는 찍지 않는다 · 이 소의 판정을 남의 사진 위에 올리면 안 된다 */}
-        {stamp && current?.kind === "photo" && !current.rep ? (
-          <GradeStamp
-            heading={{
-              grade: listing.grade,
-              marblingScore: listing.marblingScore,
-              listingNo: listing.listingNo,
-              companyName: listing.companyName,
-            }}
-            values={listing}
-            stageWidth={stage.width}
-            stageHeight={stage.height}
-          />
-        ) : null}
-        {note && current?.kind === "photo" ? (
-          <StageNote
-            partId={note.partId}
-            partLabel={note.partLabel}
-            body={note.body}
-            onSave={note.onSave}
-            stageWidth={stage.width}
-            stageHeight={stage.height}
-          />
-        ) : null}
+        {picture}
+        {overlays}
       </div>
     </div>
   );
+}
+
+/** 무대와 아래 썸네일 사이 틈 (`pt-2`) · 상자 크기를 잴 때 뺀다 */
+const RAIL_GAP = 8;
+
+/** 주어진 자리에 들어가는 가장 큰 4:3 상자 · 세로가 모자라면 폭을 줄인다 */
+function fitPhotoBox(
+  areaWidth: number,
+  areaHeight: number,
+): { width: number; height: number } {
+  const width = Math.max(0, Math.min(areaWidth, (areaHeight * 4) / 3));
+  return { width, height: (width * 3) / 4 };
 }
 
 /** 메모 길이 상한 · API 와 같은 값을 쓴다 (서버도 500 에서 자른다) */
@@ -1017,78 +1181,170 @@ export function MediaTabs({
   tabs,
   activeIdx,
   onSelect,
+  orientation = "side",
 }: {
   tabs: MediaTab[];
   activeIdx: number | null;
   onSelect: (idx: number) => void;
+  /** 옆에 세로로(`side`) · 사진 아래 가로로(`bottom`) · 가로는 묶음마다 제목을 위에 얹는다 */
+  orientation?: "side" | "bottom";
 }) {
+  /*
+   * 고른 칸을 줄 안으로 굴린다 · 키로 넘기면 줄은 가만히 있고 고른 칸만 밖으로 나가
+   * 지금 몇째 장인지 알 길이 없었다. `nearest` 라 이미 보이는 칸은 건드리지 않는다.
+   */
+  const activeRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    activeRef.current?.scrollIntoView({ inline: "nearest", block: "nearest" });
+  }, [activeIdx]);
+
+  const thumbOf = (tab: MediaTab, key: string) => {
+    const available = tab.mediaIdx != null;
+    const active = available && tab.mediaIdx === activeIdx;
+    return (
+      <MediaThumb
+        key={key}
+        ref={active ? activeRef : undefined}
+        tab={tab}
+        active={active}
+        onSelect={onSelect}
+        /* 옆 레일은 레일 폭(64) 정사각 · 아래 띠는 상장표 요약과 같은 48 정사각 */
+        className={orientation === "side" ? "h-16 w-full" : "h-12 w-12"}
+      />
+    );
+  };
+
+  if (orientation === "bottom") {
+    /*
+     * 묶음별로 세로 상자(제목 + 썸네일 한 줄)를 가로로 늘어놓는다.
+     * 안쪽 2px 여백 + 바깥 -2px · 가로로 구르는 상자는 세로도 자르므로 고른 칸의 2px
+     * 테두리가 위아래로 잘려 나간다 — 여백만큼 들여 그리고 같은 만큼 물려 높이는 그대로.
+     */
+    const groups = groupTabsBySection(tabs);
+    return (
+      <div className="-m-0.5 flex shrink-0 items-end gap-3 overflow-x-auto p-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {groups.map((group, gi) => (
+          <div key={`${group.title}-${gi}`} className="flex flex-col gap-1">
+            <span className="truncate text-[10px] font-semibold leading-none text-white/40">
+              {group.title}
+            </span>
+            <div className="flex items-center gap-1.5">
+              {group.tabs.map((tab, i) => thumbOf(tab, `${tab.label}-${i}`))}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
   return (
-    <div className="flex w-16 shrink-0 flex-col gap-1.5 overflow-y-auto">
-      {tabs.map((tab) => {
-        const available = tab.mediaIdx != null;
-        const active = available && tab.mediaIdx === activeIdx;
-        return (
-          <button
-            key={tab.label}
-            type="button"
-            disabled={!available}
-            aria-label={tab.label}
-            aria-pressed={active}
-            title={tab.label}
-            onClick={() => available && onSelect(tab.mediaIdx as number)}
-            className={cn(
-              "relative h-12 w-full shrink-0 overflow-hidden rounded-[3px] bg-white/[0.06] transition-opacity",
-              active
-                ? "opacity-100 ring-2 ring-white"
-                : available
-                  ? "opacity-55 ring-1 ring-white/15 hover:opacity-90"
-                  : "cursor-default ring-1 ring-dashed ring-white/15",
-            )}
-          >
-            {tab.kind === "photo" && tab.src ? (
-              <Image
-                src={tab.src}
-                alt=""
-                fill
-                sizes="64px"
-                className="object-cover"
-                unoptimized
-              />
-            ) : (
-              <span className="flex h-full w-full flex-col items-center justify-center gap-1">
-                {/* 없는 칸에서는 아이콘을 빼고 그 자리에 「미등록」을 쓴다 ·
-                    어느 증명서가 빠졌는지가 없으면 자리를 지킨 뜻이 사라진다 */}
-                {available ? (
-                  <FileText
-                    className="h-4 w-4 text-white/70"
-                    strokeWidth={1.5}
-                    aria-hidden
-                  />
-                ) : tab.kind === "photo" ? (
-                  <ImageOff
-                    className="h-4 w-4 text-white/25"
-                    strokeWidth={1.5}
-                    aria-hidden
-                  />
-                ) : null}
-                <span
-                  className={cn(
-                    "text-[9.5px] font-semibold leading-none",
-                    available ? "text-white/70" : "text-white/35",
-                  )}
-                >
-                  {tab.short ?? tab.label}
-                </span>
-                {available ? null : (
-                  <span className="text-[9px] font-medium leading-none text-white/20">
-                    미등록
-                  </span>
-                )}
-              </span>
-            )}
-          </button>
-        );
-      })}
+    <div className="scrollbar-thin flex w-16 shrink-0 flex-col gap-1.5 overflow-y-auto">
+      {tabs.map((tab, i) => (
+        <Fragment key={`${tab.label}-${i}`}>
+          {tab.section ? (
+            /* 묶음 제목 · 썸네일을 많이 안 먹게 10px · 첫 묶음은 윗여백 없이 */
+            <span
+              className={cn(
+                "truncate text-[10px] font-semibold leading-none text-white/40",
+                i > 0 && "mt-1.5",
+              )}
+            >
+              {tab.section}
+            </span>
+          ) : null}
+          {thumbOf(tab, "thumb")}
+        </Fragment>
+      ))}
     </div>
   );
 }
+
+/** `section` 이 찍힌 칸부터 새 묶음 · 첫 칸에 제목이 없으면 빈 제목 묶음으로 시작한다 */
+function groupTabsBySection(
+  tabs: MediaTab[],
+): { title: string; tabs: MediaTab[] }[] {
+  return tabs.reduce<{ title: string; tabs: MediaTab[] }[]>((acc, tab) => {
+    const last = acc[acc.length - 1];
+    if (tab.section || !last) {
+      acc.push({ title: tab.section ?? "", tabs: [tab] });
+      return acc;
+    }
+    last.tabs.push(tab);
+    return acc;
+  }, []);
+}
+
+/** 썸네일 한 칸 · 정사각 · 사진은 잘라 내지 않고 통째로 줄여 그리고, 문서는 아이콘 + 짧은 이름 */
+const MediaThumb = forwardRef<
+  HTMLButtonElement,
+  {
+    tab: MediaTab;
+    active: boolean;
+    onSelect: (idx: number) => void;
+    className?: string;
+  }
+>(function MediaThumb({ tab, active, onSelect, className }, ref) {
+  const available = tab.mediaIdx != null;
+  return (
+    <button
+      ref={ref}
+      type="button"
+      disabled={!available}
+      aria-label={tab.label}
+      aria-pressed={active}
+      title={tab.label}
+      onClick={() => available && onSelect(tab.mediaIdx as number)}
+      className={cn(
+        "relative shrink-0 overflow-hidden rounded-[3px] bg-white/[0.06] transition-opacity",
+        active
+          ? "opacity-100 ring-2 ring-white"
+          : available
+            ? "opacity-55 ring-1 ring-white/15 hover:opacity-90"
+            : "cursor-default ring-1 ring-dashed ring-white/15",
+        className,
+      )}
+    >
+      {tab.kind === "photo" && tab.src ? (
+        <Image
+          src={tab.src}
+          alt=""
+          fill
+          sizes="64px"
+          className="object-contain"
+          unoptimized
+        />
+      ) : (
+        <span className="flex h-full w-full flex-col items-center justify-center gap-1">
+          {/* 없는 칸에서는 아이콘을 빼고 그 자리에 「미등록」을 쓴다 ·
+              어느 증명서가 빠졌는지가 없으면 자리를 지킨 뜻이 사라진다 */}
+          {available ? (
+            <FileText
+              className="h-4 w-4 text-white/70"
+              strokeWidth={1.5}
+              aria-hidden
+            />
+          ) : tab.kind === "photo" ? (
+            <ImageOff
+              className="h-4 w-4 text-white/25"
+              strokeWidth={1.5}
+              aria-hidden
+            />
+          ) : null}
+          <span
+            className={cn(
+              "text-[9.5px] font-semibold leading-none",
+              available ? "text-white/70" : "text-white/35",
+            )}
+          >
+            {tab.short ?? tab.label}
+          </span>
+          {available ? null : (
+            <span className="text-[9px] font-medium leading-none text-white/20">
+              미등록
+            </span>
+          )}
+        </span>
+      )}
+    </button>
+  );
+});

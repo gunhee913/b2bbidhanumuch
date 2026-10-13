@@ -6,6 +6,8 @@ import {
   deletePartGroupImage,
   fetchPartGroupImages,
   upsertPartGroupImage,
+  type PartGroupImageScope,
+  type PartGroupImageTarget,
 } from "../api";
 import type { PartGroupImage, PartGroupImageLookup } from "../types";
 
@@ -50,20 +52,22 @@ export function usePartGroupImageLookup(): PartGroupImageLookup {
   return useMemo(() => buildPartGroupImageLookup(data?.images ?? []), [data]);
 }
 
-export function useUpsertPartGroupImage() {
+export function useUpsertPartGroupImage(scope: PartGroupImageScope = "admin") {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: upsertPartGroupImage,
+    mutationFn: (payload: PartGroupImageTarget & { imageUrl: string }) =>
+      upsertPartGroupImage(payload, scope),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: PART_GROUP_IMAGES_QUERY_KEY });
     },
   });
 }
 
-export function useDeletePartGroupImage() {
+export function useDeletePartGroupImage(scope: PartGroupImageScope = "admin") {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: deletePartGroupImage,
+    mutationFn: (target: PartGroupImageTarget) =>
+      deletePartGroupImage(target, scope),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: PART_GROUP_IMAGES_QUERY_KEY });
     },

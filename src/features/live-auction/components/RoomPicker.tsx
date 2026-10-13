@@ -18,7 +18,9 @@ function KeyHint({ keys, label }: { keys: string[]; label: string }) {
           {k}
         </kbd>
       ))}
-      <span className="text-[11px] font-medium text-content-faint">{label}</span>
+      <span className="text-[11px] font-medium text-content-faint">
+        {label}
+      </span>
     </span>
   );
 }
@@ -44,6 +46,7 @@ export function RoomPicker<T>({
   titleWidth,
   badgeChars,
   hotkey,
+  autoOpen = false,
 }: {
   /** 지금 고정된 축 이름 · 접수번호 또는 부위명 */
   title: string;
@@ -75,6 +78,8 @@ export function RoomPicker<T>({
   width?: number;
   /** 이 키 하나로 연다 · 글을 쓰는 중이면 그냥 글자로 둔다 */
   hotkey?: string;
+  /** 켜지는 순간 한 번 편다 · 상장표 「부위별」 로 들어왔을 때 (`consumeOpenPartPicker`) */
+  autoOpen?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -119,6 +124,12 @@ export function RoomPicker<T>({
     setActive(i < 0 ? 0 : i);
     setOpen(true);
   };
+  const openPickerRef = useRef(openPicker);
+  openPickerRef.current = openPicker;
+
+  useEffect(() => {
+    if (autoOpen) openPickerRef.current();
+  }, [autoOpen]);
 
   const closePicker = () => {
     setOpen(false);
@@ -258,7 +269,7 @@ export function RoomPicker<T>({
               ref={listRef}
               id={listId}
               role="listbox"
-              className="scrollbar-thin max-h-[340px] overflow-y-auto pb-1"
+              className="scrollbar-thin max-h-[420px] overflow-y-auto pb-1"
             >
               {matches.map((item, i) => {
                 const current = isCurrent(item);
@@ -278,7 +289,8 @@ export function RoomPicker<T>({
                       onMouseEnter={() => setActive(i)}
                       onClick={() => pick(item)}
                       className={cn(
-                        "flex w-full items-center gap-2.5 px-3 py-1.5 text-left transition-colors",
+                        /* 44px 줄 · 손가락으로도 겨누고, 글자 하나뿐인 부위 줄이 띠처럼 붙지 않게 */
+                        "flex min-h-[44px] w-full items-center gap-2.5 px-3 py-2 text-left transition-colors",
                         i === active
                           ? "bg-surface-strong ring-1 ring-inset ring-focus/40"
                           : current && "bg-surface-accent",

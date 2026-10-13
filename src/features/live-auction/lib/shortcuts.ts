@@ -73,7 +73,8 @@ export function buildShortcutGroups(step: number): ShortcutGroup[] {
       title: "개체/부위/관심 탭",
       rows: [
         { keys: ["B"], label: "탭 이동" },
-        { keys: ["←", "→"], label: "개체/부위 이동" },
+        { keys: ["Shift", "←→"], label: "개체/부위 이동" },
+        { keys: ["←", "→"], label: "사진 넘기기" },
         { keys: ["↑", "↓"], label: "입찰칸 이동" },
       ],
     },

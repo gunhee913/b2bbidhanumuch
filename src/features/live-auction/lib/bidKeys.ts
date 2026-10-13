@@ -257,7 +257,7 @@ export function handleSheetBidKeyDown(
       e.preventDefault();
       input.blur();
     }
-    // ←/→ 는 먹지 않는다 · 방이 받아 고정축을 옮긴다
+    // ←/→ 는 먹지 않는다 · 방이 받아 사진을 넘기고(Shift 면 고정축을 옮긴다)
     return;
   }
 
@@ -278,7 +278,7 @@ export function handleSheetBidKeyDown(
     onStep(e.key === "ArrowUp" ? size : -size);
     return;
   }
-  // 쓰는 중의 ←/→ 는 글자 커서다 · 방의 고정축 이동으로 새지 않게 막는다
+  // 쓰는 중의 ←/→ 는 글자 커서다 · 방의 사진 넘기기·고정축 이동으로 새지 않게 막는다
   if (e.key === "ArrowLeft" || e.key === "ArrowRight") e.stopPropagation();
 }
 

@@ -151,6 +151,8 @@ interface RoomLayoutState {
   stage: Record<StageSlot, StagePlacement>;
   /** 같은 판을 또 누르면 원래대로 · 서로 배타적이라 한쪽을 켜면 다른 쪽은 꺼진다 */
   toggleFocus: (target: Exclude<RoomFocus, "none">) => void;
+  /** 토글이 아니라 지정 · 「차트 보기」(none) · 「차트 숨기기」(photo) 같은 글자 단추가 쓴다 */
+  setFocus: (focus: RoomFocus) => void;
   /** 끌기가 끝날 때 한 번만 부른다 · 옮기는 내내 부르면 localStorage 를 매 프레임 쓴다 */
   setStagePlacement: (slot: StageSlot, patch: Partial<StagePlacement>) => void;
   /** 자리와 크기를 함께 되돌린다 · 「처음으로」 가 둘로 나뉘면 한쪽만 틀어진 채 남는다 */
@@ -190,11 +192,15 @@ const clampHeight = (px: number, max: number) =>
  * 개체를 넘길 때마다 풀리면 200두를 훑는 동안 매번 다시 맞춰야 하므로 방 바깥에 둔다.
  * 첫 렌더는 서버와 같은 기본값으로 그리고 마운트 뒤에 되살린다 — 이 값이 그리드 열 폭을
  * 바꾸기 때문에 하이드레이션이 어긋나면 안 된다.
+ *
+ * 처음은 **사진이 1열을 독차지**한다(`focus: "photo"`). 시세는 입찰가를 정할 때 잠깐
+ * 펴 보는 것이고, 들어오자마자 보는 건 고기다 — 사진이 차트에 눌려 반 토막이면 단면이
+ * 안 읽힌다. 차트는 사진 판의 「차트 보기」 로 편다.
  */
 export const useRoomLayout = create<RoomLayoutState>()(
   persist(
     (set, get) => ({
-      focus: "none",
+      focus: "photo",
       tableWidth: TABLE_DEFAULT_WIDTH,
       chartHeight: CHART_DEFAULT_HEIGHT,
       stackOrder: ["photo", "chart"],
@@ -205,6 +211,7 @@ export const useRoomLayout = create<RoomLayoutState>()(
       stage: STAGE_PLACEMENT_DEFAULT,
       toggleFocus: (target) =>
         set({ focus: get().focus === target ? "none" : target }),
+      setFocus: (focus) => set({ focus }),
       setStagePlacement: (slot, patch) =>
         set((state) => ({
           stage: {
@@ -241,6 +248,13 @@ export const useRoomLayout = create<RoomLayoutState>()(
       name: "live-auction-room-layout",
       storage: createJSONStorage(() => localStorage),
       skipHydration: true,
+      /* v1 · 처음 들어온 사람은 사진 크게 · 예전 기본값(none)으로 저장돼 있던 것도 한 번 올린다 */
+      version: 1,
+      migrate: (persisted, version) => {
+        const next = persisted as Partial<RoomLayoutState>;
+        if (version < 1) next.focus = "photo";
+        return next as RoomLayoutState;
+      },
       /* 거르개는 이 창에서만 산다 · 까닭은 `gradeFilter` 쪽에 적어 뒀다 */
       partialize: (state) => omit(state, ["gradeFilter", "companyFilter"]),
     },

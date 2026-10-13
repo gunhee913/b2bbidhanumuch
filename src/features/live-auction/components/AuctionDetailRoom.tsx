@@ -12,6 +12,7 @@ import { useLocalStorage, useMeasure } from "react-use";
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import {
+  ChartLine,
   ChevronLeft,
   ChevronRight,
   ExternalLink,
@@ -59,7 +60,11 @@ import {
   liveRoomHref,
   partDetailHref,
 } from "../lib/listingHref";
-import { cameFromSheet, clearFromSheet } from "../lib/detailNavigation";
+import {
+  cameFromSheet,
+  clearFromSheet,
+  consumeOpenPartPicker,
+} from "../lib/detailNavigation";
 import {
   BID_ENTER_HINT,
   focusBidInput,
@@ -77,7 +82,7 @@ import { PartMarketChart } from "./PartMarketChart";
 import { RoomPicker } from "./RoomPicker";
 import { RoomSplitter } from "./RoomSplitter";
 import { RoomStackSplitter } from "./RoomStackSplitter";
-import { PaneFocusButton } from "./PaneFocusButton";
+import { PaneActionButton, PaneFocusButton } from "./PaneFocusButton";
 import { ShortcutTooltip } from "./ShortcutTooltip";
 import { ViewerMediaPane } from "./ListingViewerDialog";
 import { formatDate, formatTraceNo } from "./ListingSpecSheet";
@@ -176,7 +181,7 @@ function StepArrow({
   return (
     <ShortcutTooltip
       label={label}
-      shortcut={side === "prev" ? "←" : "→"}
+      shortcut={side === "prev" ? "Shift ←" : "Shift →"}
       title={hint}
     >
       {button}
@@ -187,7 +192,7 @@ function StepArrow({
 /**
  * 접수번호에 올리면 키보드로도 넘길 수 있다고 알려 준다.
  *
- * ←/→ 로 한 번이라도 넘겨 본 사람에게는 더 띄우지 않는다(`show`) — 이미 아는 걸
+ * Shift+←/→ 로 한 번이라도 넘겨 본 사람에게는 더 띄우지 않는다(`show`) — 이미 아는 걸
  * 매번 덮으면 친절이 아니라 접수번호를 가리는 소음이다. 버튼 말풍선의 키 표시는 남는다.
  * 지나가던 마우스에 튀지 않게 버튼보다 늦게 뜬다.
  */
@@ -204,7 +209,7 @@ function ArrowNavHint({
   return (
     <ShortcutTooltip
       label={`${noun} 이동`}
-      shortcut="← →"
+      shortcut="Shift ← →"
       title={`${BID_ENTER_HINT} · / 검색`}
       delayDuration={500}
     >
@@ -837,7 +842,12 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
     [axis.kind, focusEntry, listings, router, houseKey],
   );
 
-  // ←/→ 개체 이동 · ↓ 첫 입찰칸 · 입력칸 안에서는 글자 커서라 막는다 · Alt 를 쥐면 어디서든
+  /** 사진 판에서 보고 있는 장 · ←/→ 가 옮기고, 개체·부위가 바뀌면 0 으로 돌아간다 */
+  const [mediaIdx, setMediaIdx] = useState(0);
+  /** 사진 판에 선 장 수 · ←/→ 가 끝에서 멈추는 기준 · 판이 알려 준다 (`onMediaCountChange`) */
+  const mediaCountRef = useRef(0);
+
+  // ←/→ 사진 넘기기 · Shift+←/→ 개체 이동 · ↓ 첫 입찰칸 · 입력칸 안에서는 글자 커서라 막는다 · Alt 를 쥐면 어디서든
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       const el = document.activeElement;
@@ -912,18 +922,33 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
 
       if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
       /*
-       * 고르기 중인 입찰칸에서는 ←/→ 가 고정축 이동이다. 쓰는 중이면 글자 커서라
-       * 여기까지 오지도 않는다(`handleSheetBidKeyDown` 이 막는다).
-       * 고정축을 옮기면 표가 통째로 갈리므로 새 표에서 같은 자리를 다시 잡아 준다 —
-       * 안 그러면 한 번 옮기고 포커스를 잃어 다음부터는 마우스를 잡아야 한다.
+       * ←/→ 는 사진을 넘기고, Shift 를 쥐면 고정축(개체/부위)을 옮긴다.
+       *
+       * 상장표(`/auction/live`)에서 ←/→ 가 사진 넘기기라 여기서도 같은 뜻으로 둔다 —
+       * 두 화면에서 같은 키가 다른 것을 움직이면 손이 먼저 틀린다. 개체 이동은 표가
+       * 통째로 갈리는 큰 동작이라 Shift 한 겹을 더 쥐게 한다.
+       *
+       * 고르기 중인 입찰칸에서도 둘 다 듣는다. 쓰는 중이면 글자 커서라 여기까지 오지도
+       * 않는다(`handleSheetBidKeyDown` 이 막는다). 고정축을 옮기면 새 표에서 같은 자리를
+       * 다시 잡아 준다 — 안 그러면 한 번 옮기고 포커스를 잃어 다음부터는 마우스를 잡아야 한다.
        */
       const inBidCell = isSheetBidNav(el);
       if (typing && !e.altKey && !inBidCell) return;
+      const dir = e.key === "ArrowRight" ? 1 : -1;
+      if (e.shiftKey || e.altKey) {
+        e.preventDefault();
+        if (inBidCell) refocusBid.current = true;
+        if (dir < 0) goPrev();
+        else goNext();
+        if (!arrowNavLearned) setArrowNavLearned(true);
+        return;
+      }
+      if (e.metaKey || e.ctrlKey) return;
+      /* 사진 넘기기 · 끝에서는 멈춘다 (개체 이동과 같은 규칙 · 돌면 어디가 끝인지 모른다) */
+      const count = mediaCountRef.current;
+      if (count < 2) return;
       e.preventDefault();
-      if (inBidCell) refocusBid.current = true;
-      if (e.key === "ArrowLeft") goPrev();
-      else goNext();
-      if (!arrowNavLearned) setArrowNavLearned(true);
+      setMediaIdx((prev) => Math.min(count - 1, Math.max(0, prev + dir)));
     };
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
@@ -952,6 +977,20 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
     clearFromSheet();
   }, []);
 
+  /*
+   * 상장표 「부위별」 단추로 들어왔으면 부위 선택기를 바로 편다 · 표식은 한 번 읽고 지운다.
+   * 켠 뒤 곧장 다시 끈다 — 선택기가 다시 마운트될 때(축 전환) 또 열리면 안 된다.
+   */
+  const [openPartPicker, setOpenPartPicker] = useState(false);
+  useEffect(() => {
+    if (consumeOpenPartPicker()) setOpenPartPicker(true);
+  }, []);
+  useEffect(() => {
+    if (!openPartPicker) return;
+    const t = window.setTimeout(() => setOpenPartPicker(false), 0);
+    return () => window.clearTimeout(t);
+  }, [openPartPicker]);
+
   const goBackToSheet = () => {
     if (cameFromSheet()) {
       clearFromSheet();
@@ -972,6 +1011,7 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
 
   const focus = useRoomLayout((state) => state.focus);
   const toggleFocus = useRoomLayout((state) => state.toggleFocus);
+  const setFocus = useRoomLayout((state) => state.setFocus);
   const storedTableWidth = useRoomLayout((state) => state.tableWidth);
   const setTableWidth = useRoomLayout((state) => state.setTableWidth);
   const resetTableWidth = useRoomLayout((state) => state.resetTableWidth);
@@ -1014,7 +1054,18 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
           Math.floor(gridWidth) - PHOTO_COLUMN_MIN_WIDTH - SPLITTER_WIDTH,
         )
       : TABLE_MAX_WIDTH;
-  const tableWidth = Math.min(storedTableWidth, maxTableWidth);
+  /*
+   * 사진 열은 방의 **절반**을 넘지 않는다 · 표가 적어도 절반은 쥔다.
+   * 사진을 그 이상 키워 봐야 4:3 상자는 높이에 갇혀 더 커지지 않고 양옆만 비는데,
+   * 표는 그만큼 좁아져 칸이 구른다. 저장값은 두고 표시할 때만 끌어올린다.
+   */
+  const minTableWidth =
+    gridWidth > 0
+      ? Math.max(TABLE_MIN_WIDTH, Math.ceil((gridWidth - SPLITTER_WIDTH) / 2))
+      : TABLE_MIN_WIDTH;
+  const clampTableWidth = (px: number) =>
+    Math.min(Math.max(px, minTableWidth), maxTableWidth);
+  const tableWidth = clampTableWidth(storedTableWidth);
 
   /**
    * 시세 캔버스 높이 · 너비와 같은 이유로 저장값을 지금 화면에 맞춰 깎는다.
@@ -1055,10 +1106,9 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
 
   /* 부위 사진이 없는 줄에 대신 거는 업체 부위 대표이미지 · 표 1열과 관심 선택기가 같이 쓴다 */
   const groupImage = usePartGroupImageLookup();
-  const [mediaIdx, setMediaIdx] = useState(0);
   const focusListingId = focusListing?.id;
   const focusPartId = focusEntry?.part.id;
-  /* 부위가 바뀌면 그 부위 사진이 첫 장으로 온다 · 보던 번호를 쥐고 있으면 엉뚱한 장을 가리킨다 */
+  /* 부위가 바뀌면 첫 장(부위 사진 · 없으면 대표이미지)으로 · 보던 번호를 쥐고 있으면 엉뚱한 장을 가리킨다 */
   useEffect(() => {
     setMediaIdx(0);
   }, [focusListingId, focusPartId]);
@@ -1244,22 +1294,36 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
                 )}
               >
                 <div className="absolute right-3 top-3 z-20 flex items-center gap-1">
-                  {focus === "none" ? (
-                    <PaneGripHandle
-                      label="사진"
-                      axis="y"
+                  {/*
+                   * 사진이 독차지한 동안엔 「차트 보기」 글자 단추 하나만 둔다. 축소 아이콘은
+                   * 「무엇이 돌아오는지」 를 말하지 않아 눌러 보기 전엔 차트가 있는 줄 모른다.
+                   */}
+                  {focus === "photo" ? (
+                    <PaneActionButton
+                      icon={ChartLine}
+                      label="차트 보기"
                       tone="dark"
-                      dragging={stack.dragging === "photo"}
-                      {...stack.handleProps("photo")}
+                      title="사진 아래에 시세 차트를 편다"
+                      onClick={() => setFocus("none")}
                     />
-                  ) : null}
-                  <PaneFocusButton
-                    verb="크게 보기"
-                    on={focus === "photo"}
-                    label="사진"
-                    tone="dark"
-                    onToggle={() => toggleFocus("photo")}
-                  />
+                  ) : (
+                    <>
+                      <PaneGripHandle
+                        label="사진"
+                        axis="y"
+                        tone="dark"
+                        dragging={stack.dragging === "photo"}
+                        {...stack.handleProps("photo")}
+                      />
+                      <PaneFocusButton
+                        verb="크게 보기"
+                        on={false}
+                        label="사진"
+                        tone="dark"
+                        onToggle={() => toggleFocus("photo")}
+                      />
+                    </>
+                  )}
                 </div>
                 {focusListing ? (
                   <ViewerMediaPane
@@ -1268,6 +1332,10 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
                     part={focusEntry?.part ?? null}
                     mediaIdx={mediaIdx}
                     onMediaIdxChange={setMediaIdx}
+                    onMediaCountChange={(count) => {
+                      mediaCountRef.current = count;
+                    }}
+                    thumbs="bottom"
                     className="px-3 pb-3"
                     stamp
                     note={
@@ -1673,6 +1741,7 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
               label="다른 부위 선택"
               placeholder="부위 검색"
               hotkey="/"
+              autoOpen={openPartPicker}
               width={260}
               title={axisGroup!.group}
               titleWidth={PART_TITLE_WIDTH}
@@ -1710,7 +1779,7 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
             key="column-splitter"
             size={tableWidth}
             sizedOnLeft={tableOnLeft}
-            onResize={(px) => setTableWidth(Math.min(px, maxTableWidth))}
+            onResize={(px) => setTableWidth(clampTableWidth(px))}
             onReset={resetTableWidth}
           />,
         )}
@@ -1726,19 +1795,23 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
 
 /* ───────────────────────── 선택기 행 ───────────────────────── */
 
+/** 선택기 줄의 작은 사진 · 표 1열(`RowThumb`)과 같은 40×40 정사각 */
+const PICKER_THUMB =
+  "relative h-10 w-10 shrink-0 overflow-hidden rounded-[3px] bg-surface-accent ring-1 ring-line";
+
 function ListingPickerRow({ listing }: { listing: LiveListing }) {
   return (
     <>
       {/* 번호보다 단면이 먼저 눈에 든다 · 고르는 기준이 결국 고기 모양이다 */}
-      {/* 모서리·테두리는 경매 시트 표의 사진 칸과 같은 값으로 맞춘다 */}
-      <span className="relative h-[33px] w-11 shrink-0 overflow-hidden rounded-md bg-surface-accent ring-1 ring-line">
+      {/* 크기·모서리·테두리는 표 1열 사진 칸(`RowThumb`)과 같은 값 · 잘라 내지 않는다 */}
+      <span className={PICKER_THUMB}>
         {listing.images[0] ? (
           <Image
             src={listing.images[0]}
             alt=""
             fill
-            sizes="44px"
-            className="object-cover"
+            sizes="40px"
+            className="object-contain"
             unoptimized
           />
         ) : (
@@ -1769,14 +1842,14 @@ function FavoritePickerRow({ entry }: { entry: SheetBidEntry }) {
   const cover = partCover(listing, part, groupImage);
   return (
     <>
-      <span className="relative h-[33px] w-11 shrink-0 overflow-hidden rounded-md bg-surface-accent ring-1 ring-line">
+      <span className={PICKER_THUMB}>
         {cover ? (
           <Image
             src={cover}
             alt=""
             fill
-            sizes="44px"
-            className="object-cover"
+            sizes="40px"
+            className="object-contain"
             unoptimized
           />
         ) : (
@@ -1897,22 +1970,17 @@ function RoomHeader({
 }) {
   /** ←/→ 가 옮기는 것 · 표의 행과 뒤집힌 짝이다 */
   const pivotNoun = axis.kind === "listing" ? "개체" : "부위";
-  // 도축장은 지금 보고 있는 경매장과 늘 같다 (상장 목록이 도축장으로 걸러진다) · 빼고 날짜만
-  const slaughterLine = listing
-    ? [
-        formatDate(listing.slaughterDate),
-        listing.slaughterNo ? `No.${listing.slaughterNo}` : null,
-      ]
-        .filter((v) => v && v !== "-")
-        .join(" · ") || null
-    : null;
 
   return (
     <header className="px-6 pb-3 pt-2">
       <div
         role="tablist"
         aria-label="보기 축"
-        className="mb-1.5 inline-flex items-center gap-0.5 rounded-[4px] bg-surface-strong/70 p-0.5"
+        /*
+         * 28px · 13px — 24px 이던 때는 아래 접수번호(큰 글씨)에 눌려 장식처럼 보였고,
+         * 32px 로 올리니 머리에서 탭이 제일 먼저 튀었다. 그 사이.
+         */
+        className="mb-2 inline-flex items-center gap-0.5 rounded-md bg-surface-strong/70 p-0.5"
       >
         {/* 두 탭 모두 같은 말을 한다 · 알려 줄 건 「키로도 된다」 하나뿐이다 */}
         {AXIS_TABS.map(({ kind, label }) => {
@@ -1926,7 +1994,7 @@ function RoomHeader({
                 aria-keyshortcuts="b"
                 onClick={() => onAxisChange(kind)}
                 className={cn(
-                  "h-6 rounded-[3px] px-2.5 text-[12px] font-semibold transition-colors",
+                  "h-7 rounded-[5px] px-3 text-[13px] font-semibold transition-colors",
                   active
                     ? "bg-surface text-content ring-1 ring-line"
                     : "text-content-soft hover:text-content",
@@ -1959,173 +2027,31 @@ function RoomHeader({
         )}
 
         {/*
-         * 값 18개 · 왼쪽에서 오른쪽으로 읽히는 차례대로 흘려 담고, 자리가 모자라면
-         * 다음 줄로 넘어간다.
+         * 값 18개를 한 줄짜리 표로 · 라벨은 위, 값은 아래.
          *
-         * **격자가 아니라 흐름인 이유.** 열을 고정하면 세로로 만난 두 짝이 서로 폭을
-         * 끌어당긴다. 「이력 002-0023-4567-8」 아래위로 「상장업체 건화」 가 놓이면
-         * 좁은 쪽이 넓은 쪽만큼 늘어나, 라벨과 값 사이가 손가락 두 마디씩 벌어졌다.
-         * 아무 사이도 아닌 두 값이 서로의 폭을 정하고 있었던 셈이다. 흘려 담으면
-         * 짝마다 제 글자만큼만 쓰고, 덕분에 한 줄에 더 들어가 사이드 메뉴를 펴도
-         * 줄 수가 그대로다.
+         * 흘려 담던 때는 「라벨 값 라벨 값 …」 열여덟 쌍이 한 덩어리라 어디까지가 도축
+         * 정보고 어디서부터 등급판정인지 눈으로 끊어 읽어야 했고, 짝마다 값칸 바닥 폭을
+         * 손으로 재서 흔들림을 막았다. 표는 그 둘을 공짜로 준다 — 열 폭은 라벨과 값 중
+         * 긴 쪽으로 저절로 서고, 묶음 사이 세로선이 경계를 긋는다.
          *
-         * `min-w-0 flex-1` 은 이 덩어리가 통째로 접수번호 아래로 떨어지지 않게 한다.
-         * 좁아지면 덩어리가 내려가는 게 아니라 안에서 낱개가 넘어가야 한다.
-         *
-         * 줄은 **상장업체 앞에서** 끊는다. 윗줄은 이 소가 무엇이고 얼마짜리이며 어디서
-         * 왔는가(축종·성별·등급·개월 → 도축·도체중·경락단가 → 이력), 아랫줄은 그걸 누가
-         * 어떻게 다뤘는가(가공 → 등급판정 세부)다. 흐르는 대로 두면 경계가 창 너비에
-         * 따라 매번 다른 곳에 생겨서, 같은 화면을 봐도 어제와 다르게 읽힌다.
-         * 등급판정 일곱은 붙여 둔다 — 하나씩 보는 값이 아니라 한 덩어리로 훑는 값이라,
-         * 사이에 다른 것이 끼면 어디까지가 판정 결과인지 경계가 사라진다. 대신 그 앞에
-         * 한 단 넓은 틈(24px)을 둔다. 예전엔 일곱이 저 혼자 굵고 커서 덩어리로 보였는데,
-         * 그 강조를 사진 각인으로 옮기고 나니 묶어 주던 것이 같이 사라졌다. 무게로 묶던
-         * 것을 틈으로 묶는다 — 「상장업체 가공 가공중량」 과 섞여 읽히지만 않으면 된다.
-         *
-         * 이력이 윗줄 끝에 있는 건 길이 때문이기도 하다. 165px 짜리라 아랫줄에 두면
-         * 두 줄이 874/1070 으로 기울어, 좁은 창에서 혼자 셋째 줄로 밀려났다. 위로
-         * 올리니 874/905 로 맞아떨어진다. 개체를 가리키는 값이라 자리도 어색하지 않다.
-         *
-         * 간격은 묶음 사이(24px) > 짝 사이(16px) > 라벨·값 사이(6px) 순서를 지킨다.
-         * 이 순서가 뒤집히면 값이 제 라벨이 아니라 옆 짝의 라벨에 붙어 읽힌다.
-         * 줄 사이(8px)는 짝 사이보다 좁다 — 넓히면 두 줄이 딴 블록으로 떨어져 보인다.
+         * 줄바꿈 대신 가로 스크롤이다. 표를 두 단으로 접으면 사진이 그만큼 줄고, 좁은
+         * 창은 어차피 사이드 메뉴를 편 잠깐이라 밀어 보는 편이 낫다.
          */}
-        {listing === null ? null : (
-          <dl className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-4 gap-y-2">
-            <Stat label="축종" value={listing.breed} w={SPEC_FLOOR.breed} />
-            <Stat label="성별" value={listing.gender} w={SPEC_FLOOR.gender} />
-            <Stat
-              label="등급"
-              value={formatGradeLabel(listing.grade, listing.marblingScore)}
-              w={SPEC_FLOOR.grade}
-            />
-            <Stat
-              label="개월"
-              value={listing.monthAge}
-              w={SPEC_FLOOR.monthAge}
-            />
-            <Stat label="도축" value={slaughterLine} w={SPEC_FLOOR.slaughter} />
-            <Stat
-              label="도체중"
-              value={listing.carcassWeight}
-              unit="kg"
-              w={SPEC_FLOOR.carcassWeight}
-            />
-            <Stat
-              label="경락단가"
-              value={
-                listing.unitPrice
-                  ? formatKrw(Math.round(listing.unitPrice))
-                  : null
-              }
-              unit="원"
-              w={SPEC_FLOOR.unitPrice}
-            />
-            {/* 번호 자체가 조회 링크다 · 옆에 「이력조회」를 또 두면 그만큼 넓어진다 */}
-            <div className="flex shrink-0 items-baseline gap-1.5">
-              <dt className="text-[11.5px] font-medium text-content-faint">
-                이력
-              </dt>
-              <dd
-                style={{ minWidth: SPEC_FLOOR.trace }}
-                className="text-[13.5px] font-semibold leading-none"
-              >
-                <a
-                  href={buildTraceHref(listing.traceNo)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 tabular-nums text-content-mid underline decoration-line underline-offset-[3px] hover:text-content hover:decoration-content"
-                >
-                  {formatTraceNo(listing.traceNo)}
-                  <ExternalLink
-                    className="h-3 w-3 text-content-faint"
-                    aria-hidden
-                  />
-                </a>
-              </dd>
-            </div>
-
-            {/*
-             * 줄바꿈 하나 · 폭을 다 차지하고 높이는 0 이라 다음 짝부터 아랫줄로 간다.
-             * `dl` 의 자식은 dt·dd 이거나 그 둘을 감싼 div 여야 해서, 줄마다 div 로
-             * 묶는 대신 빈 칸을 하나 끼웠다.
-             */}
-            <span aria-hidden className="h-0 w-full" />
-
-            <Stat
-              label="상장업체"
-              value={listing.companyName}
-              w={SPEC_FLOOR.company}
-            />
-            <Stat
-              label="가공"
-              value={formatDate(listing.processDate)}
-              w={SPEC_FLOOR.processDate}
-            />
-            <Stat
-              label="가공중량"
-              value={listing.processWeight}
-              unit="kg"
-              w={SPEC_FLOOR.processWeight}
-            />
-            <Stat
-              label="근내지방"
-              value={listing.marblingScore}
-              w={SPEC_FLOOR.marbling}
-              startsGroup
-            />
-            <Stat
-              label="육색"
-              value={listing.meatColor}
-              w={SPEC_FLOOR.meatColor}
-            />
-            <Stat
-              label="지방색"
-              value={listing.fatColor}
-              w={SPEC_FLOOR.fatColor}
-            />
-            <Stat
-              label="조직도"
-              value={listing.texture}
-              w={SPEC_FLOOR.texture}
-            />
-            <Stat
-              label="성숙도"
-              value={listing.maturity}
-              w={SPEC_FLOOR.maturity}
-            />
-            <Stat
-              label="등지방두께"
-              value={listing.backFat}
-              unit="mm"
-              w={SPEC_FLOOR.backFat}
-            />
-            <Stat
-              label="등심면적"
-              value={listing.eyeMuscle}
-              unit="㎠"
-              w={SPEC_FLOOR.eyeMuscle}
-            />
-          </dl>
-        )}
+        {listing === null ? null : <SpecTable listing={listing} />}
       </div>
     </header>
   );
 }
 
 /**
- * 값칸 바닥 너비(px) · 접수번호를 넘겨도 라벨이 제자리에 있게 한다.
+ * 값칸 바닥 너비(px) · 접수번호를 넘겨도 열이 제자리에 있게 한다.
  *
- * 값마다 글자 수가 달라서, 바닥이 없으면 「9」 에서 「123,000」 으로 바뀌는 순간
- * 그 뒤가 통째로 밀린다. 한 개체당 흔들림을 다 더하면 238px 였다 — 옆 값을 읽으려던
- * 눈이 매번 새로 찾아야 했다는 뜻이다. 그래서 가장 넓은 값만큼 미리 자리를 잡아 둔다.
+ * 표라서 열 폭은 라벨과 값 중 긴 쪽으로 저절로 서지만, 값이 「9」 에서 「123,000」 으로
+ * 바뀌면 그 열만 넓어져 뒤가 통째로 밀린다. 가장 넓은 값만큼 미리 자리를 잡아 두면
+ * 개체를 ←/→ 로 넘겨도 열이 숨 쉬지 않는다.
  *
- * 숫자는 Pretendard 로 실측한 최댓값(단위 포함)이다. 천장이 아니라 바닥이라 이보다 긴
- * 값이 와도 잘리지 않고 늘어난다. 다만 늘어나는 순간 그 값에서만 다시 흔들리므로,
- * 데이터 폭이 달라지면 다시 잰다.
- *
- * 등급과 등급판정 여덟 칸은 13.5px SemiBold 로 다시 쟀다 — 강조(16px Bold)를 걷어낸
- * 자리에 옛 바닥을 그대로 두면 값보다 20px 넓은 빈칸이 남아, 짝 사이가 들쭉날쭉해진다.
+ * 숫자는 Pretendard 13.5px SemiBold 로 실측한 최댓값(단위 포함)이다. 천장이 아니라
+ * 바닥이라 이보다 긴 값이 와도 잘리지 않고 늘어난다. 데이터 폭이 달라지면 다시 잰다.
  */
 const DIGIT_FLOOR = 9;
 
@@ -2151,44 +2077,206 @@ const SPEC_FLOOR = {
   trace: 136,
 } as const;
 
-function Stat({
-  label,
-  value,
-  unit,
-  w,
-  startsGroup,
-}: {
+interface SpecCell {
   label: string;
-  value: number | string | null | undefined;
+  value: ReactNode;
   unit?: string;
   /** 값칸 바닥 너비 · `SPEC_FLOOR` 에서 가져온다 */
   w: number;
-  /** 앞에 한 단 넓은 틈 · 여기서 다른 묶음이 시작한다는 표시 */
-  startsGroup?: boolean;
-}) {
-  const empty = value === null || value === undefined || value === "";
+}
+
+interface SpecGroup {
+  /** 읽어 주는 이름 · 화면에는 세로선과 바탕만 보인다 */
+  name: string;
+  cells: SpecCell[];
+  /** 등급판정 묶음 · 바탕을 한 톤 다르게 하고 가운데 정렬 · 한두 자리 숫자라 왼쪽에 붙이면 칸이 비어 보인다 */
+  shaded?: boolean;
+}
+
+/**
+ * 개체 사양 한 줄 표 · 묶음 셋.
+ *
+ *  ① 개체 — 이 소가 무엇인가(축종·성별·등급·개월·이력)
+ *  ② 유통 — 어디서 와서 누가 다뤘나(도축·도체중·경락단가·상장업체·가공·가공중량)
+ *  ③ 등급판정 — 판정 결과 일곱 · 바탕을 한 톤 달리 해 덩어리로 읽힌다
+ *
+ * 이력이 ①에 있는 건 개체를 가리키는 번호라서다. 흘려 담던 때는 길이 때문에 윗줄
+ * 끝으로 밀어 뒀는데, 표에서는 폭이 열 하나의 문제라 제 묶음에 둘 수 있다.
+ */
+function SpecTable({ listing }: { listing: LiveListing }) {
+  // 도축장은 지금 보고 있는 경매장과 늘 같다 (상장 목록이 도축장으로 걸러진다) · 빼고 날짜만
+  const slaughterLine =
+    [
+      formatDate(listing.slaughterDate),
+      listing.slaughterNo ? `No.${listing.slaughterNo}` : null,
+    ]
+      .filter((v) => v && v !== "-")
+      .join(" · ") || null;
+
+  const groups: SpecGroup[] = [
+    {
+      name: "개체",
+      cells: [
+        { label: "축종", value: listing.breed, w: SPEC_FLOOR.breed },
+        { label: "성별", value: listing.gender, w: SPEC_FLOOR.gender },
+        {
+          label: "등급",
+          value: formatGradeLabel(listing.grade, listing.marblingScore),
+          w: SPEC_FLOOR.grade,
+        },
+        { label: "개월", value: listing.monthAge, w: SPEC_FLOOR.monthAge },
+        {
+          label: "이력",
+          /* 번호 자체가 조회 링크다 · 옆에 「이력조회」를 또 두면 그만큼 넓어진다 */
+          value: (
+            <a
+              href={buildTraceHref(listing.traceNo)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 underline decoration-line underline-offset-[3px] hover:text-content hover:decoration-content"
+            >
+              {formatTraceNo(listing.traceNo)}
+              <ExternalLink
+                className="h-3 w-3 text-content-faint"
+                aria-hidden
+              />
+            </a>
+          ),
+          w: SPEC_FLOOR.trace,
+        },
+      ],
+    },
+    {
+      name: "유통",
+      cells: [
+        { label: "도축", value: slaughterLine, w: SPEC_FLOOR.slaughter },
+        {
+          label: "도체중",
+          value: listing.carcassWeight,
+          unit: "kg",
+          w: SPEC_FLOOR.carcassWeight,
+        },
+        {
+          label: "경락단가",
+          value: listing.unitPrice
+            ? formatKrw(Math.round(listing.unitPrice))
+            : null,
+          unit: "원",
+          w: SPEC_FLOOR.unitPrice,
+        },
+        {
+          label: "상장업체",
+          value: listing.companyName,
+          w: SPEC_FLOOR.company,
+        },
+        {
+          label: "가공",
+          value: formatDate(listing.processDate),
+          w: SPEC_FLOOR.processDate,
+        },
+        {
+          label: "가공중량",
+          value: listing.processWeight,
+          unit: "kg",
+          w: SPEC_FLOOR.processWeight,
+        },
+      ],
+    },
+    {
+      name: "등급판정",
+      shaded: true,
+      cells: [
+        {
+          label: "근내지방",
+          value: listing.marblingScore,
+          w: SPEC_FLOOR.marbling,
+        },
+        { label: "육색", value: listing.meatColor, w: SPEC_FLOOR.meatColor },
+        { label: "지방색", value: listing.fatColor, w: SPEC_FLOOR.fatColor },
+        { label: "조직도", value: listing.texture, w: SPEC_FLOOR.texture },
+        { label: "성숙도", value: listing.maturity, w: SPEC_FLOOR.maturity },
+        {
+          label: "등지방두께",
+          value: listing.backFat,
+          unit: "mm",
+          w: SPEC_FLOOR.backFat,
+        },
+        {
+          label: "등심면적",
+          value: listing.eyeMuscle,
+          unit: "㎠",
+          w: SPEC_FLOOR.eyeMuscle,
+        },
+      ],
+    },
+  ];
+
+  const cellClass = (gi: number, ci: number, shaded?: boolean) =>
+    cn(
+      "whitespace-nowrap px-2.5",
+      shaded ? "bg-surface-muted text-center" : "text-left",
+      /* 묶음 첫 칸만 세로선 · 표 왼쪽 끝은 선 없이 접수번호에 붙는다 */
+      ci === 0 && gi > 0 && "border-l border-line",
+      ci === 0 && gi > 0 && !shaded && "pl-3.5",
+      ci === 0 && gi === 0 && "pl-0",
+    );
+
   return (
-    <div
-      className={cn(
-        "flex shrink-0 items-baseline gap-1.5",
-        startsGroup && "ml-2",
-      )}
-    >
-      <dt className="text-[11.5px] font-medium text-content-faint">{label}</dt>
-      <dd
-        style={{ minWidth: w }}
-        className={cn(
-          "text-[13.5px] font-semibold leading-none tabular-nums text-content-mid",
-          empty && "text-content-ghost",
-        )}
+    <div className="scrollbar-thin scrollbar-hover min-w-0 flex-1 overflow-x-auto">
+      <table
+        aria-label="개체 사양"
+        className="w-max border-separate border-spacing-0 leading-none"
       >
-        {empty ? "-" : value}
-        {!empty && unit ? (
-          <span className="pl-0.5 text-[11px] font-medium text-content-faint">
-            {unit}
-          </span>
-        ) : null}
-      </dd>
+        <thead>
+          <tr>
+            {groups.flatMap((group, gi) =>
+              group.cells.map((cell, ci) => (
+                <th
+                  key={cell.label}
+                  scope="col"
+                  className={cn(
+                    cellClass(gi, ci, group.shaded),
+                    "pb-1 pt-1 text-[11px] font-medium text-content-faint",
+                    group.shaded && "rounded-t-[3px]",
+                  )}
+                >
+                  {cell.label}
+                </th>
+              )),
+            )}
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            {groups.flatMap((group, gi) =>
+              group.cells.map((cell, ci) => {
+                const empty =
+                  cell.value === null ||
+                  cell.value === undefined ||
+                  cell.value === "";
+                return (
+                  <td
+                    key={cell.label}
+                    style={{ minWidth: cell.w }}
+                    className={cn(
+                      cellClass(gi, ci, group.shaded),
+                      "pb-1.5 pt-0.5 text-[13.5px] font-semibold tabular-nums text-content-mid",
+                      empty && "text-content-ghost",
+                    )}
+                  >
+                    {empty ? "-" : cell.value}
+                    {!empty && cell.unit ? (
+                      <span className="pl-0.5 text-[11px] font-medium text-content-faint">
+                        {cell.unit}
+                      </span>
+                    ) : null}
+                  </td>
+                );
+              }),
+            )}
+          </tr>
+        </tbody>
+      </table>
     </div>
   );
 }

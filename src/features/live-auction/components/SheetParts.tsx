@@ -44,12 +44,17 @@ export const ROW_LAND_MS = 1100;
  *
  * `block: "nearest"` 라 이미 보이는 행은 건드리지 않는다. 늘 가운데로 세우면
  * 두 번째 줄을 눌렀을 때도 표가 통째로 움직여, 옮길 이유가 없는데 자리를 잃는다.
+ *
+ * 머리글이 붙어 있어(`sticky`) 위쪽 끝은 머리글 아래다 · 그만큼 `scroll-margin-top` 을
+ * 주지 않으면 ↑ 로 첫 줄에 닿았을 때 행이 머리글 뒤로 들어가 반이 가려진다.
  */
 export function scrollPartRowIntoView(partId: string): boolean {
-  const row = document.querySelector(
+  const row = document.querySelector<HTMLElement>(
     `[${PART_ROW_ATTR}="${CSS.escape(partId)}"]`,
   );
   if (!row) return false;
+  const head = row.closest("table")?.querySelector("thead");
+  row.style.scrollMarginTop = `${head?.getBoundingClientRect().height ?? 0}px`;
   row.scrollIntoView({ block: "nearest" });
   return true;
 }
@@ -62,7 +67,15 @@ export function scrollPartRowIntoView(partId: string): boolean {
  * 숫자를 고치는 자리라 글자가 작고 줄이 빽빽하면 줄을 잘못 짚는다. 본문 14 · 머리 12.5 ·
  * 보조 11~13 · 칸 좌우 6px · 행 50px 로 올린다. 다른 표(`DailyListingsSection`)는 그대로다.
  */
-const PART_HEAD = cn(SHEET_PART_HEAD, "px-1.5 py-2 text-[12.5px]");
+/**
+ * 머리글은 표를 내려도 위에 붙어 있다(`sticky`) · 스무 줄을 훑다 보면 「이 숫자가 최저단가인가
+ * 내 입찰가인가」 를 되묻게 된다. 밑줄은 `border-b` 대신 안쪽 그림자다 — 표가 `border-collapse`
+ * 라 칸의 테두리는 표가 그려서 붙어 있는 머리글을 따라오지 않는다.
+ */
+const PART_HEAD = cn(
+  SHEET_PART_HEAD,
+  "sticky top-0 z-10 border-b-0 px-1.5 py-2 text-[12.5px] [box-shadow:inset_0_-1px_0_0_rgb(var(--line))]",
+);
 const PART_CELL = cn(SHEET_PART_CELL, "px-1.5 py-2");
 /**
  * 2열부터 끝까지의 폭 · 「실측 내용 폭(14px 글자) + 좌우 여백 12px」.
@@ -185,17 +198,20 @@ const HEAD_TOP = "text-[13px] font-semibold leading-[15px]";
 const HEAD_SUB =
   "text-[11px] leading-[13px] -tracking-[0.02em] text-content-faint";
 
-/** 1열 맨 앞 작은 사진 · 4:3 · 모서리·테두리는 상장표의 사진 칸과 같은 값 */
+/**
+ * 1열 맨 앞 작은 사진 · 40×40 정사각 · 모서리·테두리는 상장표의 사진 칸과 같은 값.
+ * 사진은 잘라 내지 않고 통째로(`contain`) · 비율이 달라도 위아래가 조금 빌 뿐 잘리지 않는다.
+ */
 function RowThumb({ src }: { src: string | null }) {
   return (
-    <span className="relative h-[30px] w-[40px] shrink-0 overflow-hidden rounded-[3px] bg-surface-accent ring-1 ring-line">
+    <span className="relative h-10 w-10 shrink-0 overflow-hidden rounded-[3px] bg-surface-accent ring-1 ring-line">
       {src ? (
         <Image
           src={src}
           alt=""
           fill
           sizes="40px"
-          className="object-cover"
+          className="object-contain"
           unoptimized
         />
       ) : (
@@ -381,9 +397,13 @@ export function SheetPartGrid({
         .map((chunk, ci) => (
           <div
             key={ci}
-            /* 입찰칸 막대가 잘리는 상자 · 셀이 이 경계를 재서 위아래를 고른다 */
+            /*
+             * 입찰칸 막대가 위로 펴질 자리를 재는 상자(`hasRoomAbove`).
+             * `overflow-hidden` 을 두지 않는다 — 넘침을 자르는 조상이 있으면 머리글의
+             * `sticky` 가 바깥 스크롤이 아니라 이 상자에 붙어 함께 올라가 버린다.
+             */
             data-sheet-clip
-            className="overflow-hidden border border-line bg-surface"
+            className="border border-line bg-surface"
           >
             <table
               className={cn(
@@ -412,7 +432,8 @@ export function SheetPartGrid({
                     className={cn(
                       RESULT_HEAD,
                       RESULT_GROUP_START,
-                      "text-center",
+                      /* 구분선도 그림자로 · 붙어 있는 머리글에서는 칸 테두리가 따라오지 않는다 */
+                      "text-center [box-shadow:inset_1px_-1px_0_0_rgb(var(--line))]",
                     )}
                   >
                     결과

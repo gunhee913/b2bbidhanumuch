@@ -60,6 +60,7 @@ export function SheetFilterBar({
   partFilter,
   onPartChange,
   partTabs,
+  trailing,
 }: {
   gradeFilter: string;
   genderFilter: string;
@@ -72,6 +73,8 @@ export function SheetFilterBar({
   partFilter?: string;
   onPartChange?: (v: string) => void;
   partTabs?: ReactNode;
+  /** 줄 오른쪽 끝 · 거르개가 아니라 다른 화면으로 가는 단추 자리 (상장표의 「부위별」) */
+  trailing?: ReactNode;
 }) {
   const isFiltered =
     !!gradeFilter || !!genderFilter || !!companyFilter || !!partFilter;
@@ -119,6 +122,7 @@ export function SheetFilterBar({
             </button>
           ) : null}
         </div>
+        {trailing ? <div className="shrink-0">{trailing}</div> : null}
       </div>
       {/* 부위는 이 표의 주축이라 pill 뒤에 숨기지 않고 한 줄 펼쳐 둔다 */}
       {partTabs ? (
