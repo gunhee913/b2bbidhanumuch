@@ -12,7 +12,6 @@ import type { LiveListing, LivePart } from "../api";
 import type { useSheetBidding, SheetBidEntry } from "../hooks/useSheetBidding";
 import { formatGradeLabel } from "../lib/grade";
 import { extractSide, toPartGroupName } from "../lib/partGrouping";
-import { partCover } from "../lib/partPhotos";
 import {
   hasVisibleResult,
   isBidIdle,
@@ -130,29 +129,62 @@ export interface SheetRowAxis {
   pivotLabel: string;
   /** 1열 폭(px) · 나머지 열 폭과 합쳐 비율로 환산된다 */
   headWidth: number;
-  renderHead: (entry: SheetBidEntry) => ReactNode;
+  /** `cover` 는 1열 사진 · 부르는 쪽이 `partCover` 로 골라 넘긴다 (대표이미지 조회가 훅이라) */
+  renderHead: (entry: SheetBidEntry, cover: string | null) => ReactNode;
   /** 마우스 올렸을 때 뜨는 전체 이름 */
   headTitle: (entry: SheetBidEntry) => string;
 }
 
-/** 개체 고정 · 행 = 부위 · 부위명 + 상장번호 두 줄 */
+/**
+ * 개체 고정 · 행 = 부위 · 사진 옆에 부위명(위) + 상장번호(아래).
+ *
+ * 사진은 그 부위에 올린 것 → 업체 부위 대표이미지 → 개체 대표 순(`partCover`). 부위마다
+ * 사진이 달리기 시작하면서 줄마다 다른 그림이 서야 어느 부위인지 눈으로 먼저 잡힌다.
+ */
 export const PART_ROW_AXIS: SheetRowAxis = {
   headLabel: "부위",
   pivotLabel: "개체",
-  headWidth: 93 + FAV_SLOT_WIDTH,
+  headWidth: 133 + FAV_SLOT_WIDTH,
   headTitle: ({ listing, part }) =>
     `${part.partName} · ${displayPartNo(listing, part)}`,
-  renderHead: ({ listing, part }) => (
-    <>
-      <span className="block truncate text-[12px] font-semibold leading-[14px] text-content">
-        {part.partName}
+  renderHead: ({ listing, part }, cover) => (
+    <span className="flex items-center gap-1.5">
+      <RowThumb src={cover} />
+      <span className="block min-w-0">
+        <span className="block truncate text-[12px] font-semibold leading-[14px] text-content">
+          {part.partName}
+        </span>
+        <span className="block truncate text-[10px] leading-[11px] -tracking-[0.02em] text-content-faint">
+          {displayPartNo(listing, part)}
+        </span>
       </span>
-      <span className="block truncate text-[10px] leading-[11px] -tracking-[0.02em] text-content-faint">
-        {displayPartNo(listing, part)}
-      </span>
-    </>
+    </span>
   ),
 };
+
+/** 1열 맨 앞 작은 사진 · 모서리·테두리는 상장표의 사진 칸과 같은 값 */
+function RowThumb({ src }: { src: string | null }) {
+  return (
+    <span className="relative h-[26px] w-[34px] shrink-0 overflow-hidden rounded-[3px] bg-surface-accent ring-1 ring-line">
+      {src ? (
+        <Image
+          src={src}
+          alt=""
+          fill
+          sizes="34px"
+          className="object-cover"
+          unoptimized
+        />
+      ) : (
+        <ImageOff
+          className="absolute inset-0 m-auto h-3 w-3 text-content-ghost"
+          strokeWidth={1.5}
+          aria-hidden
+        />
+      )}
+    </span>
+  );
+}
 
 /**
  * 부위 고정 · 행 = 개체 · 사진 옆에 등급·업체(위) + 접수번호(아래).
@@ -173,26 +205,9 @@ export const LISTING_ROW_AXIS: SheetRowAxis = {
     [part.partName, listing.listingNo, listing.companyName]
       .filter(Boolean)
       .join(" · "),
-  renderHead: ({ listing, part }) => (
+  renderHead: ({ listing, part }, cover) => (
     <span className="flex items-center gap-1.5">
-      <span className="relative h-[26px] w-[34px] shrink-0 overflow-hidden rounded-[3px] bg-surface-accent ring-1 ring-line">
-        {partCover(listing, part) ? (
-          <Image
-            src={partCover(listing, part)!}
-            alt=""
-            fill
-            sizes="34px"
-            className="object-cover"
-            unoptimized
-          />
-        ) : (
-          <ImageOff
-            className="absolute inset-0 m-auto h-3 w-3 text-content-ghost"
-            strokeWidth={1.5}
-            aria-hidden
-          />
-        )}
-      </span>
+      <RowThumb src={cover} />
       <span className="block min-w-0">
         <span className="flex items-baseline gap-1 text-[12px] leading-[14px]">
           <span className="shrink-0 font-bold text-content">
@@ -237,26 +252,9 @@ export const FAVORITE_ROW_AXIS: SheetRowAxis = {
     [part.partName, listing.listingNo, listing.companyName]
       .filter(Boolean)
       .join(" · "),
-  renderHead: ({ listing, part }) => (
+  renderHead: ({ listing, part }, cover) => (
     <span className="flex items-center gap-1.5">
-      <span className="relative h-[26px] w-[34px] shrink-0 overflow-hidden rounded-[3px] bg-surface-accent ring-1 ring-line">
-        {partCover(listing, part) ? (
-          <Image
-            src={partCover(listing, part)!}
-            alt=""
-            fill
-            sizes="34px"
-            className="object-cover"
-            unoptimized
-          />
-        ) : (
-          <ImageOff
-            className="absolute inset-0 m-auto h-3 w-3 text-content-ghost"
-            strokeWidth={1.5}
-            aria-hidden
-          />
-        )}
-      </span>
+      <RowThumb src={cover} />
       <span className="block min-w-0">
         <span className="flex items-baseline gap-1 text-[12px] leading-[14px]">
           <span className="min-w-0 truncate font-semibold text-content">
@@ -315,6 +313,8 @@ export interface SheetPartGridProps {
   onToggleFavorite: (partId: string) => void;
   /** 그 부위에 남긴 메모 · 없으면 null · 1열 모서리 자국을 띄우는 데만 쓴다 */
   getNote: (partId: string) => string | null;
+  /** 1열 사진 · 부위 사진 → 업체 부위 대표이미지 → 개체 대표 (`partCover`) */
+  coverOf: (entry: SheetBidEntry) => string | null;
 }
 
 /**
@@ -343,6 +343,7 @@ export function SheetPartGrid({
   favoriteIds,
   onToggleFavorite,
   getNote,
+  coverOf,
 }: SheetPartGridProps) {
   const chunks = splitIntoColumns(entries, columns);
   const rowsPerColumn = chunks[0]?.length ?? 0;
@@ -414,6 +415,7 @@ export function SheetPartGrid({
                     favorited={favoriteIds.has(entry.part.id)}
                     onToggleFavorite={() => onToggleFavorite(entry.part.id)}
                     note={getNote(entry.part.id)}
+                    cover={coverOf(entry)}
                   />
                 ))}
                 {Array.from({ length: rowsPerColumn - chunk.length }).map(
@@ -463,6 +465,7 @@ function SheetPartRow({
   favorited,
   onToggleFavorite,
   note,
+  cover,
 }: {
   entry: SheetBidEntry;
   axis: SheetRowAxis;
@@ -477,6 +480,7 @@ function SheetPartRow({
   favorited: boolean;
   onToggleFavorite: () => void;
   note: string | null;
+  cover: string | null;
 }) {
   const { listing, part } = entry;
   const myBid = dealerId
@@ -516,7 +520,9 @@ function SheetPartRow({
             label={axis.headTitle(entry)}
             onToggle={onToggleFavorite}
           />
-          <span className="min-w-0 flex-1">{axis.renderHead(entry)}</span>
+          <span className="min-w-0 flex-1">
+            {axis.renderHead(entry, cover)}
+          </span>
         </span>
         <NoteMark body={note} />
       </td>

@@ -30,6 +30,7 @@ import {
 import { isTypingInto } from "../lib/keyboard";
 import { toPartGroupName } from "../lib/partGrouping";
 import { resolvePartPhotos } from "../lib/partPhotos";
+import { usePartGroupImageLookup } from "@/features/part-group-images/hooks/usePartGroupImages";
 import { useListingCerts } from "../hooks/useListingCerts";
 import type { StageSlot } from "../hooks/useRoomLayout";
 import { useStagePlacement } from "../hooks/useStagePlacement";
@@ -39,7 +40,13 @@ import { useSideDock } from "../hooks/useSideDock";
 
 /** 뷰어 안에서 넘겨 보는 한 장 · 사진이거나 증명서 스캔본 */
 export type ViewerMedia =
-  | { kind: "photo"; src: string; label: string }
+  | {
+      kind: "photo";
+      src: string;
+      label: string;
+      /** 업체 부위 대표이미지 · 이 소의 사진이 아니라 각인을 찍지 않고 이름표를 붙인다 */
+      rep?: boolean;
+    }
   | { kind: "doc"; src: string | null; label: string };
 
 /**
@@ -375,11 +382,19 @@ export function ViewerMediaPane({
 }) {
   const hasAnyCert = listing.hasGradeCert || listing.hasSlaughterCert;
   const { data: certs } = useListingCerts(listing.id, hasAnyCert);
+  const groupImage = usePartGroupImageLookup();
 
   const { media, tabs } = useMemo(() => {
-    const items: ViewerMedia[] = resolvePartPhotos(listing, part).map(
-      ({ src, label }) => ({ kind: "photo", src, label }),
-    );
+    const items: ViewerMedia[] = resolvePartPhotos(
+      listing,
+      part,
+      groupImage,
+    ).map(({ src, label, scope }) => ({
+      kind: "photo",
+      src,
+      label,
+      rep: scope === "company",
+    }));
     const tabList: MediaTab[] = items.map((item, i) => ({
       label: item.label,
       kind: "photo",
@@ -417,7 +432,7 @@ export function ViewerMediaPane({
     );
 
     return { media: items, tabs: tabList };
-  }, [listing, part, certs]);
+  }, [listing, part, certs, groupImage]);
 
   const safeIdx = Math.min(mediaIdx, Math.max(0, media.length - 1));
   const current = media[safeIdx] ?? null;
@@ -457,8 +472,14 @@ export function ViewerMediaPane({
         {hasMany && onNext ? (
           <ViewerArrow side="right" disabled={!canNext} onClick={onNext} />
         ) : null}
-        {/* 증명서 스캔본에는 찍지 않는다 · 흰 종이라 가릴 것이 있고, 등급은 그 안에 이미 적혀 있다 */}
-        {stamp && current?.kind === "photo" ? (
+        {/* 업체 대표이미지는 이 소가 아니다 · 그렇게 적어 두지 않으면 실물로 읽힌다 */}
+        {current?.kind === "photo" && current.rep ? (
+          <span className="pointer-events-none absolute left-2 top-2 z-10 rounded bg-black/60 px-2 py-0.5 text-[10.5px] font-semibold text-white backdrop-blur-sm">
+            {current.label}이미지 · 실물 아님
+          </span>
+        ) : null}
+        {/* 증명서 스캔본과 대표이미지에는 찍지 않는다 · 이 소의 판정을 남의 사진 위에 올리면 안 된다 */}
+        {stamp && current?.kind === "photo" && !current.rep ? (
           <GradeStamp
             heading={{
               grade: listing.grade,

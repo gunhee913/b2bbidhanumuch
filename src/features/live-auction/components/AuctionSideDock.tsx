@@ -72,6 +72,7 @@ import {
 } from "../hooks/useSideDock";
 import { formatGradeLabel } from "../lib/grade";
 import { partCover } from "../lib/partPhotos";
+import { usePartGroupImageLookup } from "@/features/part-group-images/hooks/usePartGroupImages";
 import { AuctionSchedulePanel } from "./AuctionSchedulePanel";
 import { GradeBriefPeekCard } from "./GradeBriefPeekCard";
 import { MyBidsPanel } from "./MyBidsPanel";
@@ -516,6 +517,7 @@ function FavoritesPanel({
   onNavigateListing: (listingId: string, partNo?: number | null) => void;
 }) {
   const { listings: listingRows, parts: partRows } = rows;
+  const groupImage = usePartGroupImageLookup();
   const topHeight = useSideDock((s) => s.favTopHeight);
   const setTopHeight = useSideDock((s) => s.setFavTopHeight);
   const resetTopHeight = useSideDock((s) => s.resetFavTopHeight);
@@ -614,7 +616,7 @@ function FavoritesPanel({
               {partRows.map(({ listing, part }) => (
                 <li key={part.id}>
                   <FavoriteRow
-                    image={partCover(listing, part)}
+                    image={partCover(listing, part, groupImage)}
                     title={
                       <>
                         <span className="truncate text-[13px] font-semibold text-content">

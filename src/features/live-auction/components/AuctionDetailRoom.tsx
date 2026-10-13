@@ -42,6 +42,7 @@ import { usePaneReorder } from "../hooks/usePaneReorder";
 import { SURFACE_SHELL_CLASS } from "../constants/surface";
 import { formatGradeLabel, matchesGradeFilter } from "../lib/grade";
 import { partCover } from "../lib/partPhotos";
+import { usePartGroupImageLookup } from "@/features/part-group-images/hooks/usePartGroupImages";
 import { CompactFilterPill } from "./CompactFilterPill";
 import { GradeFilterTabs } from "./SheetFilterBar";
 import {
@@ -1052,6 +1053,8 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
         )
       : Math.min(storedChartHeight, maxChartHeight);
 
+  /* 부위 사진이 없는 줄에 대신 거는 업체 부위 대표이미지 · 표 1열과 관심 선택기가 같이 쓴다 */
+  const groupImage = usePartGroupImageLookup();
   const [mediaIdx, setMediaIdx] = useState(0);
   const focusListingId = focusListing?.id;
   const focusPartId = focusEntry?.part.id;
@@ -1496,6 +1499,9 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
             favoriteIds={favorites.ids}
             onToggleFavorite={toggleFavorite}
             getNote={(partId) => notes.get("part", partId)}
+            coverOf={({ listing, part }) =>
+              partCover(listing, part, groupImage)
+            }
           />
         )}
       </div>
@@ -1759,7 +1765,8 @@ function ListingPickerRow({ listing }: { listing: LiveListing }) {
 /** 관심 목록 한 줄 · 부위와 개체가 둘 다 섞여 있어 둘 다 적는다 */
 function FavoritePickerRow({ entry }: { entry: SheetBidEntry }) {
   const { listing, part } = entry;
-  const cover = partCover(listing, part);
+  const groupImage = usePartGroupImageLookup();
+  const cover = partCover(listing, part, groupImage);
   return (
     <>
       <span className="relative h-[33px] w-11 shrink-0 overflow-hidden rounded-md bg-surface-accent ring-1 ring-line">
