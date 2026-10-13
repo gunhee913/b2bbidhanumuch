@@ -5,8 +5,8 @@ import Image from "next/image";
 import { ImageOff, Loader2, RotateCcw, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
-  SHEET_PART_CELL as PART_CELL,
-  SHEET_PART_HEAD as PART_HEAD,
+  SHEET_PART_CELL,
+  SHEET_PART_HEAD,
 } from "@/features/listings/components/EntitySheetTable";
 import type { LiveListing, LivePart } from "../api";
 import type { useSheetBidding, SheetBidEntry } from "../hooks/useSheetBidding";
@@ -55,26 +55,36 @@ export function scrollPartRowIntoView(partId: string): boolean {
 }
 
 /**
- * 2열부터 끝까지의 폭 · 「실측 내용 폭 + 좌우 여백 8px」.
+ * 이 표의 글자·여백 치수 · 상장표의 공통 칸(`SHEET_PART_*`)보다 한 치수 크다.
+ *
+ * 상장표 펼침 칸은 12px 글자에 좌우 4px 여백으로 한 화면에 많이 보이는 쪽을 택했는데,
+ * 상세 방은 이 표 하나가 화면을 차지하고 여기서 돈을 넣는다. 스무 줄을 ↑/↓ 로 훑으며
+ * 숫자를 고치는 자리라 글자가 작고 줄이 빽빽하면 줄을 잘못 짚는다. 본문 14 · 머리 12.5 ·
+ * 보조 11~13 · 칸 좌우 6px · 행 50px 로 올린다. 다른 표(`DailyListingsSection`)는 그대로다.
+ */
+const PART_HEAD = cn(SHEET_PART_HEAD, "px-1.5 py-2 text-[12.5px]");
+const PART_CELL = cn(SHEET_PART_CELL, "px-1.5 py-2");
+/**
+ * 2열부터 끝까지의 폭 · 「실측 내용 폭(14px 글자) + 좌우 여백 12px」.
  *   결과 구분선·표 오른쪽 테두리에 닿는 열은 바깥쪽 여백이 12px (`PART_GUTTERS`) 이라 그만큼 넓다.
  * 비율로 환산해 쓰므로 표가 넓어져도 한 열만 벌어지지 않는다
  * (한 열만 auto 로 두면 그 열 혼자 늘어나 부위↔중량 사이가 뜬다).
  *
  * 1열 폭은 축이 정한다(`SheetRowAxis.headWidth`) — 개체축 행은 사진을 물고 있어 더 넓다.
  */
-const TRAILING_COLUMN_WIDTHS = [48, 65, 65, 76, 37, 44, 64, 76] as const;
+const TRAILING_COLUMN_WIDTHS = [56, 74, 76, 86, 44, 50, 72, 86] as const;
 /**
- * 1열 맨 앞 관심 별이 먹는 폭 · 별(18) + 뒤 간격(8) − 테두리 여백에서 돌려받은(4).
+ * 1열 맨 앞 관심 별이 먹는 폭 · 별(20) + 뒤 간격(8) − 테두리 여백에서 돌려받은(4).
  *
- * 이만큼을 **낙찰자와 낙찰가에서 꿔 왔다**(58→44 · 72→64). 표 전체 합을 그대로 두려고
+ * 이만큼을 **낙찰자와 낙찰가에서 꿔 왔다**. 표 전체 합을 그대로 두려고
  * 그랬다 — `table-fixed` 라 합이 늘면 나머지가 전부 같은 비율로 줄고, 그러면 폭이 제일
- * 빠듯한 「내 입찰가」 칸(입력칸 `min-w-[58px]`)이 표를 최소 폭으로 좁혔을 때 숫자를 문다.
+ * 빠듯한 「내 입찰가」 칸(입력칸 `min-w-[64px]`)이 표를 최소 폭으로 좁혔을 때 숫자를 문다.
  * 돈 넣는 칸이 별 하나 때문에 좁아지면 안 된다.
  *
- * 꿔 준 두 열은 여유가 있던 쪽이다. 낙찰자는 매참인 번호 네댓 자를 11px 로 찍고, 낙찰가는
+ * 꿔 준 두 열은 여유가 있던 쪽이다. 낙찰자는 매참인 번호 네댓 자를 12px 로 찍고, 낙찰가는
  * kg 단가라 여섯 자를 넘지 않는다. 둘 다 마감 뒤에만 차는 열이라 입찰 중에는 아예 비어 있다.
  */
-const FAV_SLOT_WIDTH = 22;
+const FAV_SLOT_WIDTH = 24;
 const PART_COLUMN_COUNT = TRAILING_COLUMN_WIDTHS.length + 1;
 /** 결과 열 묶음이 시작하는 열 인덱스 · 앞 5열은 대상·내 입찰 */
 const RESULT_COLUMN_START = 5;
@@ -89,8 +99,13 @@ const RESULT_GROUP_START = "border-l border-l-line";
  * 먹색까지 올리면 행동하는 입찰 구역보다 결과 머리가 먼저 보여 위계가 뒤집힌다.
  */
 const RESULT_HEAD = cn(PART_HEAD, "bg-surface-strong text-content-mid");
-/** 입력칸(h-7)이 있는 진행 행 높이 · 마감 행·채움 행도 같은 높이로 두 열의 행을 가로로 맞춘다 */
-const PART_ROW_HEIGHT = "h-[41px]";
+/**
+ * 행 높이 · 마감 행·채움 행도 같은 높이로 두 열의 행을 가로로 맞춘다.
+ *
+ * 입력칸(h-8 · 32px) 위아래로 9px 씩 · 1열의 두 줄 글(15+13)과 사진(30px)도 같은 틈에 선다.
+ * 41px 이던 때는 입력칸 위아래가 6px 뿐이라 테두리끼리 닿아 보였고, 두 줄 글은 행간이 없었다.
+ */
+const PART_ROW_HEIGHT = "h-[50px]";
 /**
  * 세로선에 닿는 쪽만 여백을 넓힌다 · 표 좌우 테두리와 결과 구분선.
  * `nth-child(5)` = 결과 구분선 바로 왼쪽 열(내 경락대금) · `RESULT_COLUMN_START` 와 함께 움직인다.
@@ -144,17 +159,17 @@ export interface SheetRowAxis {
 export const PART_ROW_AXIS: SheetRowAxis = {
   headLabel: "부위",
   pivotLabel: "개체",
-  headWidth: 133 + FAV_SLOT_WIDTH,
+  headWidth: 150 + FAV_SLOT_WIDTH,
   headTitle: ({ listing, part }) =>
     `${part.partName} · ${displayPartNo(listing, part)}`,
   renderHead: ({ listing, part }, cover) => (
-    <span className="flex items-center gap-1.5">
+    <span className={HEAD_ROW}>
       <RowThumb src={cover} />
       <span className="block min-w-0">
-        <span className="block truncate text-[12px] font-semibold leading-[14px] text-content">
+        <span className={cn(HEAD_TOP, "block truncate text-content")}>
           {part.partName}
         </span>
-        <span className="block truncate text-[10px] leading-[11px] -tracking-[0.02em] text-content-faint">
+        <span className={cn(HEAD_SUB, "block truncate")}>
           {displayPartNo(listing, part)}
         </span>
       </span>
@@ -162,22 +177,30 @@ export const PART_ROW_AXIS: SheetRowAxis = {
   ),
 };
 
-/** 1열 맨 앞 작은 사진 · 모서리·테두리는 상장표의 사진 칸과 같은 값 */
+/** 1열 안쪽 배치 · 사진 — 두 줄 글 · 세 축이 같은 틈을 쓴다 */
+const HEAD_ROW = "flex items-center gap-2";
+/** 1열 윗줄 · 고를 때 보는 것(부위명·등급) · 본문 14px 보다 한 치수 작고 굵다 */
+const HEAD_TOP = "text-[13px] font-semibold leading-[15px]";
+/** 1열 아랫줄 · 고르고 나서 짚는 것(접수번호·업체) · 윗줄보다 두 치수 작고 흐리다 */
+const HEAD_SUB =
+  "text-[11px] leading-[13px] -tracking-[0.02em] text-content-faint";
+
+/** 1열 맨 앞 작은 사진 · 4:3 · 모서리·테두리는 상장표의 사진 칸과 같은 값 */
 function RowThumb({ src }: { src: string | null }) {
   return (
-    <span className="relative h-[26px] w-[34px] shrink-0 overflow-hidden rounded-[3px] bg-surface-accent ring-1 ring-line">
+    <span className="relative h-[30px] w-[40px] shrink-0 overflow-hidden rounded-[3px] bg-surface-accent ring-1 ring-line">
       {src ? (
         <Image
           src={src}
           alt=""
           fill
-          sizes="34px"
+          sizes="40px"
           className="object-cover"
           unoptimized
         />
       ) : (
         <ImageOff
-          className="absolute inset-0 m-auto h-3 w-3 text-content-ghost"
+          className="absolute inset-0 m-auto h-3.5 w-3.5 text-content-ghost"
           strokeWidth={1.5}
           aria-hidden
         />
@@ -200,27 +223,27 @@ function RowThumb({ src }: { src: string | null }) {
 export const LISTING_ROW_AXIS: SheetRowAxis = {
   headLabel: "개체",
   pivotLabel: "부위",
-  headWidth: 134 + FAV_SLOT_WIDTH,
+  headWidth: 152 + FAV_SLOT_WIDTH,
   headTitle: ({ listing, part }) =>
     [part.partName, listing.listingNo, listing.companyName]
       .filter(Boolean)
       .join(" · "),
   renderHead: ({ listing, part }, cover) => (
-    <span className="flex items-center gap-1.5">
+    <span className={HEAD_ROW}>
       <RowThumb src={cover} />
       <span className="block min-w-0">
-        <span className="flex items-baseline gap-1 text-[12px] leading-[14px]">
+        <span className={cn(HEAD_TOP, "flex items-baseline gap-1")}>
           <span className="shrink-0 font-bold text-content">
             {formatGradeLabel(listing.grade, listing.marblingScore)}
           </span>
           {/* 업체명은 이 칸에서 유일하게 잘려도 되는 것 · 등급은 잘리면 다른 등급이 된다 */}
           {listing.companyName ? (
-            <span className="min-w-0 truncate text-[11px] font-medium text-content-soft">
+            <span className="min-w-0 truncate text-[12px] font-medium text-content-soft">
               {listing.companyName}
             </span>
           ) : null}
         </span>
-        <span className="flex items-baseline gap-1 text-[10px] leading-[11px] -tracking-[0.02em] text-content-faint">
+        <span className={cn(HEAD_SUB, "flex items-baseline gap-1")}>
           <span className="truncate tabular-nums">{listing.listingNo}</span>
           {extractSide(part.partName) ? (
             <span className="shrink-0 font-bold text-content-soft">
@@ -247,21 +270,21 @@ export const LISTING_ROW_AXIS: SheetRowAxis = {
 export const FAVORITE_ROW_AXIS: SheetRowAxis = {
   headLabel: "관심 부위",
   pivotLabel: "관심",
-  headWidth: 175 + FAV_SLOT_WIDTH,
+  headWidth: 196 + FAV_SLOT_WIDTH,
   headTitle: ({ listing, part }) =>
     [part.partName, listing.listingNo, listing.companyName]
       .filter(Boolean)
       .join(" · "),
   renderHead: ({ listing, part }, cover) => (
-    <span className="flex items-center gap-1.5">
+    <span className={HEAD_ROW}>
       <RowThumb src={cover} />
       <span className="block min-w-0">
-        <span className="flex items-baseline gap-1 text-[12px] leading-[14px]">
-          <span className="min-w-0 truncate font-semibold text-content">
+        <span className={cn(HEAD_TOP, "flex items-baseline gap-1")}>
+          <span className="min-w-0 truncate text-content">
             {toPartGroupName(part.partName)}
           </span>
           {extractSide(part.partName) ? (
-            <span className="shrink-0 text-[11px] font-bold text-content-soft">
+            <span className="shrink-0 text-[12px] font-bold text-content-soft">
               {extractSide(part.partName)}
             </span>
           ) : null}
@@ -269,7 +292,7 @@ export const FAVORITE_ROW_AXIS: SheetRowAxis = {
             {formatGradeLabel(listing.grade, listing.marblingScore)}
           </span>
         </span>
-        <span className="flex items-baseline gap-1 text-[10px] leading-[11px] -tracking-[0.02em] text-content-faint">
+        <span className={cn(HEAD_SUB, "flex items-baseline gap-1")}>
           <span className="shrink-0 tabular-nums">{listing.listingNo}</span>
           {/* 업체명은 이 칸에서 유일하게 잘려도 되는 것 · 나머지는 잘리면 다른 값이 된다 */}
           {listing.companyName ? (
@@ -321,7 +344,8 @@ export interface SheetPartGridProps {
  * 상장표 펼침 영역의 부위 미니표 · 가로 스크롤 없이 컬럼 폭 안에 맞춘다.
  *
  * 부위(+부위번호) · 중량 · 최저단가 · 내 입찰가(input) · 경락대금 | 결과 · 낙찰자 · 낙찰가 · 경락대금
- * 열 폭은 585px 기준 비율 · 넓어지면 모든 열이 같은 비율로 늘어난다 · 부위명은 truncate.
+ * 열 폭은 기준 합(`tableBaseWidth` · 개체축 718px) 대비 비율 · 넓어지면 모든 열이 같은 비율로
+ * 늘어난다 · 부위명은 truncate.
  *
  * 결과를 별도 줄 대신 머리글 붙은 열에 둔다. 남의 낙찰가가 「내 입찰가」 아래 라벨 없이
  * 놓이던 혼동을 머리글이 끊고, 모든 행이 한 줄이라 두 열의 행이 가로로 맞는다.
@@ -363,7 +387,7 @@ export function SheetPartGrid({
           >
             <table
               className={cn(
-                "w-full table-fixed text-[13px] font-semibold text-content",
+                "w-full table-fixed text-[14px] font-semibold text-content",
                 PART_GUTTERS,
               )}
             >
@@ -566,7 +590,7 @@ function SheetPartRow({
           <td
             className={cn(
               PART_CELL,
-              "text-right text-[12px] font-semibold",
+              "text-right text-[13px] font-semibold",
               settlementCase === "won" ? "text-content" : "text-content-faint",
             )}
           >
@@ -606,7 +630,7 @@ function SheetPartRow({
           <td
             className={cn(
               PART_CELL,
-              "text-right text-[12px] font-semibold",
+              "text-right text-[13px] font-semibold",
               amount > 0
                 ? dirty
                   ? "text-orange-700"
@@ -635,7 +659,7 @@ function SheetPartRow({
  * 부위 관심 별 · 1열 맨 앞.
  *
  * 상장표(`EntitySheetTable`)의 별과 같은 자리·같은 색이다. 개체를 찍던 손이 부위에서도
- * 같은 데를 찾게 하려는 것이라, 크기만 이 표의 행 높이(41px)에 맞춰 한 치수 줄였다.
+ * 같은 데를 찾게 하려는 것이라, 크기만 이 표의 행 높이(50px)에 맞춰 한 치수 줄였다.
  *
  * 행을 누르면 그 부위가 선택되고 입찰칸으로 초점이 간다. 별은 그 길을 타면 안 된다 —
  * 담아 두려고 눌렀는데 입력칸이 열리면 다음 키 입력이 엉뚱한 데로 들어간다.
@@ -661,7 +685,7 @@ function PartFavoriteStar({
         onToggle();
       }}
       className={cn(
-        "inline-flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded transition-colors",
+        "inline-flex h-[20px] w-[20px] shrink-0 items-center justify-center rounded transition-colors",
         "active:scale-[0.9]",
         on
           ? "text-fav"
@@ -669,7 +693,7 @@ function PartFavoriteStar({
       )}
     >
       <Star
-        className={cn("h-3.5 w-3.5", on && "fill-current")}
+        className={cn("h-4 w-4", on && "fill-current")}
         strokeWidth={2.2}
         aria-hidden
       />
@@ -701,6 +725,9 @@ export function NoteMark({ body }: { body: string | null }) {
   );
 }
 
+/** 결과 칩 · 공통 상자(18px · 10.5px)는 행이 낮은 표용이라 이 표에선 한 치수 키운다 */
+const ROW_CHIP = "h-[20px] px-2 text-[11px]";
+
 function ResultCells({
   result,
   hasMyBid,
@@ -715,15 +742,15 @@ function ResultCells({
     <>
       <td className={cn(PART_CELL, RESULT_GROUP_START, "text-center")}>
         {hasVisibleResult(result) ? (
-          <ResultChip outcome={result.outcome} />
+          <ResultChip outcome={result.outcome} className={ROW_CHIP} />
         ) : hasMyBid ? (
-          <MyBidChip />
+          <MyBidChip className={ROW_CHIP} />
         ) : null}
       </td>
       <td
         className={cn(
           PART_CELL,
-          "truncate text-center text-[11px] text-content-soft",
+          "truncate text-center text-[12px] text-content-soft",
         )}
       >
         {isSold ? result.dealerNo || "-" : null}
@@ -736,7 +763,7 @@ function ResultCells({
       >
         {isSold && result.price != null ? formatWon(result.price) : null}
       </td>
-      <td className={cn(PART_CELL, "text-right text-[12px] text-content-soft")}>
+      <td className={cn(PART_CELL, "text-right text-[13px] text-content-soft")}>
         {isSold ? formatWon(result.amount) : null}
       </td>
     </>

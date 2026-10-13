@@ -346,7 +346,7 @@ export default function NewAuctionPage() {
   const [uploadingImages, setUploadingImages] = useState<{ [key: number]: boolean }>({});
 
   // 개체 사진 업로드 (Storage 사용) · 첫 장이 대표
-  const handleImageUpload = async (cattleId: number, files: FileList) => {
+  const handleImageUpload = async (cattleId: number, files: File[]) => {
     const cattle = cattleList.find(c => c.id === cattleId);
     if (!cattle) return;
 

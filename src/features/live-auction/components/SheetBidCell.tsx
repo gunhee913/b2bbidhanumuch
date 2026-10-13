@@ -102,7 +102,7 @@ export interface SheetBidCellProps {
  *
  *  - 폭은 열이 정한다 · 상한은 열을 넘지 않을 만큼만 열어 두고 남는 폭은 칸이 다 쓴다.
  *    상한을 62px 로 못 박아 두었더니 표를 넓혀 열에 자리가 남아도 칸은 그대로여서,
- *    십만 원대(`100,100`)에서 끝자리가 잘렸다 — 6자리 `999,999` 는 12px 에서 50px 다
+ *    십만 원대(`100,100`)에서 끝자리가 잘렸다 — 6자리 `999,999` 는 13px 에서 54px 다
  *    (`PRICE_SLOT_WIDTH`). 굵은 글씨라 그보다 조금 더 들고, 안쪽 여백은 4px 로 줄였다.
  *  - 엑셀처럼 고르기/쓰기 두 모드 · 키 계약은 `handleSheetBidKeyDown` 이 갖는다
  *  - 포커스 시 우측에 `+1 +10 +100 +1,000` 미니 스텝
@@ -347,7 +347,7 @@ export function SheetBidCell({
           </p>
         </div>
       ) : null}
-      <div className="relative w-full min-w-[58px] max-w-[76px]">
+      <div className="relative w-full min-w-[64px] max-w-[84px]">
         <input
           ref={inputRef}
           {...{ [BID_INPUT_ATTR]: partId, [BID_MODE_ATTR]: mode }}
@@ -392,7 +392,7 @@ export function SheetBidCell({
             })
           }
           className={cn(
-            "h-7 w-full rounded-[5px] border bg-field px-1 text-right text-[12px] font-bold tabular-nums -tracking-[0.02em] text-content outline-none transition-colors",
+            "h-8 w-full rounded-[5px] border bg-field px-1 text-right text-[13px] font-bold tabular-nums -tracking-[0.02em] text-content outline-none transition-colors",
             "focus:border-focus focus:ring-2 focus:ring-focus/30",
             "disabled:cursor-not-allowed disabled:border-transparent disabled:bg-transparent disabled:text-content-faint",
             state.error

@@ -8,7 +8,7 @@ import { MAX_LISTING_PHOTOS } from "../lib/listingPhotos";
 export interface ListingPhotoStripProps {
   images: string[];
   uploading: boolean;
-  onUpload: (files: FileList) => void;
+  onUpload: (files: File[]) => void;
   onRemove: (index: number) => void;
   /** 그 장을 맨 앞(대표)으로 옮긴다 */
   onSetCover: (index: number) => void;
@@ -33,8 +33,10 @@ export function ListingPhotoStrip({
   const canAdd = images.length < MAX_LISTING_PHOTOS;
 
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) onUpload(e.target.files);
+    /* `FileList` 는 살아 있는 객체 · 입력칸을 비우기 전에 배열로 떠서 넘긴다 */
+    const files = Array.from(e.target.files ?? []);
     e.target.value = "";
+    if (files.length > 0) onUpload(files);
   };
 
   return (

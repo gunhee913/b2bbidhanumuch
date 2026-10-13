@@ -28,9 +28,11 @@ import { cn } from "@/lib/utils";
  * - "won"      · 낙찰 후 내 입찰가 (= 낙찰가)          → slate-900 bold (결과는 칩이 말한다)
  * - "lost"     · 미낙찰 후 내 입찰가                  → slate-500 medium
  *
- * 크기 · 12px · 6자리 "999,999"(50px) 가 잘리지 않는 슬롯. 단위 「원」은 슬롯 밖에 붙는다.
+ * 크기 · 13px · 6자리 "999,999"(54px) 가 잘리지 않는 슬롯. 단위 「원」은 슬롯 밖에 붙는다.
+ * 상세 방 부위표(행 50px · 본문 14px)가 유일한 쓰임이라 그 표의 글자 크기에 맞춰 둔다.
  */
-export const PRICE_SLOT_WIDTH = "w-[50px]";
+export const PRICE_SLOT_WIDTH = "w-[54px]";
+const PRICE_SLOT_TEXT = "text-[13px]";
 
 const NUMBER_FORMATTER = new Intl.NumberFormat("ko-KR");
 
@@ -90,7 +92,8 @@ export function PriceSlot({
     return (
       <span
         className={cn(
-          "inline-block text-right text-xs text-content-ghost",
+          "inline-block text-right text-content-ghost",
+          PRICE_SLOT_TEXT,
           PRICE_SLOT_WIDTH,
         )}
       >
@@ -103,7 +106,8 @@ export function PriceSlot({
   const shouldAnimate = animate ?? isLiveTone(tone);
 
   const commonClass = cn(
-    "inline-block text-right text-xs tabular-nums -tracking-[0.02em]",
+    "inline-block text-right tabular-nums -tracking-[0.02em]",
+    PRICE_SLOT_TEXT,
     PRICE_SLOT_WIDTH,
     toneToClass(tone),
   );
@@ -130,7 +134,7 @@ export function PriceSlot({
 /** 가격 단위 · 되풀이되는 글자라 숫자보다 흐리고 작게 */
 function PriceUnit({ unit }: { unit: string }) {
   return (
-    <span className="pl-0.5 text-[11px] font-medium text-content-faint">
+    <span className="pl-0.5 text-[12px] font-medium text-content-faint">
       {unit}
     </span>
   );
@@ -143,7 +147,8 @@ export function MaskedPriceSlot({ tone }: { tone: PriceTone }) {
   return (
     <span
       className={cn(
-        "inline-block text-right text-xs tabular-nums",
+        "inline-block text-right tabular-nums",
+        PRICE_SLOT_TEXT,
         PRICE_SLOT_WIDTH,
         toneToClass(tone),
       )}

@@ -68,9 +68,10 @@ export function PartPhotoDialog({
   const canAdd = remaining > 0;
 
   const handleFiles = async (e: ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
+    /* `FileList` 는 살아 있는 객체 · 입력칸을 비우면 같이 비므로 먼저 배열로 떠 둔다 */
+    const files = Array.from(e.target.files ?? []);
     e.target.value = "";
-    if (!files || files.length === 0 || !canAdd) return;
+    if (files.length === 0 || !canAdd) return;
     setUploading(true);
     const { urls, skipped } = await uploadPhotoFiles(files, remaining);
     setUploading(false);

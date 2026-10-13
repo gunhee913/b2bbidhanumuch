@@ -71,13 +71,16 @@ export function resultChipLabel(result: PartResult): string | undefined {
 export function ResultChip({
   outcome,
   label,
+  className,
 }: {
   outcome: PartOutcome;
   /** 기본 라벨 대신 · 다음 회차가 열려 다시 입찰 중이면 `진행` */
   label?: string;
+  /** 상자 크기만 바꿀 때 · 행이 높은 표(상세 방 부위표)가 한 치수 키워 쓴다 */
+  className?: string;
 }) {
   return (
-    <span className={cn(CHIP_BASE, CHIP_TONE[outcome])}>
+    <span className={cn(CHIP_BASE, CHIP_TONE[outcome], className)}>
       {label ?? CHIP_LABEL[outcome]}
     </span>
   );
@@ -95,10 +98,14 @@ export function ResultChip({
  * 입력칸에 숫자가 있는 것과는 다른 말이다 — 거기 숫자는 아직 안 보낸 초안일 수도 있다.
  * 그 차이를 지금은 테두리 색 하나가 지고 있었다.
  */
-export function MyBidChip() {
+export function MyBidChip({ className }: { className?: string }) {
   return (
     <span
-      className={cn(CHIP_BASE, "text-won ring-1 ring-inset ring-won/45")}
+      className={cn(
+        CHIP_BASE,
+        "text-won ring-1 ring-inset ring-won/45",
+        className,
+      )}
       title="입찰을 넣고 결과를 기다리는 중입니다"
     >
       입찰중
