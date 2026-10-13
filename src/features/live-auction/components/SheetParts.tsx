@@ -12,6 +12,7 @@ import type { LiveListing, LivePart } from "../api";
 import type { useSheetBidding, SheetBidEntry } from "../hooks/useSheetBidding";
 import { formatGradeLabel } from "../lib/grade";
 import { extractSide, toPartGroupName } from "../lib/partGrouping";
+import { partCover } from "../lib/partPhotos";
 import {
   hasVisibleResult,
   isBidIdle,
@@ -175,9 +176,9 @@ export const LISTING_ROW_AXIS: SheetRowAxis = {
   renderHead: ({ listing, part }) => (
     <span className="flex items-center gap-1.5">
       <span className="relative h-[26px] w-[34px] shrink-0 overflow-hidden rounded-[3px] bg-surface-accent ring-1 ring-line">
-        {listing.images[0] ? (
+        {partCover(listing, part) ? (
           <Image
-            src={listing.images[0]}
+            src={partCover(listing, part)!}
             alt=""
             fill
             sizes="34px"
@@ -239,9 +240,9 @@ export const FAVORITE_ROW_AXIS: SheetRowAxis = {
   renderHead: ({ listing, part }) => (
     <span className="flex items-center gap-1.5">
       <span className="relative h-[26px] w-[34px] shrink-0 overflow-hidden rounded-[3px] bg-surface-accent ring-1 ring-line">
-        {listing.images[0] ? (
+        {partCover(listing, part) ? (
           <Image
-            src={listing.images[0]}
+            src={partCover(listing, part)!}
             alt=""
             fill
             sizes="34px"

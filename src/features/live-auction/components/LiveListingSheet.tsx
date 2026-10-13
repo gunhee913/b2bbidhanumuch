@@ -129,8 +129,6 @@ export function LiveListingSheet({
   const resetPanelWidth = useSheetSummaryPrefs((s) => s.resetPanelWidth);
   const panelMax = maxSummaryPanelWidth(rowWidth);
   const panelWidth = shownSummaryPanelWidth(storedPanelWidth, rowWidth);
-  /* 요약 카드 안 높이 · 스크롤 틀 안에서는 `h-full` 이 먹지 않아 재서 내려준다 (차트가 남는 세로를 쓴다) */
-  const [summaryRef, { height: summaryHeight }] = useMeasure<HTMLElement>();
 
   /** 아직 아무 행도 짚지 않았으면 맨 윗줄 개체를 세워 둔다 (빈 패널 방지) */
   const summaryListing = useMemo(
@@ -225,15 +223,11 @@ export function LiveListingSheet({
       ) : null}
       {canShowSummary ? (
         <aside
-          ref={summaryRef}
           aria-label="개체 요약"
           className={cn("flex min-h-0 min-w-0 flex-col", SURFACE_SHELL_CLASS)}
         >
           <OverlayScroll autoHideDelay={0} className="min-h-0 flex-1">
-            <SheetSummaryPanel
-              listing={summaryListing}
-              availableHeight={summaryHeight}
-            />
+            <SheetSummaryPanel listing={summaryListing} />
           </OverlayScroll>
         </aside>
       ) : null}

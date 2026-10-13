@@ -41,6 +41,7 @@ import {
 import { usePaneReorder } from "../hooks/usePaneReorder";
 import { SURFACE_SHELL_CLASS } from "../constants/surface";
 import { formatGradeLabel, matchesGradeFilter } from "../lib/grade";
+import { partCover } from "../lib/partPhotos";
 import { CompactFilterPill } from "./CompactFilterPill";
 import { GradeFilterTabs } from "./SheetFilterBar";
 import {
@@ -1053,9 +1054,11 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
 
   const [mediaIdx, setMediaIdx] = useState(0);
   const focusListingId = focusListing?.id;
+  const focusPartId = focusEntry?.part.id;
+  /* 부위가 바뀌면 그 부위 사진이 첫 장으로 온다 · 보던 번호를 쥐고 있으면 엉뚱한 장을 가리킨다 */
   useEffect(() => {
     setMediaIdx(0);
-  }, [focusListingId]);
+  }, [focusListingId, focusPartId]);
 
   const sideDock = (
     <AuctionSideDock
@@ -1259,6 +1262,7 @@ export function AuctionDetailRoom({ axis }: { axis: RoomAxis }) {
                   <ViewerMediaPane
                     key={focusListing.id}
                     listing={focusListing}
+                    part={focusEntry?.part ?? null}
                     mediaIdx={mediaIdx}
                     onMediaIdxChange={setMediaIdx}
                     className="px-3 pb-3"
@@ -1755,12 +1759,13 @@ function ListingPickerRow({ listing }: { listing: LiveListing }) {
 /** 관심 목록 한 줄 · 부위와 개체가 둘 다 섞여 있어 둘 다 적는다 */
 function FavoritePickerRow({ entry }: { entry: SheetBidEntry }) {
   const { listing, part } = entry;
+  const cover = partCover(listing, part);
   return (
     <>
       <span className="relative h-[33px] w-11 shrink-0 overflow-hidden rounded-md bg-surface-accent ring-1 ring-line">
-        {listing.images[0] ? (
+        {cover ? (
           <Image
-            src={listing.images[0]}
+            src={cover}
             alt=""
             fill
             sizes="44px"

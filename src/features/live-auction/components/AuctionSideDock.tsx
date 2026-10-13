@@ -71,6 +71,7 @@ import {
   type SideDockTab,
 } from "../hooks/useSideDock";
 import { formatGradeLabel } from "../lib/grade";
+import { partCover } from "../lib/partPhotos";
 import { AuctionSchedulePanel } from "./AuctionSchedulePanel";
 import { GradeBriefPeekCard } from "./GradeBriefPeekCard";
 import { MyBidsPanel } from "./MyBidsPanel";
@@ -613,7 +614,7 @@ function FavoritesPanel({
               {partRows.map(({ listing, part }) => (
                 <li key={part.id}>
                   <FavoriteRow
-                    image={listing.images[0] ?? null}
+                    image={partCover(listing, part)}
                     title={
                       <>
                         <span className="truncate text-[13px] font-semibold text-content">

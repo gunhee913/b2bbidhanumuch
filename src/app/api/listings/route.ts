@@ -267,6 +267,7 @@ export async function POST(request: NextRequest) {
       weight: part.weight,
       min_price: part.minPrice,
       is_included: part.isIncluded ?? true,
+      images: Array.isArray(part.images) ? part.images.slice(0, 4) : [],
     }));
 
     const { error: partsError } = await supabase

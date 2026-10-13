@@ -67,6 +67,20 @@ export const useSheetSummaryPrefs = create<SheetSummaryPrefsState>()(
         }),
       resetPanelWidth: () => set({ panelWidth: SUMMARY_PANEL_DEFAULT_WIDTH }),
     }),
-    { name: "live-sheet-summary-prefs", version: 1 },
+    {
+      name: "live-sheet-summary-prefs",
+      version: 2,
+      migrate: (persisted, version) => {
+        if (!persisted || typeof persisted !== "object") {
+          return persisted as SheetSummaryPrefsState;
+        }
+        const next = { ...(persisted as Record<string, unknown>) };
+        if (version < 2) {
+          /* 기본 폭을 560 → 680 으로 올렸다 · 예전 기본값으로 잡혀 있던 폭은 새 기본값을 따른다 */
+          next.panelWidth = SUMMARY_PANEL_DEFAULT_WIDTH;
+        }
+        return next as unknown as SheetSummaryPrefsState;
+      },
+    },
   ),
 );

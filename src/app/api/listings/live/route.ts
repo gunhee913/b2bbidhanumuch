@@ -68,7 +68,8 @@ export async function GET(request: NextRequest) {
           is_included,
           bid_price,
           bid_amount,
-          winning_dealer_id
+          winning_dealer_id,
+          images
         )
       `)
       .in('status', ['approved', 'auction', 'closed', 'completed'])
@@ -186,6 +187,7 @@ export async function GET(request: NextRequest) {
               `${listing.listing_no}-${String(part.part_no).padStart(2, '0')}`,
             weight: part.weight,
             minPrice: part.min_price,
+            images: Array.isArray(part.images) ? part.images : [],
             // 진행 중 입찰 건수는 "참여 여부" 자체가 정보라 함께 숨긴다
             bidCount: masked ? 0 : partBids.length,
             highestBid,

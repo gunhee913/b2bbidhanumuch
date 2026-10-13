@@ -31,11 +31,12 @@ export const TABLE_CARD_SCROLL_MIN_WIDTH =
  *
  *  - 최소 480 · 요약은 여기서 멈추고, 그보다 좁은 창에서는 표가 좁아지며 옆으로 구른다.
  *    사진이 이보다 작아지면 곁눈질로 마블링이 읽히지 않는다 (끌어서 줄일 때도 같은 바닥)
- *  - 기본 560 · 메뉴를 접은 1728 화면에서 표가 열 사이 틈 ≈ 30px 로 서는 폭
+ *  - 기본 680 · 메뉴를 접은 1728 화면에서 표(936)가 바닥 폭 828 위에 서면서 사진이
+ *    650px 안팎으로 서는 폭 · 처음 들어온 사람이 끌지 않아도 단면이 곁눈질로 읽힌다
  *  - 최대 760 · 노트북 한 화면에서 사진(4:3)이 높이 상한에 닿는 폭 · 더 넓히면 옆만 잘려 나간다
  */
 export const SUMMARY_PANEL_MIN_WIDTH = 480;
-export const SUMMARY_PANEL_DEFAULT_WIDTH = 560;
+export const SUMMARY_PANEL_DEFAULT_WIDTH = 680;
 export const SUMMARY_PANEL_MAX_WIDTH = 760;
 
 /** 두 카드 사이 틈 · 이 자리를 눈금(`RoomSplitter`)이 그대로 쓴다 (개체 상세 방과 같은 8px) */

@@ -59,6 +59,8 @@ export interface LivePart {
   listingPartNo: string;
   weight: number | null;
   minPrice: number | null;
+  /** 부위 사진 · 비어 있으면 화면은 개체 사진(첫 장이 대표)으로 대신한다 (`resolvePartPhotos`) */
+  images: string[];
   bidCount: number;
   /**
    * 최고 입찰 상세 (매참인 정보 포함).

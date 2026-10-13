@@ -9,6 +9,9 @@ import { useCreateListing } from '@/features/listings/hooks';
 import { useCompanies } from '@/features/companies/hooks';
 import { CreateListingInput, CreatePartInput } from '@/features/listings/types';
 import { uploadImage } from '@/lib/upload';
+import { ListingPhotoStrip } from '@/features/listings/components/ListingPhotoStrip';
+import { PartPhotoButton, PartPhotoDialog } from '@/features/listings/components/PartPhotoDialog';
+import { MAX_LISTING_PHOTOS, moveToCover, uploadPhotoFiles } from '@/features/listings/lib/listingPhotos';
 
 // number input 스피너, date input 달력 아이콘 숨기기 스타일
 const hideSpinnerStyle = `
@@ -29,6 +32,7 @@ interface PartData {
   weight: string;
   minPrice: string;
   isIncluded: boolean; // 등록 포함 여부
+  images: string[]; // 부위 사진 · 비우면 개체 대표 사진 사용
 }
 
 // 증명서 데이터 타입
@@ -69,29 +73,23 @@ interface CattleData {
   isExpanded: boolean;
 }
 
-// 기본 20개 부위 생성
-const createDefaultParts = (): PartData[] => [
-  { id: 1, name: '등심(좌)', weight: '', minPrice: '', isIncluded: true },
-  { id: 2, name: '등심(우)', weight: '', minPrice: '', isIncluded: true },
-  { id: 3, name: '안심', weight: '', minPrice: '', isIncluded: true },
-  { id: 4, name: '채끝', weight: '', minPrice: '', isIncluded: true },
-  { id: 5, name: '치마', weight: '', minPrice: '', isIncluded: true },
-  { id: 6, name: '부채', weight: '', minPrice: '', isIncluded: true },
-  { id: 7, name: '업진', weight: '', minPrice: '', isIncluded: true },
-  { id: 8, name: '토시·제비', weight: '', minPrice: '', isIncluded: true },
-  { id: 9, name: '설도(좌)', weight: '', minPrice: '', isIncluded: true },
-  { id: 10, name: '설도(우)', weight: '', minPrice: '', isIncluded: true },
-  { id: 11, name: '앞다리', weight: '', minPrice: '', isIncluded: true },
-  { id: 12, name: '우둔', weight: '', minPrice: '', isIncluded: true },
-  { id: 13, name: '목심', weight: '', minPrice: '', isIncluded: true },
-  { id: 14, name: '양지(좌)', weight: '', minPrice: '', isIncluded: true },
-  { id: 15, name: '양지(우)', weight: '', minPrice: '', isIncluded: true },
-  { id: 16, name: '사태', weight: '', minPrice: '', isIncluded: true },
-  { id: 17, name: '꼬리', weight: '', minPrice: '', isIncluded: true },
-  { id: 18, name: '족', weight: '', minPrice: '', isIncluded: true },
-  { id: 19, name: '사골', weight: '', minPrice: '', isIncluded: true },
-  { id: 20, name: '잡뼈', weight: '', minPrice: '', isIncluded: true },
+// 기본 20개 부위 이름 (순서 = 부위번호)
+const DEFAULT_PART_NAMES = [
+  '등심(좌)', '등심(우)', '안심', '채끝', '치마', '부채', '업진', '토시·제비',
+  '설도(좌)', '설도(우)', '앞다리', '우둔', '목심', '양지(좌)', '양지(우)', '사태',
+  '꼬리', '족', '사골', '잡뼈',
 ];
+
+// 기본 20개 부위 생성
+const createDefaultParts = (): PartData[] =>
+  DEFAULT_PART_NAMES.map((name, index) => ({
+    id: index + 1,
+    name,
+    weight: '',
+    minPrice: '',
+    isIncluded: true,
+    images: [],
+  }));
 
 // 새 개체 생성
 const createNewCattle = (id: number, seqNo: string): CattleData => ({
@@ -347,57 +345,22 @@ export default function NewAuctionPage() {
   // 이미지 업로드 중 상태
   const [uploadingImages, setUploadingImages] = useState<{ [key: number]: boolean }>({});
 
-  // 이미지 업로드 ref
-  const imageInputRefs = useRef<{ [key: number]: HTMLInputElement | null }>({});
-
-  // 이미지 업로드 처리 (Storage 사용)
-  const handleImageUpload = async (cattleId: number, e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-
+  // 개체 사진 업로드 (Storage 사용) · 첫 장이 대표
+  const handleImageUpload = async (cattleId: number, files: FileList) => {
     const cattle = cattleList.find(c => c.id === cattleId);
     if (!cattle) return;
 
-    const remainingSlots = 4 - cattle.images.length;
-    const filesToProcess = Array.from(files).slice(0, remainingSlots);
-
-    // 업로드 중 상태 설정
     setUploadingImages(prev => ({ ...prev, [cattleId]: true }));
-
-    for (const file of filesToProcess) {
-      if (!file.type.startsWith('image/')) {
-        alert('이미지 파일만 업로드 가능합니다.');
-        continue;
-      }
-
-      try {
-        // Base64로 변환
-        const base64 = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = (event) => resolve(event.target?.result as string);
-          reader.onerror = reject;
-          reader.readAsDataURL(file);
-        });
-
-        // Storage에 업로드
-        const url = await uploadImage(base64, 'listings');
-        
-        if (url) {
-          setCattleList(prev => prev.map(c => {
-            if (c.id !== cattleId) return c;
-            if (c.images.length >= 4) return c;
-            return { ...c, images: [...c.images, url] };
-          }));
-        }
-      } catch (error) {
-        console.error('이미지 업로드 오류:', error);
-        alert('이미지 업로드에 실패했습니다.');
-      }
-    }
-
-    // 업로드 완료
+    const { urls, skipped } = await uploadPhotoFiles(files, MAX_LISTING_PHOTOS - cattle.images.length);
     setUploadingImages(prev => ({ ...prev, [cattleId]: false }));
-    e.target.value = '';
+
+    if (urls.length > 0) {
+      setCattleList(prev => prev.map(c => {
+        if (c.id !== cattleId) return c;
+        return { ...c, images: [...c.images, ...urls].slice(0, MAX_LISTING_PHOTOS) };
+      }));
+    }
+    if (skipped > 0) alert(`${skipped}장은 이미지가 아니거나 올리지 못했습니다.`);
   };
 
   // 이미지 삭제
@@ -407,6 +370,39 @@ export default function NewAuctionPage() {
       return { ...c, images: c.images.filter((_, i) => i !== index) };
     }));
   };
+
+  // 대표 사진 바꾸기 · 그 장을 맨 앞으로
+  const setCoverImage = (cattleId: number, index: number) => {
+    setCattleList(prev => prev.map(c => (c.id === cattleId ? { ...c, images: moveToCover(c.images, index) } : c)));
+  };
+
+  // 부위 사진 한 장을 개체 대표로 · 이미 개체 사진에 있으면 앞으로, 없으면 맨 앞에 넣는다
+  const setCoverFromPartPhoto = (cattleId: number, src: string) => {
+    setCattleList(prev => prev.map(c => {
+      if (c.id !== cattleId) return c;
+      const at = c.images.indexOf(src);
+      const images = at >= 0 ? moveToCover(c.images, at) : [src, ...c.images].slice(0, MAX_LISTING_PHOTOS);
+      return { ...c, images };
+    }));
+  };
+
+  // 부위 사진 갱신
+  const updatePartImages = (cattleId: number, partId: number, images: string[]) => {
+    setCattleList(prev => prev.map(c => {
+      if (c.id !== cattleId) return c;
+      return { ...c, parts: c.parts.map(p => (p.id === partId ? { ...p, images } : p)) };
+    }));
+  };
+
+  // 부위 사진 모달 · 어느 개체의 어느 부위를 열었나
+  const [photoTarget, setPhotoTarget] = useState<{ cattleId: number; partId: number } | null>(null);
+  const photoCattle = photoTarget ? cattleList.find(c => c.id === photoTarget.cattleId) ?? null : null;
+  const photoPart = photoCattle && photoTarget ? photoCattle.parts.find(p => p.id === photoTarget.partId) ?? null : null;
+  // ←/→ 는 상장에 포함된 부위 사이에서만 돈다 · 빠진 부위는 사진을 달 일이 없다
+  const photoSiblings = photoCattle ? photoCattle.parts.filter(p => p.isIncluded) : [];
+  const photoAt = photoPart ? photoSiblings.findIndex(p => p.id === photoPart.id) : -1;
+  const photoPrev = photoAt > 0 ? photoSiblings[photoAt - 1] : null;
+  const photoNext = photoAt >= 0 && photoAt < photoSiblings.length - 1 ? photoSiblings[photoAt + 1] : null;
 
   // 증명서 업로드 ref
   const slaughterCertInputRefs = useRef<{ [key: number]: HTMLInputElement | null }>({});
@@ -510,6 +506,7 @@ export default function NewAuctionPage() {
             weight: parseFloat(part.weight) || 0,
             minPrice: parseInt(part.minPrice.replace(/,/g, '')) || 0,
             isIncluded: part.isIncluded,
+            images: part.images,
           }));
 
         // 상장 데이터 생성
@@ -1071,7 +1068,7 @@ export default function NewAuctionPage() {
                           <React.Fragment key={col}>
                             <th className={`${thClass} w-[28px]`}></th>
                             <th className={`${thClass} w-[110px]`}>상장번호</th>
-                            <th className={`${thClass} w-[70px]`}>부위</th>
+                            <th className={`${thClass} w-[96px]`}>부위</th>
                             <th className={`${thClass} w-[70px]`}>중량</th>
                             <th className={`${thClass} w-[85px]`}>최저가격</th>
                           </React.Fragment>
@@ -1113,8 +1110,16 @@ export default function NewAuctionPage() {
                                 <td className={`${tdClass} whitespace-nowrap text-[10px] ${!isIncluded ? 'bg-gray-100 text-gray-400 line-through' : 'text-gray-600'}`}>
                                   {isIncluded ? getListingNo(cattle.seqNo, partIndex) : '-'}
                                 </td>
-                                <td className={`${tdClass} font-medium whitespace-nowrap ${!isIncluded ? 'bg-gray-100 text-gray-400 line-through' : 'text-gray-900 bg-gray-50'}`}>
-                                  {part.name}
+                                <td className={`${tdClass} font-medium whitespace-nowrap ${!isIncluded ? 'bg-gray-100' : 'bg-gray-50'}`}>
+                                  <span className="flex items-center justify-between gap-1">
+                                    <span className={!isIncluded ? 'text-gray-400 line-through' : 'text-gray-900'}>{part.name}</span>
+                                    <PartPhotoButton
+                                      count={part.images.length}
+                                      hasListingCover={cattle.images.length > 0}
+                                      disabled={!isIncluded}
+                                      onClick={() => setPhotoTarget({ cattleId: cattle.id, partId: part.id })}
+                                    />
+                                  </span>
                                 </td>
                                 <td className={`${tdClass} ${!isIncluded ? 'bg-gray-100' : ''}`}>
                                   <input
@@ -1150,53 +1155,15 @@ export default function NewAuctionPage() {
 
                 {/* 사진 및 증명서 업로드 (한 줄) */}
                 <div className="flex items-center gap-3 pt-2 flex-wrap">
-                  {/* 사진 */}
-                  <span className="text-xs font-medium text-gray-600">사진:</span>
-                  <span className="text-[10px] text-gray-400">({cattle.images.length}/4)</span>
-                  {cattle.images.map((img, index) => (
-                    <div key={index} className="relative w-14 h-14 border border-gray-200 overflow-hidden bg-gray-50">
-                      <img 
-                        src={img} 
-                        alt={`상품 ${index + 1}`} 
-                        className="w-full h-full object-cover cursor-pointer hover:opacity-80" 
-                        onClick={() => setViewingImage(img)}
-                      />
-                      <button 
-                        type="button" 
-                        onClick={() => removeImage(cattle.id, index)} 
-                        className="absolute top-0 right-0 w-4 h-4 bg-gray-700 text-white flex items-center justify-center hover:bg-gray-800"
-                      >
-                        <X className="w-2.5 h-2.5" />
-                      </button>
-                    </div>
-                  ))}
-                  {cattle.images.length < 4 && (
-                    <>
-                      <input
-                        ref={el => { imageInputRefs.current[cattle.id] = el; }}
-                        type="file"
-                        accept="image/*"
-                        multiple
-                        onChange={(e) => handleImageUpload(cattle.id, e)}
-                        className="hidden"
-                      />
-                      <button 
-                        type="button" 
-                        onClick={() => imageInputRefs.current[cattle.id]?.click()} 
-                        disabled={uploadingImages[cattle.id]}
-                        className="w-14 h-14 border border-dashed border-gray-300 flex flex-col items-center justify-center text-gray-400 hover:border-gray-500 hover:text-gray-500 transition-colors bg-white disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {uploadingImages[cattle.id] ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                          <>
-                            <Upload className="w-3.5 h-3.5" />
-                            <span className="text-[9px] mt-0.5">업로드</span>
-                          </>
-                        )}
-                      </button>
-                    </>
-                  )}
+                  {/* 개체 사진 · 첫 장이 대표 · 부위 사진은 부위 표의 카메라 아이콘에서 */}
+                  <ListingPhotoStrip
+                    images={cattle.images}
+                    uploading={!!uploadingImages[cattle.id]}
+                    onUpload={(files) => handleImageUpload(cattle.id, files)}
+                    onRemove={(index) => removeImage(cattle.id, index)}
+                    onSetCover={(index) => setCoverImage(cattle.id, index)}
+                    onView={setViewingImage}
+                  />
 
                   {/* 구분선 */}
                   <div className="w-px h-10 bg-gray-200 mx-2"></div>
@@ -1295,6 +1262,22 @@ export default function NewAuctionPage() {
         )}
 
       </form>
+
+      {/* 부위 사진 모달 */}
+      {photoCattle && photoPart ? (
+        <PartPhotoDialog
+          open
+          partName={photoPart.name}
+          listingPartNo={getListingNo(photoCattle.seqNo, photoCattle.parts.indexOf(photoPart))}
+          images={photoPart.images}
+          listingImages={photoCattle.images}
+          onChange={(images) => updatePartImages(photoCattle.id, photoPart.id, images)}
+          onSetListingCover={(src) => setCoverFromPartPhoto(photoCattle.id, src)}
+          onPrev={photoPrev ? () => setPhotoTarget({ cattleId: photoCattle.id, partId: photoPrev.id }) : undefined}
+          onNext={photoNext ? () => setPhotoTarget({ cattleId: photoCattle.id, partId: photoNext.id }) : undefined}
+          onClose={() => setPhotoTarget(null)}
+        />
+      ) : null}
 
       {/* 이미지 확대 모달 */}
       {viewingImage && (

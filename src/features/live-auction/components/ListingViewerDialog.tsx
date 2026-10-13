@@ -20,7 +20,7 @@ import {
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { LiveListing } from "../api";
+import type { LiveListing, LivePart } from "../api";
 import { formatGradeLabel, toGradeSeriesKey } from "../lib/grade";
 import {
   isSpecEmpty,
@@ -29,6 +29,7 @@ import {
 } from "../lib/judgedSpecs";
 import { isTypingInto } from "../lib/keyboard";
 import { toPartGroupName } from "../lib/partGrouping";
+import { resolvePartPhotos } from "../lib/partPhotos";
 import { useListingCerts } from "../hooks/useListingCerts";
 import type { StageSlot } from "../hooks/useRoomLayout";
 import { useStagePlacement } from "../hooks/useStagePlacement";
@@ -326,6 +327,7 @@ function KeyCap({ children }: { children: React.ReactNode }) {
  */
 export function ViewerMediaPane({
   listing,
+  part = null,
   mediaIdx,
   onMediaIdxChange,
   hasMany = false,
@@ -338,6 +340,11 @@ export function ViewerMediaPane({
   note = null,
 }: {
   listing: LiveListing;
+  /**
+   * 지금 보고 있는 부위 · 그 부위 사진이 앞에 서고 개체 사진이 뒤따른다 (`resolvePartPhotos`).
+   * 비우면 개체 사진만 · 부위 사진이 없는 개체는 어느 쪽이든 똑같이 보인다.
+   */
+  part?: LivePart | null;
   mediaIdx: number;
   onMediaIdxChange: (idx: number) => void;
   hasMany?: boolean;
@@ -370,11 +377,9 @@ export function ViewerMediaPane({
   const { data: certs } = useListingCerts(listing.id, hasAnyCert);
 
   const { media, tabs } = useMemo(() => {
-    const items: ViewerMedia[] = listing.images.map((src, i) => ({
-      kind: "photo",
-      src,
-      label: listing.images.length > 1 ? `사진 ${i + 1}` : "사진",
-    }));
+    const items: ViewerMedia[] = resolvePartPhotos(listing, part).map(
+      ({ src, label }) => ({ kind: "photo", src, label }),
+    );
     const tabList: MediaTab[] = items.map((item, i) => ({
       label: item.label,
       kind: "photo",
@@ -412,7 +417,7 @@ export function ViewerMediaPane({
     );
 
     return { media: items, tabs: tabList };
-  }, [listing.images, listing.hasGradeCert, listing.hasSlaughterCert, certs]);
+  }, [listing, part, certs]);
 
   const safeIdx = Math.min(mediaIdx, Math.max(0, media.length - 1));
   const current = media[safeIdx] ?? null;

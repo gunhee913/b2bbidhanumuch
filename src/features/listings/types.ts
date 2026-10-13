@@ -50,6 +50,8 @@ export interface CattlePartRow {
   bid_amount: number | null;
   winning_dealer_id: string | null;
   bid_at: string | null;
+  /** 부위 사진 URL 배열 · 비어 있으면 개체 대표 사진을 보여 준다 */
+  images: string[] | null;
   created_at: string;
   updated_at: string;
 }
@@ -117,6 +119,8 @@ export interface CattlePart {
   winningDealerId: string | null;
   winningDealerName?: string; // JOIN 시 포함
   bidAt: string | null;
+  /** 부위 사진 URL 배열 · 비어 있으면 개체 대표 사진을 보여 준다 */
+  images: string[];
   createdAt: string;
   updatedAt: string;
 }
@@ -158,6 +162,8 @@ export interface CreatePartInput {
   weight?: number;
   minPrice?: number;
   isIncluded?: boolean;
+  /** 부위 사진 URL (최대 4장) · 안 올리면 개체 대표 사진이 쓰인다 */
+  images?: string[];
 }
 
 // 상장 수정 입력 타입
@@ -255,6 +261,7 @@ export function toFrontendPart(row: CattlePartRow): CattlePart {
     bidAmount: row.bid_amount,
     winningDealerId: row.winning_dealer_id,
     bidAt: row.bid_at,
+    images: row.images || [],
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };

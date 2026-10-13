@@ -85,6 +85,7 @@ export function toLiveListingFromByNo(
       listingPartNo: p.listingPartNo || "",
       weight: p.weight,
       minPrice: p.minPrice,
+      images: p.images ?? [],
       bidCount: p.bidCount || allBids.length,
       highestBid: allBids.find((b) => b.rank === 1) || null,
       topBid,
@@ -172,6 +173,7 @@ export interface LivByNoResponse {
     bidAmount: number | null;
     winningDealerId: string | null;
     bidAt: string | null;
+    images?: string[] | null;
     bidCount?: number;
     highestBid: {
       bidPrice: number;

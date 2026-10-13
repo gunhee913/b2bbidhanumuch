@@ -42,6 +42,7 @@ export async function GET(
           bid_amount,
           winning_dealer_id,
           bid_at,
+          images,
           created_at,
           updated_at
         )
@@ -205,6 +206,7 @@ export async function GET(
           bidAmount: part.bid_amount,
           winningDealerId: part.winning_dealer_id,
           bidAt: part.bid_at,
+          images: Array.isArray(part.images) ? part.images : [],
         };
 
         // 정렬이 bid_price DESC, created_at ASC 이므로 첫 row 가 최고가(=마감 후 낙찰가)
