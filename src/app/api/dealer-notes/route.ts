@@ -21,6 +21,72 @@ const ALL_NOTES_LIMIT = 300;
 
 const TARGET_TYPES = Object.keys(BODY_MAX);
 
+/** 지난날 메모 줄을 그리는 데 드는 만큼만 · 그 부위가 어느 소의 무엇이었는지 */
+interface NotePartSummary {
+  listingId: string;
+  listingNo: string;
+  listingDate: string;
+  partNo: number;
+  partName: string;
+  companyName: string;
+  /** 부위 사진이 있으면 그것, 없으면 개체 첫 장 */
+  image: string | null;
+}
+
+/**
+ * 메모가 붙은 부위들의 요약 · 메모 표는 부위를 UUID 글자로만 가리켜 조인이 안 되므로
+ * 한 번 더 묻는다. 지워진 부위는 빠지고, 그 줄은 요약 없이 내려간다.
+ */
+async function summarizeParts(
+  partIds: string[],
+): Promise<Map<string, NotePartSummary>> {
+  const summaries = new Map<string, NotePartSummary>();
+  if (partIds.length === 0) return summaries;
+
+  const { data, error } = await supabase
+    .from("cattle_parts")
+    .select(
+      `
+      id,
+      part_no,
+      part_name,
+      images,
+      cattle_listings (
+        id,
+        listing_no,
+        listing_date,
+        images,
+        companies ( name )
+      )
+    `,
+    )
+    .in("id", partIds);
+
+  if (error || !data) return summaries;
+
+  for (const part of data) {
+    /* 다대일 관계라 한 줄이지만 타입은 배열로 추론된다 · 다른 라우트들처럼 모양을 직접 적는다 */
+    const listing = part.cattle_listings as unknown as {
+      id: string;
+      listing_no: string;
+      listing_date: string;
+      images: string[] | null;
+      companies: { name: string } | null;
+    } | null;
+    if (!listing) continue;
+    summaries.set(part.id, {
+      listingId: listing.id,
+      listingNo: listing.listing_no,
+      listingDate: listing.listing_date,
+      partNo: part.part_no,
+      partName: part.part_name,
+      companyName: listing.companies?.name ?? "",
+      image: part.images?.[0] ?? listing.images?.[0] ?? null,
+    });
+  }
+  return summaries;
+}
+
 export async function GET(request: NextRequest) {
   try {
     const auth = await resolveAuth(request);
@@ -69,6 +135,19 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
+    /*
+     * 전부 부를 때만 부위 요약을 붙인다. 하루치는 부르는 쪽이 그날 상장을 이미 들고
+     * 있어 접수번호·부위명을 거기서 찾지만, 지난날 것은 상장이 내려가 찾을 데가 없다.
+     */
+    const summaries =
+      from && to
+        ? new Map<string, NotePartSummary>()
+        : await summarizeParts(
+            data
+              .filter((n) => n.target_type === "part")
+              .map((n) => n.target_id as string),
+          );
+
     return NextResponse.json({
       notes: data.map((n) => ({
         activeDate: n.active_date,
@@ -76,6 +155,7 @@ export async function GET(request: NextRequest) {
         targetId: n.target_id,
         body: n.body,
         updatedAt: n.updated_at,
+        part: summaries.get(n.target_id) ?? null,
       })),
     });
   } catch (err) {

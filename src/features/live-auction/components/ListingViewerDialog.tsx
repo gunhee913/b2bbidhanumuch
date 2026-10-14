@@ -502,33 +502,6 @@ export function ViewerMediaPane({
     />
   );
 
-  /*
-   * 아래 썸네일(`bottom`)일 때 무대는 4:3 상자로 고정하고, 남는 자리에 맞춰 **상자 크기**를
-   * 잰다. 판 전체를 무대로 쓰면 그림은 가운데 작게 뜨고 썸네일은 판 바닥에 남아 둘 사이가
-   * 비었다(세로가 넉넉할수록 더). 상자를 그림 크기로 재서 그 바로 아래 썸네일을 붙이고,
-   * 상자+썸네일 덩어리를 가운데 세운다 · 상장표 요약(4:3 · 아래 띠)과 같은 모양.
-   */
-  const [areaRef, area] = useMeasure<HTMLDivElement>();
-  const [railRef, railSize] = useMeasure<HTMLDivElement>();
-  const box =
-    thumbs === "bottom" && area.width > 0
-      ? fitPhotoBox(area.width, area.height - railSize.height - RAIL_GAP)
-      : null;
-
-  /*
-   * 각인·쪽지 층의 바닥 · 아래 배치에서 층은 판 너비 전체를 쓰되 사진 상자 **바닥**에서 끝난다.
-   * 상자+띠 덩어리가 가운데 서 있으니, 아래 남는 자리(절반) + 틈 + 띠 높이만큼 위다.
-   * 띠 위까지 내려오면 끌어다 놓은 각인이 썸네일을 덮어 누를 수 없게 된다.
-   */
-  const overlayBottom = box
-    ? Math.max(
-        0,
-        (area.height - (box.height + RAIL_GAP + railSize.height)) / 2 +
-          RAIL_GAP +
-          railSize.height,
-      )
-    : 0;
-
   /* 그림 자체 · 화살표와 출처 이름표는 그림에 붙는다 */
   const picture = (
     <>
@@ -550,11 +523,11 @@ export function ViewerMediaPane({
   );
 
   /*
-   * 끌어다 놓는 겹(각인 · 쪽지) · 자리를 비율로 담으니 무대(`stage`) 크기를 알아야 px 로 편다.
+   * 끌어다 놓는 겹(각인 · 쪽지) · 자리를 비율로 담으니 무대 크기를 알아야 px 로 편다.
    * 옆 배치에서는 그림 상자가 곧 무대고, 아래 배치에서는 판 너비 전체가 무대다 — 그림 옆에
    * 남는 자리가 넓은데 상자 안에만 가두면 그림을 가리는 자리밖에 못 간다.
    */
-  const overlays = (
+  const renderOverlays = (size: StageSize) => (
     <>
       {/*
        * 증명서 스캔본에만 찍지 않는다 · 흰 종이라 가릴 것이 있고 등급은 그 안에 이미 적혀 있다.
@@ -570,8 +543,8 @@ export function ViewerMediaPane({
             companyName: listing.companyName,
           }}
           values={listing}
-          stageWidth={stage.width}
-          stageHeight={stage.height}
+          stageWidth={size.width}
+          stageHeight={size.height}
         />
       ) : null}
       {note && current?.kind === "photo" ? (
@@ -580,8 +553,8 @@ export function ViewerMediaPane({
           partLabel={note.partLabel}
           body={note.body}
           onSave={note.onSave}
-          stageWidth={stage.width}
-          stageHeight={stage.height}
+          stageWidth={size.width}
+          stageHeight={size.height}
         />
       ) : null}
     </>
@@ -589,43 +562,13 @@ export function ViewerMediaPane({
 
   if (thumbs === "bottom") {
     return (
-      <div className={cn("flex min-h-0 flex-1", className ?? "pb-6 pl-6 pr-4")}>
-        <div
-          ref={areaRef}
-          className="relative flex min-h-0 min-w-0 flex-1 flex-col items-center justify-center"
-        >
-          <div
-            style={box ? { width: box.width } : undefined}
-            className={cn("flex min-h-0 flex-col", box ? "" : "w-full flex-1")}
-          >
-            <div
-              style={box ? { height: box.height } : undefined}
-              className={cn(
-                "relative flex items-center justify-center overflow-hidden rounded-lg",
-                current?.kind === "doc" ? "bg-white/[0.08]" : "bg-white/[0.04]",
-                box ? "" : "min-h-0 flex-1",
-              )}
-            >
-              {picture}
-            </div>
-            <div ref={railRef} className="pt-2">
-              {rail}
-            </div>
-          </div>
-          {/*
-           * 각인·쪽지 층 · 판 너비 전체 × 그림 상자 바닥까지. 층 자체는 손을 안 받고
-           * (`pointer-events-none`) 그 위의 각인·쪽지만 받는다 — 안 그러면 층이 그림을 덮어
-           * 화살표를 못 누른다.
-           */}
-          <div
-            ref={stageRef}
-            style={{ bottom: overlayBottom }}
-            className="pointer-events-none absolute inset-x-0 top-0 overflow-hidden [&>*]:pointer-events-auto"
-          >
-            {overlays}
-          </div>
-        </div>
-      </div>
+      <StageWithBottomRail
+        picture={picture}
+        rail={rail}
+        doc={current?.kind === "doc"}
+        renderOverlays={renderOverlays}
+        className={className ?? "pb-6 pl-6 pr-4"}
+      />
     );
   }
 
@@ -653,7 +596,104 @@ export function ViewerMediaPane({
         className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden"
       >
         {picture}
-        {overlays}
+        {renderOverlays(stage)}
+      </div>
+    </div>
+  );
+}
+
+/** 겹(각인 · 쪽지)이 자리를 px 로 펴는 데 쓰는 무대 크기 */
+export interface StageSize {
+  width: number;
+  height: number;
+}
+
+/**
+ * 아래 썸네일 배치의 무대 · 4:3 그림 상자 + 바로 밑 썸네일 띠 + 판 너비 전체의 겹 층.
+ * 상세 방(`ViewerMediaPane`)과 배송지시(`DeliveryFocusPane`)가 같은 것을 쓴다 — 두 화면이
+ * 같은 사진을 다른 모양으로 세우면 같은 소를 다른 소로 읽는다.
+ *
+ * 무대는 4:3 상자로 고정하고, 남는 자리에 맞춰 **상자 크기**를 잰다. 판 전체를 무대로
+ * 쓰면 그림은 가운데 작게 뜨고 썸네일은 판 바닥에 남아 둘 사이가 비었다(세로가 넉넉할수록
+ * 더). 상자를 그림 크기로 재서 그 바로 아래 썸네일을 붙이고, 상자+썸네일 덩어리를 가운데
+ * 세운다 · 상장표 요약(4:3 · 아래 띠)과 같은 모양.
+ */
+export function StageWithBottomRail({
+  picture,
+  rail,
+  doc = false,
+  renderOverlays,
+  className,
+}: {
+  /** 그림 상자 안 · 큰 그림과 거기 붙는 것(화살표 · 이름표) */
+  picture: ReactNode;
+  /** 상자 바로 밑 썸네일 띠 (`MediaTabs orientation="bottom"`) */
+  rail: ReactNode;
+  /** 증명서를 보는 중 · 상자 바탕을 조금 밝혀 흰 종이 테두리가 드러나게 */
+  doc?: boolean;
+  /** 각인·쪽지 · 겹 층 크기를 받아 비율 자리를 px 로 편다 */
+  renderOverlays?: (size: StageSize) => ReactNode;
+  className?: string;
+}) {
+  const [areaRef, area] = useMeasure<HTMLDivElement>();
+  const [railRef, railSize] = useMeasure<HTMLDivElement>();
+  const [stageRef, stage] = useMeasure<HTMLDivElement>();
+
+  const box =
+    area.width > 0
+      ? fitPhotoBox(area.width, area.height - railSize.height - RAIL_GAP)
+      : null;
+
+  /*
+   * 각인·쪽지 층의 바닥 · 층은 판 너비 전체를 쓰되 사진 상자 **바닥**에서 끝난다.
+   * 상자+띠 덩어리가 가운데 서 있으니, 아래 남는 자리(절반) + 틈 + 띠 높이만큼 위다.
+   * 띠 위까지 내려오면 끌어다 놓은 각인이 썸네일을 덮어 누를 수 없게 된다.
+   */
+  const overlayBottom = box
+    ? Math.max(
+        0,
+        (area.height - (box.height + RAIL_GAP + railSize.height)) / 2 +
+          RAIL_GAP +
+          railSize.height,
+      )
+    : 0;
+
+  return (
+    <div className={cn("flex min-h-0 flex-1", className)}>
+      <div
+        ref={areaRef}
+        className="relative flex min-h-0 min-w-0 flex-1 flex-col items-center justify-center"
+      >
+        <div
+          style={box ? { width: box.width } : undefined}
+          className={cn("flex min-h-0 flex-col", box ? "" : "w-full flex-1")}
+        >
+          <div
+            style={box ? { height: box.height } : undefined}
+            className={cn(
+              "relative flex items-center justify-center overflow-hidden rounded-lg",
+              doc ? "bg-white/[0.08]" : "bg-white/[0.04]",
+              box ? "" : "min-h-0 flex-1",
+            )}
+          >
+            {picture}
+          </div>
+          <div ref={railRef} className="pt-2">
+            {rail}
+          </div>
+        </div>
+        {/*
+         * 각인·쪽지 층 · 판 너비 전체 × 그림 상자 바닥까지. 층 자체는 손을 안 받고
+         * (`pointer-events-none`) 그 위의 각인·쪽지만 받는다 — 안 그러면 층이 그림을 덮어
+         * 화살표를 못 누른다.
+         */}
+        <div
+          ref={stageRef}
+          style={{ bottom: overlayBottom }}
+          className="pointer-events-none absolute inset-x-0 top-0 overflow-hidden [&>*]:pointer-events-auto"
+        >
+          {renderOverlays?.(stage)}
+        </div>
       </div>
     </div>
   );

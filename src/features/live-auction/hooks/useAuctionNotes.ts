@@ -28,13 +28,29 @@ export const MEMO_PAD_ID = "day";
  */
 export const MEMO_PAD_DATE = "-";
 
+/** 지난날 메모 줄을 그릴 때 쓰는 부위 요약 · 서버가 날짜 없이 전부 부를 때만 붙인다 */
+export interface NotePartSummary {
+  listingId: string;
+  listingNo: string;
+  listingDate: string;
+  partNo: number;
+  partName: string;
+  companyName: string;
+  image: string | null;
+}
+
 export interface NoteRow {
   /** 메모가 붙은 날 · 같은 부위라도 날이 다르면 다른 메모다 */
   activeDate: string;
   targetType: NoteTarget;
   targetId: string;
   body: string;
+  /** 부위 메모에만 · 하루치 조회나 방금 적어 아직 안 받아 온 줄은 비어 있다 */
+  part?: NotePartSummary | null;
 }
+
+/** 조회 열쇠의 머리 · 어느 범위로 받았든 같은 표를 보는 조회는 함께 새로 고친다 */
+const NOTES_QUERY_ROOT = ["dealer-notes"] as const;
 
 /** 열쇠 하나로 합친다 · 개체 접수번호와 부위 UUID 가 겹칠 일은 없지만 종류를 적어 둔다 */
 const keyOf = (type: NoteTarget, id: string) => `${type}:${id}`;
@@ -67,8 +83,9 @@ export interface DealerNotes {
 /**
  * 중도매인 메모 · 관심과 같은 열쇠로 개체와 부위에 붙는다.
  *
- * 딜러 단위로 공유되고 상장일이 바뀌면 그날 것만 남는 것도 관심과 같다. 사무실에서
- * 여럿이 같은 목록을 보는 구조라, 한 사람이 남긴 말이 다른 자리에도 바로 떠야 한다.
+ * 딜러 단위로 공유된다 — 사무실에서 여럿이 같은 목록을 보는 구조라, 한 사람이 남긴
+ * 말이 다른 자리에도 바로 떠야 한다. 날이 바뀌어도 지워지지 않는다. 표(상장표·부위 표)
+ * 는 그날 것만 보이지만 사이드 메뉴 「전체」 는 지난날 것까지 거슬러 보여 준다.
  *
  * 관심은 전역 `bidStore` 에 얹혀 있지만 메모는 react-query 로 둔다. 관심은 표를 그리는
  * 거의 모든 칸이 묻는 값이라 스토어에 두는 편이 맞았지만, 메모는 쓰는 자리와 자국
@@ -94,8 +111,8 @@ export function useDealerNotes({
   const queryKey = useMemo(
     () =>
       all
-        ? (["dealer-notes", "all"] as const)
-        : (["dealer-notes", from, to] as const),
+        ? ([...NOTES_QUERY_ROOT, "all"] as const)
+        : ([...NOTES_QUERY_ROOT, from, to] as const),
     [all, from, to],
   );
 
@@ -112,11 +129,17 @@ export function useDealerNotes({
     staleTime: 30_000,
   });
 
-  /* 같은 딜러의 다른 자리(다른 창 · 다른 직원)에서 고친 메모가 따라 들어온다 */
+  /*
+   * 같은 딜러의 다른 자리(다른 창 · 다른 직원)에서 고친 메모가 따라 들어온다.
+   *
+   * 내 열쇠만이 아니라 `dealer-notes` 전부를 새로 고친다 — 상세 방은 그날 하루치,
+   * 사이드 메뉴는 전부를 따로 받고 있어, 한쪽에서 적은 것이 다른 쪽에도 바로 서야 한다.
+   */
   useRealtimeTable({
     table: "dealer_notes",
     enabled,
-    onChange: () => queryClient.invalidateQueries({ queryKey }),
+    onChange: () =>
+      queryClient.invalidateQueries({ queryKey: NOTES_QUERY_ROOT }),
   });
 
   const byKey = useMemo(() => {
@@ -160,7 +183,9 @@ export function useDealerNotes({
     onError: (_err, _row, context) => {
       if (context?.prev) queryClient.setQueryData(queryKey, context.prev);
     },
-    onSettled: () => queryClient.invalidateQueries({ queryKey }),
+    /* 하루치·전부 조회가 따로 있어 내 열쇠만 고치면 다른 쪽은 realtime 이 올 때까지 옛것이다 */
+    onSettled: () =>
+      queryClient.invalidateQueries({ queryKey: NOTES_QUERY_ROOT }),
   });
 
   const { mutate } = mutation;

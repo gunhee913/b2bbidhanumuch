@@ -64,8 +64,11 @@ export const DELIVERY_TABLE_PANE_MIN_WIDTH = 460;
 export const DELIVERY_INFO_HEIGHT_DEFAULT = 190;
 /** 머리와 두어 줄은 남는 높이 · 이보다 낮으면 접어 두는 편이 낫다 */
 export const DELIVERY_INFO_MIN_HEIGHT = 96;
-/** 그림판 바닥 · 이보다 낮으면 썸네일 레일이 사진보다 길어진다 */
-export const DELIVERY_STAGE_MIN_HEIGHT = 200;
+/**
+ * 그림판 바닥 · 머리 32 + 여백 24 + 아래 썸네일 띠 ≈ 70 을 빼고도 그림이 손바닥(≈130)은
+ * 남는 높이. 띠가 사진 아래로 내려오면서 그만큼 올렸다.
+ */
+export const DELIVERY_STAGE_MIN_HEIGHT = 260;
 
 /**
  * 배송지시 화면 설정 · 이 기기에서 보기 좋은 모양.

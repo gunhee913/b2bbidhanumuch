@@ -445,7 +445,10 @@ const SHORTCUT_GROUPS: { title: string; keys: [string, string][] }[] = [
   {
     title: "줄 옮기기",
     /* 한 화면씩(PgUp PgDn)·맨 끝(Home End)은 적혀만 있고 듣지 않던 키라 뺐다 */
-    keys: [["↑ ↓", "위아래 줄"]],
+    keys: [
+      ["↑ ↓", "위아래 줄"],
+      ["← →", "사진 넘기기"],
+    ],
   },
   {
     title: "단축키 사용",

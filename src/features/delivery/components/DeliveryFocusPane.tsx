@@ -10,10 +10,13 @@ import {
   GradeStamp,
   MediaTabs,
   StageNote,
+  StageWithBottomRail,
   ViewerStage,
   type MediaTab,
   type ViewerMedia,
 } from "@/features/live-auction/components/ListingViewerDialog";
+import { useMediaArrowKeys } from "@/features/live-auction/hooks/useMediaArrowKeys";
+import { PHOTO_SCOPE_TITLE } from "@/features/live-auction/lib/partPhotos";
 import {
   CattleInfoRows,
   type CattleInfoFacts,
@@ -120,10 +123,9 @@ export interface DeliveryFocusPaneProps {
  * 일곱 값은 다름 아닌 이 사진에 대한 판정사의 답이라 같은 자리에 있어야 한다. 겹은
  * 끌어서 옮기고 모서리를 잡아 키운다. 자리는 경매장과 따로 담는다 (`StagePlacementScope`).
  *
- * 그림판은 상세 방(`ViewerMediaPane`)과 같은 짜임이다 — 썸네일을 왼쪽에 세로로
- * 세우고 사진·증명서를 한 줄로 잇는다. 단면 사진은 거의 정사각이라 늘 높이에 먼저
- * 갇히고 가로로는 판의 절반이 남는다. 아래에 깔면 그 60px 를 높이에서 빼앗아 그림이
- * 그만큼 작아지지만, 옆에 세우면 남는 폭을 쓰는 것이라 공짜다.
+ * 그림판은 상세 방과 **같은 것**이다 (`StageWithBottomRail`) — 4:3 그림 상자 바로 밑에
+ * 썸네일 띠, ←/→ 로 장 넘기기. 한때 썸네일을 왼쪽에 세로로 세웠는데, 경매장에서 아래
+ * 띠에 익은 손이 여기 와서 레일을 찾지 못했다. 같은 사진은 어디서든 같은 모양이어야 한다.
  *
  * 아래 상세는 거래처가 되묻는 것들을 다섯 묶음으로 적는다 — 개체(무슨 소냐) ·
  * 도축(어디서 언제) · 경매(얼마에) · 가공(누가 언제 몇 kg 으로) · 이력번호. 도축과
@@ -171,9 +173,6 @@ export function DeliveryFocusPane({
     columnHeight - STACK_SPLITTER_HEIGHT - DELIVERY_STAGE_MIN_HEIGHT,
   );
 
-  /* 겹 자리를 비율로 담으니 무대 크기를 알아야 px 로 편다 */
-  const [stageRef, stage] = useMeasure<HTMLDivElement>();
-
   const stack = usePaneReorder({
     axis: "y",
     order: rowOrder,
@@ -193,33 +192,58 @@ export function DeliveryFocusPane({
   const slaughterCert = inSync ? (certs.data?.slaughterCert ?? null) : null;
 
   const { media, tabs } = useMemo(() => {
+    /* 배송 자료의 사진은 개체 사진(등심 단면)뿐이다 · 띠 제목도 상세 방과 같은 말로 */
     const items: ViewerMedia[] = (focused?.images ?? []).map((src, i) => ({
       kind: "photo",
       src,
-      label: (focused?.images?.length ?? 0) > 1 ? `사진 ${i + 1}` : "사진",
+      label: `${PHOTO_SCOPE_TITLE.listing} ${i + 1}`,
     }));
     const tabList: MediaTab[] = items.map((item, i) => ({
       label: item.label,
       kind: "photo",
       src: item.kind === "photo" ? item.src : null,
       mediaIdx: i,
+      section: i === 0 ? PHOTO_SCOPE_TITLE.listing : undefined,
     }));
     if (tabList.length === 0) {
-      tabList.push({ label: "사진", kind: "photo", src: null, mediaIdx: null });
+      tabList.push({
+        label: "사진",
+        kind: "photo",
+        src: null,
+        mediaIdx: null,
+        section: PHOTO_SCOPE_TITLE.listing,
+      });
     }
 
     /* 없는 증명서도 자리를 지킨다 · 빈 칸이 「미등록」 을 말해 준다 */
+    let firstDoc = true;
     const addDoc = (
       label: string,
       short: string,
       has: boolean,
       src: string | null,
     ) => {
+      const section = firstDoc ? "증명서" : undefined;
+      firstDoc = false;
       if (!has) {
-        tabList.push({ label, short, kind: "doc", src: null, mediaIdx: null });
+        tabList.push({
+          label,
+          short,
+          kind: "doc",
+          src: null,
+          mediaIdx: null,
+          section,
+        });
         return;
       }
-      tabList.push({ label, short, kind: "doc", src, mediaIdx: items.length });
+      tabList.push({
+        label,
+        short,
+        kind: "doc",
+        src,
+        mediaIdx: items.length,
+        section,
+      });
       items.push({ kind: "doc", src, label });
     };
     addDoc(
@@ -237,6 +261,9 @@ export function DeliveryFocusPane({
 
     return { media: items, tabs: tabList };
   }, [focused, gradeCert, slaughterCert]);
+
+  /* ←/→ 로 장 넘기기 · 상세 방처럼 끝에서 멈춘다 · ↑/↓ 는 표의 줄이 받는다 */
+  useMediaArrowKeys(media.length > 1, media.length, setMediaIdx);
 
   if (!focused) {
     /* 짚은 줄이 없으면 가를 것도 없다 · 카드 한 장으로 둔다 */
@@ -273,47 +300,49 @@ export function DeliveryFocusPane({
       )}
     >
       <StageHeader action={headerAction} part={focused} />
-      <div className={cn("flex min-h-0 flex-1 gap-3 p-3", PHOTO_STAGE_CLASS)}>
-        <MediaTabs
-          tabs={tabs}
-          activeIdx={media.length > 0 ? safeIdx : null}
-          onSelect={setMediaIdx}
+      <div className={cn("flex min-h-0 flex-1 flex-col", PHOTO_STAGE_CLASS)}>
+        <StageWithBottomRail
+          className="p-3"
+          picture={<ViewerStage listingNo={focused.listingNo} item={current} />}
+          rail={
+            <MediaTabs
+              tabs={tabs}
+              activeIdx={media.length > 0 ? safeIdx : null}
+              onSelect={setMediaIdx}
+              orientation="bottom"
+            />
+          }
+          doc={current?.kind === "doc"}
+          renderOverlays={(size) => (
+            <>
+              {/* 증명서 스캔본에는 얹지 않는다 · 흰 종이라 가릴 것이 있고, 값은 그 안에 이미 적혀 있다 */}
+              {current?.kind === "photo" ? (
+                <GradeStamp
+                  heading={{
+                    grade: focused.grade,
+                    marblingScore:
+                      focused.marbling > 0 ? focused.marbling : null,
+                    listingNo: focused.listingNo,
+                    companyName: focused.companyName,
+                  }}
+                  values={values}
+                  stageWidth={size.width}
+                  stageHeight={size.height}
+                />
+              ) : null}
+              {note && current?.kind === "photo" ? (
+                <StageNote
+                  partId={focused.partId}
+                  partLabel={`${focused.partName} · ${focused.listingNo}`}
+                  body={note.body}
+                  onSave={note.onSave}
+                  stageWidth={size.width}
+                  stageHeight={size.height}
+                />
+              ) : null}
+            </>
+          )}
         />
-        {/*
-         * 겹을 끌어다 놓는 무대 · `overflow-hidden` 은 안전장치다. 겹은 무대 안에
-         * 들어오도록 가두지만 셈이 반 픽셀이라도 어긋나면 그 폭이 바깥 스크롤 영역으로
-         * 올라가 엉뚱한 조상에 스크롤바를 만든다. 여기서 끊으면 위로 번지지 않는다.
-         */}
-        <div
-          ref={stageRef}
-          className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden"
-        >
-          <ViewerStage listingNo={focused.listingNo} item={current} />
-          {/* 증명서 스캔본에는 얹지 않는다 · 흰 종이라 가릴 것이 있고, 값은 그 안에 이미 적혀 있다 */}
-          {current?.kind === "photo" ? (
-            <GradeStamp
-              heading={{
-                grade: focused.grade,
-                marblingScore: focused.marbling > 0 ? focused.marbling : null,
-                listingNo: focused.listingNo,
-                companyName: focused.companyName,
-              }}
-              values={values}
-              stageWidth={stage.width}
-              stageHeight={stage.height}
-            />
-          ) : null}
-          {note && current?.kind === "photo" ? (
-            <StageNote
-              partId={focused.partId}
-              partLabel={`${focused.partName} · ${focused.listingNo}`}
-              body={note.body}
-              onSave={note.onSave}
-              stageWidth={stage.width}
-              stageHeight={stage.height}
-            />
-          ) : null}
-        </div>
       </div>
     </section>
   );

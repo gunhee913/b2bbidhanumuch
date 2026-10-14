@@ -14,7 +14,7 @@ import {
 import { STAGE_PLACEMENT_DEFAULT } from "../hooks/useRoomLayout";
 import { useSheetSummaryPrefs } from "../hooks/useSheetSummaryPrefs";
 import { useListingCerts } from "../hooks/useListingCerts";
-import { isTypingInto } from "../lib/keyboard";
+import { useMediaArrowKeys } from "../hooks/useMediaArrowKeys";
 import type { ListingCertsResponse, LiveListing } from "../api";
 
 /** 시세선만 · 건수 막대를 뺐다 (`showVolume`) · 부위·등급·현재가는 차트 왼쪽 위에 얹힌다 */
@@ -95,7 +95,10 @@ export function SheetSummaryPanel({
   const safeIdx = Math.min(mediaIdx, Math.max(0, media.length - 1));
   const current = media[safeIdx] ?? null;
 
-  useArrowKeys(media.length > 1, media.length, setMediaIdx);
+  /* 끝에서 더 누르면 반대쪽 끝으로 돈다 · 요약은 사진 두세 장을 빙빙 돌려 보는 자리다 */
+  useMediaArrowKeys(media.length > 1, media.length, setMediaIdx, {
+    wrap: true,
+  });
 
   if (!listing) {
     return (
@@ -242,37 +245,6 @@ function buildSummaryMedia(
     });
   }
   return [...photos, ...docs];
-}
-
-/**
- * ←/→ 로 장을 넘긴다 · 끝에서 더 누르면 반대쪽 끝으로 돈다.
- *
- * 표의 ↑/↓ (`useSheetCursor`)와 같은 자리에서 듣되 가로만 맡는다. 글을 쓰는 중이거나
- * 라이트박스 같은 대화상자가 떠 있으면 그쪽 일이라 비켜 선다.
- */
-function useArrowKeys(
-  enabled: boolean,
-  count: number,
-  setIdx: (update: (prev: number) => number) => void,
-) {
-  const ref = useRef({ enabled, count });
-  ref.current = { enabled, count };
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      const { enabled, count } = ref.current;
-      if (!enabled || count < 2) return;
-      if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
-      if (e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return;
-      if (isTypingInto(document.activeElement)) return;
-      if (document.querySelector("[aria-modal='true']")) return;
-      e.preventDefault();
-      const dir = e.key === "ArrowRight" ? 1 : -1;
-      setIdx((prev) => (Math.min(prev, count - 1) + dir + count) % count);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [setIdx]);
 }
 
 /**

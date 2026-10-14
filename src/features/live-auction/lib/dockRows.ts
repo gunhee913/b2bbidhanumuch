@@ -1,5 +1,5 @@
 import type { LiveListing, LivePart } from "../api";
-import type { NoteRow } from "../hooks/useAuctionNotes";
+import type { NotePartSummary, NoteRow } from "../hooks/useAuctionNotes";
 
 /**
  * 사이드 메뉴 관심·메모 목록 밑그림.
@@ -54,33 +54,113 @@ export function buildFavoriteRows(
 
 export interface PartNoteRow extends FavoritePartRow {
   body: string;
+  /** 메모가 담긴 날 · 지울 때 같은 열쇠로 보내야 한다 */
+  activeDate: string;
 }
 
 /**
- * 부위에 붙은 메모만 · 메모장(`memo`)은 세지 않는다.
+ * 오늘 상장의 부위에 붙은 메모만 · 메모장(`memo`)은 세지 않는다.
  *
  * 메모장은 어느 부위에도 안 붙는 한 칸이라 「남긴 말 몇 개」 에 끼면 목록에 없는
- * 하나가 숫자에만 더해진다.
+ * 하나가 숫자에만 더해진다. 받아 온 메모가 여러 날치여도 부위 UUID 는 한 상장일에만
+ * 있으므로, 오늘 상장과 맞물리는 것이 곧 오늘 것이다.
  */
 export function buildPartNoteRows(
   listings: LiveListing[],
   notes: NoteRow[],
 ): PartNoteRow[] {
-  const bodyOf = new Map(
-    notes
-      .filter((n) => n.targetType === "part")
-      .map((n) => [n.targetId, n.body]),
+  const noteOf = new Map(
+    notes.filter((n) => n.targetType === "part").map((n) => [n.targetId, n]),
   );
-  if (bodyOf.size === 0) return [];
+  if (noteOf.size === 0) return [];
 
   return listings
     .flatMap((listing) =>
       listing.parts
-        .filter((part) => bodyOf.has(part.id))
-        .map((part) => ({ listing, part, body: bodyOf.get(part.id)! })),
+        .filter((part) => noteOf.has(part.id))
+        .map((part) => {
+          const note = noteOf.get(part.id)!;
+          return {
+            listing,
+            part,
+            body: note.body,
+            activeDate: note.activeDate,
+          };
+        }),
     )
     .sort(
       (a, b) =>
         byListingNo(a.listing, b.listing) || a.part.partNo - b.part.partNo,
     );
+}
+
+/**
+ * 「전체」 목록 한 줄 · 오늘 상장에 있으면 `live`, 아니면 서버가 붙여 준 `summary` 로 그린다.
+ *
+ * 둘 다 없는 줄도 있다 — 부위가 지워졌거나(상장 취소) 방금 적어 아직 요약을 못 받은 것.
+ * 그런 줄은 적은 말과 날짜만 보인다. 메모를 지우는 건 어느 경우든 된다.
+ */
+export interface NoteHistoryRow {
+  key: string;
+  activeDate: string;
+  partId: string;
+  body: string;
+  live: FavoritePartRow | null;
+  summary: NotePartSummary | null;
+}
+
+export interface NoteHistoryGroup {
+  /** 상장일 `yyyy-MM-dd` */
+  date: string;
+  rows: NoteHistoryRow[];
+}
+
+const listingNoOf = (row: NoteHistoryRow) =>
+  row.live?.listing.listingNo ?? row.summary?.listingNo ?? "";
+
+const partNoOf = (row: NoteHistoryRow) =>
+  row.live?.part.partNo ?? row.summary?.partNo ?? 0;
+
+/**
+ * 지금껏 남긴 부위 메모 전부를 날짜별로 · 최근 날이 위.
+ *
+ * 날 안에서는 접수번호·부위 차례다 — 적은 순서로 두면 같은 소의 두 부위가 떨어져 앉는다.
+ * 오늘 것은 `buildPartNoteRows` 와 같은 줄이 되게 오늘 상장의 개체·부위를 그대로 물린다.
+ */
+export function buildNoteHistory(
+  listings: LiveListing[],
+  notes: NoteRow[],
+): NoteHistoryGroup[] {
+  const liveByPartId = new Map<string, FavoritePartRow>(
+    listings.flatMap((listing) =>
+      listing.parts.map((part) => [part.id, { listing, part }] as const),
+    ),
+  );
+
+  const byDate = new Map<string, NoteHistoryRow[]>();
+  for (const note of notes) {
+    if (note.targetType !== "part" || !note.body) continue;
+    const row: NoteHistoryRow = {
+      key: `${note.activeDate}:${note.targetId}`,
+      activeDate: note.activeDate,
+      partId: note.targetId,
+      body: note.body,
+      live: liveByPartId.get(note.targetId) ?? null,
+      summary: note.part ?? null,
+    };
+    const bucket = byDate.get(note.activeDate);
+    if (bucket) bucket.push(row);
+    else byDate.set(note.activeDate, [row]);
+  }
+
+  return [...byDate.entries()]
+    .sort(([a], [b]) => b.localeCompare(a))
+    .map(([date, rows]) => ({
+      date,
+      rows: rows.sort(
+        (a, b) =>
+          listingNoOf(a).localeCompare(listingNoOf(b)) ||
+          partNoOf(a) - partNoOf(b),
+      ),
+    }));
 }

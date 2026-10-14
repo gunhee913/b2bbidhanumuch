@@ -64,14 +64,22 @@ const PRINT_BODY_CLASS = "print-daily-listings";
  * 우측 결과 열 · 낙찰 n/총 · 총 낙찰대금 · 내 낙찰대금.
  * 경매장 상장표(`LiveListingSheet`)와 앞 두 열이 같다. 내 낙찰대금은 여기에만 있다 —
  * 경매 중에는 칸 대부분이 「진행중」 이라 경매장에서는 그 폭을 큰 글씨에 돌렸다.
+ *
+ * 표가 `compact` 라 폭은 비율이 아니라 **px 바닥**(`basePx`)이다 (`COMPACT_COLUMN_PX` 와
+ * 같은 셈법 · 15px 값 + 이웃과의 틈 12). 바닥을 안 적으면 0 으로 쳐서 세 칸이 남는 폭
+ * 몇 px 만 나눠 받아 「총 낙찰대금」 머리글과 돈이 서로 겹쳤다.
+ *
+ *  - 낙찰 56 · `5/20` 32 + 왼쪽 그룹선 쪽 여백
+ *  - 총 낙찰대금 112 · `12,345,678원` 여덟 자리 + 「원」
+ *  - 내 낙찰대금 118 · 같은 값 + 표 오른쪽 끝 여백(pr-3)
  */
 const SUMMARY_COLUMNS: SheetSummaryColumn[] = [
-  { label: "낙찰", align: "center", groupStart: true, widthClass: "w-[4.5%]" },
-  { label: "총 낙찰대금", align: "right", widthClass: "w-[10.6%]" },
+  { label: "낙찰", align: "center", groupStart: true, basePx: 56 },
+  { label: "총 낙찰대금", align: "right", basePx: 112 },
   {
     label: "내 낙찰대금",
     align: "right",
-    widthClass: "w-[11%]",
+    basePx: 118,
     headClass: "pr-3",
   },
 ];

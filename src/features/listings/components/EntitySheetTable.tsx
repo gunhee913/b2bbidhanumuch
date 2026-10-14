@@ -131,6 +131,11 @@ const QUALITY_HEADS: ReadonlyArray<{ label: string; sortKey: SheetSortKey }> = [
 ];
 /** 머리글 높이 · 초점 이동으로 스크롤할 때 고정 머리글 밑에 행이 숨지 않도록 여유를 준다 */
 const STICKY_HEAD_HEIGHT = 36;
+/**
+ * `compact` 요약 열이 `basePx` 를 안 적었을 때의 바닥 폭 · 0 으로 두면 그 칸은 남는 폭
+ * 몇 px 만 받아 머리글과 값이 이웃 칸 위로 겹친다. 돈 한 칸(`1,234,567원`)이 서는 폭.
+ */
+const COMPACT_SUMMARY_FALLBACK_PX = 104;
 const EMPTY_EXPANDED: ReadonlySet<string> = new Set();
 const NO_SUMMARY_COLUMNS: SheetSummaryColumn[] = [];
 
@@ -264,7 +269,9 @@ export function EntitySheetTable({
         ? [
             ...(expandable ? [COMPACT_EXPAND_COLUMN_PX] : []),
             ...COMPACT_COLUMN_PX,
-            ...summaryColumns.map((c) => c.basePx ?? 0),
+            ...summaryColumns.map(
+              (c) => c.basePx ?? COMPACT_SUMMARY_FALLBACK_PX,
+            ),
           ]
         : null,
     [compact, expandable, summaryColumns],

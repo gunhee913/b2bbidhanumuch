@@ -10,7 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import Image from "next/image";
-import { formatDistanceToNowStrict } from "date-fns";
+import { format, formatDistanceToNowStrict, parseISO } from "date-fns";
 import { ko } from "date-fns/locale";
 import {
   CalendarDays,
@@ -51,14 +51,17 @@ import { isTypingInto } from "../lib/keyboard";
 import { useDailyBriefing } from "../hooks/useDailyBriefing";
 import { useDeadlineTitle } from "../hooks/useDeadlineTitle";
 import {
-  useAuctionNotes,
+  useDealerNotes,
   useMemoPad,
-  type AuctionNotes,
+  type DealerNotes,
 } from "../hooks/useAuctionNotes";
 import {
   buildFavoriteRows,
+  buildNoteHistory,
   buildPartNoteRows,
   type FavoriteRows,
+  type NoteHistoryGroup,
+  type NoteHistoryRow,
   type PartNoteRow,
 } from "../lib/dockRows";
 import { useMyBids } from "../hooks/useMyBids";
@@ -155,14 +158,21 @@ export function AuctionSideDock({
    * 양쪽이 따로 세면 배지는 3인데 열어 보니 한 줄인 일이 생긴다 — 둘 다 「오늘 상장에
    * 실제로 있는 것」 만 남기는 거름망을 거쳐야 하는데, 한쪽만 거치면 어긋난다. 메모
    * 조회도 한 번으로 줄어든다 (훅마다 realtime 채널이 하나씩 열린다).
+   *
+   * 메모는 날짜를 가리지 않고 전부 받는다 — 「전체」 탭이 지난날 것까지 보여 주고,
+   * 「오늘」 과 레일 배지는 그중 오늘 상장에 있는 것만 센다.
    */
-  const notes = useAuctionNotes(listingDate);
+  const notes = useDealerNotes({ all: true });
   const favoriteRows = useMemo(
     () => buildFavoriteRows(listings, favoriteIds),
     [listings, favoriteIds],
   );
   const noteRows = useMemo(
     () => buildPartNoteRows(listings, notes.rows),
+    [listings, notes.rows],
+  );
+  const noteHistory = useMemo(
+    () => buildNoteHistory(listings, notes.rows),
     [listings, notes.rows],
   );
 
@@ -292,6 +302,8 @@ export function AuctionSideDock({
         >
           <NotesPanel
             rows={noteRows}
+            history={noteHistory}
+            listingDate={listingDate}
             notes={notes}
             onNavigateListing={onNavigateListing}
           />
@@ -786,23 +798,58 @@ function BidStepPicker() {
  * 굵지만, 메모는 대상이 아니라 적어 둔 말을 보려고 여는 목록이다. 어느 부위 것인지는
  * 그 말을 짚고 나서 확인한다.
  *
- * 오늘 상장에 없는 것은 거른다 — 메모를 남긴 뒤 상장이 내려가면 열 곳이 없는 줄이 된다.
+ * 「오늘」 은 오늘 상장에 있는 것만 — 메모를 남긴 뒤 상장이 내려가면 열 곳이 없는 줄이
+ * 된다. 지난날 것은 「전체」 에서 날짜별로 거슬러 본다. 지워지는 메모는 없다.
  */
 function NotesPanel({
   rows,
+  history,
+  listingDate,
   notes,
   onNavigateListing,
 }: {
-  /** 레일 배지와 같은 밑그림 · 방 머리에서 한 번 만든다 (`dockRows`) */
+  /** 오늘 줄 · 레일 배지와 같은 밑그림 · 방 머리에서 한 번 만든다 (`dockRows`) */
   rows: PartNoteRow[];
+  /** 지금껏 남긴 것 전부 · 날짜별 · 최근 날이 위 */
+  history: NoteHistoryGroup[];
+  /** 오늘 상장일 · 날짜 머리에 「오늘」 을 붙이는 기준 */
+  listingDate: string;
   /** 지우기에 쓴다 · 조회는 방 머리가 이미 걸어 뒀다 */
-  notes: AuctionNotes;
+  notes: DealerNotes;
   onNavigateListing: (listingId: string, partNo?: number | null) => void;
 }) {
+  const [scope, setScope] = useState<NoteScope>("today");
+  const groupImage = usePartGroupImageLookup();
   const padHeight = useSideDock((s) => s.memoPadHeight);
   const setPadHeight = useSideDock((s) => s.setMemoPadHeight);
   const resetPadHeight = useSideDock((s) => s.resetMemoPadHeight);
   const splitRef = useRef<HTMLDivElement>(null);
+
+  const historyCount = useMemo(
+    () => history.reduce((sum, group) => sum + group.rows.length, 0),
+    [history],
+  );
+
+  const openRow = useCallback(
+    (row: NoteHistoryRow) => {
+      if (!row.live) return;
+      onNavigateListing(row.live.listing.id, row.live.part.partNo);
+    },
+    [onNavigateListing],
+  );
+
+  const deleteRow = useCallback(
+    (row: NoteHistoryRow) => notes.save("part", row.partId, "", row.activeDate),
+    [notes],
+  );
+
+  const coverOf = useCallback(
+    (row: NoteHistoryRow) =>
+      row.live
+        ? partCover(row.live.listing, row.live.part, groupImage)
+        : (row.summary?.image ?? null),
+    [groupImage],
+  );
 
   /* 끌어 온 px 를 그대로 믿지 않는다 · 위 칸 몫은 지금 패널 높이를 재야 나온다 */
   const resizePad = useCallback(
@@ -816,78 +863,88 @@ function NotesPanel({
     [setPadHeight],
   );
 
+  /* 오늘 줄도 「전체」 와 같은 껍데기로 그린다 · 두 탭의 줄이 다르게 생기면 같은 메모가 다른 것으로 보인다 */
+  const todayRows = useMemo<NoteHistoryRow[]>(
+    () =>
+      rows.map(({ listing, part, body, activeDate }) => ({
+        key: `${activeDate}:${part.id}`,
+        activeDate,
+        partId: part.id,
+        body,
+        live: { listing, part },
+        summary: null,
+      })),
+    [rows],
+  );
+
+  const showingToday = scope === "today";
+  const isEmpty = showingToday ? todayRows.length === 0 : historyCount === 0;
+
   return (
     <div ref={splitRef} className="flex min-h-0 flex-1 flex-col">
-      <PanelSectionHead label="메모" count={rows.length} unit="개" />
-      {rows.length === 0 ? (
-        <PanelEmpty text="사진 왼쪽 위 「메모」를 누르면 모여요" />
-      ) : (
+      <PanelSectionHead
+        label="메모"
+        count={0}
+        unit=""
+        action={
+          <NoteScopeTabs
+            scope={scope}
+            todayCount={todayRows.length}
+            allCount={historyCount}
+            onChange={setScope}
+          />
+        }
+      />
+      {isEmpty ? (
+        <PanelEmpty
+          text={
+            showingToday ? "오늘 남긴 메모가 없습니다" : "남긴 메모가 없습니다"
+          }
+        />
+      ) : showingToday ? (
         <OverlayScroll autoHideDelay={0} className="min-h-0 flex-1">
           <ul className="px-2 pb-1">
-            {rows.map(({ listing, part, body }) => (
-              <li key={part.id}>
-                <div className="group flex items-start gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-surface-accent">
-                  <button
-                    type="button"
-                    onClick={() => onNavigateListing(listing.id, part.partNo)}
-                    className="flex min-w-0 flex-1 items-start gap-3 text-left"
-                  >
-                    <span className={cn(DOCK_THUMB, "mt-0.5")}>
-                      {listing.images[0] ? (
-                        <Image
-                          src={listing.images[0]}
-                          alt=""
-                          fill
-                          sizes="40px"
-                          className={DOCK_THUMB_IMG}
-                          unoptimized
-                        />
-                      ) : (
-                        <ImageOff className="absolute inset-0 m-auto h-3.5 w-3.5 text-content-ghost" />
-                      )}
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      {/* 적어 둔 말이 먼저 · 두 줄까지만 보이고 나머지는 열어서 본다 */}
-                      <span className="line-clamp-2 text-[12.5px] leading-[1.45] text-content">
-                        {body}
-                      </span>
-                      {/*
-                       * 부위 · 접수번호 · 업체를 한 줄에 · 줄을 넘기지 않는다.
-                       *
-                       * 앞의 둘은 길이가 뻔하므로(부위 다섯 자 · 번호 열 자) 자리를
-                       * 지키게 두고(`shrink-0`), 길이를 모르는 업체 이름만 남는 폭에서
-                       * 줄인다. 셋 다 줄이게 두면 긴 이름 하나 때문에 접수번호까지
-                       * 잘려서, 정작 줄을 가려내는 열쇠가 사라진다.
-                       */}
-                      <span className="mt-1 flex items-baseline gap-1.5 whitespace-nowrap text-[11.5px] text-content-faint">
-                        <span className="shrink-0 font-medium">
-                          {part.partName}
-                        </span>
-                        <span className="shrink-0 tabular-nums">
-                          {listing.listingNo}
-                        </span>
-                        {listing.companyName ? (
-                          <span className="min-w-0 truncate text-content-ghost">
-                            {listing.companyName}
-                          </span>
-                        ) : null}
-                      </span>
-                    </span>
-                  </button>
-                  {/* 지운 자리에서 바로 뺀다 · 빼러 사진까지 돌아가게 하지 않는다 */}
-                  <button
-                    type="button"
-                    onClick={() => notes.save("part", part.id, "")}
-                    aria-label={`${part.partName} ${listing.listingNo} 메모 지우기`}
-                    title="메모 지우기"
-                    className="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-content-ghost transition-colors hover:bg-surface-strong hover:text-lost active:scale-[0.9]"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" aria-hidden />
-                  </button>
-                </div>
-              </li>
+            {todayRows.map((row) => (
+              <NoteLine
+                key={row.key}
+                row={row}
+                image={coverOf(row)}
+                onOpen={openRow}
+                onDelete={deleteRow}
+              />
             ))}
           </ul>
+        </OverlayScroll>
+      ) : (
+        <OverlayScroll autoHideDelay={0} className="min-h-0 flex-1">
+          <div className="px-2 pb-1">
+            {history.map((group) => (
+              <section key={group.date} className="pt-1">
+                <h3 className="flex items-baseline gap-1.5 px-2 pb-0.5 pt-1.5 text-[11.5px] font-bold text-content-mid">
+                  <span className="tabular-nums">
+                    {formatNoteDate(group.date)}
+                  </span>
+                  {group.date === listingDate ? (
+                    <span className="font-semibold text-content">오늘</span>
+                  ) : null}
+                  <span className="font-medium tabular-nums text-content-ghost">
+                    {group.rows.length}
+                  </span>
+                </h3>
+                <ul>
+                  {group.rows.map((row) => (
+                    <NoteLine
+                      key={row.key}
+                      row={row}
+                      image={coverOf(row)}
+                      onOpen={openRow}
+                      onDelete={deleteRow}
+                    />
+                  ))}
+                </ul>
+              </section>
+            ))}
+          </div>
         </OverlayScroll>
       )}
 
@@ -901,6 +958,181 @@ function NotesPanel({
 
       <MemoPad height={padHeight} />
     </div>
+  );
+}
+
+type NoteScope = "today" | "all";
+
+/**
+ * 메모 목록 범위 · 「오늘」 과 「전체」.
+ *
+ * 수를 탭 이름 옆에 적는다 — 오늘 것이 하나도 없어도 「전체 2」 가 보이면 「어제 적은
+ * 게 어디 갔지」 가 바로 풀린다. 머리줄의 수(`count`)는 그래서 비워 둔다.
+ */
+function NoteScopeTabs({
+  scope,
+  todayCount,
+  allCount,
+  onChange,
+}: {
+  scope: NoteScope;
+  todayCount: number;
+  allCount: number;
+  onChange: (scope: NoteScope) => void;
+}) {
+  const tabs: { id: NoteScope; label: string; count: number }[] = [
+    { id: "today", label: "오늘", count: todayCount },
+    { id: "all", label: "전체", count: allCount },
+  ];
+
+  return (
+    <div
+      role="radiogroup"
+      aria-label="메모 범위"
+      className="-mr-1 inline-flex items-center gap-0.5 rounded-md bg-surface-strong/70 p-0.5"
+    >
+      {tabs.map((tab) => {
+        const active = tab.id === scope;
+        return (
+          <button
+            key={tab.id}
+            type="button"
+            role="radio"
+            aria-checked={active}
+            onClick={() => onChange(tab.id)}
+            className={cn(
+              "inline-flex items-baseline gap-1 rounded-[5px] px-2 text-[11.5px] font-semibold leading-6 transition-colors",
+              active
+                ? "bg-surface text-content shadow-sm ring-1 ring-line"
+                : "text-content-soft hover:text-content",
+            )}
+          >
+            {tab.label}
+            {tab.count > 0 ? (
+              <span
+                className={cn(
+                  "text-[10.5px] font-medium tabular-nums",
+                  active ? "text-content-faint" : "text-content-ghost",
+                )}
+              >
+                {tab.count}
+              </span>
+            ) : null}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/** 날짜 머리 · `10월 13일 (월)` · 해가 바뀐 것만 해를 적는다 */
+function formatNoteDate(date: string) {
+  const parsed = parseISO(date);
+  if (Number.isNaN(parsed.getTime())) return date;
+  const sameYear = parsed.getFullYear() === new Date().getFullYear();
+  return format(parsed, sameYear ? "M월 d일 (EEE)" : "yyyy년 M월 d일 (EEE)", {
+    locale: ko,
+  });
+}
+
+/**
+ * 메모 한 줄 · 적어 둔 말이 먼저, 어느 부위 것인지는 그 아래.
+ *
+ * 오늘 상장에 있는 것만 눌러서 간다. 지난날 것은 상장이 내려가 열 방이 없으므로 글로만
+ * 서고, 지우는 것은 어느 쪽이든 된다 — 적은 자리까지 돌아가게 하지 않는다.
+ */
+function NoteLine({
+  row,
+  image,
+  onOpen,
+  onDelete,
+}: {
+  row: NoteHistoryRow;
+  image: string | null;
+  onOpen: (row: NoteHistoryRow) => void;
+  onDelete: (row: NoteHistoryRow) => void;
+}) {
+  const partName = row.live?.part.partName ?? row.summary?.partName ?? "";
+  const listingNo = row.live?.listing.listingNo ?? row.summary?.listingNo ?? "";
+  const companyName =
+    row.live?.listing.companyName ?? row.summary?.companyName ?? "";
+  const canOpen = row.live !== null;
+  const bodyClass = "flex min-w-0 flex-1 items-start gap-3 text-left";
+
+  const content = (
+    <>
+      <span className={cn(DOCK_THUMB, "mt-0.5")}>
+        {image ? (
+          <Image
+            src={image}
+            alt=""
+            fill
+            sizes="40px"
+            className={DOCK_THUMB_IMG}
+            unoptimized
+          />
+        ) : (
+          <ImageOff className="absolute inset-0 m-auto h-3.5 w-3.5 text-content-ghost" />
+        )}
+      </span>
+      <span className="min-w-0 flex-1">
+        {/* 적어 둔 말이 먼저 · 두 줄까지만 보이고 나머지는 열어서 본다 */}
+        <span className="line-clamp-2 text-[12.5px] leading-[1.45] text-content">
+          {row.body}
+        </span>
+        {/*
+         * 부위 · 접수번호 · 업체를 한 줄에 · 줄을 넘기지 않는다.
+         *
+         * 앞의 둘은 길이가 뻔하므로(부위 다섯 자 · 번호 열 자) 자리를 지키게
+         * 두고(`shrink-0`), 길이를 모르는 업체 이름만 남는 폭에서 줄인다. 셋 다
+         * 줄이게 두면 긴 이름 하나 때문에 접수번호까지 잘려서, 정작 줄을
+         * 가려내는 열쇠가 사라진다.
+         */}
+        <span className="mt-1 flex items-baseline gap-1.5 whitespace-nowrap text-[11.5px] text-content-faint">
+          {partName || listingNo ? (
+            <>
+              <span className="shrink-0 font-medium">{partName}</span>
+              <span className="shrink-0 tabular-nums">{listingNo}</span>
+              {companyName ? (
+                <span className="min-w-0 truncate text-content-ghost">
+                  {companyName}
+                </span>
+              ) : null}
+            </>
+          ) : (
+            <span className="text-content-ghost">부위 정보 없음</span>
+          )}
+        </span>
+      </span>
+    </>
+  );
+
+  return (
+    <li>
+      <div className="group flex items-start gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-surface-accent">
+        {canOpen ? (
+          <button
+            type="button"
+            onClick={() => onOpen(row)}
+            className={bodyClass}
+          >
+            {content}
+          </button>
+        ) : (
+          <div className={bodyClass}>{content}</div>
+        )}
+        {/* 지운 자리에서 바로 뺀다 · 빼러 사진까지 돌아가게 하지 않는다 */}
+        <button
+          type="button"
+          onClick={() => onDelete(row)}
+          aria-label={`${partName} ${listingNo} 메모 지우기`.trim()}
+          title="메모 지우기"
+          className="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-content-ghost transition-colors hover:bg-surface-strong hover:text-lost active:scale-[0.9]"
+        >
+          <Trash2 className="h-3.5 w-3.5" aria-hidden />
+        </button>
+      </div>
+    </li>
   );
 }
 
