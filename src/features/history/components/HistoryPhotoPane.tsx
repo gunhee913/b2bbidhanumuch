@@ -7,15 +7,17 @@ import {
   type ReactNode,
   type Ref,
 } from "react";
-import { useMeasure } from "react-use";
 import { cn } from "@/lib/utils";
 import {
   GradeStamp,
   MediaTabs,
+  StageWithBottomRail,
   ViewerStage,
   type MediaTab,
   type ViewerMedia,
 } from "@/features/live-auction/components/ListingViewerDialog";
+import { useMediaArrowKeys } from "@/features/live-auction/hooks/useMediaArrowKeys";
+import { PHOTO_SCOPE_TITLE } from "@/features/live-auction/lib/partPhotos";
 import {
   StagePlacementScope,
   type StagePlacementStore,
@@ -59,6 +61,10 @@ export interface HistoryPhotoPaneProps {
  * 훑는 화면이라 개체마다 상세로 들어갔다 나오면 넘기는 데만 손이 다 간다. 표는 한
  * 줄기로 두고 사진이 커서를 따라오게 했다.
  *
+ * 그림판 자체는 상세 방·배송지시와 **같은 것**이다 (`StageWithBottomRail`) — 4:3 그림
+ * 상자 바로 밑에 썸네일 띠, ←/→ 로 장 넘기기. 사진이 한 장이어도 띠는 선다 · 없으면
+ * 비었다는 칸이 선다. 세 화면이 같은 사진을 같은 모양으로 세워야 같은 소로 읽힌다.
+ *
  * 판정 일곱은 사진 **위**에 겹으로 얹는다 (`GradeStamp`). 끌어서 옮기고 모서리를 잡아
  * 키울 수 있고, 두 번 누르면 처음 자리로 돌아간다. 자리는 경매장·배송지시와 따로
  * 담는다 — 세 무대가 크기부터 다르다.
@@ -96,27 +102,38 @@ export function HistoryPhotoPane({
     setMediaIdx(0);
   }
 
-  /* 겹 자리를 비율로 담으니 무대 크기를 알아야 px 로 편다 */
-  const [stageRef, stage] = useMeasure<HTMLDivElement>();
-
   const { media, tabs } = useMemo(() => {
+    /* 경매내역의 사진은 개체 사진(등심 단면)뿐이다 · 띠 제목도 상세 방과 같은 말로 */
     const images = listing?.images ?? [];
     const items: ViewerMedia[] = images.map((src, i) => ({
       kind: "photo",
       src,
-      label: images.length > 1 ? `사진 ${i + 1}` : "사진",
+      label: `${PHOTO_SCOPE_TITLE.listing} ${i + 1}`,
     }));
     const tabList: MediaTab[] = items.map((item, i) => ({
       label: item.label,
       kind: "photo",
       src: item.kind === "photo" ? item.src : null,
       mediaIdx: i,
+      section: i === 0 ? PHOTO_SCOPE_TITLE.listing : undefined,
     }));
+    if (tabList.length === 0) {
+      tabList.push({
+        label: "사진",
+        kind: "photo",
+        src: null,
+        mediaIdx: null,
+        section: PHOTO_SCOPE_TITLE.listing,
+      });
+    }
     return { media: items, tabs: tabList };
   }, [listing]);
 
   const safeIdx = Math.min(mediaIdx, Math.max(0, media.length - 1));
   const current = media[safeIdx] ?? null;
+
+  /* ←/→ 로 장 넘기기 · 상세 방처럼 끝에서 멈춘다 · ↑/↓ 는 표의 줄이 받는다 */
+  useMediaArrowKeys(media.length > 1, media.length, setMediaIdx);
 
   return (
     /* 좁은 화면에서는 제 바닥(320)을 쥐고, 높이를 가둔 화면에서는 남는 세로를 받는다 */
@@ -149,41 +166,38 @@ export function HistoryPhotoPane({
               : "표에서 줄을 고르면 그 개체 사진이 여기 뜹니다"}
         </div>
       ) : (
-        <div className={cn("flex min-h-0 flex-1 gap-3 p-3", PHOTO_STAGE_CLASS)}>
-          {/*
-           * 썸네일은 사진이 둘 이상일 때만 세운다 · 400px 열에서 64px 레일은 사진이
-           * 한 장뿐이면 아무 일도 안 하면서 폭의 6분의 1을 가져간다.
-           */}
-          {tabs.length > 1 ? (
-            <MediaTabs tabs={tabs} activeIdx={safeIdx} onSelect={setMediaIdx} />
-          ) : null}
-
-          {/*
-           * `overflow-hidden` 은 안전장치다. 각인은 무대 안에 들어오도록 가두지만
-           * 셈이 반 픽셀이라도 어긋나면 그 폭이 바깥 스크롤 영역으로 올라가 엉뚱한
-           * 조상에 스크롤바를 만든다. 여기서 끊으면 위로 번지지 않는다.
-           */}
-          <div
-            ref={stageRef}
-            className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden"
-          >
-            <ViewerStage listingNo={listing.listingNo} item={current} />
-            {current?.kind === "photo" ? (
-              <StagePlacementScope store={placementStore}>
-                <GradeStamp
-                  heading={{
-                    grade: listing.grade,
-                    marblingScore: listing.marblingScore,
-                    listingNo: listing.listingNo,
-                    companyName: listing.companyName,
-                  }}
-                  values={listing}
-                  stageWidth={stage.width}
-                  stageHeight={stage.height}
-                />
-              </StagePlacementScope>
-            ) : null}
-          </div>
+        <div className={cn("flex min-h-0 flex-1 flex-col", PHOTO_STAGE_CLASS)}>
+          <StageWithBottomRail
+            className="p-3"
+            picture={
+              <ViewerStage listingNo={listing.listingNo} item={current} />
+            }
+            rail={
+              <MediaTabs
+                tabs={tabs}
+                activeIdx={media.length > 0 ? safeIdx : null}
+                onSelect={setMediaIdx}
+                orientation="bottom"
+              />
+            }
+            renderOverlays={(size) =>
+              current?.kind === "photo" ? (
+                <StagePlacementScope store={placementStore}>
+                  <GradeStamp
+                    heading={{
+                      grade: listing.grade,
+                      marblingScore: listing.marblingScore,
+                      listingNo: listing.listingNo,
+                      companyName: listing.companyName,
+                    }}
+                    values={listing}
+                    stageWidth={size.width}
+                    stageHeight={size.height}
+                  />
+                </StagePlacementScope>
+              ) : null
+            }
+          />
         </div>
       )}
     </section>
