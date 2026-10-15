@@ -343,10 +343,10 @@ function EntryFooter() {
         <span>{hours}</span>
       </p>
       <div className="flex items-center gap-4">
-        <Link href="/terms" className="hover:text-slate-600">
+        <Link href="/legal/terms" className="hover:text-slate-600">
           이용약관
         </Link>
-        <Link href="/privacy" className="hover:text-slate-600">
+        <Link href="/legal/privacy" className="hover:text-slate-600">
           개인정보처리방침
         </Link>
       </div>

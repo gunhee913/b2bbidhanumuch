@@ -1,5 +1,6 @@
 // 경매 및 입찰 API 함수
 
+import { todayKst } from '@/lib/utils';
 import type {
   Auction,
   AuctionFilter,
@@ -193,7 +194,7 @@ export async function fetchLiveBids(auctionId: string) {
 
 // 오늘 날짜의 진행중인 경매 조회
 export async function fetchTodayOpenAuction() {
-  const today = new Date().toISOString().split('T')[0];
+  const today = todayKst();
   const res = await fetch(`/api/auctions?auctionDate=${today}&status=open`);
   if (!res.ok) {
     return null;

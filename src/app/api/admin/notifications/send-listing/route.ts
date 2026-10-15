@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { createPureClient } from '@/lib/supabase/server';
 import { createNotificationForAll } from '@/lib/notifications';
+import { todayKst } from '@/lib/utils';
 
 function getBaseGrade(grade: string): string {
   return grade.replace(/[ABC]/, '');
@@ -32,7 +33,7 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const { date } = body;
-    const targetDate = date || new Date().toISOString().split('T')[0];
+    const targetDate = date || todayKst();
 
     const { data: listings, error } = await supabase
       .from('cattle_listings')

@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminClient } from '@/lib/supabase-admin';
+import { todayKst } from '@/lib/utils';
 
 const supabase = getAdminClient();
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const date = searchParams.get('date') || new Date().toISOString().split('T')[0];
+    const date = searchParams.get('date') || todayKst();
 
     // 1. 활성 중도매인 목록
     const { data: dealers, error: dealerError } = await supabase

@@ -444,6 +444,8 @@ function buildPcCallbackUrl(pathname: string | null): string {
     "/history",
     "/delivery",
     "/insight",
+    "/my",
+    "/legal",
   ];
   if (
     PC_ROUTE_PREFIXES.some(
@@ -463,9 +465,10 @@ function getRoleLabel(userType: string | undefined): string {
   return "회원";
 }
 
+/* 중도매인은 PC 마이페이지(`/my`) · 모바일 `/profile` 은 500px 폭이라 PC 머리에서 열 곳이 아니다 */
 function getDashboardHref(userType: string | undefined): string | null {
   if (userType === "admin_user") return "/admin";
   if (userType === "company_user") return "/company";
-  if (userType === "dealer_user") return "/profile";
+  if (userType === "dealer_user") return "/my";
   return null;
 }

@@ -1,10 +1,56 @@
 import { getAdminClient } from '@/lib/supabase-admin';
 import { NextRequest, NextResponse } from 'next/server';
+import { chunk } from 'es-toolkit';
 import { createNotificationWithTemplate } from '@/lib/notifications';
 
 const supabase = getAdminClient();
 
 const ADMIN_PASSWORD = process.env.ADMIN_BID_PASSWORD || '1234';
+
+/**
+ * `.in()` 한 번에 넣는 id 수 · PostgREST 는 조건을 URL 에 싣는다.
+ * UUID 수백 개면 URL 이 한계를 넘어 400 이 나고, 그 오류를 삼키면 모든 낙찰이
+ * 「상장일 없음」 으로 뭉쳐 한 줄로 찍힌다(975건 · 일시 '-').
+ */
+const IN_CHUNK_SIZE = 200;
+/** PostgREST 기본 max-rows · 이 수를 넘는 결과는 말없이 잘린다 */
+const PAGE_SIZE = 1000;
+
+/** 큰 id 목록을 `.in()` 으로 조회 · 묶음으로 나눠 부르고 합친다 */
+async function selectIn<T>(
+  table: string,
+  columns: string,
+  column: string,
+  values: string[],
+): Promise<T[]> {
+  const pages = await Promise.all(
+    chunk(values, IN_CHUNK_SIZE).map(async (ids) => {
+      const { data, error } = await supabase.from(table).select(columns).in(column, ids);
+      if (error) throw new Error(`${table} 조회 실패: ${error.message}`);
+      return (data || []) as T[];
+    }),
+  );
+  return pages.flat();
+}
+
+/** 낙찰 입찰 전부 · 1000줄 넘는 중도매인이 있어 쪽을 넘기며 끝까지 읽는다 */
+async function fetchWinningBids(dealerId: string | null) {
+  const rows: any[] = [];
+  for (let from = 0; ; from += PAGE_SIZE) {
+    let query = supabase
+      .from('bids')
+      .select('id, part_id, dealer_id, bid_amount, created_at')
+      .eq('is_winning', true)
+      .not('bid_amount', 'is', null)
+      .order('created_at', { ascending: true })
+      .range(from, from + PAGE_SIZE - 1);
+    if (dealerId) query = query.eq('dealer_id', dealerId);
+    const { data, error } = await query;
+    if (error) throw new Error(`bids 조회 실패: ${error.message}`);
+    rows.push(...(data || []));
+    if (!data || data.length < PAGE_SIZE) return rows;
+  }
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -56,16 +102,12 @@ export async function GET(request: NextRequest) {
     }
 
     const editIds = (data || []).map((tx: any) => tx.id);
-    let editsMap: Record<string, any[]> = {};
+    const editsMap: Record<string, any[]> = {};
 
-    if (editIds.length > 0) {
-      const { data: edits } = await supabase
-        .from('dealer_transaction_edits')
-        .select('*')
-        .in('transaction_id', editIds)
-        .order('created_at', { ascending: true });
-
-      (edits || []).forEach((e: any) => {
+    const edits = await selectIn<any>('dealer_transaction_edits', '*', 'transaction_id', editIds);
+    edits
+      .sort((a: any, b: any) => String(a.created_at).localeCompare(String(b.created_at)))
+      .forEach((e: any) => {
         if (!editsMap[e.transaction_id]) editsMap[e.transaction_id] = [];
         editsMap[e.transaction_id].push({
           editedAt: e.created_at,
@@ -74,7 +116,6 @@ export async function GET(request: NextRequest) {
           newAmount: Number(e.new_amount),
         });
       });
-    }
 
     const transactions: any[] = (data || []).map((tx: any) => ({
       id: tx.id,
@@ -96,34 +137,23 @@ export async function GET(request: NextRequest) {
     }));
 
     // 낙찰(경락)대금 조회 - is_winning 입찰
-    let winningBidsQuery = supabase
-      .from('bids')
-      .select('id, part_id, dealer_id, bid_amount, created_at')
-      .eq('is_winning', true)
-      .not('bid_amount', 'is', null);
-
-    if (dealerId) {
-      winningBidsQuery = winningBidsQuery.eq('dealer_id', dealerId);
-    }
-
-    const { data: winningBidsRaw } = await winningBidsQuery;
-    const winningBids = winningBidsRaw || [];
+    const winningBids = await fetchWinningBids(dealerId);
 
     // part_id → listing 정보 매핑
-    const partIds = [...new Set(winningBids.map((b: any) => b.part_id))];
-    let partListingMap: Record<string, { listingId: string; listingDate: string }> = {};
-    if (partIds.length > 0) {
-      const { data: partsData } = await supabase
-        .from('cattle_parts')
-        .select('id, listing_id, cattle_listings(listing_date)')
-        .in('id', partIds);
-      (partsData || []).forEach((p: any) => {
-        partListingMap[p.id] = {
-          listingId: p.listing_id,
-          listingDate: (p.cattle_listings as any)?.listing_date || '',
-        };
-      });
-    }
+    const partIds = [...new Set(winningBids.map((b: any) => b.part_id as string))];
+    const partListingMap: Record<string, { listingId: string; listingDate: string }> = {};
+    const partsData = await selectIn<any>(
+      'cattle_parts',
+      'id, listing_id, cattle_listings(listing_date)',
+      'id',
+      partIds,
+    );
+    partsData.forEach((p: any) => {
+      partListingMap[p.id] = {
+        listingId: p.listing_id,
+        listingDate: (p.cattle_listings as any)?.listing_date || '',
+      };
+    });
 
     // listing_id → 해당 listing이 속한 모든 회차 정보 (auction_listings 경유)
     const allListingIds = [...new Set(Object.values(partListingMap).map(p => p.listingId).filter(Boolean))];
@@ -131,17 +161,18 @@ export async function GET(request: NextRequest) {
     const allListingDates = [...new Set(Object.values(partListingMap).map(p => p.listingDate).filter(Boolean))];
 
     interface RoundInfo { roundNo: number; endedAt: string; startedAt: string; }
-    let dateRoundsMap: Record<string, RoundInfo[]> = {};
+    const dateRoundsMap: Record<string, RoundInfo[]> = {};
 
-    if (allListingDates.length > 0) {
-      const { data: auctionsData } = await supabase
-        .from('auctions')
-        .select('id, round_no, started_at, ended_at, status, auction_date')
-        .eq('status', 'closed')
-        .in('auction_date', allListingDates)
-        .order('round_no', { ascending: true });
-
-      (auctionsData || []).forEach((a: any) => {
+    const auctionsData = await selectIn<any>(
+      'auctions',
+      'id, round_no, started_at, ended_at, status, auction_date',
+      'auction_date',
+      allListingDates,
+    );
+    auctionsData
+      .filter((a: any) => a.status === 'closed')
+      .sort((a: any, b: any) => (a.round_no || 0) - (b.round_no || 0))
+      .forEach((a: any) => {
         const aDate = a.auction_date;
         if (!dateRoundsMap[aDate]) dateRoundsMap[aDate] = [];
         dateRoundsMap[aDate].push({
@@ -150,7 +181,6 @@ export async function GET(request: NextRequest) {
           endedAt: a.ended_at || '',
         });
       });
-    }
 
     // bid.created_at을 기준으로 어떤 회차에 속하는지 매핑
     const getBidRound = (bidCreatedAt: string, listingDate: string): RoundInfo | null => {
@@ -173,25 +203,21 @@ export async function GET(request: NextRequest) {
     };
 
     // 딜러 정보 매핑
-    const winnerIds = [...new Set(winningBids.map((b: any) => b.dealer_id))];
-    let dealerMap: Record<string, any> = {};
-    if (winnerIds.length > 0) {
-      const { data: dealerRows } = await supabase
-        .from('dealers')
-        .select('id, dealer_no, name')
-        .in('id', winnerIds);
-      (dealerRows || []).forEach((d: any) => { dealerMap[d.id] = d; });
-    }
+    const winnerIds = [...new Set(winningBids.map((b: any) => b.dealer_id as string))];
+    const dealerMap: Record<string, any> = {};
+    const dealerRows = await selectIn<any>('dealers', 'id, dealer_no, name', 'id', winnerIds);
+    dealerRows.forEach((d: any) => { dealerMap[d.id] = d; });
 
     // 딜러 + 상장일 + 회차별로 경락대금 합산
+    // 상장 연결이 끊긴 부위는 입찰 시각으로 대신한다 — 응찰은 상장일 당일에 하므로 날짜는 같다
     const dailyMap: Record<string, { dealerId: string; endedAt: string; listingDate: string; roundNo: number; total: number; count: number }> = {};
     winningBids.forEach((bid: any) => {
       const partInfo = partListingMap[bid.part_id] || { listingId: '', listingDate: '' };
       const roundInfo = getBidRound(bid.created_at, partInfo.listingDate);
       const did = bid.dealer_id;
-      const listingDate = partInfo.listingDate;
+      const listingDate = partInfo.listingDate || String(bid.created_at || '').slice(0, 10);
       const roundNo = roundInfo?.roundNo || 0;
-      const endedAt = roundInfo?.endedAt || `${listingDate}T00:00:00`;
+      const endedAt = roundInfo?.endedAt || bid.created_at || `${listingDate}T00:00:00`;
       const key = `${did}_${listingDate}_${roundNo}`;
 
       if (!dailyMap[key]) {

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getAdminClient } from '@/lib/supabase-admin';
+import { todayKst } from '@/lib/utils';
 
 const supabase = getAdminClient();
 
@@ -12,9 +13,9 @@ export async function GET() {
       .order('listing_date', { ascending: false })
       .limit(1);
 
-    const date = data?.[0]?.listing_date || new Date().toISOString().split('T')[0];
+    const date = data?.[0]?.listing_date || todayKst();
     return NextResponse.json({ date });
   } catch {
-    return NextResponse.json({ date: new Date().toISOString().split('T')[0] });
+    return NextResponse.json({ date: todayKst() });
   }
 }

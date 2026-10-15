@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getAdminClient } from '@/lib/supabase-admin';
+import { todayKst } from '@/lib/utils';
 
 const supabase = getAdminClient();
 
@@ -25,7 +26,7 @@ async function areAllRoundsClosed(date: string): Promise<boolean> {
 
 export async function GET() {
   try {
-    const today = new Date().toISOString().split('T')[0];
+    const today = todayKst();
 
     const todayClosed = await isDateClosed(today);
 
@@ -80,6 +81,6 @@ export async function GET() {
 
     return NextResponse.json({ date: today });
   } catch {
-    return NextResponse.json({ date: new Date().toISOString().split('T')[0] });
+    return NextResponse.json({ date: todayKst() });
   }
 }
