@@ -10,7 +10,7 @@ import { StatValue, formatSignedWon, formatWon } from "./MyPageParts";
  * 맨 위 계정 카드 · 왼쪽은 누구인지, 오른쪽은 **예치금 하나**.
  *
  * 토스증권 「내 계좌」 머리와 같은 짜임이다 — 큰 숫자는 하나(총 자산 ↔ 예치금)고,
- * 오늘 들어오고 나간 것은 그 아래 작은 글자로만. 숫자를 여럿 세우면 어느 것이 「내 돈」
+ * 오늘 입금과 오늘 낙찰대금은 그 아래 작은 글자로만. 숫자를 여럿 세우면 어느 것이 「내 돈」
  * 인지 다시 읽어야 한다.
  *
  * 직원으로 들어왔으면 소속 중도매인 이름 옆에 직원 이름을 붙인다. 잔고는 중도매인 것이지
@@ -33,10 +33,6 @@ export function MyAccountCard() {
       )}
     >
       <div className="flex min-w-0 items-center gap-4">
-        {/* 번호는 머리와 같이 그대로 적는다 · 동그라미에 일곱 자리를 넣으면 양끝이 잘린다 */}
-        <span className="flex h-12 shrink-0 items-center rounded-lg bg-inverse px-3.5 text-[17px] font-bold tabular-nums text-inverse-content">
-          {dealerNo || "-"}
-        </span>
         <div className="min-w-0">
           <p className="flex flex-wrap items-baseline gap-x-2 text-[17px] font-bold text-content">
             <span className="truncate">{dealerName || "중도매인"}</span>
@@ -74,10 +70,10 @@ export function MyAccountCard() {
                 </span>
                 <span className="text-content-ghost">·</span>
                 <span>
-                  오늘 차감{" "}
+                  오늘 낙찰대금{" "}
                   <b className="font-semibold text-content-mid">
-                    {summary.todayDeduct > 0
-                      ? formatSignedWon(summary.todayDeduct, false)
+                    {summary.todayAuction > 0
+                      ? formatSignedWon(summary.todayAuction, false)
                       : "0"}
                   </b>
                 </span>

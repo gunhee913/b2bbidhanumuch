@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminClient } from '@/lib/supabase-admin';
 import { todayKst } from '@/lib/utils';
+import { fetchWinningBids, selectIn } from '@/lib/supabase-batch';
 
 const supabase = getAdminClient();
 
@@ -49,25 +50,20 @@ export async function GET(request: NextRequest) {
     // 3. 낙찰대금 — bids 테이블의 is_winning=true 기준 (dealer-transactions API와 동일)
     //    cattle_parts.winning_dealer_id 와 동기화 차이가 있을 수 있어, 거래 내역 페이지와
     //    동일한 데이터 소스를 사용해야 잔액이 일치한다.
-    const { data: winningBidsRaw } = await supabase
-      .from('bids')
-      .select('part_id, dealer_id, bid_amount, created_at')
-      .eq('is_winning', true)
-      .not('bid_amount', 'is', null);
-    const winningBids = winningBidsRaw || [];
+    const winningBids = await fetchWinningBids();
 
     // part_id → listing_date 매핑 (당일 합계용)
-    const partIds = [...new Set(winningBids.map((b: any) => b.part_id))];
-    let partListingDateMap: Record<string, string> = {};
-    if (partIds.length > 0) {
-      const { data: partsData } = await supabase
-        .from('cattle_parts')
-        .select('id, cattle_listings(listing_date)')
-        .in('id', partIds);
-      (partsData || []).forEach((p: any) => {
-        partListingDateMap[p.id] = (p.cattle_listings as any)?.listing_date || '';
-      });
-    }
+    const partIds = [...new Set(winningBids.map((b) => b.part_id))];
+    const partListingDateMap: Record<string, string> = {};
+    const partsData = await selectIn<any>(
+      'cattle_parts',
+      'id, cattle_listings(listing_date)',
+      'id',
+      partIds,
+    );
+    partsData.forEach((p: any) => {
+      partListingDateMap[p.id] = (p.cattle_listings as any)?.listing_date || '';
+    });
 
     const cumAuctionMap: Record<string, number> = {};
     const todayAuctionMap: Record<string, number> = {};

@@ -1,56 +1,11 @@
 import { getAdminClient } from '@/lib/supabase-admin';
 import { NextRequest, NextResponse } from 'next/server';
-import { chunk } from 'es-toolkit';
+import { fetchWinningBids, selectIn } from '@/lib/supabase-batch';
 import { createNotificationWithTemplate } from '@/lib/notifications';
 
 const supabase = getAdminClient();
 
 const ADMIN_PASSWORD = process.env.ADMIN_BID_PASSWORD || '1234';
-
-/**
- * `.in()` 한 번에 넣는 id 수 · PostgREST 는 조건을 URL 에 싣는다.
- * UUID 수백 개면 URL 이 한계를 넘어 400 이 나고, 그 오류를 삼키면 모든 낙찰이
- * 「상장일 없음」 으로 뭉쳐 한 줄로 찍힌다(975건 · 일시 '-').
- */
-const IN_CHUNK_SIZE = 200;
-/** PostgREST 기본 max-rows · 이 수를 넘는 결과는 말없이 잘린다 */
-const PAGE_SIZE = 1000;
-
-/** 큰 id 목록을 `.in()` 으로 조회 · 묶음으로 나눠 부르고 합친다 */
-async function selectIn<T>(
-  table: string,
-  columns: string,
-  column: string,
-  values: string[],
-): Promise<T[]> {
-  const pages = await Promise.all(
-    chunk(values, IN_CHUNK_SIZE).map(async (ids) => {
-      const { data, error } = await supabase.from(table).select(columns).in(column, ids);
-      if (error) throw new Error(`${table} 조회 실패: ${error.message}`);
-      return (data || []) as T[];
-    }),
-  );
-  return pages.flat();
-}
-
-/** 낙찰 입찰 전부 · 1000줄 넘는 중도매인이 있어 쪽을 넘기며 끝까지 읽는다 */
-async function fetchWinningBids(dealerId: string | null) {
-  const rows: any[] = [];
-  for (let from = 0; ; from += PAGE_SIZE) {
-    let query = supabase
-      .from('bids')
-      .select('id, part_id, dealer_id, bid_amount, created_at')
-      .eq('is_winning', true)
-      .not('bid_amount', 'is', null)
-      .order('created_at', { ascending: true })
-      .range(from, from + PAGE_SIZE - 1);
-    if (dealerId) query = query.eq('dealer_id', dealerId);
-    const { data, error } = await query;
-    if (error) throw new Error(`bids 조회 실패: ${error.message}`);
-    rows.push(...(data || []));
-    if (!data || data.length < PAGE_SIZE) return rows;
-  }
-}
 
 export async function GET(request: NextRequest) {
   try {

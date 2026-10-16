@@ -41,8 +41,8 @@ export interface BalanceSummary {
   totalWithdraw: number;
   totalAuction: number;
   todayDeposit: number;
-  /** 오늘 빠져나간 것 · 출금 + 낙찰대금 */
-  todayDeduct: number;
+  /** 오늘 회차에서 딴 낙찰대금 · 출금은 넣지 않는다 */
+  todayAuction: number;
 }
 
 const signedAmount = (tx: DealerTransaction) =>
@@ -112,10 +112,11 @@ export function summarizeBalance(
       if (tx.type === "deposit") {
         acc.totalDeposit += tx.amount;
         if (isToday) acc.todayDeposit += tx.amount;
+      } else if (tx.type === "withdraw") {
+        acc.totalWithdraw += tx.amount;
       } else {
-        if (tx.type === "withdraw") acc.totalWithdraw += tx.amount;
-        else acc.totalAuction += tx.amount;
-        if (isToday) acc.todayDeduct += tx.amount;
+        acc.totalAuction += tx.amount;
+        if (isToday) acc.todayAuction += tx.amount;
       }
       acc.available += signedAmount(tx);
       return acc;
@@ -126,7 +127,7 @@ export function summarizeBalance(
       totalWithdraw: 0,
       totalAuction: 0,
       todayDeposit: 0,
-      todayDeduct: 0,
+      todayAuction: 0,
     },
   );
 }
