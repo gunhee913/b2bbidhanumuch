@@ -16,6 +16,7 @@ import {
   sumKg,
 } from '../lib/pools';
 import { allowsTrimAndSlice, isDineIn, RECEIVE_METHOD_LABELS, shippingForReceive, toReceiveMethod } from '../lib/receive';
+import { resolvePickup, STORE_SUMMARY_SELECT, toStoreSummary, type ResolvedPickup, type StoreJoin } from './stores';
 import type {
   AdminPool,
   ConsumerPool,
@@ -94,10 +95,10 @@ async function loadReviewCounts(poolIds: string[]): Promise<Map<string, number>>
 export async function listConsumerReservations(consumerId: string): Promise<ConsumerReservation[]> {
   const { data } = await supabase
     .from('group_buy_reservations')
-    .select('*, group_buy_pools ( part_group, grade_key )')
+    .select(RESERVATION_SELECT)
     .eq('consumer_id', consumerId)
     .order('created_at', { ascending: false });
-  const rows = (data ?? []) as (GroupBuyReservationRow & { group_buy_pools: Pick<GroupBuyPoolRow, 'part_group' | 'grade_key'> | null })[];
+  const rows = (data ?? []) as ReservationWithJoins[];
   if (rows.length === 0) return [];
   const groupImages = await loadGroupImageMap();
   return rows.map((r) => toConsumerReservation(r, r.group_buy_pools, groupImages));
@@ -106,11 +107,11 @@ export async function listConsumerReservations(consumerId: string): Promise<Cons
 export async function getConsumerReservation(id: string, consumerId: string): Promise<ConsumerReservation | null> {
   const { data } = await supabase
     .from('group_buy_reservations')
-    .select('*, group_buy_pools ( part_group, grade_key )')
+    .select(RESERVATION_SELECT)
     .eq('id', id)
     .eq('consumer_id', consumerId)
     .maybeSingle();
-  const row = data as (GroupBuyReservationRow & { group_buy_pools: Pick<GroupBuyPoolRow, 'part_group' | 'grade_key'> | null }) | null;
+  const row = data as ReservationWithJoins | null;
   if (!row) return null;
   return toConsumerReservation(row, row.group_buy_pools, await loadGroupImageMap());
 }
@@ -139,6 +140,14 @@ export async function createReservation(
   const receiveMethod = toReceiveMethod(input.receiveMethod);
   const shippingError = validateShipping(input.shipping, receiveMethod);
   if (shippingError) return { ok: false, status: 400, error: shippingError };
+
+  // 매장 수령이면 매장·픽업 시간이 있어야 한다 · 정원까지 여기서 확인
+  let pickup: ResolvedPickup | null = null;
+  if (isDineIn(receiveMethod)) {
+    const resolved = await resolvePickup(input.pickup);
+    if (resolved.ok === false) return { ok: false, status: 400, error: resolved.error };
+    pickup = resolved.pickup;
+  }
 
   const { data: poolData } = await supabase.from('group_buy_pools').select('*').eq('id', input.poolId).maybeSingle();
   const pool = poolData as GroupBuyPoolRow | null;
@@ -181,8 +190,10 @@ export async function createReservation(
       payment_key: payment.paymentKey,
       paid_at: payment.approvedAt,
       receive_method: receiveMethod,
+      store_id: pickup?.store.id ?? null,
+      pickup_at: pickup?.pickupAt ?? null,
       // 매장 수령이면 주소는 서버가 매장 주소로 바꾼다
-      shipping: shippingForReceive(receiveMethod, normalizeShipping(input.shipping)),
+      shipping: shippingForReceive(receiveMethod, normalizeShipping(input.shipping), pickup?.store),
       expires_at: expiresAt,
     })
     .select('*')
@@ -411,9 +422,12 @@ async function tryMatchDraft(draft: DraftCandidate, pool: GroupBuyPoolRow, by: s
         paid_at: r.paid_at,
         shipping: r.shipping,
         receive_method: toReceiveMethod(r.receive_method),
+        store_id: r.store_id ?? null,
+        pickup_at: r.pickup_at ?? null,
         weight_kg: r.kg,
         trim_and_slice: r.trim_and_slice ?? false,
         reservation_id: r.id,
+        gift_set_id: r.gift_set_id ?? null,
       })
       .select('id')
       .single();
@@ -588,8 +602,11 @@ function toConsumerPool(p: GroupBuyPoolRow, open: OpenReservationAgg[], matchedC
   };
 }
 
+const RESERVATION_SELECT = `*, group_buy_pools ( part_group, grade_key ), ${STORE_SUMMARY_SELECT}`;
+type ReservationWithJoins = GroupBuyReservationRow & { group_buy_pools: Pick<GroupBuyPoolRow, 'part_group' | 'grade_key'> | null; group_buy_stores: StoreJoin | null };
+
 function toConsumerReservation(
-  r: GroupBuyReservationRow,
+  r: ReservationWithJoins,
   pool: Pick<GroupBuyPoolRow, 'part_group' | 'grade_key'> | null,
   groupImages: GroupImageMap,
 ): ConsumerReservation {
@@ -607,6 +624,8 @@ function toConsumerReservation(
     trimAndSlice: r.trim_and_slice ?? false,
     optionFeePerKg: r.option_fee_per_kg ?? 0,
     receiveMethod: toReceiveMethod(r.receive_method),
+    store: toStoreSummary(r.group_buy_stores),
+    pickupAt: r.pickup_at ?? null,
     amount: r.held_amount,
     status: r.status,
     statusLabel: RESERVATION_STATUS_LABELS[r.status],

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import type { GiftCellCount } from './gift';
 import type { ConsumerPool, ConsumerProduct, ReceiveMethod } from '../types';
 import { isOpen } from './homeFilters';
 import { lineAmountOf } from './pools';
@@ -37,6 +38,13 @@ export interface CheckoutDraft {
   fromCart: boolean;
 }
 
+/** 선물세트 초안 · 빌더에서 주문서으로 넘긴다 */
+export interface GiftDraft {
+  cellCount: GiftCellCount;
+  quantity: number;
+  cells: { cellNo: number; productId: string | null; poolId: string | null }[];
+}
+
 /** 장바구니 줄 · 풀 데이터와 합친 것 */
 export interface OrderLine {
   pool: ConsumerPool;
@@ -57,6 +65,11 @@ interface KgCartState {
   items: KgCartItem[];
   slotItems: SlotCartItem[];
   checkout: CheckoutDraft | null;
+  giftDraft: GiftDraft | null;
+  setGiftDraft: (draft: GiftDraft | null) => void;
+  /** 매장 안내에서 "이 매장에서 받기"를 누른 매장 · 주문서의 기본 선택 */
+  preferredStoreId: string | null;
+  setPreferredStore: (storeId: string | null) => void;
   /** 주문서 페이지로 넘길 줄을 적어 둔다 · 바로 주문이면 fromCart=false */
   startCheckout: (draft: CheckoutDraft) => void;
   clearCheckout: () => void;
@@ -89,6 +102,10 @@ export const useKgCart = create<KgCartState>()(
       items: [],
       slotItems: [],
       checkout: null,
+      giftDraft: null,
+      setGiftDraft: (draft) => set({ giftDraft: draft }),
+      preferredStoreId: null,
+      setPreferredStore: (storeId) => set({ preferredStoreId: storeId }),
       startCheckout: (draft) => set({ checkout: draft }),
       clearCheckout: () => set({ checkout: null }),
       add: (poolId, kg, trimAndSlice, receiveMethod) =>
@@ -130,12 +147,14 @@ export const useKgCart = create<KgCartState>()(
     }),
     {
       name: 'gb.kg.cart',
-      version: 7,
+      version: 9,
       skipHydration: true,
-      partialize: (s) => ({ items: s.items, slotItems: s.slotItems, checkout: s.checkout }),
-      // v1 에는 옵션이 없었다 · v2 에는 구좌가 없었다 · v3 구좌에는 옵션이 없었다 · v4 구좌에는 수령 방식이 없었다 · v5 kg 줄에는 수령 방식이 없었다 · v6 에는 주문서 초안이 없었다
+      partialize: (s) => ({ items: s.items, slotItems: s.slotItems, checkout: s.checkout, giftDraft: s.giftDraft, preferredStoreId: s.preferredStoreId }),
+      // v1 에는 옵션이 없었다 · v2 에는 구좌가 없었다 · v3 구좌에는 옵션이 없었다 · v4 구좌에는 수령 방식이 없었다 · v5 kg 줄에는 수령 방식이 없었다 · v6 에는 주문서 초안이 없었다 · v7 에는 선호 매장이 없었다
       migrate: (persisted) => {
-        const state = persisted as { items?: Array<Partial<KgCartItem>>; slotItems?: Array<Partial<SlotCartItem>> } | undefined;
+        const state = persisted as
+          | { items?: Array<Partial<KgCartItem>>; slotItems?: Array<Partial<SlotCartItem>>; checkout?: CheckoutDraft | null; preferredStoreId?: string | null }
+          | undefined;
         return {
           items: (state?.items ?? []).flatMap((i) =>
             i.poolId && typeof i.kg === 'number'
@@ -147,7 +166,9 @@ export const useKgCart = create<KgCartState>()(
               ? [{ productId: i.productId, slotNo: i.slotNo, trimAndSlice: i.trimAndSlice === true, receiveMethod: toReceiveMethod(i.receiveMethod) }]
               : [],
           ),
-          checkout: null,
+          checkout: state?.checkout ?? null,
+          giftDraft: (state as { giftDraft?: GiftDraft | null })?.giftDraft ?? null,
+          preferredStoreId: typeof state?.preferredStoreId === 'string' ? state.preferredStoreId : null,
         } as KgCartState;
       },
     },

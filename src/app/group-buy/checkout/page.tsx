@@ -4,10 +4,12 @@ import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { CheckCircle2, CreditCard, Lock } from 'lucide-react';
 import { SmartImage } from '@/components/ui/smart-image';
+import { cn } from '@/lib/utils';
 import { GroupBuyShell } from '@/features/group-buy/components/GroupBuyShell';
 import { PrimaryButton } from '@/features/group-buy/components/FormField';
 import { EmptyState, Skeleton } from '@/features/group-buy/components/primitives';
-import { DineInStoreBox, ReceiveMethodOption } from '@/features/group-buy/components/pools/ReceiveMethodOption';
+import { ReceiveMethodOption } from '@/features/group-buy/components/pools/ReceiveMethodOption';
+import { PickupScheduler, type PickupSelection } from '@/features/group-buy/components/stores/PickupScheduler';
 import { ShippingFields } from '@/features/group-buy/components/pools/ShippingFields';
 import { TrimSliceOption } from '@/features/group-buy/components/pools/TrimSliceOption';
 import { productTitle } from '@/features/group-buy/components/products/ProductTable';
@@ -29,6 +31,7 @@ import { optionFeeOf, poolTitle, unitPriceOf } from '@/features/group-buy/lib/po
 import { allowsTrimAndSlice, isDineIn } from '@/features/group-buy/lib/receive';
 import { toShippingInfo } from '@/features/group-buy/lib/shipping';
 import { formatWon } from '@/features/group-buy/lib/slots';
+import { formatPickup } from '@/features/group-buy/lib/stores';
 import type { ReceiveMethod } from '@/features/group-buy/types';
 
 const FALLBACK_THUMB = 'https://picsum.photos/seed/hanwoo-thumb/96/96';
@@ -38,6 +41,7 @@ const SECTION_TITLE = 'text-[15px] font-bold text-content';
 interface DoneState {
   count: number;
   failed: string[];
+  pickup: PickupSelection | null;
 }
 
 /**
@@ -57,6 +61,8 @@ export default function GroupBuyCheckoutPage() {
 
   const [error, setError] = useState('');
   const [done, setDone] = useState<DoneState | null>(null);
+  // 매장 수령 줄이 있을 때 고른 매장·픽업 시간 · 한 주문서의 매장 수령 줄은 모두 같은 곳·같은 시간에 받는다
+  const [pickup, setPickup] = useState<PickupSelection | null>(null);
 
   const lines = useMemo(() => joinCartLines(draft?.items ?? [], pools ?? []), [draft?.items, pools]);
   const slotLines = useMemo(() => joinSlotLines(draft?.slotItems ?? [], products ?? []), [draft?.slotItems, products]);
@@ -105,9 +111,14 @@ export default function GroupBuyCheckoutPage() {
       setError(needsAddress ? '배송지를 확인해주세요.' : '받으실 분 이름과 연락처를 확인해주세요.');
       return;
     }
+    if (hasDineIn && !pickup) {
+      setError('매장에서 받으실 매장과 픽업 시간을 골라주세요.');
+      return;
+    }
     const shipping = toShippingInfo(form.getValues());
-    const slotResult = slotLines.length > 0 ? await slotOrders.submit(slotLines, shipping) : { succeeded: [] as SlotLine[], failed: [] as string[] };
-    const kgResult = lines.length > 0 ? await kgOrders.submit(lines, shipping) : { succeeded: [] as OrderLine[], failed: [] as string[] };
+    const pickupInput = hasDineIn && pickup ? { storeId: pickup.storeId, pickupAt: pickup.pickupAt } : undefined;
+    const slotResult = slotLines.length > 0 ? await slotOrders.submit(slotLines, shipping, pickupInput) : { succeeded: [] as SlotLine[], failed: [] as string[] };
+    const kgResult = lines.length > 0 ? await kgOrders.submit(lines, shipping, pickupInput) : { succeeded: [] as OrderLine[], failed: [] as string[] };
 
     const succeededSlots = slotResult.succeeded.map((l) => ({ productId: l.product.id, slotNo: l.zone.slotNo }));
     const succeededPools = kgResult.succeeded.map((l) => l.pool.id);
@@ -130,7 +141,8 @@ export default function GroupBuyCheckoutPage() {
     };
     if (remaining.items.length === 0 && remaining.slotItems.length === 0) cart.clearCheckout();
     else cart.startCheckout(remaining);
-    setDone({ count: succeededCount, failed });
+    if (pickupInput) cart.setPreferredStore(pickupInput.storeId);
+    setDone({ count: succeededCount, failed, pickup: hasDineIn ? pickup : null });
   };
 
   return (
@@ -201,12 +213,19 @@ export default function GroupBuyCheckoutPage() {
                   </ul>
                 </section>
 
+                {hasDineIn ? (
+                  <section className={SECTION}>
+                    <h2 className={SECTION_TITLE}>매장 수령 예약</h2>
+                    <p className="mt-1 text-[13px] text-content-soft">받을 매장과 방문할 날짜·시간을 골라주세요. 픽업 전날까지 내 주문에서 바꿀 수 있어요.</p>
+                    <PickupScheduler value={pickup} onChange={setPickup} preferredStoreId={cart.preferredStoreId} disabled={isPending} className="mt-4" />
+                  </section>
+                ) : null}
+
                 <section className={SECTION}>
                   <h2 className={SECTION_TITLE}>{needsAddress ? '배송지' : '받으실 분'}</h2>
                   <p className="mt-1 text-[13px] text-content-soft">
                     {needsAddress ? '냉장 택배로 발송됩니다. 받으실 수 있는 주소를 입력해주세요.' : '매장에서 받으실 분의 이름과 연락처를 입력해주세요.'}
                   </p>
-                  {hasDineIn ? <DineInStoreBox className="mt-4" /> : null}
                   {loggedIn ? (
                     <div className="mt-4">
                       <ShippingFields form={form} idPrefix="checkout" contactOnly={!needsAddress} />
@@ -249,6 +268,14 @@ export default function GroupBuyCheckoutPage() {
                       <dt className="text-content-soft">배송비</dt>
                       <dd className="font-semibold text-content">{needsAddress ? '무료' : '없음 · 매장 수령'}</dd>
                     </div>
+                    {hasDineIn ? (
+                      <div className="flex justify-between gap-3">
+                        <dt className="shrink-0 text-content-soft">매장 수령</dt>
+                        <dd className={cn('text-right font-semibold tabular-nums', pickup ? 'text-content' : 'text-rose-600')}>
+                          {pickup ? `${pickup.store.name} · ${formatPickup(pickup.pickupAt)}` : '매장·시간을 골라주세요'}
+                        </dd>
+                      </div>
+                    ) : null}
                   </dl>
                   <div className="mt-4 flex items-baseline justify-between border-t border-line-soft pt-4">
                     <span className="text-[14px] font-bold text-content">총 결제 금액</span>
@@ -261,7 +288,7 @@ export default function GroupBuyCheckoutPage() {
                     </p>
                   ) : null}
 
-                  <PrimaryButton className="mt-4 rounded-sm" onClick={pay} loading={isPending} disabled={count === 0 || !loggedIn}>
+                  <PrimaryButton className="mt-4 rounded-sm" onClick={pay} loading={isPending} disabled={count === 0 || !loggedIn || (hasDineIn && !pickup)}>
                     <Lock className="mr-1.5 h-4 w-4" />
                     {formatWon(total)} 결제하기
                   </PrimaryButton>
@@ -369,6 +396,16 @@ function CheckoutDone({ done, onRetry }: { done: DoneState; onRetry: () => void 
         <br />
         배송 준비 전에는 내 주문에서 취소할 수 있어요.
       </p>
+      {done.pickup ? (
+        <div className="mx-auto mt-5 max-w-[420px] rounded-sm border border-line bg-surface px-4 py-3 text-left">
+          <p className="text-[12.5px] font-semibold text-content-mid">매장 수령 예약</p>
+          <p className="mt-0.5 text-[15px] font-bold text-content">{done.pickup.store.name}</p>
+          <p className="text-[13px] text-content-soft">
+            {done.pickup.store.address} {done.pickup.store.addressDetail}
+          </p>
+          <p className="mt-1 text-[14px] font-bold tabular-nums text-content">픽업 {formatPickup(done.pickup.pickupAt)}</p>
+        </div>
+      ) : null}
       {done.failed.length > 0 ? (
         <div className="mt-5 rounded-sm bg-rose-50 px-4 py-3 text-left text-[13px] leading-relaxed text-rose-700">
           <p className="font-semibold">일부 주문은 접수되지 않았어요</p>

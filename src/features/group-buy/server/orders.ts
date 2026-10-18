@@ -18,6 +18,7 @@ import {
 import { logEvent } from './events';
 import { toConsumerOrder } from './mappers';
 import { refundOrder } from './refund';
+import { resolvePickup, type ResolvedPickup } from './stores';
 
 export interface CreateOrderResult {
   ok: boolean;
@@ -45,6 +46,14 @@ export async function createOrder(
   const receiveMethod = toReceiveMethod(input.receiveMethod);
   const shippingError = validateShipping(input.shipping, receiveMethod);
   if (shippingError) return { ok: false, status: 400, error: shippingError };
+
+  // 매장 수령이면 매장·픽업 시간이 있어야 한다 · 정원까지 여기서 확인
+  let pickup: ResolvedPickup | null = null;
+  if (isDineIn(receiveMethod)) {
+    const resolved = await resolvePickup(input.pickup);
+    if (resolved.ok === false) return { ok: false, status: 400, error: resolved.error };
+    pickup = resolved.pickup;
+  }
 
   const { data: productData } = await supabase
     .from('group_buy_products')
@@ -93,10 +102,13 @@ export async function createOrder(
       amount,
       trim_and_slice: trimAndSlice,
       receive_method: receiveMethod,
+      store_id: pickup?.store.id ?? null,
+      pickup_at: pickup?.pickupAt ?? null,
+      gift_set_id: input.giftSetId ?? null,
       status: 'paid',
       payment_provider: getPaymentProvider().name,
       // 매장 수령이면 주소는 서버가 매장 주소로 바꾼다 · 클라이언트 값을 믿지 않는다
-      shipping: shippingForReceive(receiveMethod, normalizeShipping(input.shipping)),
+      shipping: shippingForReceive(receiveMethod, normalizeShipping(input.shipping), pickup?.store),
     })
     .select('*')
     .single();
@@ -124,31 +136,33 @@ export async function createOrder(
     return { ok: false, status: 500, error: slotError.message };
   }
 
-  const payment = await getPaymentProvider().approve({
-    orderNo,
-    amount,
-    orderName: `${product.cattle_parts?.part_name ?? product.part_group} ${slotNos.length}구좌${trimAndSlice ? ` · ${TRIM_SLICE_LABEL}` : ''}${isDineIn(receiveMethod) ? ` · ${RECEIVE_METHOD_LABELS.dine_in}` : ''}`,
-    customerName: consumer.name,
-    customerPhone: consumer.phone,
-  });
+  if (!input.skipPayment) {
+    const payment = await getPaymentProvider().approve({
+      orderNo,
+      amount,
+      orderName: `${product.cattle_parts?.part_name ?? product.part_group} ${slotNos.length}구좌${trimAndSlice ? ` · ${TRIM_SLICE_LABEL}` : ''}${isDineIn(receiveMethod) ? ` · ${RECEIVE_METHOD_LABELS.dine_in}` : ''}`,
+      customerName: consumer.name,
+      customerPhone: consumer.phone,
+    });
 
-  if (!payment.ok) {
-    await supabase.from('group_buy_order_slots').delete().eq('order_id', order.id);
-    await supabase.from('group_buy_orders').delete().eq('id', order.id);
-    return { ok: false, status: 402, error: payment.message ?? '결제에 실패했습니다.', code: payment.code };
+    if (!payment.ok) {
+      await supabase.from('group_buy_order_slots').delete().eq('order_id', order.id);
+      await supabase.from('group_buy_orders').delete().eq('id', order.id);
+      return { ok: false, status: 402, error: payment.message ?? '결제에 실패했습니다.', code: payment.code };
+    }
+
+    await supabase
+      .from('group_buy_orders')
+      .update({ payment_key: payment.paymentKey, paid_at: payment.approvedAt })
+      .eq('id', order.id);
   }
-
-  await supabase
-    .from('group_buy_orders')
-    .update({ payment_key: payment.paymentKey, paid_at: payment.approvedAt })
-    .eq('id', order.id);
 
   await logEvent({
     productId: product.id,
     orderId: order.id,
     type: EVENT_TYPES.ORDER_PLACED,
     message: `${consumer.name} · ${slotNos.length}구좌 (${slotNos.join(', ')}번)${trimAndSlice ? ` · ${TRIM_SLICE_LABEL}` : ''} · ${RECEIVE_METHOD_LABELS[receiveMethod]} · ${amount.toLocaleString()}원`,
-    payload: { slotNos, amount, trimAndSlice, receiveMethod },
+    payload: { slotNos, amount, trimAndSlice, receiveMethod, storeId: pickup?.store.id ?? null, pickupAt: pickup?.pickupAt ?? null },
     createdBy: consumer.id,
   });
 
@@ -219,6 +233,7 @@ export async function listConsumerOrders(consumerId: string): Promise<ConsumerOr
     .from('group_buy_orders')
     .select(ORDER_SELECT)
     .eq('consumer_id', consumerId)
+    .is('gift_set_id', null)
     .order('created_at', { ascending: false });
   const orders = (data ?? []) as unknown as OrderWithJoins[];
   if (orders.length === 0) return [];

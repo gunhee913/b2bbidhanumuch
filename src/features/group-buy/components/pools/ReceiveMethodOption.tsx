@@ -3,8 +3,9 @@
 import { useId } from 'react';
 import { Store, Truck } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { ReceiveMethod } from '../../types';
-import { DINE_IN_STORE, RECEIVE_METHODS } from '../../lib/receive';
+import type { ReceiveMethod, StoreSummary } from '../../types';
+import { DINE_IN_NOTICE, RECEIVE_METHODS } from '../../lib/receive';
+import { formatPickup } from '../../lib/stores';
 
 interface ReceiveMethodOptionProps {
   value: ReceiveMethod;
@@ -46,16 +47,33 @@ export function ReceiveMethodOption({ value, onChange, disabled = false, size = 
   );
 }
 
-/** 매장 수령일 때 배송지 상자 대신 보여주는 매장 안내 */
-export function DineInStoreBox({ className }: { className?: string }) {
+interface PickupInfoBoxProps {
+  store: StoreSummary | null;
+  pickupAt: string | null;
+  /** 주문 상세에서 "변경" 버튼을 달 때 */
+  action?: React.ReactNode;
+  className?: string;
+}
+
+/** 매장 수령 주문의 받는 곳 · 매장 이름·주소·예약 시간 · 주문 상세·완료 화면 공용 */
+export function PickupInfoBox({ store, pickupAt, action, className }: PickupInfoBoxProps) {
   return (
     <div className={cn('rounded-sm border border-line-soft px-4 py-3', className)}>
-      <p className="text-[13px] font-semibold text-content-mid">받는 곳</p>
-      <p className="mt-0.5 text-[13.5px] font-bold text-content">{DINE_IN_STORE.name}</p>
-      <p className="text-[12.5px] text-content-soft">
-        {DINE_IN_STORE.address} · {DINE_IN_STORE.hours}
-      </p>
-      <p className="mt-1.5 text-[12px] leading-snug text-content-faint">{DINE_IN_STORE.notice}</p>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[13px] font-semibold text-content-mid">받는 곳</p>
+          <p className="mt-0.5 text-[13.5px] font-bold text-content">{store?.name ?? '매장 미지정'}</p>
+          {store ? (
+            <p className="text-[12.5px] text-content-soft">
+              {store.address} {store.addressDetail}
+              {store.phone ? ` · ${store.phone}` : ''}
+            </p>
+          ) : null}
+          <p className="mt-1 text-[13px] font-semibold tabular-nums text-content">{pickupAt ? `픽업 ${formatPickup(pickupAt)}` : '픽업 시간 미지정'}</p>
+        </div>
+        {action}
+      </div>
+      <p className="mt-1.5 text-[12px] leading-snug text-content-faint">{DINE_IN_NOTICE}</p>
     </div>
   );
 }

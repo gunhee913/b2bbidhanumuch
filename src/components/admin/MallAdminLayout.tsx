@@ -49,6 +49,8 @@ const menuItems: MenuItem[] = [
       { title: 'kg 수요 풀', href: '/admin/mall/group-buy/pools' },
       { title: '상품(구좌)', href: '/admin/mall/group-buy' },
       { title: '주문·예약', href: '/admin/mall/group-buy/orders', soon: true },
+      { title: '선물세트', href: '/admin/mall/group-buy/gift' },
+      { title: '매장 관리', href: '/admin/mall/group-buy/stores' },
       { title: '부위 이미지', href: '/admin/mall/group-buy/part-images' },
       { title: '부위별 기본 설정', href: '/admin/mall/group-buy/part-defaults' },
       { title: '설정', href: '/admin/mall/group-buy/settings' },

@@ -22,17 +22,17 @@ export function GroupBuyHeader() {
   return (
     <header className="sticky top-0 z-40 border-b border-line-soft bg-surface">
       <div className={cn(GB_CONTAINER_CLASS, 'flex h-[84px] items-center justify-between gap-8')}>
-        <div className="flex items-center gap-14">
-          <Link href="/group-buy" className="flex items-center gap-2">
+        <div className="flex items-center gap-8 xl:gap-14">
+          <Link href="/group-buy" className="flex shrink-0 items-center gap-2">
             <span className="relative h-6 w-6 shrink-0">
               <Image src={GB_LOGO_SRC} alt="" fill sizes="24px" className="object-contain" priority unoptimized />
             </span>
-            <span className="text-[24px] font-bold leading-none tracking-[-0.03em] text-content">{GB_BRAND_NAME}</span>
+            <span className="whitespace-nowrap text-[24px] font-bold leading-none tracking-[-0.03em] text-content">{GB_BRAND_NAME}</span>
           </Link>
 
           {/* 헤이딜러 상단 메뉴 · 16px 굵게 · 평소엔 흐리게, 올리면 진해진다 */}
           <nav aria-label="주요 메뉴">
-            <ul className="flex items-center gap-14">
+            <ul className="flex items-center gap-8 xl:gap-14">
               {GB_NAV_ITEMS.map((item) => {
                 const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
                 return (
@@ -41,7 +41,7 @@ export function GroupBuyHeader() {
                       href={item.href}
                       aria-current={active ? 'page' : undefined}
                       className={cn(
-                        'inline-flex h-[84px] items-center text-[18px] font-bold tracking-[-0.01em] transition-colors duration-200',
+                        'inline-flex h-[84px] items-center whitespace-nowrap text-[18px] font-bold tracking-[-0.01em] transition-colors duration-200',
                         active ? 'text-content' : 'text-content/50 hover:text-content',
                       )}
                     >

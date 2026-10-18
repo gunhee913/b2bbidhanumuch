@@ -20,6 +20,11 @@ const nextConfig: NextConfig = {
         destination: '/admin/mall/group-buy/:path*',
         permanent: false,
       },
+      {
+        source: '/group-buy/quote',
+        destination: '/group-buy/gift',
+        permanent: false,
+      },
     ];
   },
 };

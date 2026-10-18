@@ -16,8 +16,11 @@ import {
 import { StatusStepper } from '@/features/group-buy/components/StatusStepper';
 import { describeSlots } from '@/features/group-buy/components/OrderCard';
 import { ConsumerStatusBadge, EmptyState, GradeBadge, Skeleton } from '@/features/group-buy/components/primitives';
-import { useCancelOrder, useConsumerOrder, useConsumerProduct, useRealtimeGroupBuy } from '@/features/group-buy/hooks';
-import { DINE_IN_STORE, isDineIn } from '@/features/group-buy/lib/receive';
+import { useCancelOrder, useConsumerOrder, useConsumerProduct, useRealtimeGroupBuy, useUpdateOrderPickup } from '@/features/group-buy/hooks';
+import { isDineIn } from '@/features/group-buy/lib/receive';
+import { canChangePickup } from '@/features/group-buy/lib/stores';
+import { PickupInfoBox } from '@/features/group-buy/components/pools/ReceiveMethodOption';
+import { PickupChangeDialog } from '@/features/group-buy/components/stores/PickupChangeDialog';
 import { formatKg, formatWon, isZoneSplit } from '@/features/group-buy/lib/slots';
 import { formatDateTime, formatDeadline } from '@/features/group-buy/lib/format';
 import { SlotPicker } from '@/features/group-buy/components/SlotPicker';
@@ -32,7 +35,9 @@ export default function GroupBuyOrderDetailPage({ params }: { params: Promise<{ 
   const { data: productData } = useConsumerProduct(order?.productId ?? null);
   useRealtimeGroupBuy();
   const cancel = useCancelOrder();
+  const updatePickup = useUpdateOrderPickup();
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [pickupOpen, setPickupOpen] = useState(false);
 
   if (isLoading) {
     return (
@@ -160,14 +165,22 @@ export default function GroupBuyOrderDetailPage({ params }: { params: Promise<{ 
                 {order.shipping.name} · {order.shipping.phone}
               </p>
               {isDineIn(order.receiveMethod) ? (
-                <>
-                  <p className="mt-1 text-content-mid">
-                    {DINE_IN_STORE.name} · {DINE_IN_STORE.address}
-                  </p>
-                  <p className="mt-1 text-[12.5px] text-content-faint">
-                    {DINE_IN_STORE.hours} · {DINE_IN_STORE.notice}
-                  </p>
-                </>
+                <PickupInfoBox
+                  store={order.store}
+                  pickupAt={order.pickupAt}
+                  className="mt-3"
+                  action={
+                    !order.isRefunded && order.status !== 'cancelled' && canChangePickup(order.pickupAt) ? (
+                      <button
+                        type="button"
+                        onClick={() => setPickupOpen(true)}
+                        className="inline-flex h-8 shrink-0 items-center rounded-lg border border-line px-3 text-[12.5px] font-semibold text-content-mid hover:bg-surface-muted"
+                      >
+                        시간 변경
+                      </button>
+                    ) : null
+                  }
+                />
               ) : (
                 <p className="mt-1 text-content-mid">
                   ({order.shipping.zipcode}) {order.shipping.address} {order.shipping.addressDetail}
@@ -182,6 +195,17 @@ export default function GroupBuyOrderDetailPage({ params }: { params: Promise<{ 
           </section>
         </div>
       </div>
+
+      {isDineIn(order.receiveMethod) ? (
+        <PickupChangeDialog
+          open={pickupOpen}
+          onOpenChange={setPickupOpen}
+          store={order.store}
+          pickupAt={order.pickupAt}
+          pending={updatePickup.isPending}
+          onSubmit={(input) => updatePickup.mutateAsync({ orderId: order.id, input })}
+        />
+      ) : null}
 
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <DialogContent className="max-w-[420px]">

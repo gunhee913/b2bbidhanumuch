@@ -9,12 +9,19 @@ import type {
   ConsumerProductFilter,
   ConsumerProductSummary,
   ConsumerReservation,
+  ConsumerStore,
+  ConsumerGiftSet,
+  CreateGiftSetInput,
   CreateOrderInput,
   CreateReservationInput,
+  GiftSettings,
   GroupBuyPartDefault,
   GroupBuyStatus,
+  PickupInput,
+  PickupSlot,
   ProductCerts,
   UpdateProductSettingsInput,
+  UpsertStoreInput,
   UpsertPoolInput,
 } from './types';
 
@@ -85,6 +92,28 @@ export function cancelConsumerOrder(id: string) {
   return request<{ ok: boolean; message: string }>(`${CONSUMER_BASE}/orders/${id}/cancel`, { method: 'POST' });
 }
 
+// ---------- 소비자 · 매장 · 픽업 ----------
+
+export function fetchStores() {
+  return request<ConsumerStore[]>(`${CONSUMER_BASE}/stores`);
+}
+
+export function fetchStore(slugOrId: string) {
+  return request<ConsumerStore>(`${CONSUMER_BASE}/stores/${slugOrId}`);
+}
+
+export function fetchStoreSlots(storeId: string, date: string) {
+  return request<PickupSlot[]>(`${CONSUMER_BASE}/stores/${storeId}/slots?date=${date}`);
+}
+
+export function updateOrderPickup(orderId: string, input: PickupInput) {
+  return request<{ ok: boolean }>(`${CONSUMER_BASE}/orders/${orderId}/pickup`, { method: 'PATCH', body: JSON.stringify(input) });
+}
+
+export function updateReservationPickup(reservationId: string, input: PickupInput) {
+  return request<{ ok: boolean }>(`${CONSUMER_BASE}/reservations/${reservationId}/pickup`, { method: 'PATCH', body: JSON.stringify(input) });
+}
+
 // ---------- 소비자 · kg 수요 풀 ----------
 
 export function fetchConsumerPools(filter: ConsumerPoolFilter = {}) {
@@ -112,6 +141,34 @@ export function createConsumerReservation(input: CreateReservationInput) {
 
 export function cancelConsumerReservation(id: string) {
   return request<{ ok: boolean; message: string }>(`${CONSUMER_BASE}/reservations/${id}/cancel`, { method: 'POST' });
+}
+
+export function fetchGiftSettings() {
+  return request<GiftSettings>(`${CONSUMER_BASE}/gifts/settings`);
+}
+
+export function fetchConsumerGiftSets() {
+  return request<ConsumerGiftSet[]>(`${CONSUMER_BASE}/gifts`);
+}
+
+export function fetchConsumerGiftSet(id: string) {
+  return request<ConsumerGiftSet>(`${CONSUMER_BASE}/gifts/${id}`);
+}
+
+export function createConsumerGiftSet(input: CreateGiftSetInput) {
+  return request<ConsumerGiftSet>(`${CONSUMER_BASE}/gifts`, { method: 'POST', body: JSON.stringify(input) });
+}
+
+export function cancelConsumerGiftSet(id: string) {
+  return request<{ ok: boolean; message: string }>(`${CONSUMER_BASE}/gifts/${id}/cancel`, { method: 'POST' });
+}
+
+export function fetchAdminGifts() {
+  return request<GiftSettings & { gifts: ConsumerGiftSet[] }>(`${ADMIN_BASE}/gifts`);
+}
+
+export function updateAdminGiftSettings(input: { packagingFee: number }) {
+  return request<GiftSettings>(`${ADMIN_BASE}/gifts`, { method: 'PATCH', body: JSON.stringify(input) });
 }
 
 export function signupConsumer(input: {
@@ -209,4 +266,12 @@ export function saveAdminPool(input: UpsertPoolInput) {
 
 export function matchAdminPools() {
   return request<{ expired: number; matched: number }>(`${ADMIN_BASE}/pools/match`, { method: 'POST' });
+}
+
+export function fetchAdminStores() {
+  return request<ConsumerStore[]>(`${ADMIN_BASE}/stores`);
+}
+
+export function saveAdminStore(input: UpsertStoreInput) {
+  return request<ConsumerStore>(`${ADMIN_BASE}/stores`, { method: 'POST', body: JSON.stringify(input) });
 }

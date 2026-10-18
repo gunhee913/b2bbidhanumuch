@@ -3,16 +3,18 @@
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
+import { GiftSetCard } from '@/features/group-buy/components/gifts/GiftSetCard';
 import { OrderCard } from '@/features/group-buy/components/OrderCard';
 import { ReservationCard } from '@/features/group-buy/components/pools/ReservationCard';
 import { EmptyState, Skeleton } from '@/features/group-buy/components/primitives';
-import { useCancelReservation, useConsumerOrders, useConsumerReservations, useRealtimeGroupBuy, useRealtimePools } from '@/features/group-buy/hooks';
+import { useCancelReservation, useConsumerGiftSets, useConsumerOrders, useConsumerReservations, useRealtimeGroupBuy, useRealtimePools } from '@/features/group-buy/hooks';
 
 type Tab = 'active' | 'done';
 
 export default function GroupBuyOrdersPage() {
   const { data: orders, isLoading, isError } = useConsumerOrders();
   const { data: reservations } = useConsumerReservations();
+  const { data: gifts } = useConsumerGiftSets();
   const cancelReservation = useCancelReservation();
   useRealtimeGroupBuy();
   useRealtimePools();
@@ -37,6 +39,14 @@ export default function GroupBuyOrdersPage() {
 
   const visible = grouped[tab];
   const visibleReservations = groupedReservations[tab];
+  const groupedGifts = useMemo(() => {
+    const list = gifts ?? [];
+    return {
+      active: list.filter((g) => g.status === 'paid'),
+      done: list.filter((g) => g.status !== 'paid'),
+    };
+  }, [gifts]);
+  const visibleGifts = groupedGifts[tab];
 
   const handleCancelReservation = async (id: string) => {
     if (!window.confirm('이 주문을 취소할까요? 선결제 금액은 바로 환불됩니다.')) return;
@@ -53,8 +63,8 @@ export default function GroupBuyOrdersPage() {
         <div className="inline-flex rounded-lg border border-line bg-surface p-1">
           {(
             [
-              { key: 'active', label: '진행 중', count: grouped.active.length + groupedReservations.active.length },
-              { key: 'done', label: '완료·취소', count: grouped.done.length + groupedReservations.done.length },
+              { key: 'active', label: '진행 중', count: grouped.active.length + groupedReservations.active.length + groupedGifts.active.length },
+              { key: 'done', label: '완료·취소', count: grouped.done.length + groupedReservations.done.length + groupedGifts.done.length },
             ] as { key: Tab; label: string; count: number }[]
           ).map((t) => (
             <button
@@ -78,7 +88,7 @@ export default function GroupBuyOrdersPage() {
           Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-[136px] rounded-2xl" />)
         ) : isError ? (
           <EmptyState title="주문내역을 불러오지 못했어요" description="잠시 후 다시 시도해주세요." />
-        ) : visible.length === 0 && visibleReservations.length === 0 ? (
+        ) : visible.length === 0 && visibleReservations.length === 0 && visibleGifts.length === 0 ? (
           <EmptyState
             title={tab === 'active' ? '진행 중인 주문이 없어요' : '완료되거나 취소된 주문이 없어요'}
             description={tab === 'active' ? '지금 모집 중인 부위를 둘러보세요.' : undefined}
@@ -92,6 +102,14 @@ export default function GroupBuyOrdersPage() {
           />
         ) : (
           <>
+            {visibleGifts.length > 0 ? (
+              <div className="space-y-3">
+                <p className="text-[13px] font-semibold text-content-mid">선물세트</p>
+                {visibleGifts.map((g) => (
+                  <GiftSetCard key={g.id} gift={g} />
+                ))}
+              </div>
+            ) : null}
             {visibleReservations.length > 0 ? (
               <div className="space-y-3">
                 <p className="text-[13px] font-semibold text-content-mid">{tab === 'active' ? '1kg 구매 · 접수된 주문' : '1kg 구매 · 끝난 주문'}</p>

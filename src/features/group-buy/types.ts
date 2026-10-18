@@ -6,6 +6,7 @@
 // `toConsumerProduct()` 매퍼를 거쳐 이 타입만 반환한다.
 // ============================================
 
+import type { GiftCellCount, GiftCellSnapshot, GiftRecipientMode } from './lib/gift';
 import type { ProductZone } from './lib/slots';
 
 /** 내부 상태 · 경매 메커니즘이 그대로 드러난다 (관리자 전용) */
@@ -82,10 +83,15 @@ export interface GroupBuyOrderRow {
   shipping: ShippingInfo;
   /** 수령 방식 · 없으면 택배 */
   receive_method: ReceiveMethod | null;
+  /** 매장 수령 · 받을 매장 · 픽업 예약 시각 */
+  store_id: string | null;
+  pickup_at: string | null;
   weight_kg: number | string | null;
   /** kg 주문 · 근막 제거 + 썰어 받기 옵션 */
   trim_and_slice: boolean | null;
   reservation_id: string | null;
+  /** 선물세트 원천 구좌 주문이면 세트 id */
+  gift_set_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -134,7 +140,11 @@ export interface GroupBuyReservationRow {
   shipping: ShippingInfo;
   /** 수령 방식 · 없으면 택배 */
   receive_method: ReceiveMethod | null;
+  store_id: string | null;
+  pickup_at: string | null;
   expires_at: string;
+  /** 선물세트에 묶인 1kg 구매 */
+  gift_set_id?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -173,6 +183,106 @@ export interface ShippingInfo {
   address: string;
   addressDetail: string;
   memo?: string;
+}
+
+// ------------------------------------------------------------
+// 매장 · 픽업 예약
+// ------------------------------------------------------------
+
+export interface GroupBuyStoreRow {
+  id: string;
+  slug: string;
+  name: string;
+  zipcode: string | null;
+  address: string;
+  address_detail: string | null;
+  phone: string | null;
+  lat: number;
+  lng: number;
+  /** 'HH:MM:SS' */
+  open_time: string;
+  close_time: string;
+  /** 0=일 … 6=토 */
+  closed_weekdays: number[];
+  slot_minutes: number;
+  slot_capacity: number;
+  description: string | null;
+  directions: string | null;
+  parking: string | null;
+  image_url: string | null;
+  is_active: boolean;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ConsumerStore {
+  id: string;
+  slug: string;
+  name: string;
+  zipcode: string;
+  address: string;
+  addressDetail: string;
+  phone: string;
+  lat: number;
+  lng: number;
+  /** 'HH:MM' */
+  openTime: string;
+  closeTime: string;
+  closedWeekdays: number[];
+  slotMinutes: number;
+  slotCapacity: number;
+  description: string;
+  directions: string;
+  parking: string;
+  imageUrl: string | null;
+  isActive: boolean;
+  sortOrder: number;
+}
+
+/** 주문·예약에 붙는 매장 요약 */
+export interface StoreSummary {
+  id: string;
+  slug: string;
+  name: string;
+  address: string;
+  addressDetail: string;
+  phone: string;
+}
+
+/** 픽업 슬롯 하나 · `at` 은 ISO(+09:00), `label` 은 'HH:MM' */
+export interface PickupSlot {
+  at: string;
+  label: string;
+  remaining: number;
+}
+
+export interface PickupInput {
+  storeId: string;
+  pickupAt: string;
+}
+
+export interface UpsertStoreInput {
+  id?: string;
+  slug: string;
+  name: string;
+  zipcode?: string;
+  address: string;
+  addressDetail?: string;
+  phone?: string;
+  lat: number;
+  lng: number;
+  openTime: string;
+  closeTime: string;
+  closedWeekdays: number[];
+  slotMinutes: number;
+  slotCapacity: number;
+  description?: string;
+  directions?: string;
+  parking?: string;
+  imageUrl?: string | null;
+  isActive: boolean;
+  sortOrder: number;
 }
 
 /** 개체(소) 정보 · 소비자에게도 보여주는 신뢰 요소 */
@@ -280,6 +390,9 @@ export interface ConsumerOrder {
   trimAndSlice: boolean;
   /** 택배 배송 또는 식육식당 매장 수령 */
   receiveMethod: ReceiveMethod;
+  /** 매장 수령 · 받을 매장과 픽업 예약 시각 */
+  store: StoreSummary | null;
+  pickupAt: string | null;
   amount: number;
   positional: boolean;
   status: ConsumerStatus;
@@ -292,6 +405,7 @@ export interface ConsumerOrder {
   paidAt: string | null;
   refundedAt: string | null;
   createdAt: string;
+  giftSetId: string | null;
 }
 
 export interface CreateOrderInput {
@@ -302,6 +416,12 @@ export interface CreateOrderInput {
   trimAndSlice?: boolean;
   /** 수령 방식 · 기본 택배 */
   receiveMethod?: ReceiveMethod;
+  /** 매장 수령일 때 필수 */
+  pickup?: PickupInput;
+  /** 선물세트 원천 주문 · 서버만 채운다 */
+  giftSetId?: string;
+  /** 선물세트 묶음 결제 · 서버만 쓴다 */
+  skipPayment?: boolean;
 }
 
 export interface ConsumerProductFilter {
@@ -356,6 +476,8 @@ export interface ConsumerReservation {
   optionFeePerKg: number;
   /** 택배 배송 또는 식육식당 매장 수령 */
   receiveMethod: ReceiveMethod;
+  store: StoreSummary | null;
+  pickupAt: string | null;
   /** 결제 금액 = kg × (단가 + 옵션 요금) */
   amount: number;
   status: ReservationStatus;
@@ -375,6 +497,8 @@ export interface CreateReservationInput {
   trimAndSlice?: boolean;
   /** 수령 방식 · 기본 택배 */
   receiveMethod?: ReceiveMethod;
+  /** 매장 수령일 때 필수 */
+  pickup?: PickupInput;
   shipping: ShippingInfo;
 }
 
@@ -509,4 +633,59 @@ export interface UpdateProductSettingsInput {
   bidPriceCap?: number | null;
   recruitDeadline?: string | null;
   description?: string | null;
+}
+
+export type GiftSetStatus = 'paid' | 'cancelled' | 'refunded';
+
+export interface GiftRecipient {
+  setIndex: number;
+  shipping: ShippingInfo;
+  message: string | null;
+}
+
+export interface GiftLeftoverLine {
+  productId: string;
+  label: string;
+  leftoverKg: number;
+}
+
+export interface ConsumerGiftSet {
+  id: string;
+  giftNo: string;
+  cellCount: GiftCellCount;
+  quantity: number;
+  packagingFee: number;
+  cells: GiftCellSnapshot[];
+  recipientMode: GiftRecipientMode;
+  leftoverReceiveMethod: ReceiveMethod;
+  leftoverStore: StoreSummary | null;
+  leftoverPickupAt: string | null;
+  leftoverShipping: ShippingInfo | null;
+  leftoverKg: number;
+  leftoverLines: GiftLeftoverLine[];
+  meatAmount: number;
+  amount: number;
+  status: GiftSetStatus;
+  statusLabel: string;
+  canCancel: boolean;
+  recipients: GiftRecipient[];
+  orders: ConsumerOrder[];
+  paidAt: string | null;
+  refundedAt: string | null;
+  createdAt: string;
+}
+
+export interface CreateGiftSetInput {
+  cellCount: GiftCellCount;
+  quantity: number;
+  cells: { cellNo: number; productId?: string | null; poolId?: string | null }[];
+  recipientMode: GiftRecipientMode;
+  recipients: Array<{ shipping: ShippingInfo; message?: string }>;
+  leftoverReceiveMethod: ReceiveMethod;
+  leftoverPickup?: PickupInput;
+  leftoverShipping: ShippingInfo;
+}
+
+export interface GiftSettings {
+  packagingFee: number;
 }

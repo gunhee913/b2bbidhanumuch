@@ -8,6 +8,7 @@ import { formatKg, formatWon, isZoneSplit, slotZoneLabel, zoneKeysFor, ZONE_META
 import { TRIM_SLICE_LABEL } from '../lib/pools';
 import { isDineIn, RECEIVE_METHOD_LABELS } from '../lib/receive';
 import { formatDateTime } from '../lib/format';
+import { formatPickup } from '../lib/stores';
 import { ConsumerStatusBadge, GradeBadge } from './primitives';
 
 const FALLBACK_IMAGE = 'https://picsum.photos/seed/hanwoo-order/320/240';
@@ -55,6 +56,12 @@ export function OrderCard({ order }: { order: ConsumerOrder }) {
           {describeSlots(order)}
           {order.saleMode === 'slot' ? ` · ${formatKg(order.weightKg)}` : ''}
         </p>
+        {isDineIn(order.receiveMethod) && order.store ? (
+          <p className="mt-0.5 text-[12.5px] tabular-nums text-content-mid">
+            {order.store.name}
+            {order.pickupAt ? ` · 픽업 ${formatPickup(order.pickupAt)}` : ''}
+          </p>
+        ) : null}
         {order.statusMessage ? <p className="mt-1.5 text-[12.5px] text-content-faint">{order.statusMessage}</p> : null}
       </div>
       <div className="flex shrink-0 items-center gap-4">

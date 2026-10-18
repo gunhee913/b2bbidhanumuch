@@ -1,9 +1,9 @@
 /**
- * 수령 방식 · 택배로 받거나, 식육식당(매장)으로 보내 자리에서 구워 먹는다.
- * 서버(주문 저장·검증)와 클라이언트(옵션 선택·주문 내역 표시)가 같은 라벨·매장 정보를 쓴다.
+ * 수령 방식 · 택배로 받거나, 고른 식육식당(매장)에서 예약한 시간에 받는다.
+ * 서버(주문 저장·검증)와 클라이언트(옵션 선택·주문 내역 표시)가 같은 라벨을 쓴다.
  */
 
-import type { ReceiveMethod, ShippingInfo } from '../types';
+import type { ReceiveMethod, ShippingInfo, StoreSummary } from '../types';
 
 export const DEFAULT_RECEIVE_METHOD: ReceiveMethod = 'delivery';
 
@@ -24,28 +24,23 @@ export const isDineIn = (method: ReceiveMethod | null | undefined) => method ===
 
 export const toReceiveMethod = (value: string | null | undefined): ReceiveMethod => (value === 'dine_in' ? 'dine_in' : 'delivery');
 
-/**
- * 식육식당 매장 정보 · 매장 수령 주문은 이 주소로 배송된다.
- * TODO: 매장이 확정되면 실제 주소·영업시간으로 바꾸고, 매장이 늘면 관리자 설정으로 옮긴다.
- */
-export const DINE_IN_STORE = {
-  name: '농협미트센터 식육식당',
-  zipcode: '27675',
-  address: '충북 음성군 음성읍 (매장 주소 확정 예정)',
-  hours: '매일 11:00 – 21:00',
-  notice: '도착 안내 문자를 받으신 뒤 매장에 방문해 주세요. 상차림비는 매장에서 별도 결제됩니다.',
-};
+/** 매장 수령 공통 안내 · 매장별 안내는 매장 레코드에 있다 */
+export const DINE_IN_NOTICE = '예약하신 시간에 매장에 방문해 주세요. 상차림비는 매장에서 별도 결제됩니다.';
 
 /**
- * 매장 수령이면 배송지 주소는 매장 주소로 바꾼다 · 이름·연락처·메모는 주문자 것을 그대로 둔다.
+ * 매장 수령이면 배송지 주소는 고른 매장 주소로 바꾼다 · 이름·연락처·메모는 주문자 것을 그대로 둔다.
  * 택배면 입력값 그대로.
  */
-export function shippingForReceive(method: ReceiveMethod, shipping: ShippingInfo): ShippingInfo {
-  if (!isDineIn(method)) return shipping;
+export function shippingForReceive(
+  method: ReceiveMethod,
+  shipping: ShippingInfo,
+  store?: Pick<StoreSummary, 'name' | 'address' | 'addressDetail'> & { zipcode?: string | null },
+): ShippingInfo {
+  if (!isDineIn(method) || !store) return shipping;
   return {
     ...shipping,
-    zipcode: DINE_IN_STORE.zipcode,
-    address: DINE_IN_STORE.address,
-    addressDetail: DINE_IN_STORE.name,
+    zipcode: store.zipcode ?? '',
+    address: store.address,
+    addressDetail: [store.addressDetail, store.name].filter(Boolean).join(' · '),
   };
 }

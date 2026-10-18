@@ -11,6 +11,8 @@ const createOrderSchema = z.object({
   slotNos: z.array(z.number().int().min(1)).min(1).max(100),
   trimAndSlice: z.boolean().optional().default(false),
   receiveMethod: z.enum(['delivery', 'dine_in']).optional().default('delivery'),
+  // 매장 수령일 때 필수 · 매장·시간 규칙 검증은 서버 생성 함수가 한다
+  pickup: z.object({ storeId: z.string().uuid(), pickupAt: z.string().min(10) }).optional(),
   // 주소는 매장 수령이면 비어도 된다 · 택배 여부에 따른 검사는 createOrder 가 한다
   shipping: z.object({
     name: z.string().min(1),

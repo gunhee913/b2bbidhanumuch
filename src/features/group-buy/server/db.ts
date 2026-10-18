@@ -1,7 +1,7 @@
 import 'server-only';
 
 import { getAdminClient } from '@/lib/supabase-admin';
-import type { GroupBuyProductRow, GroupBuyOrderRow } from '../types';
+import type { GroupBuyProductRow, GroupBuyOrderRow, GroupBuyStoreRow } from '../types';
 
 export const supabase = getAdminClient();
 
@@ -75,12 +75,14 @@ export interface ProductWithJoins extends GroupBuyProductRow {
 export const ORDER_SELECT = `
   *,
   group_buy_order_slots ( slot_no ),
-  consumers ( id, name, phone )
+  consumers ( id, name, phone ),
+  group_buy_stores ( id, slug, name, address, address_detail, phone, zipcode )
 `;
 
 export interface OrderWithJoins extends GroupBuyOrderRow {
   group_buy_order_slots: { slot_no: number }[] | null;
   consumers: { id: string; name: string; phone: string } | null;
+  group_buy_stores: Pick<GroupBuyStoreRow, 'id' | 'slug' | 'name' | 'address' | 'address_detail' | 'phone' | 'zipcode'> | null;
 }
 
 /** 부위 대표이미지(part_group_images) · (company_id|'*') + group_name → url */

@@ -21,6 +21,7 @@ import {
 } from '../constants/status';
 import { buildProductZones, calcPricePer100g, calcSavingRate, isZoneSplit, sumZones } from '../lib/slots';
 import { toReceiveMethod } from '../lib/receive';
+import { toStoreSummary } from './stores';
 import { groupImageKey, toNumber, type GroupImageMap, type OrderWithJoins, type ProductWithJoins } from './db';
 
 /**
@@ -251,9 +252,12 @@ export function toConsumerOrder(
     canCancel: row.status === 'paid' && product.status === 'recruiting' && saleMode === 'slot',
     recruitDeadline: product.recruit_deadline ?? '',
     receiveMethod: toReceiveMethod(row.receive_method),
+    store: toStoreSummary(row.group_buy_stores),
+    pickupAt: row.pickup_at ?? null,
     shipping: (row.shipping ?? {}) as ShippingInfo,
     paidAt: row.paid_at,
     refundedAt: row.refunded_at,
+    giftSetId: row.gift_set_id ?? null,
     createdAt: row.created_at,
   };
 }

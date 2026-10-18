@@ -19,7 +19,7 @@ const adminProtectedPaths = ["/admin"];
 const companyProtectedPaths = ["/company"];
 
 // 공동구매 소비자 로그인이 필요한 경로
-const consumerProtectedPaths = ["/group-buy/mypage", "/group-buy/checkout"];
+const consumerProtectedPaths = ["/group-buy/mypage", "/group-buy/checkout", "/group-buy/gift/checkout"];
 const consumerAuthPaths = ["/group-buy/login", "/group-buy/signup"];
 
 // 로그인 상태에서 접근하면 리다이렉트할 경로

@@ -6,6 +6,7 @@ import { CATTLE_PART_NAMES } from '@/constants/cattleParts';
 import { getPartGroupOrder } from '@/features/live-auction/lib/partGrouping';
 import { GroupBuyShell } from '@/features/group-buy/components/GroupBuyShell';
 import { EmptyState, Skeleton } from '@/features/group-buy/components/primitives';
+import { ALL_FILTER, FilterChip, FilterRow } from '@/features/group-buy/components/products/ProductFilters';
 import { ProductOrderPanel } from '@/features/group-buy/components/products/ProductOrderPanel';
 import { ProductTable, ProductTableHead } from '@/features/group-buy/components/products/ProductTable';
 import { useConsumerProducts, useRealtimeGroupBuy } from '@/features/group-buy/hooks';
@@ -15,38 +16,10 @@ import { GRADE_KEY_ORDER, gradeKeyLabel, gradeKeyOf } from '@/features/group-buy
 import type { ProductZone } from '@/features/group-buy/lib/slots';
 import type { ConsumerProduct } from '@/features/group-buy/types';
 
-const ALL = '';
-
-function Chip({ active, children, onClick }: { active: boolean; children: React.ReactNode; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className={cn(
-        'inline-flex h-9 items-center rounded-sm px-3.5 text-[13.5px] font-semibold transition-colors',
-        active ? 'bg-ink text-white' : 'bg-surface-accent text-content-mid hover:bg-surface-strong hover:text-content',
-      )}
-    >
-      {children}
-    </button>
-  );
-}
-
-/** 필터 한 줄 · 왼쪽 라벨 + 칩들 */
-function FilterRow({ label, className, children }: { label: string; className?: string; children: React.ReactNode }) {
-  return (
-    <div className={cn('flex flex-wrap items-center gap-1.5', className)}>
-      <span className="mr-1.5 w-8 shrink-0 text-[12.5px] font-semibold text-content-faint">{label}</span>
-      {children}
-    </div>
-  );
-}
-
 /** 공동구매 · 모집 중인 구좌 상품 표 + 오른쪽 바로 주문 / 장바구니 담기 */
 export default function GroupBuyProductsPage() {
-  const [partGroup, setPartGroup] = useState(ALL);
-  const [grade, setGrade] = useState(ALL);
+  const [partGroup, setPartGroup] = useState(ALL_FILTER);
+  const [grade, setGrade] = useState(ALL_FILTER);
   const [selectedId, setSelectedId] = useState<string>();
   const [slotNo, setSlotNo] = useState<number>();
 
@@ -121,23 +94,23 @@ export default function GroupBuyProductsPage() {
           <div className="sticky top-[84px] z-10 bg-surface">
             <div className="border-b border-line px-4 py-3">
               <FilterRow label="부위">
-                <Chip active={partGroup === ALL} onClick={() => setPartGroup(ALL)}>
+                <FilterChip active={partGroup === ALL_FILTER} onClick={() => setPartGroup(ALL_FILTER)}>
                   전체
-                </Chip>
+                </FilterChip>
                 {partGroups.map((g) => (
-                  <Chip key={g} active={partGroup === g} onClick={() => setPartGroup(g)}>
+                  <FilterChip key={g} active={partGroup === g} onClick={() => setPartGroup(g)}>
                     {g}
-                  </Chip>
+                  </FilterChip>
                 ))}
               </FilterRow>
               <FilterRow label="등급" className="mt-2.5">
-                <Chip active={grade === ALL} onClick={() => setGrade(ALL)}>
+                <FilterChip active={grade === ALL_FILTER} onClick={() => setGrade(ALL_FILTER)}>
                   전체
-                </Chip>
+                </FilterChip>
                 {grades.map((g) => (
-                  <Chip key={g} active={grade === g} onClick={() => setGrade(g)}>
+                  <FilterChip key={g} active={grade === g} onClick={() => setGrade(g)}>
                     {gradeKeyLabel(g)}
-                  </Chip>
+                  </FilterChip>
                 ))}
               </FilterRow>
             </div>

@@ -11,7 +11,8 @@ export const GB_VERIFIED_IMAGE_SRC = '/group-buy/verified-lab.jpg';
 export const GB_NAV_ITEMS = [
   { label: '벌크구매', href: '/group-buy/products' },
   { label: '1kg 구매', href: '/group-buy/kg' },
-  { label: '견적받기', href: '/group-buy/quote' },
+  { label: '선물세트', href: '/group-buy/gift' },
+  { label: '매장안내', href: '/group-buy/stores' },
   { label: '이용안내', href: '/group-buy/guide' },
 ] as const;
 

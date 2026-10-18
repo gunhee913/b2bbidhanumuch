@@ -10,6 +10,7 @@ import { useRealtimeTable } from '@/hooks/useRealtimeTable';
 import type { OrderLine, SlotLine } from './lib/cartStore';
 import { gradeWithMarbling } from './lib/format';
 import { poolTitle } from './lib/pools';
+import { isDineIn } from './lib/receive';
 import { EMPTY_SHIPPING, shippingSchema, type ShippingForm } from './lib/shipping';
 import {
   ApiError,
@@ -29,29 +30,46 @@ import {
   fetchProductCerts,
   fetchConsumerProducts,
   fetchConsumerReservations,
+  fetchConsumerGiftSet,
+  fetchConsumerGiftSets,
+  fetchGiftSettings,
+  fetchAdminGifts,
+  fetchAdminStores,
+  createConsumerGiftSet,
+  cancelConsumerGiftSet,
   fetchGroupBuySettings,
+  fetchStore,
+  fetchStores,
+  fetchStoreSlots,
   fetchPartDefaults,
   matchAdminPools,
   publishAdminProduct,
   refundAdminOrder,
   saveAdminPool,
+  saveAdminStore,
   savePartDefault,
   syncAdminDrafts,
   transitionAdminProduct,
   unpublishAdminProduct,
   updateAdminProductSettings,
   updateGroupBuySettings,
+  updateAdminGiftSettings,
+  updateOrderPickup,
+  updateReservationPickup,
 } from './api';
 import type {
   ConsumerPoolFilter,
   ConsumerProductFilter,
+  CreateGiftSetInput,
   CreateOrderInput,
   CreateReservationInput,
   GroupBuyPartDefault,
   GroupBuyStatus,
+  PickupInput,
   ShippingInfo,
   UpdateProductSettingsInput,
   UpsertPoolInput,
+  UpsertStoreInput,
 } from './types';
 
 export const groupBuyKeys = {
@@ -64,6 +82,14 @@ export const groupBuyKeys = {
   pools: (filter: ConsumerPoolFilter = {}) => ['group-buy', 'pools', filter] as const,
   pool: (id: string) => ['group-buy', 'pool', id] as const,
   reservations: () => ['group-buy', 'reservations'] as const,
+  stores: () => ['group-buy', 'stores'] as const,
+  store: (slug: string) => ['group-buy', 'store', slug] as const,
+  storeSlots: (storeId: string, date: string) => ['group-buy', 'store', storeId, 'slots', date] as const,
+  giftSettings: () => ['group-buy', 'gift-settings'] as const,
+  gifts: () => ['group-buy', 'gifts'] as const,
+  gift: (id: string) => ['group-buy', 'gift', id] as const,
+  adminGifts: () => ['group-buy', 'admin', 'gifts'] as const,
+  adminStores: () => ['group-buy', 'admin', 'stores'] as const,
   adminPools: () => ['group-buy', 'admin', 'pools'] as const,
   adminProducts: (filter: { status?: GroupBuyStatus | 'all'; date?: string } = {}) =>
     ['group-buy', 'admin', 'products', filter] as const,
@@ -180,13 +206,20 @@ export function useSubmitKgOrders() {
   const [isPending, setIsPending] = useState(false);
 
   const submit = useCallback(
-    async (lines: OrderLine[], shipping: ShippingInfo): Promise<SubmitKgOrdersResult> => {
+    async (lines: OrderLine[], shipping: ShippingInfo, pickup?: PickupInput): Promise<SubmitKgOrdersResult> => {
       setIsPending(true);
       const succeeded: OrderLine[] = [];
       const failed: string[] = [];
       for (const line of lines) {
         try {
-          await create.mutateAsync({ poolId: line.pool.id, kg: line.kg, trimAndSlice: line.trimAndSlice, receiveMethod: line.receiveMethod, shipping });
+          await create.mutateAsync({
+            poolId: line.pool.id,
+            kg: line.kg,
+            trimAndSlice: line.trimAndSlice,
+            receiveMethod: line.receiveMethod,
+            pickup: isDineIn(line.receiveMethod) ? pickup : undefined,
+            shipping,
+          });
           succeeded.push(line);
         } catch (e) {
           failed.push(`${poolTitle(line.pool)}: ${e instanceof Error ? e.message : '주문하지 못했어요.'}`);
@@ -215,7 +248,7 @@ export function useSubmitSlotOrders() {
   const [isPending, setIsPending] = useState(false);
 
   const submit = useCallback(
-    async (lines: SlotLine[], shipping: ShippingInfo): Promise<SubmitSlotOrdersResult> => {
+    async (lines: SlotLine[], shipping: ShippingInfo, pickup?: PickupInput): Promise<SubmitSlotOrdersResult> => {
       setIsPending(true);
       const succeeded: SlotLine[] = [];
       const failed: string[] = [];
@@ -223,10 +256,11 @@ export function useSubmitSlotOrders() {
 
       for (const group of Object.values(byProduct)) {
         const { product, trimAndSlice, receiveMethod } = group[0];
+        const linePickup = isDineIn(receiveMethod) ? pickup : undefined;
         const title = `${product.partName} ${gradeWithMarbling(product.cattle.grade, product.cattle.marblingScore)}`;
         let pending = group;
         try {
-          await create.mutateAsync({ productId: product.id, slotNos: pending.map((l) => l.zone.slotNo), trimAndSlice, receiveMethod, shipping });
+          await create.mutateAsync({ productId: product.id, slotNos: pending.map((l) => l.zone.slotNo), trimAndSlice, receiveMethod, pickup: linePickup, shipping });
           succeeded.push(...pending);
           continue;
         } catch (e) {
@@ -240,7 +274,7 @@ export function useSubmitSlotOrders() {
         }
         if (pending.length === 0) continue;
         try {
-          await create.mutateAsync({ productId: product.id, slotNos: pending.map((l) => l.zone.slotNo), trimAndSlice, receiveMethod, shipping });
+          await create.mutateAsync({ productId: product.id, slotNos: pending.map((l) => l.zone.slotNo), trimAndSlice, receiveMethod, pickup: linePickup, shipping });
           succeeded.push(...pending);
         } catch (e) {
           failed.push(`${title}: ${e instanceof Error ? e.message : '주문하지 못했어요.'}`);
@@ -276,6 +310,102 @@ export function useCancelOrder() {
   return useMutation({
     mutationFn: (id: string) => cancelConsumerOrder(id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: groupBuyKeys.all }),
+  });
+}
+
+// ---------- 매장 · 픽업 ----------
+
+export function useStores() {
+  return useQuery({ queryKey: groupBuyKeys.stores(), queryFn: fetchStores, staleTime: 5 * 60 * 1000 });
+}
+
+export function useStore(slug: string | null) {
+  return useQuery({ queryKey: groupBuyKeys.store(slug ?? ''), queryFn: () => fetchStore(slug!), enabled: !!slug, staleTime: 5 * 60 * 1000 });
+}
+
+/** 하루치 픽업 슬롯 · 잔여는 자주 바뀌니 짧게만 캐시 */
+export function useStoreSlots(storeId: string | null, date: string | null) {
+  return useQuery({
+    queryKey: groupBuyKeys.storeSlots(storeId ?? '', date ?? ''),
+    queryFn: () => fetchStoreSlots(storeId!, date!),
+    enabled: !!storeId && !!date,
+    staleTime: 15 * 1000,
+  });
+}
+
+export function useUpdateOrderPickup() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ orderId, input }: { orderId: string; input: PickupInput }) => updateOrderPickup(orderId, input),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: groupBuyKeys.all }),
+  });
+}
+
+export function useUpdateReservationPickup() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ reservationId, input }: { reservationId: string; input: PickupInput }) => updateReservationPickup(reservationId, input),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: groupBuyKeys.all }),
+  });
+}
+
+export function useAdminStores() {
+  return useQuery({ queryKey: groupBuyKeys.adminStores(), queryFn: fetchAdminStores });
+}
+
+export function useSaveAdminStore() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: UpsertStoreInput) => saveAdminStore(input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: groupBuyKeys.adminStores() });
+      queryClient.invalidateQueries({ queryKey: groupBuyKeys.stores() });
+    },
+  });
+}
+
+// ---------- 선물세트 ----------
+
+export function useGiftSettings() {
+  return useQuery({ queryKey: groupBuyKeys.giftSettings(), queryFn: fetchGiftSettings, staleTime: 60 * 1000 });
+}
+
+export function useConsumerGiftSets(enabled = true) {
+  return useQuery({ queryKey: groupBuyKeys.gifts(), queryFn: fetchConsumerGiftSets, enabled });
+}
+
+export function useConsumerGiftSet(id: string | null) {
+  return useQuery({ queryKey: groupBuyKeys.gift(id ?? ''), queryFn: () => fetchConsumerGiftSet(id!), enabled: !!id });
+}
+
+export function useCreateGiftSet() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: CreateGiftSetInput) => createConsumerGiftSet(input),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: groupBuyKeys.all }),
+  });
+}
+
+export function useCancelGiftSet() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => cancelConsumerGiftSet(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: groupBuyKeys.all }),
+  });
+}
+
+export function useAdminGifts() {
+  return useQuery({ queryKey: groupBuyKeys.adminGifts(), queryFn: fetchAdminGifts });
+}
+
+export function useUpdateGiftSettings() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { packagingFee: number }) => updateAdminGiftSettings(input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: groupBuyKeys.adminGifts() });
+      queryClient.invalidateQueries({ queryKey: groupBuyKeys.giftSettings() });
+    },
   });
 }
 
