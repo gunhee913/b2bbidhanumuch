@@ -16,12 +16,14 @@ export interface PickupSelection extends PickupInput {
 interface PickupSchedulerProps {
   value: PickupSelection | null;
   onChange: (next: PickupSelection | null) => void;
-  /** 매장 안내에서 넘어온 선호 매장 · 처음 열 때 고른다 */
+  /** 매장이용에서 넘어온 선호 매장 · 처음 열 때 고른다 */
   preferredStoreId?: string | null;
   /** 변경 화면에서 현재 잡혀 있는 시간 · 잔여 0 이어도 고를 수 있게 */
   currentPickupAt?: string | null;
   /** 변경 화면에서는 매장을 못 바꾸게 */
   lockStore?: boolean;
+  /** 매장이용 단계 안에서는 같은 페이지로 나가는 링크를 숨긴다 */
+  showMapLink?: boolean;
   disabled?: boolean;
   className?: string;
 }
@@ -35,7 +37,7 @@ const CHIP_OFF = 'cursor-not-allowed border-line-soft bg-surface-accent/50 text-
  * 매장 → 날짜 → 시간 순서로 고른다.
  * 날짜는 주문일 + 3일부터 2주, 시간은 매장 영업시간을 슬롯 단위로 자른 것 · 잔여는 서버에서 센다.
  */
-export function PickupScheduler({ value, onChange, preferredStoreId = null, currentPickupAt = null, lockStore = false, disabled = false, className }: PickupSchedulerProps) {
+export function PickupScheduler({ value, onChange, preferredStoreId = null, currentPickupAt = null, lockStore = false, showMapLink = true, disabled = false, className }: PickupSchedulerProps) {
   const { data: stores, isLoading } = useStores();
   const [storeId, setStoreId] = useState<string | null>(value?.storeId ?? preferredStoreId);
   const [date, setDate] = useState<string | null>(value?.pickupAt ? value.pickupAt.slice(0, 10) : null);
@@ -87,9 +89,11 @@ export function PickupScheduler({ value, onChange, preferredStoreId = null, curr
       <div>
         <div className="flex items-baseline justify-between">
           <p className="text-[13px] font-semibold text-content-mid">받을 매장</p>
-          <Link href="/group-buy/stores" className="text-[12.5px] font-medium text-content-faint hover:text-content-mid">
-            매장 안내 · 지도
-          </Link>
+          {showMapLink ? (
+            <Link href="/group-buy/stores" className="text-[12.5px] font-medium text-content-faint hover:text-content-mid">
+              매장이용
+            </Link>
+          ) : null}
         </div>
         <ul className="mt-2 grid gap-2 sm:grid-cols-2">
           {stores.map((s) => {

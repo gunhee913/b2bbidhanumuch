@@ -38,6 +38,14 @@ export interface CheckoutDraft {
   fromCart: boolean;
 }
 
+/** 매장이용 초안 · 매장·방문 시간과 그 방문에 담은 벌크·1kg. 장바구니와 섞지 않는다 */
+export interface StoreVisitDraft {
+  storeId: string;
+  pickupAt: string;
+  slotItems: { productId: string; slotNo: number }[];
+  kgItems: { poolId: string; kg: number }[];
+}
+
 /** 선물세트 초안 · 빌더에서 주문서으로 넘긴다 */
 export interface GiftDraft {
   cellCount: GiftCellCount;
@@ -68,7 +76,10 @@ interface KgCartState {
   checkout: CheckoutDraft | null;
   giftDraft: GiftDraft | null;
   setGiftDraft: (draft: GiftDraft | null) => void;
-  /** 매장 안내에서 "이 매장에서 받기"를 누른 매장 · 주문서의 기본 선택 */
+  /** 매장이용에서 고른 방문 · 로그인 뒤에 주문 단계로 돌아온다 */
+  storeVisit: StoreVisitDraft | null;
+  setStoreVisit: (draft: StoreVisitDraft | null) => void;
+  /** 매장이용에서 고른 매장 · 주문서의 기본 선택 */
   preferredStoreId: string | null;
   setPreferredStore: (storeId: string | null) => void;
   /** 주문서 페이지로 넘길 줄을 적어 둔다 · 바로 주문이면 fromCart=false */
@@ -92,6 +103,17 @@ interface KgCartState {
 
 const sameSlot = (a: SlotRef, b: SlotRef) => a.productId === b.productId && a.slotNo === b.slotNo;
 
+function readStoreVisit(value: StoreVisitDraft | null | undefined): StoreVisitDraft | null {
+  if (!value || typeof value.storeId !== 'string' || typeof value.pickupAt !== 'string') return null;
+  const slotItems = Array.isArray(value.slotItems)
+    ? value.slotItems.flatMap((item) => (item?.productId && typeof item.slotNo === 'number' ? [{ productId: item.productId, slotNo: item.slotNo }] : []))
+    : [];
+  const kgItems = Array.isArray(value.kgItems)
+    ? value.kgItems.flatMap((item) => (item?.poolId && typeof item.kg === 'number' ? [{ poolId: item.poolId, kg: item.kg }] : []))
+    : [];
+  return { storeId: value.storeId, pickupAt: value.pickupAt, slotItems, kgItems };
+}
+
 /**
  * 장바구니 · 1kg 구매(풀 id·kg·손질 옵션)와 공동구매 구좌(상품 id·구좌 번호)를 함께 담는다.
  * 가격은 항상 서버 목록에서 다시 읽는다.
@@ -105,6 +127,8 @@ export const useKgCart = create<KgCartState>()(
       checkout: null,
       giftDraft: null,
       setGiftDraft: (draft) => set({ giftDraft: draft }),
+      storeVisit: null,
+      setStoreVisit: (draft) => set({ storeVisit: draft }),
       preferredStoreId: null,
       setPreferredStore: (storeId) => set({ preferredStoreId: storeId }),
       startCheckout: (draft) => set({ checkout: draft }),
@@ -148,13 +172,20 @@ export const useKgCart = create<KgCartState>()(
     }),
     {
       name: 'gb.kg.cart',
-      version: 9,
+      version: 10,
       skipHydration: true,
-      partialize: (s) => ({ items: s.items, slotItems: s.slotItems, checkout: s.checkout, giftDraft: s.giftDraft, preferredStoreId: s.preferredStoreId }),
-      // v1 에는 옵션이 없었다 · v2 에는 구좌가 없었다 · v3 구좌에는 옵션이 없었다 · v4 구좌에는 수령 방식이 없었다 · v5 kg 줄에는 수령 방식이 없었다 · v6 에는 주문서 초안이 없었다 · v7 에는 선호 매장이 없었다
+      partialize: (s) => ({ items: s.items, slotItems: s.slotItems, checkout: s.checkout, giftDraft: s.giftDraft, storeVisit: s.storeVisit, preferredStoreId: s.preferredStoreId }),
+      // v1 에는 옵션이 없었다 · v2 에는 구좌가 없었다 · v3 구좌에는 옵션이 없었다 · v4 구좌에는 수령 방식이 없었다 · v5 kg 줄에는 수령 방식이 없었다 · v6 에는 주문서 초안이 없었다 · v7 에는 선호 매장이 없었다 · v9 까지는 매장이용 초안이 없었다
       migrate: (persisted) => {
         const state = persisted as
-          | { items?: Array<Partial<KgCartItem>>; slotItems?: Array<Partial<SlotCartItem>>; checkout?: CheckoutDraft | null; preferredStoreId?: string | null }
+          | {
+              items?: Array<Partial<KgCartItem>>;
+              slotItems?: Array<Partial<SlotCartItem>>;
+              checkout?: CheckoutDraft | null;
+              giftDraft?: GiftDraft | null;
+              storeVisit?: StoreVisitDraft | null;
+              preferredStoreId?: string | null;
+            }
           | undefined;
         return {
           items: (state?.items ?? []).flatMap((i) =>
@@ -168,7 +199,8 @@ export const useKgCart = create<KgCartState>()(
               : [],
           ),
           checkout: state?.checkout ?? null,
-          giftDraft: (state as { giftDraft?: GiftDraft | null })?.giftDraft ?? null,
+          giftDraft: state?.giftDraft ?? null,
+          storeVisit: readStoreVisit(state?.storeVisit),
           preferredStoreId: typeof state?.preferredStoreId === 'string' ? state.preferredStoreId : null,
         } as KgCartState;
       },

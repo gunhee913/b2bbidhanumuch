@@ -15,7 +15,7 @@ import { PICKUP_LEAD_DAYS, PICKUP_WINDOW_DAYS, storeHoursLabel, weekdayLabel } f
 
 const FALLBACK_IMAGE = 'https://picsum.photos/seed/hanwoo-store/1200/600';
 
-/** 매장 상세 · 사진 · 위치 · 영업시간 · 오시는 길 · "이 매장에서 받기" */
+/** 매장 상세 · 사진 · 위치 · 영업시간 · 오시는 길 · 이 매장 예약하기 */
 export default function GroupBuyStoreDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
   const { data: store, isLoading } = useStore(slug);
@@ -25,15 +25,15 @@ export default function GroupBuyStoreDetailPage({ params }: { params: Promise<{ 
   const choose = () => {
     if (!store) return;
     setPreferredStore(store.id);
-    toast.success(`${store.name}을(를) 받을 매장으로 기억해 둘게요. 주문서에서 시간만 고르면 돼요.`);
-    router.push('/group-buy/products');
+    toast.success(`${store.name} 예약을 이어서 진행해요.`);
+    router.push(`/group-buy/stores?store=${store.id}&step=reserve`);
   };
 
   return (
     <GroupBuyShell>
       <Link href="/group-buy/stores" className="inline-flex items-center gap-1 text-[13px] font-medium text-content-faint hover:text-content-mid">
         <ChevronLeft className="h-4 w-4" />
-        매장안내
+        매장이용
       </Link>
 
       {isLoading ? (
@@ -43,7 +43,7 @@ export default function GroupBuyStoreDetailPage({ params }: { params: Promise<{ 
         </div>
       ) : !store ? (
         <div className="mt-8">
-          <EmptyState title="매장을 찾을 수 없어요" action={<Link href="/group-buy/stores" className="text-[14px] font-semibold underline">매장안내로</Link>} />
+          <EmptyState title="매장을 찾을 수 없어요" action={<Link href="/group-buy/stores" className="text-[14px] font-semibold underline">매장이용으로</Link>} />
         </div>
       ) : (
         <>
@@ -67,7 +67,7 @@ export default function GroupBuyStoreDetailPage({ params }: { params: Promise<{ 
               </a>
               <button type="button" onClick={choose} className="inline-flex h-11 items-center gap-1.5 rounded-sm bg-ink px-5 text-[14px] font-bold text-white hover:bg-ink-hover">
                 <StoreIcon className="h-4 w-4" />
-                이 매장에서 받기
+                이 매장 예약하기
               </button>
             </div>
           </div>

@@ -16,7 +16,7 @@ interface StoreCardProps {
   className?: string;
 }
 
-/** 매장 안내 목록 한 장 · 누르면 지도가 그 매장으로 옮겨가고, 상세로 들어갈 수 있다 */
+/** 매장이용 목록 한 장 · 누르면 지도가 그 매장으로 옮겨가고, 상세로 들어갈 수 있다 */
 export function StoreCard({ store, selected = false, onSelect, className }: StoreCardProps) {
   return (
     <article
