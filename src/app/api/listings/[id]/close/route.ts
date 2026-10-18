@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminClient } from '@/lib/supabase-admin';
+import { settleProductsForListings } from '@/features/group-buy/server/settle';
 
 const supabase = getAdminClient();
 
@@ -118,6 +119,13 @@ export async function POST(
     if (updateError) {
       console.error('상장 상태 변경 오류:', updateError);
       return NextResponse.json({ error: updateError.message }, { status: 500 });
+    }
+
+    // 공동구매 · 상장 마감 기준으로 낙찰/미확보 확정 (미확보는 환불)
+    try {
+      await settleProductsForListings([listingId], '상장 마감');
+    } catch (e) {
+      console.error('[group-buy] 상장 마감 정산 실패:', e);
     }
 
     // 6. 해당 날짜 및 이전 미마감 날짜들을 마감 날짜 테이블에 추가

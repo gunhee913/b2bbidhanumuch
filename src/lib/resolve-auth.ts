@@ -12,6 +12,32 @@ export interface ResolvedAuth {
   phone: string;
 }
 
+export interface ResolvedConsumer {
+  consumerId: string;
+  name: string;
+  phone: string;
+}
+
+/** 공동구매 소비자 세션 · 소비자가 아니면 null */
+export async function resolveConsumer(request: NextRequest): Promise<ResolvedConsumer | null> {
+  const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
+  if (!token || token.userType !== 'consumer_user') return null;
+  const consumerId = (token.consumer as { id?: string } | null)?.id || (token.id as string);
+  if (!consumerId) return null;
+  return {
+    consumerId,
+    name: token.name as string,
+    phone: token.phone as string,
+  };
+}
+
+/** 관리자 세션 · 관리자가 아니면 null */
+export async function resolveAdmin(request: NextRequest): Promise<{ adminId: string; name: string } | null> {
+  const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
+  if (!token || token.userType !== 'admin_user') return null;
+  return { adminId: token.id as string, name: (token.name as string) || '관리자' };
+}
+
 export async function resolveAuth(request: NextRequest): Promise<ResolvedAuth | null> {
   const bearerToken = extractBearerToken(request.headers.get('authorization'));
   if (bearerToken) {

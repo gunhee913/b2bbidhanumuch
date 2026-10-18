@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 import { createNotificationForAllWithTemplate } from '@/lib/notifications';
 import { format } from 'date-fns';
+import { placePlatformBids } from '@/features/group-buy/server/bids';
 
 const supabase = getAdminClient();
 
@@ -140,6 +141,13 @@ export async function POST(request: NextRequest) {
       { roundNo: String(roundNo), count: String(listingIds.length) },
       '/'
     ).catch(() => {});
+
+    // 공동구매 · 모집 완료 상품 자동 응찰
+    try {
+      await placePlatformBids(auction.id);
+    } catch (e) {
+      console.error('[group-buy] 자동 응찰 실패:', e);
+    }
 
     return NextResponse.json({
       round: auction,

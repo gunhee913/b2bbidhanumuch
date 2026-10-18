@@ -155,6 +155,22 @@ const config = {
           /** placeholder · 빈 값 (light slate-300) */
           ghost: "rgb(var(--content-ghost) / <alpha-value>)",
         },
+        /**
+         * meat · 버건디 · 소비자 공동구매(/group-buy) 포인트 색.
+         * 할인율·가격 강조·"마감 임박" 제목처럼 한우 고기색과 같은 계열로 사진 옆에 둬도 튀지 않는다.
+         * 긴급·오류는 amber/rose 를 쓰고 이 색은 쓰지 않는다 (역할 분리).
+         */
+        meat: {
+          50: "#fbf1ef",
+          100: "#f6dcd8",
+          200: "#ecb8b1",
+          300: "#dd8d83",
+          400: "#c9625a",
+          500: "#b8463a",
+          600: "#a6392e",
+          700: "#8c2f26",
+          800: "#6f251e",
+        },
         gold: {
           50: "#fffbeb",
           100: "#fef3c7",

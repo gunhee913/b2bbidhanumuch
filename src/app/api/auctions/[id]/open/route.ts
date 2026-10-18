@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminClient } from '@/lib/supabase-admin';
+import { placePlatformBids } from '@/features/group-buy/server/bids';
 
 const supabase = getAdminClient();
 
@@ -56,6 +57,13 @@ export async function POST(
     if (error) {
       console.error('경매 시작 오류:', error);
       return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    // 공동구매 · 모집 완료 상품 자동 응찰
+    try {
+      await placePlatformBids(id);
+    } catch (e) {
+      console.error('[group-buy] 자동 응찰 실패:', e);
     }
 
     return NextResponse.json(updatedAuction);

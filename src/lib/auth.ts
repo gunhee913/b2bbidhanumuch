@@ -3,9 +3,17 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import { verifyLoginCredentials } from "@/features/dealers/auth";
 import { verifyAdminCredentials, getAdminById } from "@/features/admins/auth";
 import { verifyCompanyCredentials } from "@/features/companies/auth";
+import { verifyConsumerCredentials } from "@/features/consumers/auth";
 import { Dealer, DealerEmployee } from "@/features/dealers/types";
 import { Admin } from "@/features/admins/types";
 import { Company, CompanyEmployee } from "@/features/companies/types";
+import { Consumer } from "@/features/consumers/types";
+
+export type AuthUserType =
+  | "dealer_user"
+  | "admin_user"
+  | "company_user"
+  | "consumer_user";
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -43,6 +51,7 @@ export const authOptions: NextAuthOptions = {
           admin: null,
           company: null,
           companyEmployee: null,
+          consumer: null,
         };
       },
     }),
@@ -84,6 +93,7 @@ export const authOptions: NextAuthOptions = {
           admin: result.admin,
           company: null,
           companyEmployee: null,
+          consumer: null,
         };
       },
     }),
@@ -121,6 +131,44 @@ export const authOptions: NextAuthOptions = {
           admin: null,
           company: result.company,
           companyEmployee: result.employee,
+          consumer: null,
+        };
+      },
+    }),
+    // 공동구매 소비자 로그인
+    CredentialsProvider({
+      id: "consumer-login",
+      name: "공동구매 로그인",
+      credentials: {
+        phone: { label: "휴대폰 번호", type: "text", placeholder: "010-0000-0000" },
+        password: { label: "비밀번호", type: "password" },
+      },
+      async authorize(credentials) {
+        if (!credentials?.phone || !credentials?.password) {
+          throw new Error("휴대폰 번호와 비밀번호를 입력해주세요.");
+        }
+
+        const consumer = await verifyConsumerCredentials(
+          credentials.phone,
+          credentials.password
+        );
+
+        if (!consumer) {
+          throw new Error("휴대폰 번호 또는 비밀번호가 올바르지 않습니다.");
+        }
+
+        return {
+          id: consumer.id,
+          name: consumer.name,
+          phone: consumer.phone,
+          userType: "consumer_user" as const,
+          role: "consumer",
+          dealer: null,
+          employee: null,
+          admin: null,
+          company: null,
+          companyEmployee: null,
+          consumer,
         };
       },
     }),
@@ -143,6 +191,7 @@ export const authOptions: NextAuthOptions = {
         token.admin = (user as AuthUser).admin;
         token.company = (user as AuthUser).company;
         token.companyEmployee = (user as AuthUser).companyEmployee;
+        token.consumer = (user as AuthUser).consumer;
         token.auctionVerifiedDate = null;
         token.adminRefreshedAt = Date.now();
       }
@@ -177,7 +226,7 @@ export const authOptions: NextAuthOptions = {
         id: token.id as string,
         name: token.name as string,
         phone: token.phone as string,
-        userType: token.userType as "dealer_user" | "admin_user" | "company_user",
+        userType: token.userType as AuthUserType,
         role: token.role as string,
       };
       session.dealer = token.dealer as Dealer | null;
@@ -185,6 +234,7 @@ export const authOptions: NextAuthOptions = {
       session.admin = token.admin as Admin | null;
       session.company = token.company as Company | null;
       session.companyEmployee = token.companyEmployee as CompanyEmployee | null;
+      session.consumer = (token.consumer as Consumer | null) ?? null;
       session.auctionVerifiedDate = token.auctionVerifiedDate as string | null;
 
       return session;
@@ -258,13 +308,14 @@ interface AuthUser {
   id: string;
   name: string;
   phone: string;
-  userType: "dealer_user" | "admin_user" | "company_user";
+  userType: AuthUserType;
   role: string;
   dealer: Dealer | null;
   employee: DealerEmployee | null;
   admin: Admin | null;
   company: Company | null;
   companyEmployee: CompanyEmployee | null;
+  consumer: Consumer | null;
 }
 
 declare module "next-auth" {
@@ -275,7 +326,7 @@ declare module "next-auth" {
       id: string;
       name: string;
       phone: string;
-      userType: "dealer_user" | "admin_user" | "company_user";
+      userType: AuthUserType;
       role: string;
     };
     dealer: Dealer | null;
@@ -283,6 +334,7 @@ declare module "next-auth" {
     admin: Admin | null;
     company: Company | null;
     companyEmployee: CompanyEmployee | null;
+    consumer: Consumer | null;
     auctionVerifiedDate: string | null;
   }
 }
@@ -292,13 +344,14 @@ declare module "next-auth/jwt" {
     id: string;
     name: string;
     phone: string;
-    userType: "dealer_user" | "admin_user" | "company_user";
+    userType: AuthUserType;
     role: string;
     dealer: Dealer | null;
     employee: DealerEmployee | null;
     admin: Admin | null;
     company: Company | null;
     companyEmployee: CompanyEmployee | null;
+    consumer: Consumer | null;
     auctionVerifiedDate: string | null;
     adminRefreshedAt: number | null;
   }

@@ -20,7 +20,9 @@ import {
   Menu,
   X,
   Megaphone,
+  ArrowLeftRight,
 } from 'lucide-react';
+import { MALL_ADMIN_HOME } from '@/components/admin/MallAdminLayout';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -264,7 +266,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         </div>
 
         {/* 네비게이션 메뉴 */}
-        <nav className="px-3 py-4 overflow-y-auto h-[calc(100vh-64px-56px)]">
+        <nav className="px-3 py-4 overflow-y-auto h-[calc(100vh-64px-56px-44px)]">
           <ul className="space-y-1">
             {menuItems.map((item) => (
               <li key={item.href}>
@@ -332,6 +334,17 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
             ))}
           </ul>
         </nav>
+
+        {/* 직거래몰(공동구매·견적) 관리자로 전환 */}
+        <div className="absolute bottom-14 left-0 right-0 px-3">
+          <Link
+            href={MALL_ADMIN_HOME}
+            className="flex items-center gap-2 rounded-lg border border-gray-700 px-3 py-2 text-xs text-gray-300 transition-colors hover:bg-gray-800 hover:text-white"
+          >
+            <ArrowLeftRight className="w-3.5 h-3.5" />
+            직거래몰 관리자로 전환
+          </Link>
+        </div>
 
         {/* 하단 영역: 관리자 정보 */}
         <div className="absolute bottom-0 left-0 right-0 border-t border-gray-800">

@@ -18,6 +18,10 @@ const adminProtectedPaths = ["/admin"];
 // 상장업체 로그인이 필요한 경로 (company/login 제외)
 const companyProtectedPaths = ["/company"];
 
+// 공동구매 소비자 로그인이 필요한 경로
+const consumerProtectedPaths = ["/group-buy/mypage", "/group-buy/checkout"];
+const consumerAuthPaths = ["/group-buy/login", "/group-buy/signup"];
+
 // 로그인 상태에서 접근하면 리다이렉트할 경로
 const dealerAuthPaths = ["/login"];
 const adminAuthPaths = ["/admin/login"];
@@ -56,6 +60,33 @@ export async function middleware(request: NextRequest) {
   const isDealerAuthPath = dealerAuthPaths.some(
     (path) => pathname === path || pathname.startsWith(`${path}/`),
   );
+
+  const isConsumerProtectedPath = consumerProtectedPaths.some(
+    (path) => pathname === path || pathname.startsWith(`${path}/`),
+  );
+  const isConsumerAuthPath = consumerAuthPaths.some(
+    (path) => pathname === path || pathname.startsWith(`${path}/`),
+  );
+
+  // === 공동구매 소비자 경로 처리 ===
+  // 소비자 전용 페이지 · 다른 유형(중도매인/관리자/상장업체) 세션은 소비자가 아니므로 로그인으로
+  if (isConsumerProtectedPath && userType !== "consumer_user") {
+    const loginUrl = new URL("/group-buy/login", request.url);
+    loginUrl.searchParams.set(
+      "callbackUrl",
+      `${pathname}${request.nextUrl.search}`,
+    );
+    return NextResponse.redirect(loginUrl);
+  }
+
+  if (isConsumerAuthPath && userType === "consumer_user") {
+    const callbackUrl = request.nextUrl.searchParams.get("callbackUrl");
+    const target =
+      callbackUrl && callbackUrl.startsWith("/group-buy")
+        ? callbackUrl
+        : "/group-buy";
+    return NextResponse.redirect(new URL(target, request.url));
+  }
 
   // === 관리자 경로 처리 ===
 

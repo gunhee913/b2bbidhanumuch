@@ -2,6 +2,8 @@ import { getAdminClient } from '@/lib/supabase-admin';
 import { NextRequest, NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 import { createNotificationWithTemplate } from '@/lib/notifications';
+import { settleProductsForAuction } from '@/features/group-buy/server/settle';
+import { placePlatformBids } from '@/features/group-buy/server/bids';
 
 const supabase = getAdminClient();
 
@@ -96,6 +98,14 @@ export async function POST(
         .eq('id', id)
         .single();
 
+      // 공동구매 · 낙찰/미확보 판정 → 다음 회차가 바로 열렸으면 재응찰
+      try {
+        await settleProductsForAuction(id, operatorName);
+        if (nextRound?.id) await placePlatformBids(nextRound.id);
+      } catch (e) {
+        console.error('[group-buy] 회차 마감 정산 실패:', e);
+      }
+
       // 회차별 경매 결과 알림 발송
       try {
         const { data: allBids } = await supabase
@@ -170,6 +180,12 @@ export async function POST(
       .select('*')
       .eq('id', id)
       .single();
+
+    try {
+      await settleProductsForAuction(id, operatorName);
+    } catch (e) {
+      console.error('[group-buy] 경매 마감 정산 실패:', e);
+    }
 
     const { data: winningBids } = await supabase
       .from('bids')
