@@ -10,6 +10,9 @@ export type GiftRecipientMode = 'batch' | 'split';
 
 export const GIFT_CELL_GRAMS = 500;
 export const GIFT_CELL_KG = 0.5;
+/** 근막 제거 가공에서 빠지는 비율 · 구성 중량은 구매 중량에서 이만큼 뺀다 */
+export const GIFT_TRIM_LOSS_RATE = 0.1;
+export type GiftLeftoverMode = 'pack' | 'separate';
 export const GIFT_CELL_COUNTS = [2, 3, 4, 6] as const;
 export const DEFAULT_PACKAGING_FEE = 15_000;
 
@@ -29,6 +32,23 @@ export const GIFT_TRAY_META: Record<GiftCellCount, { title: string; hint: string
   5: { title: '5구', hint: '2.5kg', people: '5~8인', kg: 2.5 },
   6: { title: '6구', hint: '3.0kg', people: '6~9인', kg: 3.0 },
 };
+
+/** 구매 카드가 트레이 칸과 같은 자리에 놓이도록 행·열을 정한다 */
+export function traySlotPlacements(cellCount: GiftCellCount): { columns: number; slots: { cellNo: number; row: number; column: string }[] } {
+  const { cols, rowsCells } = trayGrid(cellCount);
+  const fine = cols * 2;
+  const cellSpan = fine / cols;
+  let cellNo = 1;
+  const slots = rowsCells.flatMap((count, row) => {
+    const start = 1 + Math.floor((fine - count * cellSpan) / 2);
+    return Array.from({ length: count }, (_, index) => ({
+      cellNo: cellNo++,
+      row: row + 1,
+      column: `${start + index * cellSpan} / span ${cellSpan}`,
+    }));
+  });
+  return { columns: fine, slots };
+}
 
 export function trayGrid(cellCount: GiftCellCount): { cols: number; rows: number; rowsCells: number[] } {
   if (cellCount === 2) return { cols: 2, rows: 1, rowsCells: [2] };
@@ -74,6 +94,8 @@ export interface GiftCellPick {
   productId: string | null;
   /** 1kg 구매를 섞거나 1kg 만 살 때 풀 id */
   poolId: string | null;
+  /** 이 칸이 속한 구성의 1kg 구매 개수 */
+  kg: number;
 }
 
 export interface GiftCellSnapshot {
@@ -168,5 +190,11 @@ export function roundKg(kg: number): number {
   return Math.round(kg * 10) / 10;
 }
 
+/** 구매 중량에서 근막 제거 10%를 뺀 구성 중량 */
+export const giftUsableKg = (rawKg: number) => roundKg(Math.max(0, rawKg) * (1 - GIFT_TRIM_LOSS_RATE));
+
 export const leftoverLines = (items: Array<{ label: string; leftoverKg: number }>) =>
   items.filter((i) => i.leftoverKg > 0).map((i) => `${i.label} ${i.leftoverKg.toFixed(1)}kg`);
+
+/** 손질·포장 전에 계산한 남는 중량이라 실제와 달라질 수 있다 */
+export const GIFT_LEFTOVER_NOTICE = '가공 과정에서 중량이 변동될 수 있어요.';

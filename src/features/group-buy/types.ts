@@ -675,10 +675,21 @@ export interface ConsumerGiftSet {
   createdAt: string;
 }
 
+export interface GiftSupplyInput {
+  cellNos: number[];
+  bulks: { productId: string; slotNos: number[] }[];
+  poolId?: string | null;
+  kg: number;
+  /** pack 이면 남는 중량을 세트에 나눠 담고, separate 이면 따로 받는다 */
+  leftoverMode?: 'pack' | 'separate';
+}
+
 export interface CreateGiftSetInput {
   cellCount: GiftCellCount;
   quantity: number;
-  cells: { cellNo: number; productId?: string | null; poolId?: string | null }[];
+  cells: { cellNo: number; productId?: string | null; poolId?: string | null; kg?: number }[];
+  /** 칸을 채우는 벌크 구좌와 1kg · 있으면 이 구좌를 그대로 산다 */
+  supplies?: GiftSupplyInput[];
   recipientMode: GiftRecipientMode;
   recipients: Array<{ shipping: ShippingInfo; message?: string }>;
   leftoverReceiveMethod: ReceiveMethod;

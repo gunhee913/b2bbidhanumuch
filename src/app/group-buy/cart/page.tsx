@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ShoppingBag, X } from 'lucide-react';
@@ -10,7 +10,7 @@ import { EmptyState, Skeleton } from '@/features/group-buy/components/primitives
 import { PrimaryButton } from '@/features/group-buy/components/FormField';
 import { KgStepper } from '@/features/group-buy/components/pools/KgStepper';
 import { ReceiveMethodOption } from '@/features/group-buy/components/pools/ReceiveMethodOption';
-import { TrimSliceOption } from '@/features/group-buy/components/pools/TrimSliceOption';
+import { TRIM_SLICE_CONSENT_ERROR, TrimSliceOption } from '@/features/group-buy/components/pools/TrimSliceOption';
 import { productTitle } from '@/features/group-buy/components/products/ProductTable';
 import { useConsumerPools, useConsumerProducts } from '@/features/group-buy/hooks';
 import {
@@ -41,6 +41,8 @@ export default function GroupBuyCartPage() {
   const router = useRouter();
   const cart = useKgCart();
   useHydrateKgCart();
+  const [trimConsent, setTrimConsent] = useState<Record<string, boolean>>({});
+  const [error, setError] = useState('');
   const { data: pools, isLoading: poolsLoading } = useConsumerPools();
   const { data: products, isLoading: productsLoading } = useConsumerProducts();
 
@@ -51,8 +53,19 @@ export default function GroupBuyCartPage() {
   const isLoading = (poolsLoading && cart.items.length > 0) || (productsLoading && cart.slotItems.length > 0);
 
   // 지금 살아 있는 줄만 주문서로 넘긴다 · 마감됐거나 먼저 팔린 줄은 조용히 뺀다
+  const slotConsentKey = (productId: string, slotNo: number) => `slot:${productId}:${slotNo}`;
+  const kgConsentKey = (poolId: string) => `kg:${poolId}`;
+  const missingConsent =
+    slotLines.some((line) => line.trimAndSlice && !trimConsent[slotConsentKey(line.product.id, line.zone.slotNo)]) ||
+    lines.some((line) => line.trimAndSlice && !trimConsent[kgConsentKey(line.pool.id)]);
+
   const checkout = () => {
     if (count === 0) return;
+    if (missingConsent) {
+      setError(TRIM_SLICE_CONSENT_ERROR);
+      return;
+    }
+    setError('');
     cart.startCheckout({
       items: lines.map((l) => ({ poolId: l.pool.id, kg: l.kg, trimAndSlice: l.trimAndSlice, receiveMethod: l.receiveMethod })),
       slotItems: slotLines.map((l) => ({ productId: l.product.id, slotNo: l.zone.slotNo, trimAndSlice: l.trimAndSlice, receiveMethod: l.receiveMethod })),
@@ -143,6 +156,7 @@ export default function GroupBuyCartPage() {
               <span className="text-[22px] font-bold tabular-nums tracking-[-0.02em] text-content">{formatWon(total)}</span>
             </div>
 
+            {error ? <p role="alert" className="mt-3 rounded-sm bg-rose-50 px-3.5 py-2.5 text-[13px] text-rose-700">{error}</p> : null}
             <PrimaryButton className="mt-3 rounded-sm" onClick={checkout} disabled={count === 0}>
               <ShoppingBag className="mr-1.5 h-4 w-4" />
               {count > 0 ? `${count}건 주문하기` : '주문하기'}
@@ -217,7 +231,21 @@ function SlotLinesTable({ lines, disabled }: SlotLinesTableProps) {
                 <td className={`${CELL} space-y-1.5 py-2`}>
                   <ReceiveMethodOption value={receiveMethod} onChange={(m) => cart.setSlotReceiveMethod(product.id, zone.slotNo, m)} disabled={disabled} size="sm" />
                   {allowsTrimAndSlice(receiveMethod) ? (
-                    <TrimSliceOption checked={trimAndSlice} onChange={(v) => cart.setSlotTrimAndSlice(product.id, zone.slotNo, v)} disabled={disabled} size="sm" />
+                    <TrimSliceOption
+                      checked={trimAndSlice}
+                      consented={trimConsent[slotConsentKey(product.id, zone.slotNo)] === true}
+                      onChange={(v) => {
+                        cart.setSlotTrimAndSlice(product.id, zone.slotNo, v);
+                        setTrimConsent((prev) => ({ ...prev, [slotConsentKey(product.id, zone.slotNo)]: false }));
+                        setError('');
+                      }}
+                      onConsentChange={(v) => {
+                        setTrimConsent((prev) => ({ ...prev, [slotConsentKey(product.id, zone.slotNo)]: v }));
+                        setError('');
+                      }}
+                      disabled={disabled}
+                      size="sm"
+                    />
                   ) : null}
                 </td>
                 <td className={`${CELL} text-right text-content`}>{formatWon(slotLineAmount(line))}</td>
@@ -296,7 +324,21 @@ function KgLinesTable({ lines, disabled }: KgLinesTableProps) {
                 <td className={`${CELL} space-y-1.5 py-2`}>
                   <ReceiveMethodOption value={receiveMethod} onChange={(m) => cart.setReceiveMethod(pool.id, m)} disabled={disabled} size="sm" />
                   {allowsTrimAndSlice(receiveMethod) ? (
-                    <TrimSliceOption checked={trimAndSlice} onChange={(v) => cart.setTrimAndSlice(pool.id, v)} disabled={disabled} size="sm" />
+                    <TrimSliceOption
+                      checked={trimAndSlice}
+                      consented={trimConsent[kgConsentKey(pool.id)] === true}
+                      onChange={(v) => {
+                        cart.setTrimAndSlice(pool.id, v);
+                        setTrimConsent((prev) => ({ ...prev, [kgConsentKey(pool.id)]: false }));
+                        setError('');
+                      }}
+                      onConsentChange={(v) => {
+                        setTrimConsent((prev) => ({ ...prev, [kgConsentKey(pool.id)]: v }));
+                        setError('');
+                      }}
+                      disabled={disabled}
+                      size="sm"
+                    />
                   ) : null}
                 </td>
                 <td className={`${CELL} text-right text-content`}>{formatWon(lineAmount(line))}</td>

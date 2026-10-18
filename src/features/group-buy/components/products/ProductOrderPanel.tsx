@@ -13,7 +13,7 @@ import { allowsTrimAndSlice, DEFAULT_RECEIVE_METHOD, isDineIn, RECEIVE_METHOD_LA
 import { useHydrateKgCart, useKgCart } from '../../lib/cartStore';
 import { PrimaryButton } from '../FormField';
 import { ReceiveMethodOption } from '../pools/ReceiveMethodOption';
-import { TrimSliceOption } from '../pools/TrimSliceOption';
+import { TRIM_SLICE_CONSENT_ERROR, TrimSliceOption } from '../pools/TrimSliceOption';
 import { productTitle } from './ProductTable';
 
 interface ProductOrderPanelProps {
@@ -37,19 +37,24 @@ export function ProductOrderPanel({ selected, slotNo, onSlotChange }: ProductOrd
   useHydrateKgCart();
 
   const [trimAndSlice, setTrimAndSlice] = useState(false);
+  const [trimConsent, setTrimConsent] = useState(false);
   const [receiveMethod, setReceiveMethod] = useState<ReceiveMethod>(DEFAULT_RECEIVE_METHOD);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState<'added' | null>(null);
 
   useEffect(() => {
     setTrimAndSlice(false);
+    setTrimConsent(false);
     setError('');
     setNotice(null);
   }, [selected?.id]);
 
   // 매장에서 받기로 바꾸면 손질 옵션은 푼다
   useEffect(() => {
-    if (isDineIn(receiveMethod)) setTrimAndSlice(false);
+    if (isDineIn(receiveMethod)) {
+      setTrimAndSlice(false);
+      setTrimConsent(false);
+    }
   }, [receiveMethod]);
 
   // 새 구좌를 고르면 이전 안내를 지운다
@@ -86,9 +91,15 @@ export function ProductOrderPanel({ selected, slotNo, onSlotChange }: ProductOrd
   const dineIn = isDineIn(receiveMethod);
   const needPick = '왼쪽 표에서 주문 위치를 골라주세요.';
 
+  const agreed = !trimAndSlice || trimConsent;
+
   const addToCart = () => {
     if (!zone) {
       setError(needPick);
+      return;
+    }
+    if (!agreed) {
+      setError(TRIM_SLICE_CONSENT_ERROR);
       return;
     }
     cart.addSlot(selected.id, zone.slotNo, trimAndSlice, receiveMethod);
@@ -100,6 +111,10 @@ export function ProductOrderPanel({ selected, slotNo, onSlotChange }: ProductOrd
   const orderNow = () => {
     if (!zone) {
       setError(needPick);
+      return;
+    }
+    if (!agreed) {
+      setError(TRIM_SLICE_CONSENT_ERROR);
       return;
     }
     cart.startCheckout({ items: [], slotItems: [{ productId: selected.id, slotNo: zone.slotNo, trimAndSlice, receiveMethod }], fromCart: false });
@@ -139,7 +154,22 @@ export function ProductOrderPanel({ selected, slotNo, onSlotChange }: ProductOrd
           <div>
             <p className="mb-2 text-[13px] font-semibold text-content-mid">옵션</p>
             <ReceiveMethodOption value={receiveMethod} onChange={setReceiveMethod} disabled={soldOut} />
-            {allowsTrimAndSlice(receiveMethod) ? <TrimSliceOption checked={trimAndSlice} onChange={setTrimAndSlice} disabled={soldOut} className="mt-2" /> : null}
+            {allowsTrimAndSlice(receiveMethod) ? (
+              <TrimSliceOption
+                checked={trimAndSlice}
+                consented={trimConsent}
+                onChange={(next) => {
+                  setTrimAndSlice(next);
+                  setTrimConsent(false);
+                }}
+                onConsentChange={(next) => {
+                  setTrimConsent(next);
+                  setError('');
+                }}
+                disabled={soldOut}
+                className="mt-2"
+              />
+            ) : null}
           </div>
 
           <div className="border-t border-line-soft pt-3">

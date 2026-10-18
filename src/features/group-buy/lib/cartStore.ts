@@ -42,7 +42,8 @@ export interface CheckoutDraft {
 export interface GiftDraft {
   cellCount: GiftCellCount;
   quantity: number;
-  cells: { cellNo: number; productId: string | null; poolId: string | null }[];
+  cells: { cellNo: number; productId: string | null; poolId: string | null; kg: number }[];
+  supplies?: { cellNos: number[]; bulks: { productId: string; slotNos: number[] }[]; poolId: string | null; kg: number; leftoverMode?: 'pack' | 'separate' }[];
 }
 
 /** 장바구니 줄 · 풀 데이터와 합친 것 */

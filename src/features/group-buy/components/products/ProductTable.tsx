@@ -18,6 +18,10 @@ interface ProductTableProps {
   onToggleZone: (product: ConsumerProduct, zone: ProductZone) => void;
   /** 맨 오른쪽 "상세" 열 · 상세 페이지 자신에서는 뺀다 */
   showDetailLink?: boolean;
+  /** 상품이 여러 개일 때 구좌 선택 · 있으면 selectedId 보다 우선한다 */
+  pickedSlots?: Record<string, number[]>;
+  /** 상세를 새 탭에서 연다 */
+  detailNewTab?: boolean;
 }
 
 const FALLBACK_THUMB = 'https://picsum.photos/seed/hanwoo-thumb/96/96';
@@ -87,7 +91,7 @@ export function ProductTableHead({ showDetailLink = true }: { showDetailLink?: b
  * 위치·kg당 가격·중량·가격은 구좌마다 다르다. 마감은 상장 단위로 공통이라 표에서는 뺐다.
  * 머리글은 `ProductTableHead` 가 위에서 그리므로 첫 줄의 위쪽 선은 지워 이중선을 막는다.
  */
-export function ProductTable({ products, selectedId, selectedSlots, onSelect, onToggleZone, showDetailLink = true }: ProductTableProps) {
+export function ProductTable({ products, selectedId, selectedSlots, onSelect, onToggleZone, showDetailLink = true, pickedSlots, detailNewTab = false }: ProductTableProps) {
   return (
     <table className={cn(TABLE, 'border-t-0 [&_tbody_tr:first-child>td]:border-t-0')}>
       <ProductColGroup showDetailLink={showDetailLink} />
@@ -103,7 +107,7 @@ export function ProductTable({ products, selectedId, selectedSlots, onSelect, on
           const spanCell = cn(CELL, 'border-b-content-ghost bg-surface align-middle');
 
           return p.zones.map((zone, i) => {
-            const picked = selected && selectedSlots.includes(zone.slotNo);
+            const picked = pickedSlots ? (pickedSlots[p.id] ?? []).includes(zone.slotNo) : selected && selectedSlots.includes(zone.slotNo);
             const isLast = i === p.zones.length - 1;
             return (
               <ZoneRows
@@ -116,6 +120,7 @@ export function ProductTable({ products, selectedId, selectedSlots, onSelect, on
                 rowClass={zoneRow}
                 spanCell={spanCell}
                 showDetailLink={showDetailLink}
+                detailNewTab={detailNewTab}
                 onSelect={() => onSelect(p)}
                 onToggle={() => onToggleZone(p, zone)}
                 totalRow={
@@ -146,13 +151,14 @@ interface ZoneRowsProps {
   rowClass: string;
   spanCell: string;
   showDetailLink: boolean;
+  detailNewTab: boolean;
   onSelect: () => void;
   onToggle: () => void;
   totalRow: React.ReactNode;
 }
 
 /** 구좌 한 줄 · 첫 줄이면 rowSpan 셀(상품정보·상세)을 함께 그린다 */
-function ZoneRows({ first, rowSpan, product: p, zone, picked, rowClass, spanCell, showDetailLink, onSelect, onToggle, totalRow }: ZoneRowsProps) {
+function ZoneRows({ first, rowSpan, product: p, zone, picked, rowClass, spanCell, showDetailLink, detailNewTab, onSelect, onToggle, totalRow }: ZoneRowsProps) {
   const tone = zone.sold ? 'text-content-ghost line-through' : 'text-content';
   return (
     <>
@@ -200,6 +206,8 @@ function ZoneRows({ first, rowSpan, product: p, zone, picked, rowClass, spanCell
           <td rowSpan={rowSpan} className={`${spanCell} text-center`}>
             <Link
               href={`/group-buy/products/${p.id}`}
+              target={detailNewTab ? '_blank' : undefined}
+              rel={detailNewTab ? 'noreferrer' : undefined}
               onClick={(e) => e.stopPropagation()}
               className="inline-flex h-9 items-center rounded-sm border border-line bg-surface px-3 text-[13px] font-semibold text-content hover:bg-surface-muted"
             >

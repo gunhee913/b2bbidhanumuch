@@ -11,7 +11,7 @@ import { EmptyState, Skeleton } from '@/features/group-buy/components/primitives
 import { ReceiveMethodOption } from '@/features/group-buy/components/pools/ReceiveMethodOption';
 import { PickupScheduler, type PickupSelection } from '@/features/group-buy/components/stores/PickupScheduler';
 import { ShippingFields } from '@/features/group-buy/components/pools/ShippingFields';
-import { TrimSliceOption } from '@/features/group-buy/components/pools/TrimSliceOption';
+import { TRIM_SLICE_CONSENT_ERROR, TrimSliceOption } from '@/features/group-buy/components/pools/TrimSliceOption';
 import { productTitle } from '@/features/group-buy/components/products/ProductTable';
 import { useConsumerPools, useConsumerProducts, useShippingForm, useSubmitKgOrders, useSubmitSlotOrders } from '@/features/group-buy/hooks';
 import {
@@ -60,6 +60,7 @@ export default function GroupBuyCheckoutPage() {
   const isPending = kgOrders.isPending || slotOrders.isPending;
 
   const [error, setError] = useState('');
+  const [trimConsent, setTrimConsent] = useState<Record<string, boolean>>({});
   const [done, setDone] = useState<DoneState | null>(null);
   // 매장 수령 줄이 있을 때 고른 매장·픽업 시간 · 한 주문서의 매장 수령 줄은 모두 같은 곳·같은 시간에 받는다
   const [pickup, setPickup] = useState<PickupSelection | null>(null);
@@ -103,8 +104,19 @@ export default function GroupBuyCheckoutPage() {
       }),
     }));
 
+  const slotConsentKey = (productId: string, slotNo: number) => `slot:${productId}:${slotNo}`;
+  const kgConsentKey = (poolId: string) => `kg:${poolId}`;
+  const markConsent = (key: string, consented: boolean) => setTrimConsent((prev) => ({ ...prev, [key]: consented }));
+
   const pay = async () => {
     if (!draft || count === 0 || isPending) return;
+    const missingConsent =
+      slotLines.some((line) => line.trimAndSlice && !trimConsent[slotConsentKey(line.product.id, line.zone.slotNo)]) ||
+      lines.some((line) => line.trimAndSlice && !trimConsent[kgConsentKey(line.pool.id)]);
+    if (missingConsent) {
+      setError(TRIM_SLICE_CONSENT_ERROR);
+      return;
+    }
     setError('');
     const valid = needsAddress ? await form.trigger() : await form.trigger(['name', 'phone']);
     if (!valid) {
@@ -198,7 +210,12 @@ export default function GroupBuyCheckoutPage() {
                         line={line}
                         disabled={isPending}
                         onReceiveChange={(m) => setSlotLine(line.product.id, line.zone.slotNo, { receiveMethod: m })}
-                        onTrimChange={(v) => setSlotLine(line.product.id, line.zone.slotNo, { trimAndSlice: v })}
+                        consented={trimConsent[slotConsentKey(line.product.id, line.zone.slotNo)] === true}
+                        onConsentChange={(v) => markConsent(slotConsentKey(line.product.id, line.zone.slotNo), v)}
+                        onTrimChange={(v) => {
+                          setSlotLine(line.product.id, line.zone.slotNo, { trimAndSlice: v });
+                          markConsent(slotConsentKey(line.product.id, line.zone.slotNo), false);
+                        }}
                       />
                     ))}
                     {lines.map((line) => (
@@ -207,7 +224,12 @@ export default function GroupBuyCheckoutPage() {
                         line={line}
                         disabled={isPending}
                         onReceiveChange={(m) => setKgLine(line.pool.id, { receiveMethod: m })}
-                        onTrimChange={(v) => setKgLine(line.pool.id, { trimAndSlice: v })}
+                        consented={trimConsent[kgConsentKey(line.pool.id)] === true}
+                        onConsentChange={(v) => markConsent(kgConsentKey(line.pool.id), v)}
+                        onTrimChange={(v) => {
+                          setKgLine(line.pool.id, { trimAndSlice: v });
+                          markConsent(kgConsentKey(line.pool.id), false);
+                        }}
                       />
                     ))}
                   </ul>
@@ -308,12 +330,14 @@ export default function GroupBuyCheckoutPage() {
 interface LineRowProps<T> {
   line: T;
   disabled: boolean;
+  consented: boolean;
+  onConsentChange: (consented: boolean) => void;
   onReceiveChange: (method: ReceiveMethod) => void;
   onTrimChange: (checked: boolean) => void;
 }
 
 /** 공동구매 구좌 한 줄 · 상품 · 위치 · 옵션 · 금액 */
-function SlotLineRow({ line, disabled, onReceiveChange, onTrimChange }: LineRowProps<SlotLine>) {
+function SlotLineRow({ line, disabled, consented, onConsentChange, onReceiveChange, onTrimChange }: LineRowProps<SlotLine>) {
   const { product, zone, trimAndSlice, receiveMethod } = line;
   return (
     <LineRowFrame
@@ -324,15 +348,17 @@ function SlotLineRow({ line, disabled, onReceiveChange, onTrimChange }: LineRowP
       amount={slotLineAmount(line)}
       receiveMethod={receiveMethod}
       trimAndSlice={trimAndSlice}
+      consented={consented}
       disabled={disabled}
       onReceiveChange={onReceiveChange}
       onTrimChange={onTrimChange}
+      onConsentChange={onConsentChange}
     />
   );
 }
 
 /** 1kg 구매 한 줄 · 부위 · kg · 옵션 · 금액 */
-function KgLineRow({ line, disabled, onReceiveChange, onTrimChange }: LineRowProps<OrderLine>) {
+function KgLineRow({ line, disabled, consented, onConsentChange, onReceiveChange, onTrimChange }: LineRowProps<OrderLine>) {
   const { pool, kg, trimAndSlice, receiveMethod } = line;
   return (
     <LineRowFrame
@@ -342,9 +368,11 @@ function KgLineRow({ line, disabled, onReceiveChange, onTrimChange }: LineRowPro
       amount={lineAmount(line)}
       receiveMethod={receiveMethod}
       trimAndSlice={trimAndSlice}
+      consented={consented}
       disabled={disabled}
       onReceiveChange={onReceiveChange}
       onTrimChange={onTrimChange}
+      onConsentChange={onConsentChange}
     />
   );
 }
@@ -357,12 +385,14 @@ interface LineRowFrameProps {
   amount: number;
   receiveMethod: ReceiveMethod;
   trimAndSlice: boolean;
+  consented: boolean;
   disabled: boolean;
   onReceiveChange: (method: ReceiveMethod) => void;
   onTrimChange: (checked: boolean) => void;
+  onConsentChange: (consented: boolean) => void;
 }
 
-function LineRowFrame({ image, title, subtitle, meta, amount, receiveMethod, trimAndSlice, disabled, onReceiveChange, onTrimChange }: LineRowFrameProps) {
+function LineRowFrame({ image, title, subtitle, meta, amount, receiveMethod, trimAndSlice, consented, disabled, onReceiveChange, onTrimChange, onConsentChange }: LineRowFrameProps) {
   return (
     <li className="grid grid-cols-[minmax(0,1fr)_220px_120px] items-center gap-4 py-4 first:pt-0 last:pb-0">
       <div className="flex min-w-0 items-center gap-3">
@@ -377,7 +407,9 @@ function LineRowFrame({ image, title, subtitle, meta, amount, receiveMethod, tri
       </div>
       <div className="space-y-1.5">
         <ReceiveMethodOption value={receiveMethod} onChange={onReceiveChange} disabled={disabled} size="sm" />
-        {allowsTrimAndSlice(receiveMethod) ? <TrimSliceOption checked={trimAndSlice} onChange={onTrimChange} disabled={disabled} size="sm" /> : null}
+        {allowsTrimAndSlice(receiveMethod) ? (
+          <TrimSliceOption checked={trimAndSlice} consented={consented} onChange={onTrimChange} onConsentChange={onConsentChange} disabled={disabled} size="sm" />
+        ) : null}
       </div>
       <p className="text-right text-[16px] font-bold tabular-nums text-content">{formatWon(amount)}</p>
     </li>

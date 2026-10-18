@@ -12,7 +12,7 @@ import { allowsTrimAndSlice, DEFAULT_RECEIVE_METHOD, isDineIn, RECEIVE_METHOD_LA
 import { useHydrateKgCart, useKgCart } from '../../lib/cartStore';
 import { PrimaryButton } from '../FormField';
 import { ReceiveMethodOption } from './ReceiveMethodOption';
-import { TrimSliceOption } from './TrimSliceOption';
+import { TRIM_SLICE_CONSENT_ERROR, TrimSliceOption } from './TrimSliceOption';
 
 interface ReservationFormProps {
   pool: ConsumerPool;
@@ -33,8 +33,10 @@ export function ReservationForm({ pool }: ReservationFormProps) {
 
   const [kg, setKg] = useState(pool.minKg);
   const [trimAndSlice, setTrimAndSlice] = useState(false);
+  const [trimConsent, setTrimConsent] = useState(false);
   const [receiveMethod, setReceiveMethod] = useState<ReceiveMethod>(DEFAULT_RECEIVE_METHOD);
   const [added, setAdded] = useState(false);
+  const [error, setError] = useState('');
   const dineIn = isDineIn(receiveMethod);
 
   useEffect(() => {
@@ -44,7 +46,10 @@ export function ReservationForm({ pool }: ReservationFormProps) {
 
   // 매장에서 받기로 바꾸면 손질 옵션은 푼다
   useEffect(() => {
-    if (dineIn) setTrimAndSlice(false);
+    if (dineIn) {
+      setTrimAndSlice(false);
+      setTrimConsent(false);
+    }
   }, [dineIn]);
 
   const unitPrice = unitPriceOf(pool.pricePerKg, trimAndSlice);
@@ -52,7 +57,14 @@ export function ReservationForm({ pool }: ReservationFormProps) {
   const quickKgs = QUICK_KG.filter((k) => k >= pool.minKg && k <= pool.maxKg);
   const inCart = cart.items.find((i) => i.poolId === pool.id);
 
+  const agreed = !trimAndSlice || trimConsent;
+
   const addToCart = () => {
+    if (!agreed) {
+      setError(TRIM_SLICE_CONSENT_ERROR);
+      return;
+    }
+    setError('');
     const next = clampKg(pool, (inCart?.kg ?? 0) + kg);
     if (inCart) {
       cart.setKg(pool.id, next);
@@ -66,6 +78,11 @@ export function ReservationForm({ pool }: ReservationFormProps) {
 
   // 바로 주문 · 이 줄 하나만 주문서로 넘긴다 · 로그인이 필요하면 주문서 경로가 로그인으로 보낸다
   const orderNow = () => {
+    if (!agreed) {
+      setError(TRIM_SLICE_CONSENT_ERROR);
+      return;
+    }
+    setError('');
     cart.startCheckout({ items: [{ poolId: pool.id, kg, trimAndSlice, receiveMethod }], slotItems: [], fromCart: false });
     router.push(CHECKOUT_HREF);
   };
@@ -127,7 +144,22 @@ export function ReservationForm({ pool }: ReservationFormProps) {
       <div>
         <p className="mb-2 text-[13px] font-semibold text-content-mid">옵션</p>
         <ReceiveMethodOption value={receiveMethod} onChange={setReceiveMethod} />
-        {allowsTrimAndSlice(receiveMethod) ? <TrimSliceOption checked={trimAndSlice} onChange={setTrimAndSlice} className="mt-2" /> : null}
+        {allowsTrimAndSlice(receiveMethod) ? (
+          <TrimSliceOption
+            checked={trimAndSlice}
+            consented={trimConsent}
+            onChange={(next) => {
+              setTrimAndSlice(next);
+              setTrimConsent(false);
+              setError('');
+            }}
+            onConsentChange={(next) => {
+              setTrimConsent(next);
+              setError('');
+            }}
+            className="mt-2"
+          />
+        ) : null}
       </div>
 
       {/* 합계 */}
@@ -143,6 +175,7 @@ export function ReservationForm({ pool }: ReservationFormProps) {
         </p>
       </div>
 
+      {error ? <p role="alert" className="rounded-sm bg-rose-50 px-3.5 py-2.5 text-[13px] text-rose-700">{error}</p> : null}
       {added ? (
         <p className="rounded-sm bg-surface-accent px-3.5 py-2.5 text-[13px] text-content">
           장바구니에 담았어요 (현재 {inCart?.kg ?? kg}kg).{' '}

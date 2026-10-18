@@ -100,7 +100,7 @@ export default function GiftSetDetailPage({ params }: { params: Promise<{ id: st
                 <dd className="font-semibold tabular-nums">{formatWon(gift.meatAmount)}</dd>
               </div>
               <div className="flex justify-between">
-                <dt className="text-content-soft">포장비 × {gift.quantity}</dt>
+                <dt className="text-content-soft">포장비 {formatWon(gift.packagingFee)} × {gift.quantity}세트</dt>
                 <dd className="font-semibold tabular-nums">{formatWon(gift.packagingFee * gift.quantity)}</dd>
               </div>
               <div className="flex justify-between border-t border-line-soft pt-2">

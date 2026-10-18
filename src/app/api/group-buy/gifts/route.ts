@@ -25,11 +25,23 @@ const schema = z.object({
           cellNo: z.number().int().min(1).max(6),
           productId: z.string().uuid().nullable().optional(),
           poolId: z.string().uuid().nullable().optional(),
+          kg: z.number().int().min(0).max(99).optional(),
         })
         .refine((cell) => !!cell.productId || !!cell.poolId, { message: '칸마다 상품이 필요해요.' }),
     )
     .min(2)
     .max(6),
+  supplies: z
+    .array(
+      z.object({
+        cellNos: z.array(z.number().int().min(1).max(6)).min(1),
+        bulks: z.array(z.object({ productId: z.string().uuid(), slotNos: z.array(z.number().int().min(1).max(12)).min(1) })),
+        poolId: z.string().uuid().nullable().optional(),
+        kg: z.number().int().min(0).max(99),
+        leftoverMode: z.enum(['pack', 'separate']).optional(),
+      }),
+    )
+    .optional(),
   recipientMode: z.enum(['batch', 'split']),
   recipients: z.array(z.object({ shipping: shippingSchema, message: z.string().optional() })).min(1),
   leftoverReceiveMethod: z.enum(['delivery', 'dine_in']),

@@ -6,7 +6,7 @@ export const GIFT_STEPS = [
   { id: 'box', no: 1, label: '박스' },
   { id: 'parts', no: 2, label: '구성' },
   { id: 'products', no: 3, label: '상품' },
-  { id: 'quote', no: 4, label: '견적' },
+  { id: 'order', no: 4, label: '주문' },
 ] as const;
 
 export type GiftWizardStep = (typeof GIFT_STEPS)[number]['id'];

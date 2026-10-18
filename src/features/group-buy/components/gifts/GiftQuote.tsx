@@ -58,7 +58,7 @@ export function GiftQuote({
                 {line.ok === true ? (
                   <div className="mt-1 space-y-0.5">
                     {line.lines.map((item) => (
-                      <p key={`${item.kind}-${item.slotNo ?? item.poolId}`} className="flex justify-between gap-3 text-[12.5px] tabular-nums text-content-soft">
+                      <p key={`${item.kind}-${item.productId ?? ''}-${item.slotNo ?? item.poolId}`} className="flex justify-between gap-3 text-[12.5px] tabular-nums text-content-soft">
                         <span>
                           {item.label} {item.kg.toFixed(1)}kg
                         </span>
@@ -87,9 +87,6 @@ export function GiftQuote({
               <dd className="mt-0.5 text-[15px] font-bold tabular-nums text-content">{leftoverKg.toFixed(1)}kg</dd>
             </div>
           </dl>
-          {leftoverKg > 0 ? (
-            <p className="mt-2 text-[12.5px] leading-relaxed text-content-mid">남는 양은 주문서에서 집 또는 매장으로 받으실 수 있어요.</p>
-          ) : null}
         </>
       )}
 
@@ -107,7 +104,7 @@ export function GiftQuote({
             </li>
           ))}
           <li className="flex justify-between">
-            <span className="text-content-soft">포장비 × {quantity}</span>
+            <span className="text-content-soft">포장비 {formatWon(packAmount / Math.max(1, quantity))} × {quantity}세트</span>
             <span className="font-semibold tabular-nums text-content">{formatWon(packAmount)}</span>
           </li>
         </ul>

@@ -6,13 +6,14 @@ import {
   GIFT_CELL_GRAMS,
   GIFT_CELL_KG,
   DEFAULT_PACKAGING_FEE,
+  giftUsableKg,
   packagingAmount,
   roundKg,
   toGiftCellCount,
   toRecipientMode,
   type GiftCellSnapshot,
 } from '../lib/gift';
-import { offersForSpec, planGiftSupply } from '../lib/giftSupply';
+import { applyFixedKg, offersForSpec, planGiftSupply } from '../lib/giftSupply';
 import { gradeKeyLabel, gradeKeyOf } from '../lib/pools';
 import { getPaymentProvider } from '../lib/payment/mock';
 import { isDineIn, shippingForReceive, toReceiveMethod } from '../lib/receive';
@@ -128,7 +129,12 @@ export async function createGiftSet(
   }
 
   const leftoverMethod = toReceiveMethod(input.leftoverReceiveMethod);
-  const productIds = Array.from(new Set(cells.map((cell) => cell.productId).filter((id): id is string => !!id)));
+  const productIds = Array.from(
+    new Set([
+      ...cells.map((cell) => cell.productId).filter((id): id is string => !!id),
+      ...(input.supplies ?? []).flatMap((supply) => supply.bulks.map((bulk) => bulk.productId)),
+    ]),
+  );
   const [{ data: productRows }, { data: poolRows }] = await Promise.all([
     productIds.length > 0 ? supabase.from('group_buy_products').select(PRODUCT_SELECT).in('id', productIds) : Promise.resolve({ data: [] }),
     supabase.from('group_buy_pools').select('*').eq('status', 'open'),
@@ -148,11 +154,14 @@ export async function createGiftSet(
   }));
   const groupImages = await loadGroupImageMap();
 
-  const buckets = new Map<string, { productId: string | null; poolId: string | null; cellNos: number[] }>();
-  for (const cell of cells) {
-    const key = cell.productId ? `product:${cell.productId}` : `pool:${cell.poolId ?? ''}`;
-    const bucket = buckets.get(key) ?? { productId: cell.productId ?? null, poolId: cell.poolId ?? null, cellNos: [] };
-    buckets.set(key, { ...bucket, cellNos: [...bucket.cellNos, cell.cellNo] });
+  const buckets = new Map<string, { productId: string | null; poolId: string | null; cellNos: number[]; kg: number | null }>();
+  const useSupplies = (input.supplies?.length ?? 0) > 0;
+  if (!useSupplies) {
+    for (const cell of cells) {
+      const key = cell.productId ? `product:${cell.productId}` : `pool:${cell.poolId ?? ''}`;
+      const bucket = buckets.get(key) ?? { productId: cell.productId ?? null, poolId: cell.poolId ?? null, cellNos: [], kg: typeof cell.kg === 'number' ? cell.kg : null };
+      buckets.set(key, { ...bucket, cellNos: [...bucket.cellNos, cell.cellNo] });
+    }
   }
 
   const allocations: Array<{
@@ -166,6 +175,84 @@ export async function createGiftSet(
   }> = [];
   const leftoverLines: GiftLeftoverLine[] = [];
   const snapshots: GiftCellSnapshot[] = [];
+
+  if (useSupplies) {
+    const supplied = input.supplies ?? [];
+    const covered = supplied.flatMap((supply) => supply.cellNos);
+    if (new Set(covered).size !== cellCount || covered.length !== cellCount) {
+      return { ok: false, status: 400, error: '모든 칸의 구매를 확인해주세요.' };
+    }
+    const usedSlots = new Set<string>();
+    for (const supply of supplied) {
+      const needKg = roundKg(GIFT_CELL_KG * quantity * supply.cellNos.length);
+      let bulkKg = 0;
+      let primary: ProductWithJoins | null = null;
+      const productAllocations: typeof allocations = [];
+      for (const bulk of supply.bulks) {
+        const product = byId.get(bulk.productId);
+        if (!product) return { ok: false, status: 400, error: '모집이 끝난 부위가 있어요. 칸을 다시 채워주세요.' };
+        if (product.recruit_deadline && new Date(product.recruit_deadline).getTime() < Date.now()) {
+          return { ok: false, status: 400, error: `${product.cattle_parts?.part_name ?? product.part_group} 모집 기간이 끝났어요.` };
+        }
+        if (primary && (primary.part_group !== product.part_group || gradeKeyOf(primary.cattle_listings?.grade, primary.cattle_listings?.marbling_score) !== gradeKeyOf(product.cattle_listings?.grade, product.cattle_listings?.marbling_score))) {
+          return { ok: false, status: 400, error: '같은 부위·등급의 벌크만 한 칸에 담을 수 있어요.' };
+        }
+        primary = primary ?? product;
+        const zones = buildProductZones(toNumber(product.cattle_parts?.weight), product.price_per_kg ?? 0, (product.group_buy_order_slots ?? []).map((slot) => slot.slot_no), product.slot_count, product.cattle_parts?.part_name);
+        const chosen = zones.filter((zone) => bulk.slotNos.includes(zone.slotNo) && !zone.sold);
+        if (chosen.length !== bulk.slotNos.length) return { ok: false, status: 400, error: '이미 팔린 구좌가 있어요. 다시 골라주세요.' };
+        for (const zone of chosen) {
+          const slotKey = `${product.id}:${zone.slotNo}`;
+          if (usedSlots.has(slotKey)) return { ok: false, status: 400, error: '같은 구좌를 두 번 담을 수 없어요.' };
+          usedSlots.add(slotKey);
+        }
+        bulkKg = roundKg(bulkKg + chosen.reduce((acc, zone) => acc + zone.kg, 0));
+        const label = `${product.cattle_parts?.part_name ?? product.part_group} ${gradeWithMarbling(product.cattle_listings?.grade, product.cattle_listings?.marbling_score)}`;
+        productAllocations.push({
+          product,
+          pool: null,
+          slotNos: chosen.map((zone) => zone.slotNo),
+          kg: 0,
+          leftoverKg: 0,
+          amount: chosen.reduce((acc, zone) => acc + zone.price, 0),
+          label,
+        });
+      }
+      const gradeKey = primary ? gradeKeyOf(primary.cattle_listings?.grade, primary.cattle_listings?.marbling_score) : null;
+      const offers = primary && gradeKey ? offersForSpec(poolList, { partGroup: primary.part_group, gradeKey }) : [];
+      const pool = supply.kg > 0 ? poolList.find((item) => item.id === supply.poolId && (offers.length === 0 || offers.some((offer) => offer.id === item.id))) ?? null : null;
+      if (supply.kg > 0 && !pool) return { ok: false, status: 400, error: '1kg 구매를 진행할 수 없어요.' };
+      if (pool && supply.kg > pool.maxKg) return { ok: false, status: 400, error: '1kg 구매 수량이 너무 많아요.' };
+      const rawKg = roundKg(bulkKg + (supply.kg > 0 ? supply.kg : 0));
+      const usedKg = giftUsableKg(rawKg);
+      const shortKg = roundKg(Math.max(0, needKg - usedKg));
+      const name = primary?.cattle_parts?.part_name ?? primary?.part_group ?? pool?.partGroup ?? '부위';
+      if (shortKg > 0) return { ok: false, status: 400, error: `${name}: ${shortKg.toFixed(1)}kg 부족` };
+      const leftoverKg = supply.leftoverMode === 'pack' ? 0 : roundKg(Math.max(0, usedKg - needKg));
+      if (supply.kg > 0 && pool) {
+        allocations.push(...productAllocations);
+        const poolLabel = `${pool.partGroup} ${pool.gradeLabel}`;
+        allocations.push({ product: null, pool, slotNos: [], kg: supply.kg, leftoverKg, amount: pool.pricePerKg * supply.kg, label: poolLabel });
+        if (leftoverKg > 0) leftoverLines.push({ productId: pool.id, label: poolLabel, leftoverKg });
+      } else if (productAllocations.length > 0) {
+        const last = productAllocations[productAllocations.length - 1];
+        allocations.push(...productAllocations.slice(0, -1), { ...last, leftoverKg });
+        if (leftoverKg > 0 && last.product) leftoverLines.push({ productId: last.product.id, label: last.label, leftoverKg });
+      }
+      const listing = primary?.cattle_listings;
+      for (const cellNo of [...supply.cellNos].sort((a, b) => a - b)) {
+        snapshots.push({
+          cellNo,
+          productId: primary?.id ?? '',
+          partName: primary?.cattle_parts?.part_name ?? pool?.partGroup ?? '부위',
+          partGroup: primary?.part_group ?? pool?.partGroup ?? '',
+          grade: primary ? gradeWithMarbling(listing?.grade, listing?.marbling_score) : (pool?.gradeLabel ?? ''),
+          image: primary ? resolveProductImages(primary, groupImages)[0] ?? null : null,
+          grams: GIFT_CELL_GRAMS,
+        });
+      }
+    }
+  }
 
   for (const bucket of buckets.values()) {
     const needKg = roundKg(GIFT_CELL_KG * quantity * bucket.cellNos.length);
@@ -181,11 +268,12 @@ export async function createGiftSet(
     const zones = product
       ? buildProductZones(toNumber(product.cattle_parts?.weight), product.price_per_kg ?? 0, (product.group_buy_order_slots ?? []).map((slot) => slot.slot_no), product.slot_count, product.cattle_parts?.part_name)
       : [];
-    const supply = planGiftSupply(zones, needKg, offers, bucket.productId ? { requireZone: true } : undefined);
-    if (supply.ok === false) {
-      const name = product?.cattle_parts?.part_name ?? product?.part_group ?? offers[0]?.label ?? '부위';
-      return { ok: false, status: 400, error: `${name}: ${supply.error}` };
-    }
+    const planned = planGiftSupply(zones, needKg, offers, bucket.productId ? { requireZone: true } : undefined);
+    const name = product?.cattle_parts?.part_name ?? product?.part_group ?? offers[0]?.label ?? '부위';
+    if (planned.ok === false) return { ok: false, status: 400, error: `${name}: ${planned.error}` };
+    const supply = typeof bucket.kg === 'number' ? applyFixedKg(planned, bucket.kg, offers, needKg) : planned;
+    const shortKg = roundKg(Math.max(0, needKg - supply.usedKg));
+    if (shortKg > 0) return { ok: false, status: 400, error: `${name}: ${shortKg.toFixed(1)}kg 부족` };
     const pool = supply.poolId ? poolList.find((item) => item.id === supply.poolId) ?? null : null;
     const label = product
       ? `${product.cattle_parts?.part_name ?? product.part_group} ${gradeWithMarbling(product.cattle_listings?.grade, product.cattle_listings?.marbling_score)}`
