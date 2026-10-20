@@ -1,18 +1,17 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { useTheme } from 'next-themes';
 import { cn } from '@/lib/utils';
 import { GB_BRAND_NAME, GB_CONTAINER_CLASS } from '../constants/ui';
 import { GroupBuyHeader } from './GroupBuyHeader';
 
 /**
- * 소비자 페이지 공통 틀 · 헤더 + 본문 + 푸터 · PC 1440px · 라이트 고정.
+ * 소비자 페이지 공통 틀 · 헤더 + 본문 + 푸터 · PC 1440px.
+ * 라이트 고정은 레이아웃의 `force-light` 가 맡는다. 여기서 테마를 바꾸면
+ * 나갈 때 경매장 다크모드가 되살아나 화면이 다시 어두워진다.
  * `fluid` 면 본문 컨테이너를 씌우지 않는다 — 홈처럼 꽉 찬 배너를 직접 그리는 페이지용.
  */
 export function GroupBuyShell({ children, className, fluid = false }: { children: React.ReactNode; className?: string; fluid?: boolean }) {
-  useForceLightTheme();
   return (
     <div className="flex min-h-screen min-w-[1024px] flex-col bg-surface text-content">
       <GroupBuyHeader />
@@ -20,20 +19,6 @@ export function GroupBuyShell({ children, className, fluid = false }: { children
       <GroupBuyFooter />
     </div>
   );
-}
-
-/** 관리자 화면과 같은 방식 · 들어올 때 라이트, 나갈 때 원래 테마로 */
-function useForceLightTheme() {
-  const { theme, setTheme } = useTheme();
-  const previousRef = useRef<string | undefined>(undefined);
-  useEffect(() => {
-    if (previousRef.current === undefined && theme) previousRef.current = theme;
-    setTheme('light');
-    return () => {
-      if (previousRef.current && previousRef.current !== 'light') setTheme(previousRef.current);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 }
 
 function GroupBuyFooter() {

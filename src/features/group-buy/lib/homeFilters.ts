@@ -53,7 +53,8 @@ const publishedMs = (p: ConsumerProduct) => (p.publishedAt ? new Date(p.publishe
 export const isAlmostFull = (p: ConsumerProduct): boolean =>
   p.remainingCount > 0 && p.remainingCount <= Math.max(1, Math.ceil(p.slotCount * 0.2));
 
-export const isOpen = (p: ConsumerProduct, now = Date.now()): boolean => p.remainingCount > 0 && deadlineMs(p) > now;
+/** 남은 구좌가 있으면 판다. 모집 마감 시각은 잠시 목록·주문에서 쓰지 않는다. */
+export const isOpen = (p: ConsumerProduct): boolean => p.remainingCount > 0;
 
 export const sortByDeadline = (list: ConsumerProduct[]) => [...list].sort((a, b) => deadlineMs(a) - deadlineMs(b));
 export const sortBySaving = (list: ConsumerProduct[]) => [...list].sort((a, b) => (b.savingRate ?? 0) - (a.savingRate ?? 0));

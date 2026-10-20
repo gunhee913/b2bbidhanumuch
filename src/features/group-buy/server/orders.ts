@@ -64,9 +64,6 @@ export async function createOrder(
 
   if (!product || product.status === 'draft') return { ok: false, status: 404, error: '상품을 찾을 수 없습니다.' };
   if (product.status !== 'recruiting') return { ok: false, status: 400, error: '모집이 마감된 상품입니다.' };
-  if (product.recruit_deadline && new Date(product.recruit_deadline).getTime() < Date.now()) {
-    return { ok: false, status: 400, error: '모집 기간이 종료되었습니다.' };
-  }
   if (!product.slot_count || !product.slot_price) return { ok: false, status: 400, error: '판매 조건이 아직 설정되지 않았습니다.' };
   if (slotNos.some((n) => n > product.slot_count!)) return { ok: false, status: 400, error: '존재하지 않는 구좌입니다.' };
 

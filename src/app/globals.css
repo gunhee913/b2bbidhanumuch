@@ -6,7 +6,13 @@
 @tailwind utilities;
 
 @layer base {
-  :root {
+  /*
+   * `.force-light` · 공동구매처럼 경매장 다크모드를 받으면 안 되는 화면.
+   * `.dark` 는 `<html>` 에 붙고 변수는 상속되므로, 같은 값을 이 요소에 다시 선언하면
+   * 자손만 라이트로 돌아온다. `<html>` 에 같이 붙이면 포털(다이얼로그)까지 라이트가 된다.
+   */
+  :root,
+  .force-light {
     /* 브랜드 컬러 시스템 · 먹색(ink) 모노톤 · 금색(gold)은 /main 로고·하이라이트 전용 */
     --background: 0 0% 100%;
     --foreground: 240 10% 10%; /* #17171c - ink */
@@ -136,8 +142,8 @@
     --chart-5: 0 0% 9%; /* Neutral 900 */
   }
 
-  /* 다크모드 컬러 시스템 */
-  .dark {
+  /* 다크모드 컬러 시스템 · `.force-light` 가 같이 있으면 라이트 값을 유지한다 */
+  .dark:not(.force-light) {
     --background: 240 10% 10%; /* #17171c - 다크 배경 */
     --foreground: 0 0% 95%; /* #f2f2f5 - 밝은 텍스트 */
     --card: 240 9% 12%; /* #1e1e24 - 카드 배경 */
@@ -229,6 +235,10 @@
     --chart-3: 0 0% 50%;
     --chart-4: 0 0% 40%;
     --chart-5: 0 0% 30%;
+  }
+
+  .force-light {
+    color-scheme: light;
   }
 }
 

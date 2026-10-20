@@ -165,6 +165,27 @@ export async function createDraftProductsForListing(listingId: string): Promise<
   return { created: inserted?.length ?? 0, error: null };
 }
 
+const DRAFT_CONCURRENCY = 5;
+
+/** 여러 상장의 초안을 동시에 만든다 · 풀 매칭은 호출하는 쪽에서 한 번만 한다 */
+export async function createDraftProductsForListings(
+  listingIds: string[],
+): Promise<{ created: number; error: string | null }> {
+  let created = 0;
+  let error: string | null = null;
+
+  for (let index = 0; index < listingIds.length; index += DRAFT_CONCURRENCY) {
+    const chunk = listingIds.slice(index, index + DRAFT_CONCURRENCY);
+    const results = await Promise.all(chunk.map((id) => createDraftProductsForListing(id)));
+    for (const result of results) {
+      created += result.created;
+      if (result.error) error = result.error;
+    }
+  }
+
+  return { created, error };
+}
+
 /**
  * 관리자 "동기화" 버튼 · 두 가지를 한다.
  * 1) 승인 이후 상태인데 상품이 없는 상장을 훑어 상품을 만든다.
@@ -183,13 +204,10 @@ export async function syncDraftProducts(today: string = todayKst()): Promise<{ l
     .gte('listing_date', fromDate)
     .or(`status.eq.approved,listing_date.gte.${today}`);
 
-  let created = 0;
-  for (const l of (listings ?? []) as { id: string }[]) {
-    const result = await createDraftProductsForListing(l.id);
-    created += result.created;
-  }
+  const listingIds = ((listings ?? []) as { id: string }[]).map((listing) => listing.id);
+  const { created } = await createDraftProductsForListings(listingIds);
   const { published } = await publishReadyDrafts(today);
-  return { listings: listings?.length ?? 0, created, published };
+  return { listings: listingIds.length, created, published };
 }
 
 interface DraftForPublish {

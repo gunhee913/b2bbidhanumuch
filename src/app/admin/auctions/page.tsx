@@ -11,7 +11,7 @@ import {
   Check,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import { useListings, useApproveListing, useDeleteListing, useUpdateListing, useUpdatePart } from '@/features/listings/hooks';
+import { useListings, useApproveListing, useApproveListingsBulk, useDeleteListing, useUpdateListing, useUpdatePart } from '@/features/listings/hooks';
 import { useCompanies } from '@/features/companies/hooks';
 import { CattleListing, CattlePart, CertificateData } from '@/features/listings/types';
 import PhotoModal from '@/features/listings/components/PhotoModal';
@@ -235,6 +235,7 @@ export default function AuctionsListPage() {
 
   // Mutation 훅
   const approveListing = useApproveListing();
+  const approveListingsBulk = useApproveListingsBulk();
   const deleteListing = useDeleteListing();
   const updateListing = useUpdateListing();
   const updatePartMutation = useUpdatePart();
@@ -477,23 +478,18 @@ export default function AuctionsListPage() {
     if (!confirm(`대기 상태인 ${pendingAuctions.length}건을 전체 승인하시겠습니까?`)) return;
 
     setIsApprovingAll(true);
-    let successCount = 0;
-    let failCount = 0;
-
-    for (const auction of pendingAuctions) {
-      try {
-        await approveListing.mutateAsync({ id: auction.id });
-        successCount++;
-      } catch {
-        failCount++;
+    try {
+      const result = await approveListingsBulk.mutateAsync(pendingAuctions.map((auction) => auction.id));
+      if (result.skipped > 0) {
+        alert(`${result.approved}건 승인 완료, ${result.skipped}건은 대기 상태가 아니어서 건너뛰었습니다.`);
+      } else {
+        alert(`${result.approved}건 전체 승인 완료`);
       }
-    }
-
-    setIsApprovingAll(false);
-    if (failCount > 0) {
-      alert(`${successCount}건 승인 완료, ${failCount}건 실패`);
-    } else {
-      alert(`${successCount}건 전체 승인 완료`);
+    } catch (error) {
+      console.error('전체 승인 실패:', error);
+      alert('전체 승인에 실패했습니다.');
+    } finally {
+      setIsApprovingAll(false);
     }
   };
 

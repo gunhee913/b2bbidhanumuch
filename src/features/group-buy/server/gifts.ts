@@ -191,9 +191,6 @@ export async function createGiftSet(
       for (const bulk of supply.bulks) {
         const product = byId.get(bulk.productId);
         if (!product) return { ok: false, status: 400, error: '모집이 끝난 부위가 있어요. 칸을 다시 채워주세요.' };
-        if (product.recruit_deadline && new Date(product.recruit_deadline).getTime() < Date.now()) {
-          return { ok: false, status: 400, error: `${product.cattle_parts?.part_name ?? product.part_group} 모집 기간이 끝났어요.` };
-        }
         if (primary && (primary.part_group !== product.part_group || gradeKeyOf(primary.cattle_listings?.grade, primary.cattle_listings?.marbling_score) !== gradeKeyOf(product.cattle_listings?.grade, product.cattle_listings?.marbling_score))) {
           return { ok: false, status: 400, error: '같은 부위·등급의 벌크만 한 칸에 담을 수 있어요.' };
         }
@@ -258,9 +255,6 @@ export async function createGiftSet(
     const needKg = roundKg(GIFT_CELL_KG * quantity * bucket.cellNos.length);
     const product = bucket.productId ? byId.get(bucket.productId) : undefined;
     if (bucket.productId && !product) return { ok: false, status: 400, error: '모집이 끝난 부위가 있어요. 칸을 다시 채워주세요.' };
-    if (product?.recruit_deadline && new Date(product.recruit_deadline).getTime() < Date.now()) {
-      return { ok: false, status: 400, error: `${product.cattle_parts?.part_name ?? product.part_group} 모집 기간이 끝났어요.` };
-    }
     const gradeKey = product ? gradeKeyOf(product.cattle_listings?.grade, product.cattle_listings?.marbling_score) : null;
     const offers = product && gradeKey
       ? offersForSpec(poolList, { partGroup: product.part_group, gradeKey })

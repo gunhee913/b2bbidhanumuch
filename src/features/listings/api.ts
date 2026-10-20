@@ -111,6 +111,24 @@ export async function approveListing(
   return response.json();
 }
 
+export async function approveListingsBulk(
+  ids: string[],
+  approvedBy?: string
+): Promise<{ approved: number; skipped: number }> {
+  const response = await fetch(`${API_BASE}/approve-bulk`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ids, approvedBy }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || '상장 승인 실패');
+  }
+
+  return response.json();
+}
+
 // 부위 수정
 export async function updatePart(
   listingId: string,

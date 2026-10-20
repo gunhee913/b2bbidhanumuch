@@ -9,6 +9,7 @@ import {
   updateListing,
   deleteListing,
   approveListing,
+  approveListingsBulk,
   updatePart,
   fetchLiveListings,
   LiveListingsFilter,
@@ -98,6 +99,17 @@ export function useApproveListing() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: listingKeys.lists() });
       queryClient.setQueryData(listingKeys.detail(data.id), data);
+    },
+  });
+}
+
+export function useApproveListingsBulk() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (ids: string[]) => approveListingsBulk(ids),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: listingKeys.lists() });
     },
   });
 }

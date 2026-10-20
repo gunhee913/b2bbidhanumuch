@@ -334,26 +334,98 @@ export async function matchPool(poolId: string, by: string | null): Promise<{ ma
   const drafts = await loadWaitingDrafts(pool);
   let matched = 0;
   for (const draft of drafts) {
-    const ok = await tryMatchDraft(draft, pool, by);
-    if (!ok) break; // 가장 급한 부위도 못 채우면 그 뒤는 볼 필요 없다
+    const result = await tryMatchDraft(draft, pool, by);
+    if (!result.ok) break; // 가장 급한 부위도 못 채우면 그 뒤는 볼 필요 없다
     matched += 1;
   }
   return { matched };
 }
 
-/** 열린 풀 전부 · 상장 승인 훅과 cron 이 부른다 */
-export async function matchAllPools(by: string | null = null): Promise<{ matched: number }> {
-  const { data } = await supabase.from('group_buy_pools').select('id').eq('status', 'open');
-  let matched = 0;
-  for (const p of (data ?? []) as { id: string }[]) {
-    matched += (await matchPool(p.id, by)).matched;
+const WAITING_DRAFT_PAGE = 1000;
+
+/** 마감이 남은 draft 전부 · 풀마다 다시 읽지 않도록 한 번에 가져온다 */
+async function loadAllWaitingDrafts(now = new Date()): Promise<DraftCandidate[]> {
+  const rows: DraftCandidate[] = [];
+  for (let from = 0; ; from += WAITING_DRAFT_PAGE) {
+    const { data } = await supabase
+      .from('group_buy_products')
+      .select(CANDIDATE_SELECT)
+      .eq('status', 'draft')
+      .eq('sale_mode', 'slot')
+      .is('pool_id', null)
+      .gt('recruit_deadline', now.toISOString())
+      .order('recruit_deadline', { ascending: true })
+      .range(from, from + WAITING_DRAFT_PAGE - 1);
+    const page = (data ?? []) as unknown as DraftCandidate[];
+    rows.push(...page);
+    if (page.length < WAITING_DRAFT_PAGE) break;
   }
+  return rows;
+}
+
+function draftBucketKey(partGroup: string, gradeKey: string): string {
+  return `${partGroup}::${gradeKey}`;
+}
+
+/**
+ * 열린 풀 전부 · 상장 승인과 cron 이 부른다.
+ * 풀마다 draft·예약을 다시 묻지 않고, 중량이 안 차는 풀은 주문 생성까지 가지 않는다.
+ */
+export async function matchAllPools(by: string | null = null): Promise<{ matched: number }> {
+  const now = new Date();
+  const [{ data }, drafts] = await Promise.all([
+    supabase.from('group_buy_pools').select('*').eq('status', 'open').order('id'),
+    loadAllWaitingDrafts(now),
+  ]);
+  const pools = (data ?? []) as GroupBuyPoolRow[];
+  if (pools.length === 0 || drafts.length === 0) return { matched: 0 };
+
+  const buckets = new Map<string, DraftCandidate[]>();
+  for (const draft of drafts) {
+    const gradeKey = gradeKeyOf(draft.cattle_listings?.grade, draft.cattle_listings?.marbling_score);
+    if (!gradeKey) continue;
+    const key = draftBucketKey(draft.part_group, gradeKey);
+    const list = buckets.get(key);
+    if (list) list.push(draft);
+    else buckets.set(key, [draft]);
+  }
+
+  const poolsWithDrafts = pools.filter((pool) => {
+    const list = buckets.get(draftBucketKey(auctionPartGroupOf(pool.part_group), pool.grade_key));
+    return !!list && list.length > 0;
+  });
+  if (poolsWithDrafts.length === 0) return { matched: 0 };
+
+  const openByPool = await loadOpenReservations(poolsWithDrafts.map((pool) => pool.id));
+  let matched = 0;
+
+  for (const pool of poolsWithDrafts) {
+    const list = buckets.get(draftBucketKey(auctionPartGroupOf(pool.part_group), pool.grade_key));
+    if (!list || list.length === 0) continue;
+    let openKg = sumKg(openByPool.get(pool.id) ?? []);
+
+    for (const draft of [...list]) {
+      const targetKg = toNumber(draft.cattle_parts?.weight);
+      if (targetKg <= 0 || openKg < targetKg) break;
+      const result = await tryMatchDraft(draft, pool, by);
+      if (!result.ok) break;
+      matched += 1;
+      openKg -= result.acceptedKg;
+      const index = list.indexOf(draft);
+      if (index >= 0) list.splice(index, 1);
+    }
+  }
+
   return { matched };
 }
 
-async function tryMatchDraft(draft: DraftCandidate, pool: GroupBuyPoolRow, by: string | null): Promise<boolean> {
+async function tryMatchDraft(
+  draft: DraftCandidate,
+  pool: GroupBuyPoolRow,
+  by: string | null,
+): Promise<{ ok: boolean; acceptedKg: number }> {
   const targetKg = toNumber(draft.cattle_parts?.weight);
-  if (targetKg <= 0) return false;
+  if (targetKg <= 0) return { ok: false, acceptedKg: 0 };
 
   const { data } = await supabase
     .from('group_buy_reservations')
@@ -364,7 +436,7 @@ async function tryMatchDraft(draft: DraftCandidate, pool: GroupBuyPoolRow, by: s
   const open = ((data ?? []) as GroupBuyReservationRow[]).map((r) => ({ ...r, createdAt: r.created_at }));
 
   const allocation = allocateFifo(open, targetKg);
-  if (!allocation) return false;
+  if (!allocation) return { ok: false, acceptedKg: 0 };
 
   const acceptedIds = allocation.accepted.map((r) => r.id);
 
@@ -378,7 +450,7 @@ async function tryMatchDraft(draft: DraftCandidate, pool: GroupBuyPoolRow, by: s
   const lockedIds = (locked ?? []).map((r: { id: string }) => r.id);
   if (lockedIds.length !== acceptedIds.length) {
     await supabase.from('group_buy_reservations').update({ status: 'open', allocated_at: null }).in('id', lockedIds);
-    return false;
+    return { ok: false, acceptedKg: 0 };
   }
 
   // 2) 상품을 kg 모드 · 모집완료로 · draft 가 아니게 됐으면 되돌리고 포기
@@ -402,7 +474,7 @@ async function tryMatchDraft(draft: DraftCandidate, pool: GroupBuyPoolRow, by: s
     .select('id');
   if (!updatedProduct || updatedProduct.length === 0) {
     await supabase.from('group_buy_reservations').update({ status: 'open', allocated_at: null }).in('id', lockedIds);
-    return false;
+    return { ok: false, acceptedKg: 0 };
   }
 
   // 3) 예약 → 주문 · 결제는 이미 끝났으므로 금액 그대로 옮긴다
@@ -455,7 +527,7 @@ async function tryMatchDraft(draft: DraftCandidate, pool: GroupBuyPoolRow, by: s
     payload: { poolId: pool.id, pricePerKg: pool.price_per_kg, acceptedKg: allocation.acceptedKg, targetKg, reservationIds: acceptedIds },
     createdBy: by,
   });
-  return true;
+  return { ok: true, acceptedKg: allocation.acceptedKg };
 }
 
 // ------------------------------------------------------------

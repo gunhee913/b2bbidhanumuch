@@ -10,7 +10,6 @@ import { refundProductOrders } from './refund';
 import { getSettings } from './settings';
 
 const LOST_REASON = '물량 미확보';
-const EXPIRED_REASON = '모집 기간 내 주문 없음';
 
 interface SettleTarget extends GroupBuyProductRow {
   cattle_parts: { id: string; winning_dealer_id: string | null; bid_price: number | null } | null;
@@ -87,44 +86,9 @@ async function markLost(productId: string, internalReason: string, by: string | 
   await markReservationsRefundedForProduct(productId, LOST_REASON);
 }
 
-/**
- * 모집 마감이 지났는데 아직 recruiting 인 상품을 정리한다 · cron 또는 관리자 버튼에서 호출.
- * - 구좌가 하나라도 팔렸으면 full → 물량 확보(응찰)로 넘어간다. 안 팔린 위치는 식육식당(매장)에서 판다.
- * - 주문이 하나도 없으면 cancelled · 환불할 주문도 없다.
- */
-export async function expireRecruitingProducts(now = new Date(), by: string | null = null): Promise<{ expired: number }> {
-  const { data } = await supabase
-    .from('group_buy_products')
-    .select('id, slot_count, group_buy_order_slots ( slot_no )')
-    .eq('status', 'recruiting')
-    .lt('recruit_deadline', now.toISOString());
-
-  let expired = 0;
-  for (const row of (data ?? []) as { id: string; slot_count: number | null; group_buy_order_slots: { slot_no: number }[] | null }[]) {
-    const sold = row.group_buy_order_slots?.length ?? 0;
-    const total = row.slot_count ?? 0;
-    if (sold > 0) {
-      await supabase.from('group_buy_products').update({ status: 'full' }).eq('id', row.id).eq('status', 'recruiting');
-      const rest = Math.max(0, total - sold);
-      await logEvent({
-        productId: row.id,
-        type: EVENT_TYPES.FULL,
-        message: rest === 0 ? `모집 마감 · 전 ${total}구좌 판매 완료 · 응찰 대기` : `모집 마감 · ${sold}/${total}구좌 판매 · 남은 ${rest}구좌는 매장 판매 · 응찰 대기`,
-        createdBy: by,
-      });
-      continue;
-    }
-
-    await supabase
-      .from('group_buy_products')
-      .update({ status: 'cancelled', cancelled_reason: `주문 없음 (0/${total})` })
-      .eq('id', row.id)
-      .eq('status', 'recruiting');
-    await logEvent({ productId: row.id, type: EVENT_TYPES.EXPIRED, message: `모집 마감 · 주문 없음 · 자동 종료`, createdBy: by });
-    await refundProductOrders({ productId: row.id, reason: EXPIRED_REASON, by });
-    expired += 1;
-  }
-  return { expired };
+/** 모집 마감 시각으로 상품을 닫지 않는다. 남은 구좌는 계속 판다. */
+export async function expireRecruitingProducts(_now = new Date(), _by: string | null = null): Promise<{ expired: number }> {
+  return { expired: 0 };
 }
 
 /**

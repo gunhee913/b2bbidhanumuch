@@ -128,19 +128,20 @@ export function GiftTray({ cellCount, fills = [], selectedCell = null, onSelectC
                 width={box.w - 10}
                 height={box.h - 10}
                 rx={WELL_RX}
-                fill={fill?.image ? '#d4cec0' : '#e8e2d4'}
+                fill="#e4dece"
                 stroke={active ? '#1a1a1a' : '#c4bdad'}
                 strokeWidth={active ? 2 : 0.8}
               />
               {fill?.image ? (
                 <image
                   href={fill.image}
-                  x={box.x + 5}
-                  y={box.y + 5}
-                  width={box.w - 10}
-                  height={box.h - 10}
-                  preserveAspectRatio="xMidYMid slice"
+                  x={box.x + 6}
+                  y={box.y + 6}
+                  width={box.w - 12}
+                  height={label ? box.h - 30 : box.h - 12}
+                  preserveAspectRatio="xMidYMid meet"
                   clipPath={`url(#${rawId}-c${box.cellNo})`}
+                  style={{ mixBlendMode: 'darken' }}
                 />
               ) : null}
               {label ? (
