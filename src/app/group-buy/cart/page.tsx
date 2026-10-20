@@ -35,6 +35,8 @@ const CELL = 'border border-line-soft px-4 text-[15px] font-semibold tabular-num
 const HEAD = 'border border-line-soft border-b-line bg-surface-accent/60 px-4 py-3 text-[13.5px] font-semibold text-content-faint';
 
 const slotLineTitle = (line: SlotLine) => `${productTitle(line.product)} ${line.zone.label}`;
+const slotConsentKey = (productId: string, slotNo: number) => `slot:${productId}:${slotNo}`;
+const kgConsentKey = (poolId: string) => `kg:${poolId}`;
 
 /** 장바구니 · 공동구매 구좌와 1kg 구매를 모아 주문서로 넘긴다 · 배송지·결제는 주문서 페이지에서 */
 export default function GroupBuyCartPage() {
@@ -53,8 +55,6 @@ export default function GroupBuyCartPage() {
   const isLoading = (poolsLoading && cart.items.length > 0) || (productsLoading && cart.slotItems.length > 0);
 
   // 지금 살아 있는 줄만 주문서로 넘긴다 · 마감됐거나 먼저 팔린 줄은 조용히 뺀다
-  const slotConsentKey = (productId: string, slotNo: number) => `slot:${productId}:${slotNo}`;
-  const kgConsentKey = (poolId: string) => `kg:${poolId}`;
   const missingConsent =
     slotLines.some((line) => line.trimAndSlice && !trimConsent[slotConsentKey(line.product.id, line.zone.slotNo)]) ||
     lines.some((line) => line.trimAndSlice && !trimConsent[kgConsentKey(line.pool.id)]);
@@ -72,6 +72,11 @@ export default function GroupBuyCartPage() {
       fromCart: true,
     });
     router.push(CHECKOUT_HREF);
+  };
+
+  const markConsent = (key: string, consented: boolean) => {
+    setTrimConsent((prev) => ({ ...prev, [key]: consented }));
+    setError('');
   };
 
   return (
@@ -107,8 +112,8 @@ export default function GroupBuyCartPage() {
             />
           ) : (
             <>
-              {slotLines.length > 0 ? <SlotLinesTable lines={slotLines} disabled={false} /> : null}
-              {lines.length > 0 ? <KgLinesTable lines={lines} disabled={false} /> : null}
+              {slotLines.length > 0 ? <SlotLinesTable lines={slotLines} disabled={false} consents={trimConsent} onConsentChange={markConsent} /> : null}
+              {lines.length > 0 ? <KgLinesTable lines={lines} disabled={false} consents={trimConsent} onConsentChange={markConsent} /> : null}
             </>
           )}
         </section>
@@ -169,13 +174,18 @@ export default function GroupBuyCartPage() {
   );
 }
 
-interface SlotLinesTableProps {
+interface ConsentProps {
+  consents: Record<string, boolean>;
+  onConsentChange: (key: string, consented: boolean) => void;
+}
+
+interface SlotLinesTableProps extends ConsentProps {
   lines: SlotLine[];
   disabled: boolean;
 }
 
 /** 공동구매 구좌 줄 · 상품 × 상단/중단/하단 · 손질 옵션·수령 방식은 표 안에서 바로 고친다 */
-function SlotLinesTable({ lines, disabled }: SlotLinesTableProps) {
+function SlotLinesTable({ lines, disabled, consents, onConsentChange }: SlotLinesTableProps) {
   const cart = useKgCart();
   return (
     <div>
@@ -233,16 +243,12 @@ function SlotLinesTable({ lines, disabled }: SlotLinesTableProps) {
                   {allowsTrimAndSlice(receiveMethod) ? (
                     <TrimSliceOption
                       checked={trimAndSlice}
-                      consented={trimConsent[slotConsentKey(product.id, zone.slotNo)] === true}
+                      consented={consents[slotConsentKey(product.id, zone.slotNo)] === true}
                       onChange={(v) => {
                         cart.setSlotTrimAndSlice(product.id, zone.slotNo, v);
-                        setTrimConsent((prev) => ({ ...prev, [slotConsentKey(product.id, zone.slotNo)]: false }));
-                        setError('');
+                        onConsentChange(slotConsentKey(product.id, zone.slotNo), false);
                       }}
-                      onConsentChange={(v) => {
-                        setTrimConsent((prev) => ({ ...prev, [slotConsentKey(product.id, zone.slotNo)]: v }));
-                        setError('');
-                      }}
+                      onConsentChange={(v) => onConsentChange(slotConsentKey(product.id, zone.slotNo), v)}
                       disabled={disabled}
                       size="sm"
                     />
@@ -269,13 +275,13 @@ function SlotLinesTable({ lines, disabled }: SlotLinesTableProps) {
   );
 }
 
-interface KgLinesTableProps {
+interface KgLinesTableProps extends ConsentProps {
   lines: OrderLine[];
   disabled: boolean;
 }
 
 /** 1kg 구매 줄 · 주문량·수령 방식·손질 옵션을 표 안에서 바로 고친다 */
-function KgLinesTable({ lines, disabled }: KgLinesTableProps) {
+function KgLinesTable({ lines, disabled, consents, onConsentChange }: KgLinesTableProps) {
   const cart = useKgCart();
   return (
     <div>
@@ -326,16 +332,12 @@ function KgLinesTable({ lines, disabled }: KgLinesTableProps) {
                   {allowsTrimAndSlice(receiveMethod) ? (
                     <TrimSliceOption
                       checked={trimAndSlice}
-                      consented={trimConsent[kgConsentKey(pool.id)] === true}
+                      consented={consents[kgConsentKey(pool.id)] === true}
                       onChange={(v) => {
                         cart.setTrimAndSlice(pool.id, v);
-                        setTrimConsent((prev) => ({ ...prev, [kgConsentKey(pool.id)]: false }));
-                        setError('');
+                        onConsentChange(kgConsentKey(pool.id), false);
                       }}
-                      onConsentChange={(v) => {
-                        setTrimConsent((prev) => ({ ...prev, [kgConsentKey(pool.id)]: v }));
-                        setError('');
-                      }}
+                      onConsentChange={(v) => onConsentChange(kgConsentKey(pool.id), v)}
                       disabled={disabled}
                       size="sm"
                     />

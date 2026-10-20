@@ -10,6 +10,7 @@ import { refundProductOrders } from './refund';
 import { getSettings } from './settings';
 
 const LOST_REASON = '물량 미확보';
+const EXPIRED_REASON = '모집 기간 내 주문 없음';
 
 interface SettleTarget extends GroupBuyProductRow {
   cattle_parts: { id: string; winning_dealer_id: string | null; bid_price: number | null } | null;
