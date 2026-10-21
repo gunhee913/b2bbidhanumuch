@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAdminClient } from '@/lib/supabase-admin';
 import { todayKst } from '@/lib/utils';
 import { fetchWinningBids, selectIn } from '@/lib/supabase-batch';
+import { fetchCarcassSettlements } from '@/lib/carcass-settlements';
 
 const supabase = getAdminClient();
 
@@ -85,31 +86,49 @@ export async function GET(request: NextRequest) {
 
     const cumAuctionMap: Record<string, number> = {};
     const todayAuctionMap: Record<string, number> = {};
+    const auctionDatesByDealer: Record<string, Set<string>> = {};
     winningBids.forEach((bid: any) => {
       const did = bid.dealer_id;
       const amt = Number(bid.bid_amount || 0);
+      const listingDate = partListingDateMap[bid.part_id] || '';
       cumAuctionMap[did] = (cumAuctionMap[did] || 0) + amt;
-      if (partListingDateMap[bid.part_id] === date) {
+      if (listingDate === date) {
         todayAuctionMap[did] = (todayAuctionMap[did] || 0) + amt;
+      }
+      if (listingDate && listingDate <= date) {
+        (auctionDatesByDealer[did] ||= new Set()).add(listingDate);
       }
     });
 
+    // 3-b. 지육 경락대금 — 농협 내부망 (연동 전까지 더미) · 조회일 이전 것만 누적
+    const carcass = await fetchCarcassSettlements(auctionDatesByDealer);
+    const cumCarcassMap: Record<string, number> = {};
+    const todayCarcassMap: Record<string, number> = {};
+    carcass.forEach((s) => {
+      if (s.date > date) return;
+      cumCarcassMap[s.dealerId] = (cumCarcassMap[s.dealerId] || 0) + s.amount;
+      if (s.date === date) todayCarcassMap[s.dealerId] = (todayCarcassMap[s.dealerId] || 0) + s.amount;
+    });
+
     // 4. 결과 구성
-    //    입찰 가능 = 총 한도 + 입금 − 출금 − 낙찰 · 선수는 한도 0 이라 기존 잔고와 같다
-    //    외상은 「잔여 한도」, 사용(미결제 외상) = 총 한도 − 잔여 (0 미만이면 0)
+    //    입찰 가능 = 입금 − 출금 − 부분육 낙찰 − 지육 낙찰 (원장 잔액) · 선수든 외상이든 같다
+    //    외상은 이 잔액이 곧 「잔여 한도」, 사용(미결제 외상) = 총 한도 − 잔여 (0 미만이면 0)
+    //    총 한도는 천장일 뿐 잔액에 더하지 않는다 → 잔여 한도가 총 한도를 넘지 않는다
     const balances = (dealers || []).map((dealer: any) => {
       const accountType: 'prepaid' | 'credit' = dealer.account_type === 'credit' ? 'credit' : 'prepaid';
       const creditLimit = accountType === 'credit' ? Number(dealer.credit_limit || 0) : 0;
       const cumDeposit = cumDepositMap[dealer.id] || 0;
       const cumWithdraw = cumWithdrawMap[dealer.id] || 0;
       const cumAuction = cumAuctionMap[dealer.id] || 0;
-      const availableAmount = creditLimit + cumDeposit - cumWithdraw - cumAuction;
+      const cumCarcass = cumCarcassMap[dealer.id] || 0;
+      const availableAmount = cumDeposit - cumWithdraw - cumAuction - cumCarcass;
       const usedCredit = accountType === 'credit' ? Math.max(0, creditLimit - availableAmount) : 0;
 
       const todayDeposit = todayDepositMap[dealer.id] || 0;
       const todayWithdraw = todayWithdrawMap[dealer.id] || 0;
       const todayAuction = todayAuctionMap[dealer.id] || 0;
-      const todayDeduct = todayWithdraw + todayAuction;
+      const todayCarcass = todayCarcassMap[dealer.id] || 0;
+      const todayDeduct = todayWithdraw + todayAuction + todayCarcass;
 
       return {
         id: dealer.id,
@@ -125,7 +144,8 @@ export async function GET(request: NextRequest) {
         totalDeposit: cumDeposit,
         totalWithdraw: cumWithdraw,
         auctionDeduct: cumAuction,
-        totalDeduct: cumWithdraw + cumAuction,
+        carcassDeduct: cumCarcass,
+        totalDeduct: cumWithdraw + cumAuction + cumCarcass,
       };
     });
 

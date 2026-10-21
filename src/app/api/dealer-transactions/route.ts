@@ -2,6 +2,7 @@ import { getAdminClient } from '@/lib/supabase-admin';
 import { NextRequest, NextResponse } from 'next/server';
 import { fetchWinningBids, selectIn } from '@/lib/supabase-batch';
 import { createNotificationWithTemplate } from '@/lib/notifications';
+import { fetchCarcassSettlements, carcassDescription } from '@/lib/carcass-settlements';
 
 const supabase = getAdminClient();
 
@@ -206,7 +207,35 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    let filteredAuction = auctionTxs;
+    // 지육 경락대금 — 농협 내부망 (연동 전까지 더미) · 부분육과 같은 type 이지만 source 로 구분한다
+    //   type 을 같이 쓰는 이유: 기존 PC 화면들이 type 으로 부호·필터를 정하므로 깨지지 않게
+    const auctionDatesByDealer: Record<string, Set<string>> = {};
+    Object.values(dailyMap).forEach((info) => {
+      (auctionDatesByDealer[info.dealerId] ||= new Set()).add(info.listingDate);
+    });
+    const carcassTxs = (await fetchCarcassSettlements(auctionDatesByDealer)).map((s) => {
+      const dealer = dealerMap[s.dealerId];
+      return {
+        id: `carcass-${s.dealerId}_${s.date}`,
+        dealerId: s.dealerId,
+        dealerNo: dealer?.dealer_no || '',
+        dealerName: dealer?.name || '',
+        type: 'auction_deduct' as const,
+        amount: s.amount,
+        balance: 0,
+        description: carcassDescription(s),
+        status: 'active',
+        createdBy: '농협',
+        createdAt: s.settledAt,
+        cancelledAt: null,
+        cancelledBy: null,
+        cancelReason: null,
+        editHistory: [],
+        source: 'carcass',
+      };
+    });
+
+    let filteredAuction = [...auctionTxs, ...carcassTxs];
     if (type && type !== 'all' && type !== 'auction_deduct') {
       filteredAuction = [];
     }
