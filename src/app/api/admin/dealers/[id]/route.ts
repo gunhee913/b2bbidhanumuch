@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createPureClient } from '@/lib/supabase/server';
 import bcrypt from 'bcryptjs';
 import { SLAUGHTER_HOUSES } from '@/constants/slaughterHouses';
+import { validateAccount, normalizeCreditLimit } from '@/features/dealers/lib/account';
 
 const SALT_ROUNDS = 10;
 const VALID_HOUSES: readonly string[] = SLAUGHTER_HOUSES;
@@ -14,11 +15,13 @@ export async function PATCH(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { name, representativeName, businessNo, phone, password, auctionPassword, address, slaughterHouse, status } = body;
+    const { name, representativeName, businessNo, phone, password, auctionPassword, address, slaughterHouse, accountType, creditLimit, status } = body;
 
     if (slaughterHouse !== undefined && slaughterHouse !== null && slaughterHouse !== '' && !VALID_HOUSES.includes(slaughterHouse)) {
       return NextResponse.json({ error: '알 수 없는 공판장입니다.' }, { status: 400 });
     }
+    const accountCheck = validateAccount(accountType, creditLimit);
+    if (accountCheck) return NextResponse.json({ error: accountCheck }, { status: 400 });
 
     const supabase = await createPureClient();
 
@@ -29,6 +32,13 @@ export async function PATCH(
     if (phone !== undefined) updateData.phone = phone;
     if (address !== undefined) updateData.address = address;
     if (slaughterHouse !== undefined) updateData.slaughter_house = slaughterHouse || null;
+    // 거래 구분·한도 · 선수로 바꾸면 한도는 0 으로 되돌린다
+    if (accountType !== undefined) {
+      updateData.account_type = accountType;
+      updateData.credit_limit = normalizeCreditLimit(accountType, creditLimit);
+    } else if (creditLimit !== undefined) {
+      updateData.credit_limit = normalizeCreditLimit('credit', creditLimit);
+    }
     if (status !== undefined) updateData.status = status;
 
     if (password) {
@@ -65,6 +75,8 @@ export async function PATCH(
       phone: data.phone,
       address: data.address,
       slaughterHouse: data.slaughter_house ?? null,
+      accountType: data.account_type ?? 'prepaid',
+      creditLimit: Number(data.credit_limit ?? 0),
       status: data.status,
       createdAt: data.created_at,
       lastLoginAt: data.last_login_at,

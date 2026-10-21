@@ -29,7 +29,14 @@ import {
   UpdateDealerInput,
   CreateDealerEmployeeInput,
   UpdateDealerEmployeeInput,
+  DealerAccountType,
+  ACCOUNT_TYPE_LABEL,
 } from '@/features/dealers/types';
+
+const KRW = new Intl.NumberFormat('ko-KR');
+/** 「20,000,000」 ↔ 숫자 · 한도 입력칸은 천 단위 쉼표를 보여 준다 */
+const digitsOnly = (v: string) => v.replace(/[^\d]/g, '');
+const formatLimitInput = (v: string) => (digitsOnly(v) ? KRW.format(Number(digitsOnly(v))) : '');
 
 export default function DealersPage() {
   const { data: dealers = [], isLoading, error } = useDealers();
@@ -67,6 +74,8 @@ export default function DealersPage() {
     auctionPassword: '',
     address: '',
     slaughterHouse: '',
+    accountType: 'prepaid' as DealerAccountType,
+    creditLimit: '',
     status: 'active' as 'active' | 'inactive',
   });
 
@@ -112,6 +121,8 @@ export default function DealersPage() {
       auctionPassword: '',
       address: dealer.address || '',
       slaughterHouse: dealer.slaughterHouse || '',
+      accountType: dealer.accountType || 'prepaid',
+      creditLimit: dealer.creditLimit ? KRW.format(dealer.creditLimit) : '',
       status: dealer.status,
     });
     setEditingDealerId(dealer.id);
@@ -120,7 +131,7 @@ export default function DealersPage() {
   const handleEditCancel = () => {
     setEditingDealerId(null);
     setSelectedDealer(null);
-    setFormData({ dealerNo: '', name: '', representativeName: '', businessNo: '', phone: '', auctionPassword: '', address: '', slaughterHouse: '', status: 'active' });
+    setFormData({ dealerNo: '', name: '', representativeName: '', businessNo: '', phone: '', auctionPassword: '', address: '', slaughterHouse: '', accountType: 'prepaid', creditLimit: '', status: 'active' });
   };
 
   const handleEditSave = async () => {
@@ -133,6 +144,8 @@ export default function DealersPage() {
       phone: formData.phone,
       address: formData.address || undefined,
       slaughterHouse: formData.slaughterHouse || null,
+      accountType: formData.accountType,
+      creditLimit: formData.accountType === 'credit' ? Number(digitsOnly(formData.creditLimit) || 0) : 0,
       status: formData.status,
     };
 
@@ -159,6 +172,8 @@ export default function DealersPage() {
       auctionPassword: '',
       address: '',
       slaughterHouse: '',
+      accountType: 'prepaid',
+      creditLimit: '',
       status: 'active',
     });
     setIsAddingDealer(true);
@@ -166,7 +181,7 @@ export default function DealersPage() {
 
   const handleAddCancel = () => {
     setIsAddingDealer(false);
-    setFormData({ dealerNo: '', name: '', representativeName: '', businessNo: '', phone: '', auctionPassword: '', address: '', slaughterHouse: '', status: 'active' });
+    setFormData({ dealerNo: '', name: '', representativeName: '', businessNo: '', phone: '', auctionPassword: '', address: '', slaughterHouse: '', accountType: 'prepaid', creditLimit: '', status: 'active' });
   };
 
   const handleAddSave = async () => {
@@ -180,6 +195,8 @@ export default function DealersPage() {
       auctionPassword: formData.auctionPassword || '0000',
       address: formData.address || undefined,
       slaughterHouse: formData.slaughterHouse || null,
+      accountType: formData.accountType,
+      creditLimit: formData.accountType === 'credit' ? Number(digitsOnly(formData.creditLimit) || 0) : 0,
       status: formData.status,
     };
 
@@ -402,7 +419,7 @@ export default function DealersPage() {
 
       <div className="bg-white border border-gray-200 overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full border-collapse" style={{ minWidth: '1100px' }}>
+          <table className="w-full border-collapse" style={{ minWidth: '1300px' }}>
             <thead>
               <tr>
                 <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50" style={{ width: 32 }}></th>
@@ -414,6 +431,8 @@ export default function DealersPage() {
                 <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50" style={{ minWidth: 90 }}>경매 비밀번호</th>
                 <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50" style={{ minWidth: 200 }}>주소</th>
                 <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50" style={{ minWidth: 110 }}>소속 공판장</th>
+                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50" style={{ minWidth: 80 }}>거래 구분</th>
+                <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50" style={{ minWidth: 120 }}>총 한도</th>
                 <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">등록일</th>
                 <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50">직원수</th>
                 <th className="px-2 py-2 text-center text-xs font-semibold text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50" style={{ minWidth: 50 }}>수정</th>
@@ -500,6 +519,27 @@ export default function DealersPage() {
                         <option key={h} value={h}>{h}</option>
                       ))}
                     </select>
+                  </td>
+                  <td className="px-2 py-2 border border-gray-200">
+                    <select
+                      value={formData.accountType}
+                      onChange={(e) => setFormData({ ...formData, accountType: e.target.value as DealerAccountType, creditLimit: e.target.value === 'credit' ? formData.creditLimit : '' })}
+                      className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
+                    >
+                      <option value="prepaid">선수</option>
+                      <option value="credit">외상</option>
+                    </select>
+                  </td>
+                  <td className="px-2 py-2 border border-gray-200">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={formData.creditLimit}
+                      disabled={formData.accountType !== 'credit'}
+                      onChange={(e) => setFormData({ ...formData, creditLimit: formatLimitInput(e.target.value) })}
+                      placeholder={formData.accountType === 'credit' ? '총 한도(원)' : '선수는 없음'}
+                      className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-right tabular-nums disabled:bg-gray-100 disabled:text-gray-400"
+                    />
                   </td>
                   <td className="px-2 py-2 border border-gray-200 text-sm text-gray-400 text-center">-</td>
                   <td className="px-2 py-2 border border-gray-200 text-sm text-gray-400 text-center">-</td>
@@ -605,6 +645,27 @@ export default function DealersPage() {
                           ))}
                         </select>
                       </td>
+                        <td className="px-2 py-2 border border-gray-200">
+                          <select
+                            value={formData.accountType}
+                            onChange={(e) => setFormData({ ...formData, accountType: e.target.value as DealerAccountType, creditLimit: e.target.value === 'credit' ? formData.creditLimit : '' })}
+                            className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-center"
+                          >
+                            <option value="prepaid">선수</option>
+                            <option value="credit">외상</option>
+                          </select>
+                        </td>
+                        <td className="px-2 py-2 border border-gray-200">
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            value={formData.creditLimit}
+                            disabled={formData.accountType !== 'credit'}
+                            onChange={(e) => setFormData({ ...formData, creditLimit: formatLimitInput(e.target.value) })}
+                            placeholder={formData.accountType === 'credit' ? '총 한도(원)' : '선수는 없음'}
+                            className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-gray-500 focus:border-gray-500 outline-none bg-white text-right tabular-nums disabled:bg-gray-100 disabled:text-gray-400"
+                          />
+                        </td>
                       <td className="px-2 py-2 border border-gray-200 text-sm text-gray-500 text-center whitespace-nowrap">{formatDate(dealer.createdAt)}</td>
                       <td className="px-2 py-2 border border-gray-200 text-sm text-gray-500 text-center whitespace-nowrap">{dealer.employees.length}명</td>
                       <td className="px-2 py-2 border border-gray-200" colSpan={2}>
@@ -645,6 +706,16 @@ export default function DealersPage() {
                       <td className="px-2 py-2 border border-gray-200 text-sm text-gray-600 text-center whitespace-nowrap">••••</td>
                       <td className="px-2 py-2 border border-gray-200 text-sm text-gray-600 whitespace-nowrap">{dealer.address || '-'}</td>
                       <td className={`px-2 py-2 border border-gray-200 text-sm text-center whitespace-nowrap ${dealer.slaughterHouse ? 'text-gray-900 font-medium' : 'text-amber-600'}`}>{dealer.slaughterHouse || '미지정'}</td>
+                      <td className="px-2 py-2 border border-gray-200 text-sm text-center whitespace-nowrap">
+                        <span className={`inline-block px-1.5 py-0.5 text-xs font-semibold rounded ${dealer.accountType === 'credit' ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-700'}`}>
+                          {ACCOUNT_TYPE_LABEL[dealer.accountType || 'prepaid']}
+                        </span>
+                      </td>
+                      <td className="px-2 py-2 border border-gray-200 text-sm text-right whitespace-nowrap tabular-nums">
+                        {dealer.accountType === 'credit'
+                          ? <span className={dealer.creditLimit > 0 ? 'text-gray-900 font-medium' : 'text-amber-600'}>{dealer.creditLimit > 0 ? `${KRW.format(dealer.creditLimit)}원` : '한도 미설정'}</span>
+                          : <span className="text-gray-400">-</span>}
+                      </td>
                       <td className="px-2 py-2 border border-gray-200 text-sm text-gray-500 text-center whitespace-nowrap">{formatDate(dealer.createdAt)}</td>
                       <td className="px-2 py-2 border border-gray-200 text-sm text-gray-500 text-center whitespace-nowrap">{dealer.employees.length}명</td>
                       <td className="px-2 py-2 border border-gray-200">
@@ -673,7 +744,7 @@ export default function DealersPage() {
                   {/* 직원 목록 (펼침) */}
                   {expandedDealer === dealer.id && (
                     <tr>
-                      <td colSpan={13} className="p-0">
+                      <td colSpan={15} className="p-0">
                         <div className="p-4 border-t border-gray-100">
                           <div className="flex items-center justify-between mb-3">
                             <h4 className="text-sm font-semibold text-gray-700">경매대리인 / 직원 목록</h4>

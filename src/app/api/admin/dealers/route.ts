@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createPureClient } from '@/lib/supabase/server';
 import bcrypt from 'bcryptjs';
 import { SLAUGHTER_HOUSES } from '@/constants/slaughterHouses';
+import { validateAccount, normalizeCreditLimit } from '@/features/dealers/lib/account';
 
 const SALT_ROUNDS = 10;
 const VALID_HOUSES: readonly string[] = SLAUGHTER_HOUSES;
@@ -55,6 +56,8 @@ export async function GET() {
         phone: row.phone,
         address: row.address,
         slaughterHouse: row.slaughter_house ?? null,
+        accountType: row.account_type ?? 'prepaid',
+        creditLimit: Number(row.credit_limit ?? 0),
         status: row.status,
         createdAt: row.created_at,
         lastLoginAt: row.last_login_at,
@@ -73,7 +76,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { dealerNo, name, representativeName, businessNo, phone, password, auctionPassword, address, slaughterHouse, status } = body;
+    const { dealerNo, name, representativeName, businessNo, phone, password, auctionPassword, address, slaughterHouse, accountType, creditLimit, status } = body;
 
     if (!dealerNo || !name || !phone || !password || !auctionPassword) {
       return NextResponse.json({ error: '필수 항목을 입력해주세요.' }, { status: 400 });
@@ -81,6 +84,8 @@ export async function POST(request: NextRequest) {
     if (slaughterHouse && !VALID_HOUSES.includes(slaughterHouse)) {
       return NextResponse.json({ error: '알 수 없는 공판장입니다.' }, { status: 400 });
     }
+    const accountCheck = validateAccount(accountType, creditLimit);
+    if (accountCheck) return NextResponse.json({ error: accountCheck }, { status: 400 });
 
     const supabase = await createPureClient();
 
@@ -99,6 +104,9 @@ export async function POST(request: NextRequest) {
         auction_password_hash: auctionPasswordHash,
         address: address || null,
         slaughter_house: slaughterHouse || null,
+        // 선수는 한도 0 · 외상만 총 한도를 받는다
+        account_type: accountType || 'prepaid',
+        credit_limit: normalizeCreditLimit(accountType, creditLimit),
         status: status || 'active',
       })
       .select()
@@ -127,6 +135,8 @@ export async function POST(request: NextRequest) {
       phone: data.phone,
       address: data.address,
       slaughterHouse: data.slaughter_house ?? null,
+      accountType: data.account_type ?? 'prepaid',
+      creditLimit: Number(data.credit_limit ?? 0),
       status: data.status,
       createdAt: data.created_at,
       lastLoginAt: data.last_login_at,

@@ -10,12 +10,30 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const date = searchParams.get('date') || todayKst();
 
-    // 1. 활성 중도매인 목록
-    const { data: dealers, error: dealerError } = await supabase
-      .from('dealers')
-      .select('id, dealer_no, name, phone')
-      .eq('status', 'active')
-      .order('dealer_no', { ascending: true });
+    // 1. 활성 중도매인 목록 (+ 거래 구분 · 총 한도)
+    type DealerRow = { id: string; dealer_no: string; name: string; phone: string; account_type?: string | null; credit_limit?: number | string | null };
+    let dealers: DealerRow[] | null = null;
+    let dealerError: { message: string } | null = null;
+    {
+      const r = await supabase
+        .from('dealers')
+        .select('id, dealer_no, name, phone, account_type, credit_limit')
+        .eq('status', 'active')
+        .order('dealer_no', { ascending: true });
+      dealers = r.data as DealerRow[] | null;
+      dealerError = r.error;
+    }
+
+    // 20261021_001 마이그레이션 전 DB · 컬럼이 없으면 모두 선수로 보고 계속 간다
+    if (dealerError && /account_type|credit_limit/.test(dealerError.message)) {
+      const r = await supabase
+        .from('dealers')
+        .select('id, dealer_no, name, phone')
+        .eq('status', 'active')
+        .order('dealer_no', { ascending: true });
+      dealers = r.data as DealerRow[] | null;
+      dealerError = r.error;
+    }
 
     if (dealerError) {
       return NextResponse.json({ error: dealerError.message }, { status: 500 });
@@ -77,11 +95,16 @@ export async function GET(request: NextRequest) {
     });
 
     // 4. 결과 구성
+    //    입찰 가능 = 총 한도 + 입금 − 출금 − 낙찰 · 선수는 한도 0 이라 기존 잔고와 같다
+    //    외상은 「잔여 한도」, 사용(미결제 외상) = 총 한도 − 잔여 (0 미만이면 0)
     const balances = (dealers || []).map((dealer: any) => {
+      const accountType: 'prepaid' | 'credit' = dealer.account_type === 'credit' ? 'credit' : 'prepaid';
+      const creditLimit = accountType === 'credit' ? Number(dealer.credit_limit || 0) : 0;
       const cumDeposit = cumDepositMap[dealer.id] || 0;
       const cumWithdraw = cumWithdrawMap[dealer.id] || 0;
       const cumAuction = cumAuctionMap[dealer.id] || 0;
-      const availableAmount = cumDeposit - cumWithdraw - cumAuction;
+      const availableAmount = creditLimit + cumDeposit - cumWithdraw - cumAuction;
+      const usedCredit = accountType === 'credit' ? Math.max(0, creditLimit - availableAmount) : 0;
 
       const todayDeposit = todayDepositMap[dealer.id] || 0;
       const todayWithdraw = todayWithdrawMap[dealer.id] || 0;
@@ -93,6 +116,9 @@ export async function GET(request: NextRequest) {
         dealerNo: dealer.dealer_no,
         dealerName: dealer.name,
         phone: dealer.phone,
+        accountType,
+        creditLimit,
+        usedCredit,
         todayDeposit,
         todayDeduct,
         availableAmount,

@@ -15,10 +15,22 @@ export interface DealerRow {
   address: string | null;
   /** 소속 공판장 · 마스터 문자열("농협 음성") · NULL = 미지정(입찰 제한 없음) */
   slaughter_house: string | null;
+  /** 거래 구분 · prepaid=선수 / credit=외상 */
+  account_type: DealerAccountType;
+  /** 외상 총 한도(원) · 선수는 0 */
+  credit_limit: number;
   status: 'active' | 'inactive';
   created_at: string;
   last_login_at: string | null;
 }
+
+/** 거래 구분 · 선수(넣은 돈만큼) / 외상(총 한도 안에서, 나중에 결제) */
+export type DealerAccountType = 'prepaid' | 'credit';
+
+export const ACCOUNT_TYPE_LABEL: Record<DealerAccountType, string> = {
+  prepaid: '선수',
+  credit: '외상',
+};
 
 export interface DealerEmployeeRow {
   id: string;
@@ -45,6 +57,10 @@ export interface Dealer {
   address: string | null;
   /** 소속 공판장 · 이 공판장 상장만 입찰 가능 · null = 미지정 */
   slaughterHouse: string | null;
+  /** 거래 구분 · 선수 / 외상 */
+  accountType: DealerAccountType;
+  /** 외상 총 한도(원) · 선수는 0 */
+  creditLimit: number;
   status: 'active' | 'inactive';
   createdAt: string;
   lastLoginAt: string | null;
@@ -75,6 +91,8 @@ export interface CreateDealerInput {
   auctionPassword: string;
   address?: string;
   slaughterHouse?: string | null;
+  accountType?: DealerAccountType;
+  creditLimit?: number;
   status?: 'active' | 'inactive';
 }
 
@@ -99,6 +117,8 @@ export interface UpdateDealerInput {
   auctionPassword?: string;
   address?: string;
   slaughterHouse?: string | null;
+  accountType?: DealerAccountType;
+  creditLimit?: number;
   status?: 'active' | 'inactive';
 }
 
@@ -128,6 +148,8 @@ export function toDealerFromRow(row: DealerRow): Dealer {
     phone: row.phone,
     address: row.address,
     slaughterHouse: row.slaughter_house ?? null,
+    accountType: row.account_type ?? 'prepaid',
+    creditLimit: Number(row.credit_limit ?? 0),
     status: row.status,
     createdAt: row.created_at,
     lastLoginAt: row.last_login_at,
