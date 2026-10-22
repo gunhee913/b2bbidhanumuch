@@ -33,6 +33,7 @@ export async function GET(request: NextRequest) {
       category: row.category,
       isPinned: row.is_pinned,
       target: row.target,
+      authorName: row.author_name ?? null,
       createdAt: row.created_at,
     }));
 

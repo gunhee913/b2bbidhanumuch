@@ -27,6 +27,7 @@ export async function GET(
       category: data.category,
       isPinned: data.is_pinned,
       target: data.target,
+      authorName: data.author_name ?? null,
       createdAt: data.created_at,
     });
   } catch {
