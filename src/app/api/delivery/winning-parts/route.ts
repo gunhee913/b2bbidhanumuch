@@ -145,6 +145,8 @@ export async function GET(request: NextRequest) {
         processWeight: Number(listing?.process_weight || 0),
         images: Array.isArray(listing?.images) ? listing.images : [],
         companyName: listing?.companies?.name || "",
+        // 앱 줄 썸네일 · 업체 대표이미지(part-group-images) 를 찾는 열쇠
+        companyId: listing?.company_id || "",
         // 스캔본 자체는 무거워 목록에 싣지 않는다 · 유무만 주고 파일은 `fetchListingCerts` 로
         hasGradeCert: !!listing?.grade_cert,
         hasSlaughterCert: !!listing?.slaughter_cert,
