@@ -72,6 +72,23 @@ export async function GET(request: NextRequest) {
       query = query.eq("winning_dealer_id", dealerId);
     }
 
+    // 날짜 · 업체 조건은 DB 에서 거른다 — 전체를 받아 코드로 거르면 PostgREST 기본 1,000행 상한에
+    // 걸려 최근 낙찰(뒤쪽 행)이 통째로 빠진다 (낙찰 부위 1,000건 넘긴 뒤 오늘 낙찰이 배송지시에 안 보였다).
+    // `cattle_listings!inner` 조인이라 아래 조건이 부위 행 자체를 거른다.
+    if (date) {
+      query = query.eq("cattle_listings.listing_date", date);
+    }
+    if (startDate) {
+      query = query.gte("cattle_listings.listing_date", startDate);
+    }
+    if (endDate) {
+      query = query.lte("cattle_listings.listing_date", endDate);
+    }
+    if (companyId) {
+      query = query.eq("cattle_listings.company_id", companyId);
+    }
+    query = query.order("bid_at", { ascending: false, nullsFirst: false });
+
     const { data: parts, error } = await query;
 
     if (error) {

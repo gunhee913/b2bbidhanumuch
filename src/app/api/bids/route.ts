@@ -70,6 +70,8 @@ export async function GET(request: NextRequest) {
             status,
             closed_at,
             marbling_score,
+            breed,
+            month_age,
             slaughter_house,
             company_id,
             companies:company_id ( name )
