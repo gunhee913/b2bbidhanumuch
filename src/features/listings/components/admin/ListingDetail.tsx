@@ -164,10 +164,31 @@ export function ListingDetail({
 
   return (
     <div className="border-b border-slate-200 bg-slate-50 px-4 py-3">
-      {isEditingAttachments ? (
-        <AttachmentEditor listing={listing} onCancel={() => setIsEditingAttachments(false)} onSave={handleSaveAttachments} />
+      {isEditingForm ? (
+        <ListingEditForm key={listing.id} listing={listing} mode={editMode} onCancel={onCancelEdit} onSaved={onSaved} />
       ) : (
-        <div className="mb-3 flex h-10 items-center justify-between">
+        <PartsTable
+          listingNo={listing.listingNo}
+          parts={listing.parts}
+          resolveCover={resolvePartCover}
+          onOpenPartPhotos={isEditingAttachments ? undefined : openPartLightbox}
+          footerAction={
+            isAuction && hasUnsoldPart ? (
+              <button type="button" onClick={() => onStartEdit('minPrice')} disabled={isLocked || isBusy} className={SMALL_ACTION}>
+                최저가격 수정
+              </button>
+            ) : null
+          }
+        />
+      )}
+
+      {/* 첨부는 부위 표 아래 · 등록 화면과 같은 순서(개체 정보 → 부위 → 메인 사진·증명서) */}
+      {isEditingAttachments ? (
+        <div className="mt-3">
+          <AttachmentEditor listing={listing} onCancel={() => setIsEditingAttachments(false)} onSave={handleSaveAttachments} />
+        </div>
+      ) : (
+        <div className="mt-3 flex h-10 items-center justify-between">
           <div className="flex items-center gap-4">
             <ThumbGroup label={photoCount > 0 ? `메인 사진\n${photoCount}장` : '메인 사진\n없음'} missing={photoCount === 0}>
               {photoCount > 0 ? (
@@ -233,24 +254,6 @@ export function ListingDetail({
             </div>
           )}
         </div>
-      )}
-
-      {isEditingForm ? (
-        <ListingEditForm key={listing.id} listing={listing} mode={editMode} onCancel={onCancelEdit} onSaved={onSaved} />
-      ) : (
-        <PartsTable
-          listingNo={listing.listingNo}
-          parts={listing.parts}
-          resolveCover={resolvePartCover}
-          onOpenPartPhotos={isEditingAttachments ? undefined : openPartLightbox}
-          footerAction={
-            isAuction && hasUnsoldPart ? (
-              <button type="button" onClick={() => onStartEdit('minPrice')} disabled={isLocked || isBusy} className={SMALL_ACTION}>
-                최저가격 수정
-              </button>
-            ) : null
-          }
-        />
       )}
 
       {lightbox && (

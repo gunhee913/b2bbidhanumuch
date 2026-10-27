@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 import { z } from 'zod';
 import { createPureClient } from '@/lib/supabase/server';
-import { photoEditParamsSchema } from '@/features/photo-edit/lib/photoEdit';
+import { photoEditParamsSchema, withAdjustDefaults } from '@/features/photo-edit/lib/photoEdit';
 import type { ImageEdit } from '@/features/photo-edit/types';
 
 interface Row {
@@ -11,10 +11,11 @@ interface Row {
   params: ImageEdit['params'];
 }
 
+/** 선명도가 생기기 전 기록은 그 칸이 없다 · 읽을 때 기본값으로 채워 내보낸다 */
 const toImageEdit = (row: Row): ImageEdit => ({
   editedUrl: row.edited_url,
   originalUrl: row.original_url,
-  params: row.params,
+  params: withAdjustDefaults(row.params),
 });
 
 const isHttpUrl = (value: string) => /^https?:\/\//.test(value);

@@ -86,7 +86,7 @@ export function AttachmentEditor({ listing, onCancel, onSave }: AttachmentEditor
   };
 
   return (
-    <div className="mb-4 border border-slate-900 bg-white">
+    <div className="border border-slate-900 bg-white">
       <div className="flex items-center justify-between border-b border-slate-200 px-4 py-2.5">
         <div className="flex items-baseline gap-2">
           <span className="text-[13px] font-semibold text-slate-900">첨부 편집</span>
@@ -94,7 +94,40 @@ export function AttachmentEditor({ listing, onCancel, onSave }: AttachmentEditor
         </div>
       </div>
 
-      <div className="flex items-start gap-8 px-4 py-4">
+      {/* 등록 화면과 같은 순서 · 부위별 사진 → 메인 사진·증명서 */}
+      <section className="px-4 py-3">
+        <h4 className="mb-2 flex items-baseline gap-2 text-[12px] font-medium text-slate-500">
+          부위별 사진
+          <span className="font-normal text-slate-400">부위마다 {MAX_PART_PHOTOS}장까지 · 비워 두면 경매장은 대표사진(설정)으로 대신합니다</span>
+        </h4>
+        <div className={PARTS_GRID}>
+          {partColumns.map((column, columnIndex) => (
+            <ul key={columnIndex} className="divide-y divide-slate-100 border border-slate-200 bg-white">
+              {column.map((part) => (
+                <li key={part.id} className="flex h-12 items-center gap-3 px-3">
+                  <span className="w-5 shrink-0 text-[12px] tabular-nums text-slate-400">{partNoLabel(part.partNo)}</span>
+                  <span className={cn('w-14 shrink-0 text-[13px]', part.isIncluded ? 'text-slate-900' : 'text-slate-400 line-through')}>{part.name}</span>
+                  <PhotoStrip
+                    images={partImages[part.id] ?? []}
+                    max={MAX_PART_PHOTOS}
+                    pending={pendingPartPhotos[part.id] ?? 0}
+                    disabled={isUploading}
+                    size="sm"
+                    coverTitle={`${part.name} 첫 장으로`}
+                    addTitle={`${part.name} 사진 추가`}
+                    onChange={(next) => setPartPhotos(part, next)}
+                    onFiles={(files) => void handlePartPhotoFiles(part, files)}
+                    editable
+                    editTitle={part.name}
+                  />
+                </li>
+              ))}
+            </ul>
+          ))}
+        </div>
+      </section>
+
+      <div className="flex items-start gap-8 border-t border-slate-200 px-4 py-4">
         <section>
           <h4 className="mb-2 text-[12px] font-medium text-slate-500">
             메인 사진 <span className="tabular-nums text-slate-400">{images.length}/{MAX_LISTING_PHOTOS}</span>
@@ -128,38 +161,6 @@ export function AttachmentEditor({ listing, onCancel, onSave }: AttachmentEditor
           />
         ))}
       </div>
-
-      <section className="border-t border-slate-200 px-4 py-3">
-        <h4 className="mb-2 flex items-baseline gap-2 text-[12px] font-medium text-slate-500">
-          부위별 사진
-          <span className="font-normal text-slate-400">부위마다 {MAX_PART_PHOTOS}장까지 · 비워 두면 경매장은 대표사진(설정)으로 대신합니다</span>
-        </h4>
-        <div className={PARTS_GRID}>
-          {partColumns.map((column, columnIndex) => (
-            <ul key={columnIndex} className="divide-y divide-slate-100 border border-slate-200 bg-white">
-              {column.map((part) => (
-                <li key={part.id} className="flex h-12 items-center gap-3 px-3">
-                  <span className="w-5 shrink-0 text-[12px] tabular-nums text-slate-400">{partNoLabel(part.partNo)}</span>
-                  <span className={cn('w-14 shrink-0 text-[13px]', part.isIncluded ? 'text-slate-900' : 'text-slate-400 line-through')}>{part.name}</span>
-                  <PhotoStrip
-                    images={partImages[part.id] ?? []}
-                    max={MAX_PART_PHOTOS}
-                    pending={pendingPartPhotos[part.id] ?? 0}
-                    disabled={isUploading}
-                    size="sm"
-                    coverTitle={`${part.name} 첫 장으로`}
-                    addTitle={`${part.name} 사진 추가`}
-                    onChange={(next) => setPartPhotos(part, next)}
-                    onFiles={(files) => void handlePartPhotoFiles(part, files)}
-                    editable
-                    editTitle={part.name}
-                  />
-                </li>
-              ))}
-            </ul>
-          ))}
-        </div>
-      </section>
 
       <footer className="flex items-center justify-between border-t border-slate-200 bg-slate-50 px-4 py-3">
         <span className="text-[12px] text-slate-500">

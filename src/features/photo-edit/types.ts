@@ -7,7 +7,7 @@ export interface CropArea {
 
 export type Rotation = 0 | 90 | 180 | 270;
 
-/** 슬라이더 셋 · 사진의 위치와 무관한 색 보정 · 「최근 설정」 으로 다음 사진에 가져갈 수 있는 부분 */
+/** 색 슬라이더 셋 · 채널별 변환표 하나로 끝나는 보정 */
 export interface ToneParams {
   /** −40 ~ +40 (%) · 곱하기 */
   brightness: number;
@@ -17,8 +17,17 @@ export interface ToneParams {
   temperature: number;
 }
 
+/** 선명도 · 휘도 전용 언샤프 마스크 · 반경·임계값은 고정 */
+export interface SharpenParams {
+  /** 0 ~ 100 · 세기 · 0 이면 끔 */
+  sharpness: number;
+}
+
+/** 사진의 위치와 무관한 보정 전부 · 「최근 설정」 으로 다음 사진에 가져갈 수 있는 부분 */
+export interface AdjustParams extends ToneParams, SharpenParams {}
+
 /** 편집기가 저장하는 값 전부 · DB `image_edits.params` */
-export interface PhotoEditParams extends ToneParams {
+export interface PhotoEditParams extends AdjustParams {
   /** 자른 영역 · 반전·회전을 적용한 뒤의 원본 픽셀 좌표 */
   area: CropArea;
   rotation: Rotation;

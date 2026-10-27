@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Cropper, { type Area, type Point } from 'react-easy-crop';
 import { useQuery } from '@tanstack/react-query';
-import { Eye, FlipHorizontal2, History, Loader2, RotateCcw, RotateCw, Undo2, Wand2 } from 'lucide-react';
+import { Eye, FlipHorizontal2, History, Loader2, RotateCcw, RotateCw, Undo2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { ADMIN_BUTTON } from '@/components/admin/buttonStyles';
@@ -12,25 +12,32 @@ import { uploadImage } from '@/lib/upload';
 import { fetchImageEdit, saveImageEdit } from '../api';
 import { usePhotoEditStore, type RecentEdit } from '../hooks/usePhotoEditStore';
 import {
+  applySharpen,
   applyTone,
   blobToDataUrl,
   canvasToBlob,
   cssToneFilter,
+  DEFAULT_ADJUST,
   DEFAULT_TONE,
   drawOriented,
   EDIT_ASPECT,
   loadImage,
   PREVIEW_MAX_EDGE,
+  previewSharpenScale,
   renderEditedPhoto,
   rotateBy,
   scaleArea,
-  suggestTone,
+  SHARPEN_LIMIT,
   TONE_LIMITS,
+  withAdjustDefaults,
 } from '../lib/photoEdit';
-import type { PhotoEditParams, Rotation, ToneParams } from '../types';
+import type { AdjustParams, PhotoEditParams, Rotation } from '../types';
 
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 3;
+/** 미리보기 다시 굽기 지연 · 선명도가 켜져 있으면 연산이 무거워 조금 더 기다린다 */
+const PREVIEW_DEBOUNCE_MS = 60;
+const PREVIEW_DEBOUNCE_SHARPEN_MS = 120;
 /** animationend 가 끝내 안 올 때의 보험 · 사진 준비로 메인 스레드가 바쁘면 열림 애니메이션(200ms)이 한참 늦게 시작하므로 넉넉히 */
 const OPEN_ANIMATION_FALLBACK_MS = 1500;
 
@@ -44,20 +51,20 @@ export interface PhotoEditorDialogProps {
 }
 
 interface PreviewBase {
-  /** 반전만 구운 축소본 · 색 보정 전 · 추천값 계산과 미리보기 둘 다 여기서 시작 */
+  /** 반전만 구운 축소본 · 보정 전 · 미리보기는 여기서 시작 */
   data: ImageData;
   /** 원본 픽셀 → 축소본 픽셀 배율 */
   scale: number;
 }
 
 /**
- * 사진 편집기 · 자르기(4:3) · 회전 90° · 좌우반전 · 확대 · 밝기 · 대비 · 색온도 · 추천 · 전/후.
+ * 사진 편집기 · 자르기(4:3) · 회전 90° · 좌우반전 · 확대 · 밝기 · 대비 · 색온도 · 선명도 · 전/후.
  *
  * 비파괴 · 결과는 새 파일로 올리고 `image_edits` 에 「원본 + 값」 을 남긴다. 다시 열면 원본 위에
  * 슬라이더가 전 자리에 와 있고, 「원본으로」 는 업로드 없이 원본 URL 로 되돌린다.
  *
- * 미리보기 · 반전과 색온도는 축소본에 직접 굽고(CSS 에 없다), 밝기·대비는 CSS 필터로 즉시.
- * 저장은 같은 식의 LUT 를 쓰므로 본 것과 올라가는 것이 같다. 크로퍼에는 축소본을 주고
+ * 미리보기 · 반전·색온도·선명도는 축소본에 직접 굽고(CSS 에 없다), 밝기·대비는 CSS 필터로 즉시.
+ * 저장은 같은 순서·같은 식을 쓰므로 본 것과 올라가는 것이 같다. 크로퍼에는 축소본을 주고
  * 잘라낸 좌표를 원본 배율로 되돌려 저장한다.
  */
 export function PhotoEditorDialog({ src, title, onApply, onClose }: PhotoEditorDialogProps) {
@@ -68,7 +75,7 @@ export function PhotoEditorDialog({ src, title, onApply, onClose }: PhotoEditorD
 
   const [img, setImg] = useState<HTMLImageElement | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [tone, setTone] = useState<ToneParams>(DEFAULT_TONE);
+  const [adjust, setAdjust] = useState<AdjustParams>(DEFAULT_ADJUST);
   const [rotation, setRotation] = useState<Rotation>(0);
   const [flip, setFlip] = useState(false);
   const [crop, setCrop] = useState<Point>({ x: 0, y: 0 });
@@ -95,8 +102,8 @@ export function PhotoEditorDialog({ src, title, onApply, onClose }: PhotoEditorD
     if (editQuery.isPending || paramsSeeded.current) return;
     paramsSeeded.current = true;
     if (!edit) return;
-    const { area, rotation: r, flip: f, ...t } = edit.params;
-    setTone(t);
+    const { area, rotation: r, flip: f, ...rest } = edit.params;
+    setAdjust(withAdjustDefaults(rest));
     setRotation(r);
     setFlip(f);
     setInitialArea(area);
@@ -150,55 +157,65 @@ export function PhotoEditorDialog({ src, title, onApply, onClose }: PhotoEditorD
     };
   }, [preview]);
 
-  // 5) 색온도만 구운 미리보기 URL · 슬라이더가 멈추면 60ms 뒤에
+  // 선명도 반경은 결과 파일 px 기준 · 미리보기에선 「결과 1px = 미리보기 몇 px」 배율을 곱한다
+  // 자르기 틀을 끌 때마다 다시 굽지 않도록 소수 둘째 자리까지만 본다
+  const sharpenScale = useMemo(() => {
+    if (!preview) return 1;
+    const areaOriginal = areaPx
+      ? scaleArea(areaPx, 1 / preview.scale)
+      : { x: 0, y: 0, width: preview.data.width / preview.scale, height: preview.data.height / preview.scale };
+    return Math.round(previewSharpenScale(areaOriginal, preview.scale) * 100) / 100;
+  }, [preview, areaPx]);
+
+  // 5) 색온도·선명도를 구운 미리보기 URL · 슬라이더가 멈추면 잠시 뒤에
+  const { temperature, sharpness } = adjust;
   useEffect(() => {
     if (!preview) return;
     let url: string | null = null;
     let cancelled = false;
-    const timer = window.setTimeout(() => {
-      const copy = new ImageData(new Uint8ClampedArray(preview.data.data), preview.data.width, preview.data.height);
-      applyTone(copy.data, { ...DEFAULT_TONE, temperature: tone.temperature });
-      void imageDataToUrl(copy).then((made) => {
-        if (cancelled) {
-          URL.revokeObjectURL(made);
-          return;
-        }
-        url = made;
-        setPreviewUrl(made);
-      });
-    }, 60);
+    const timer = window.setTimeout(
+      () => {
+        const copy = new ImageData(new Uint8ClampedArray(preview.data.data), preview.data.width, preview.data.height);
+        applyTone(copy.data, { ...DEFAULT_TONE, temperature });
+        applySharpen(copy.data, copy.width, copy.height, { sharpness }, sharpenScale);
+        void imageDataToUrl(copy).then((made) => {
+          if (cancelled) {
+            URL.revokeObjectURL(made);
+            return;
+          }
+          url = made;
+          setPreviewUrl(made);
+        });
+      },
+      sharpness > 0 ? PREVIEW_DEBOUNCE_SHARPEN_MS : PREVIEW_DEBOUNCE_MS,
+    );
     return () => {
       cancelled = true;
       window.clearTimeout(timer);
       if (url) URL.revokeObjectURL(url);
     };
-  }, [preview, tone.temperature]);
+  }, [preview, temperature, sharpness, sharpenScale]);
 
   const isReady = settled && !!previewUrl && !!plainUrl && !loadError;
   const cropperImage = (comparing ? plainUrl : previewUrl) ?? undefined;
 
-  const setToneValue = (key: keyof ToneParams) => (value: number) => setTone((prev) => ({ ...prev, [key]: value }));
+  const setAdjustValue = (key: keyof AdjustParams) => (value: number) => setAdjust((prev) => ({ ...prev, [key]: value }));
 
   const handleFlip = () => {
     setFlip((prev) => !prev);
     setCrop((prev) => ({ x: -prev.x, y: prev.y }));
   };
 
-  const handleAuto = () => {
-    if (!preview) return;
-    setTone(suggestTone(preview.data.data));
-  };
-
   const handleRecent = () => {
     if (!recent) return;
-    const { rotation: r, flip: f, ...t } = recent;
-    setTone(t);
+    const { rotation: r, flip: f, ...rest } = recent;
+    setAdjust(withAdjustDefaults(rest));
     setRotation(r);
     if (f !== flip) handleFlip();
   };
 
   const handleReset = () => {
-    setTone(DEFAULT_TONE);
+    setAdjust(DEFAULT_ADJUST);
     setRotation(0);
     setFlip(false);
     setCrop({ x: 0, y: 0 });
@@ -209,7 +226,7 @@ export function PhotoEditorDialog({ src, title, onApply, onClose }: PhotoEditorD
     if (!preview || !areaPx) return;
     setSaving(true);
     try {
-      const params: PhotoEditParams = { ...tone, rotation, flip, area: scaleArea(areaPx, 1 / preview.scale) };
+      const params: PhotoEditParams = { ...adjust, rotation, flip, area: scaleArea(areaPx, 1 / preview.scale) };
       const blob = await renderEditedPhoto(baseSrc, params);
       const url = await uploadImage(await blobToDataUrl(blob), 'listings');
       if (!url) throw new Error('보정한 사진을 올리지 못했습니다.');
@@ -220,7 +237,7 @@ export function PhotoEditorDialog({ src, title, onApply, onClose }: PhotoEditorD
         console.error('보정 기록 저장 실패:', error);
         toast.warning('보정 기록을 저장하지 못해 이 사진은 「원본으로 되돌리기」 가 되지 않습니다.');
       }
-      setRecent({ ...tone, rotation, flip });
+      setRecent({ ...adjust, rotation, flip });
       onApply(url);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : '보정을 적용하지 못했습니다.');
@@ -263,7 +280,7 @@ export function PhotoEditorDialog({ src, title, onApply, onClose }: PhotoEditorD
               onMediaLoaded={() => setInitialArea(undefined)}
               style={{
                 containerStyle: { background: '#020617' },
-                mediaStyle: { filter: comparing ? 'none' : cssToneFilter(tone), transition: 'filter 80ms' },
+                mediaStyle: { filter: comparing ? 'none' : cssToneFilter(adjust), transition: 'filter 80ms' },
                 cropAreaStyle: { border: '1px solid rgba(255,255,255,0.85)', boxShadow: '0 0 0 9999em rgba(2,6,23,0.72)' },
               }}
             />
@@ -304,15 +321,6 @@ export function PhotoEditorDialog({ src, title, onApply, onClose }: PhotoEditorD
               <span className="w-8 tabular-nums text-slate-700">{zoom.toFixed(1)}×</span>
             </label>
             <div className="flex-1" />
-            <button
-              type="button"
-              onClick={handleAuto}
-              disabled={!isReady}
-              title="추천값 제안 · 어두운 사진을 밝히고 조명 색을 중립으로 · 밝은 사진은 거의 건드리지 않습니다"
-              className={ADMIN_BUTTON.secondary}
-            >
-              <Wand2 className="h-3.5 w-3.5" /> 추천
-            </button>
             <button type="button" onClick={handleRecent} disabled={!isReady || !recent} title={recent ? recentSummary(recent) : '아직 적용한 설정이 없습니다'} className={ADMIN_BUTTON.secondary}>
               <History className="h-3.5 w-3.5" /> 최근 설정
             </button>
@@ -335,10 +343,28 @@ export function PhotoEditorDialog({ src, title, onApply, onClose }: PhotoEditorD
             </button>
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
-            <ToneSlider label="밝기" value={tone.brightness} limit={TONE_LIMITS.brightness} disabled={!isReady} onChange={setToneValue('brightness')} />
-            <ToneSlider label="대비" value={tone.contrast} limit={TONE_LIMITS.contrast} disabled={!isReady} onChange={setToneValue('contrast')} />
-            <ToneSlider label="색온도" value={tone.temperature} limit={TONE_LIMITS.temperature} disabled={!isReady} onChange={setToneValue('temperature')} ends={['차갑게', '따뜻하게']} />
+          <div className="grid grid-cols-4 gap-4">
+            <AdjustSlider label="밝기" value={adjust.brightness} min={-TONE_LIMITS.brightness} max={TONE_LIMITS.brightness} disabled={!isReady} onChange={setAdjustValue('brightness')} />
+            <AdjustSlider label="대비" value={adjust.contrast} min={-TONE_LIMITS.contrast} max={TONE_LIMITS.contrast} disabled={!isReady} onChange={setAdjustValue('contrast')} />
+            <AdjustSlider
+              label="색온도"
+              value={adjust.temperature}
+              min={-TONE_LIMITS.temperature}
+              max={TONE_LIMITS.temperature}
+              disabled={!isReady}
+              onChange={setAdjustValue('temperature')}
+              ends={['차갑게', '따뜻하게']}
+            />
+            <AdjustSlider
+              label="선명도"
+              value={adjust.sharpness}
+              min={0}
+              max={SHARPEN_LIMIT}
+              disabled={!isReady}
+              onChange={setAdjustValue('sharpness')}
+              format={String}
+              title="마블링·결 경계를 또렷하게 · 휘도만 세워 색이 번지지 않고, 지방 경계의 흰 테두리는 억제됩니다"
+            />
           </div>
         </div>
 
@@ -371,7 +397,16 @@ export function PhotoEditorDialog({ src, title, onApply, onClose }: PhotoEditorD
 }
 
 const recentSummary = (recent: RecentEdit) =>
-  `밝기 ${signed(recent.brightness)} · 대비 ${signed(recent.contrast)} · 색온도 ${signed(recent.temperature)}${recent.rotation ? ` · 회전 ${recent.rotation}°` : ''}${recent.flip ? ' · 반전' : ''}`;
+  [
+    `밝기 ${signed(recent.brightness)}`,
+    `대비 ${signed(recent.contrast)}`,
+    `색온도 ${signed(recent.temperature)}`,
+    recent.sharpness ? `선명도 ${recent.sharpness}` : null,
+    recent.rotation ? `회전 ${recent.rotation}°` : null,
+    recent.flip ? '반전' : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
 
 const signed = (value: number) => (value > 0 ? `+${value}` : String(value));
 
@@ -403,10 +438,24 @@ function ToolButton({ icon: Icon, label, onClick, disabled, active }: { icon: ty
   );
 }
 
-function ToneSlider({ label, value, limit, disabled, onChange, ends }: { label: string; value: number; limit: number; disabled?: boolean; onChange: (value: number) => void; ends?: [string, string] }) {
+interface AdjustSliderProps {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  disabled?: boolean;
+  onChange: (value: number) => void;
+  /** 양 끝 설명 */
+  ends?: [string, string];
+  /** 값 표기 · 기본은 부호 붙인 정수 */
+  format?: (value: number) => string;
+  title?: string;
+}
+
+function AdjustSlider({ label, value, min, max, disabled, onChange, ends, format = signed, title }: AdjustSliderProps) {
   return (
-    <label className="block">
-      <span className="flex items-center justify-between text-[11.5px] text-slate-500">
+    <label className="block" title={title}>
+      <span className="flex items-center justify-between gap-2 text-[11.5px] text-slate-500">
         {label}
         <button
           type="button"
@@ -415,13 +464,13 @@ function ToneSlider({ label, value, limit, disabled, onChange, ends }: { label: 
           title="0 으로"
           className={cn('tabular-nums text-slate-700', value !== 0 && 'font-semibold hover:underline', value === 0 && 'cursor-default')}
         >
-          {signed(value)}
+          {format(value)}
         </button>
       </span>
       <input
         type="range"
-        min={-limit}
-        max={limit}
+        min={min}
+        max={max}
         step={1}
         value={value}
         disabled={disabled}
