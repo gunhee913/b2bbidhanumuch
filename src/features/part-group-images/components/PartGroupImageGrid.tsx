@@ -32,7 +32,8 @@ export function usePartGroupImageSets(companyId: string | null) {
     const def = new Map<string, PartGroupImage>();
     for (const img of query.data?.images ?? []) {
       if (img.companyId === null) def.set(img.groupName, img);
-      else if (img.companyId === companyId) own.set(img.groupName, img);
+      // 대상이 전체 기본(null)이면 기본 사진이 곧 「제 것」 · else if 로 묶으면 전체 기본 화면이 늘 미등록으로 보인다
+      if (img.companyId === companyId) own.set(img.groupName, img);
     }
     return { ownByGroup: own, defaultByGroup: def };
   }, [query.data, companyId]);

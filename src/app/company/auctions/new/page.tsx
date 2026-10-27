@@ -370,16 +370,6 @@ export default function CompanyNewAuctionPage() {
     setCattleList(prev => prev.map(c => (c.id === cattleId ? { ...c, images: moveToCover(c.images, index) } : c)));
   };
 
-  // 부위 사진 한 장을 개체 대표로 · 이미 개체 사진에 있으면 앞으로, 없으면 맨 앞에 넣는다
-  const setCoverFromPartPhoto = (cattleId: number, src: string) => {
-    setCattleList(prev => prev.map(c => {
-      if (c.id !== cattleId) return c;
-      const at = c.images.indexOf(src);
-      const images = at >= 0 ? moveToCover(c.images, at) : [src, ...c.images].slice(0, MAX_LISTING_PHOTOS);
-      return { ...c, images };
-    }));
-  };
-
   // 부위 사진 갱신
   const updatePartImages = (cattleId: number, partId: number, images: string[]) => {
     setCattleList(prev => prev.map(c => {
@@ -902,6 +892,7 @@ export default function CompanyNewAuctionPage() {
                         <td className={tdClass}>
                           <select value={cattle.breed} onChange={(e) => updateCattle(cattle.id, 'breed', e.target.value)} className={selectClass}>
                             <option value="한우">한우</option>
+                            <option value="육우">육우</option>
                           </select>
                         </td>
                         <td className={tdClass}>
@@ -1244,7 +1235,6 @@ export default function CompanyNewAuctionPage() {
           partName={photoPart.name}
           listingPartNo={getListingNo(photoCattle.seqNo, photoCattle.parts.indexOf(photoPart))}
           images={photoPart.images}
-          listingImages={photoCattle.images}
           fallback={resolveFormPartCover({
             partImages: [],
             listingImages: photoCattle.images,
@@ -1253,7 +1243,6 @@ export default function CompanyNewAuctionPage() {
             lookup: groupImage,
           })}
           onChange={(images) => updatePartImages(photoCattle.id, photoPart.id, images)}
-          onSetListingCover={(src) => setCoverFromPartPhoto(photoCattle.id, src)}
           onPrev={photoPrev ? () => setPhotoTarget({ cattleId: photoCattle.id, partId: photoPrev.id }) : undefined}
           onNext={photoNext ? () => setPhotoTarget({ cattleId: photoCattle.id, partId: photoNext.id }) : undefined}
           onClose={() => setPhotoTarget(null)}

@@ -6,13 +6,14 @@ import { useRouter } from "next/navigation";
 import { AlertCircle, Check, Eye, EyeOff, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const REMEMBER_KEY = "auction:login:remember-phone";
+const DEALER_REMEMBER_KEY = "auction:login:remember-phone";
 const PHONE_MIN_LENGTH = 12; // 010-000-0000
 
 type FieldName = "phone" | "password";
+export type LoginProvider = "dealer-login" | "admin-login" | "company-login";
 
 /**
- * 중도매인 로그인 폼 · 휴대번호 + 비밀번호.
+ * 휴대번호 + 비밀번호 로그인 폼 · 중도매인·관리자·상장업체가 같이 쓴다.
  * - 오류는 상단 배너가 아니라 해당 입력 아래 인라인으로 · 인증 실패는 비밀번호 필드에 귀속, 비우고 포커스
  * - CTA 는 항상 진하게 · 미입력 상태로 누르면 비어 있는 첫 필드로 포커스 + 힌트
  * - 비밀번호 필드에서 Caps Lock 감지 힌트
@@ -21,10 +22,15 @@ type FieldName = "phone" | "password";
 export function LoginForm({
   callbackUrl,
   initialError,
+  provider = "dealer-login",
+  rememberKey = DEALER_REMEMBER_KEY,
 }: {
   callbackUrl: string;
   /** `?error=` 로 들어온 경우 첫 렌더에 띄울 메시지 */
   initialError?: string | null;
+  provider?: LoginProvider;
+  /** 「휴대번호 저장」 보관 키 · 계정 종류마다 따로 둬야 서로의 번호가 채워지지 않는다 */
+  rememberKey?: string;
 }) {
   const router = useRouter();
   const phoneRef = useRef<HTMLInputElement>(null);
@@ -42,7 +48,7 @@ export function LoginForm({
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const saved = window.localStorage.getItem(REMEMBER_KEY);
+    const saved = window.localStorage.getItem(rememberKey);
     if (saved) {
       setPhone(saved);
       setRemember(true);
@@ -50,7 +56,7 @@ export function LoginForm({
       return;
     }
     phoneRef.current?.focus();
-  }, []);
+  }, [rememberKey]);
 
   const clearError = (field: FieldName) =>
     setErrors((prev) => (prev[field] ? { ...prev, [field]: undefined } : prev));
@@ -77,7 +83,7 @@ export function LoginForm({
 
     setIsLoading(true);
     try {
-      const result = await signIn("dealer-login", { phone, password, redirect: false });
+      const result = await signIn(provider, { phone, password, redirect: false });
       if (result?.error) {
         setErrors({ password: result.error });
         setPassword("");
@@ -86,8 +92,8 @@ export function LoginForm({
       }
       if (result?.ok) {
         if (typeof window !== "undefined") {
-          if (remember) window.localStorage.setItem(REMEMBER_KEY, phone);
-          else window.localStorage.removeItem(REMEMBER_KEY);
+          if (remember) window.localStorage.setItem(rememberKey, phone);
+          else window.localStorage.removeItem(rememberKey);
         }
         router.push(callbackUrl);
         router.refresh();

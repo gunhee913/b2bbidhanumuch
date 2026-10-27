@@ -3,21 +3,22 @@ import { getAdminClient } from '@/lib/supabase-admin';
 
 const supabase = getAdminClient();
 
+/** 받는 data URL · 사진은 모든 image/*, 증명서 스캔본은 PDF 도 받는다 */
+const DATA_URL_PATTERN = /^data:(image\/\w+|application\/pdf);base64,/;
+
 // Base64를 Buffer로 변환
 function base64ToBuffer(base64: string): Buffer {
-  // data:image/jpeg;base64, 형식에서 실제 데이터만 추출
-  const base64Data = base64.replace(/^data:image\/\w+;base64,/, '');
+  const base64Data = base64.replace(DATA_URL_PATTERN, '');
   return Buffer.from(base64Data, 'base64');
 }
 
-// 파일 확장자 추출
-function getExtensionFromBase64(base64: string): string {
-  const match = base64.match(/^data:image\/(\w+);base64,/);
-  if (match) {
-    const ext = match[1];
-    return ext === 'jpeg' ? 'jpg' : ext;
-  }
-  return 'jpg';
+/** data URL 의 MIME 으로 저장 확장자·contentType 을 정한다 */
+function describeDataUrl(base64: string): { ext: string; contentType: string } {
+  const match = base64.match(DATA_URL_PATTERN);
+  const mime = match?.[1] ?? 'image/jpeg';
+  if (mime === 'application/pdf') return { ext: 'pdf', contentType: mime };
+  const subtype = mime.split('/')[1];
+  return { ext: subtype === 'jpeg' ? 'jpg' : subtype, contentType: mime };
 }
 
 // POST: 이미지 업로드
@@ -45,15 +46,15 @@ export async function POST(request: NextRequest) {
       }
       
       // Base64인 경우 업로드
-      if (image.startsWith('data:image')) {
+      if (DATA_URL_PATTERN.test(image)) {
         const buffer = base64ToBuffer(image);
-        const ext = getExtensionFromBase64(image);
+        const { ext, contentType } = describeDataUrl(image);
         const fileName = `${folder}/${Date.now()}-${Math.random().toString(36).substring(7)}.${ext}`;
         
         const { data, error } = await supabase.storage
           .from('image')
           .upload(fileName, buffer, {
-            contentType: `image/${ext === 'jpg' ? 'jpeg' : ext}`,
+            contentType,
             upsert: false,
           });
         

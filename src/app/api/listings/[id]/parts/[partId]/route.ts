@@ -1,6 +1,7 @@
 import { getAdminClient } from '@/lib/supabase-admin';
 import { NextRequest, NextResponse } from 'next/server';
 import { UpdatePartInput, toFrontendPart } from '@/features/listings/types';
+import { MAX_PART_PHOTOS } from '@/features/listings/lib/listingPhotos';
 
 const supabase = getAdminClient();
 
@@ -39,6 +40,11 @@ export async function PATCH(
     if (body.weight !== undefined) updateData.weight = body.weight;
     if (body.minPrice !== undefined) updateData.min_price = body.minPrice;
     if (body.isIncluded !== undefined) updateData.is_included = body.isIncluded;
+    if (body.images !== undefined) {
+      updateData.images = Array.isArray(body.images)
+        ? body.images.filter((src) => typeof src === 'string' && src.length > 0).slice(0, MAX_PART_PHOTOS)
+        : [];
+    }
 
     const { data, error } = await supabase
       .from('cattle_parts')

@@ -1,1324 +1,390 @@
 'use client';
 
-import React, { useState, useRef, useMemo, useEffect, useCallback } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { format } from 'date-fns';
+import { Download, FileSpreadsheet, Loader2, Plus, Save } from 'lucide-react';
+import { toast } from 'sonner';
 import AdminLayout from '@/components/admin/AdminLayout';
-import { Save, Upload, X, Plus, ChevronDown, ChevronUp, Trash2, Download, FileSpreadsheet, Loader2 } from 'lucide-react';
-
-import * as XLSX from 'xlsx';
-import { useCreateListing } from '@/features/listings/hooks';
+import { ADMIN_BUTTON } from '@/components/admin/buttonStyles';
+import { AdminDateInput } from '@/components/admin/AdminDateInput';
+import { AdminSelect } from '@/components/admin/AdminSelect';
+import { ConfirmDialog } from '@/components/admin/ConfirmDialog';
+import { cn } from '@/lib/utils';
 import { useCompanies } from '@/features/companies/hooks';
-import { CreateListingInput, CreatePartInput } from '@/features/listings/types';
-import { uploadImage } from '@/lib/upload';
-import { ListingPhotoStrip } from '@/features/listings/components/ListingPhotoStrip';
-import { PartPhotoDialog, PartPhotoThumb } from '@/features/listings/components/PartPhotoDialog';
-import { MAX_LISTING_PHOTOS, moveToCover, resolveFormPartCover, uploadPhotoFiles } from '@/features/listings/lib/listingPhotos';
+import { useCreateListing } from '@/features/listings/hooks';
 import { usePartGroupImageLookup } from '@/features/part-group-images/hooks/usePartGroupImages';
+import { resolveFormPartCover } from '@/features/listings/lib/listingPhotos';
+import { isPdfCertificate, partListingNo } from '@/features/listings/lib/listingView';
+import {
+  countErrors,
+  createCattleDraft,
+  isCattleDraftDirty,
+  MAX_CATTLE_PER_SUBMIT,
+  previewAuctionNo,
+  toCreateListingInput,
+  validateCattleDraft,
+  type CattleDraft,
+  type DraftErrors,
+  type PartDraft,
+} from '@/features/listings/lib/listingDraft';
+import { downloadListingTemplate, parseListingWorkbook, type ImportResult } from '@/features/listings/lib/listingTemplate';
+import { CattleCard } from '@/features/listings/components/admin/new/CattleCard';
+import { ImageLightbox, type LightboxItem } from '@/features/listings/components/admin/ImageLightbox';
+import { PartPhotoDialog } from '@/features/listings/components/PartPhotoDialog';
 
-// number input 스피너, date input 달력 아이콘 숨기기 스타일
-const hideSpinnerStyle = `
-  input[type="number"]::-webkit-outer-spin-button,
-  input[type="number"]::-webkit-inner-spin-button {
-    -webkit-appearance: none;
-    margin: 0;
-  }
-  input[type="number"] {
-    -moz-appearance: textfield;
-  }
-`;
+/** 개체 id → 틀린 칸 · 비어 있으면 전부 통과 */
+type ErrorMap = Record<number, DraftErrors>;
 
-// 부위 데이터 타입
-interface PartData {
-  id: number;
-  name: string;
-  weight: string;
-  minPrice: string;
-  isIncluded: boolean; // 등록 포함 여부
-  images: string[]; // 부위 사진 · 비우면 개체 대표 사진 사용
+interface LightboxState {
+  title: string;
+  items: LightboxItem[];
+  index: number;
 }
 
-// 증명서 데이터 타입
-interface CertificateData {
-  fileName: string;
-  fileData: string; // base64
-  fileType: string; // 'image' | 'pdf'
-}
-
-// 개체 데이터 타입
-interface CattleData {
-  id: number;
-  seqNo: string;
-  breed: string;
-  gender: string;
-  grade: string;
-  marbling: string;
-  monthAge: string;
-  carcassWeight: string;
-  unitPrice: string;
-  traceNo: string;
-  backFat: string;
-  eyeMuscle: string;
-  fatMarbling: string;
-  meatColor: string;
-  fatColor: string;
-  texture: string;
-  maturity: string;
-  slaughterHouse: string;
-  slaughterDate: string;
-  slaughterNo: string;
-  processDate: string;
-  processWeight: string;
-  parts: PartData[];
-  images: string[];
-  slaughterCert: CertificateData | null; // 도축검사증명서
-  gradeCert: CertificateData | null;     // 등급판정확인서
-  isExpanded: boolean;
-}
-
-// 기본 20개 부위 이름 (순서 = 부위번호)
-const DEFAULT_PART_NAMES = [
-  '등심(좌)', '등심(우)', '안심', '채끝', '치마', '부채', '업진', '토시·제비',
-  '설도(좌)', '설도(우)', '앞다리', '우둔', '목심', '양지(좌)', '양지(우)', '사태',
-  '꼬리', '족', '사골', '잡뼈',
+/** 메인 사진 + 사진 증명서를 뷰어 순서대로 · PDF 는 뷰어에 못 띄우므로 뺀다 */
+const lightboxItemsOf = (cattle: CattleDraft): LightboxItem[] => [
+  ...cattle.images.map((src, index) => ({ src, label: index === 0 ? '사진 1 (메인)' : `사진 ${index + 1}`, kind: 'listing' as const })),
+  ...(cattle.slaughterCert && !isPdfCertificate(cattle.slaughterCert) ? [{ src: cattle.slaughterCert.fileData, label: '도축검사증명서', kind: 'cert' as const }] : []),
+  ...(cattle.gradeCert && !isPdfCertificate(cattle.gradeCert) ? [{ src: cattle.gradeCert.fileData, label: '등급판정확인서', kind: 'cert' as const }] : []),
 ];
 
-// 기본 20개 부위 생성
-const createDefaultParts = (): PartData[] =>
-  DEFAULT_PART_NAMES.map((name, index) => ({
-    id: index + 1,
-    name,
-    weight: '',
-    minPrice: '',
-    isIncluded: true,
-    images: [],
-  }));
-
-// 새 개체 생성
-const createNewCattle = (id: number, seqNo: string): CattleData => ({
-  id,
-  seqNo,
-  breed: '한우',
-  gender: '',
-  grade: '',
-  marbling: '',
-  monthAge: '',
-  carcassWeight: '',
-  unitPrice: '',
-  traceNo: '',
-  backFat: '',
-  eyeMuscle: '',
-  fatMarbling: '',
-  meatColor: '',
-  fatColor: '',
-  texture: '',
-  maturity: '',
-  slaughterHouse: '농협 음성',
-  slaughterDate: '',
-  slaughterNo: '',
-  processDate: '',
-  processWeight: '',
-  parts: createDefaultParts(),
-  images: [],
-  slaughterCert: null,
-  gradeCert: null,
-  isExpanded: true,
-});
-
-
-const getTodayDateString = () => {
-  const today = new Date();
-  const year = today.getFullYear();
-  const month = String(today.getMonth() + 1).padStart(2, '0');
-  const day = String(today.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
-
-const todayDateString = getTodayDateString();
+const todayIso = () => format(new Date(), 'yyyy-MM-dd');
 
 export default function NewAuctionPage() {
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  
-  // 업체 목록 조회
   const { data: companiesData } = useCompanies();
-  const companies = useMemo(() => {
-    return companiesData?.map(c => ({ id: c.id, name: c.name, companyNo: c.companyNo })) || [];
-  }, [companiesData]);
-  
-  // 상장 등록 mutation
+  const companies = useMemo(() => (companiesData ?? []).map((c) => ({ id: c.id, name: c.name, companyNo: c.companyNo })), [companiesData]);
+  const companyOptions = useMemo(() => companies.map((c) => ({ value: c.id, label: c.name })), [companies]);
   const createListing = useCreateListing();
-  
-  // 공통 정보
-  const [listingDate, setListingDate] = useState(todayDateString);
+  const groupImage = usePartGroupImageLookup();
+
+  const [listingDate, setListingDate] = useState(todayIso);
   const [companyId, setCompanyId] = useState('');
-  
-  // 마감 여부 상태
   const [isDateClosed, setIsDateClosed] = useState(false);
-  
-  // 날짜 변경 시 마감 여부 확인
+  const [startSeq, setStartSeq] = useState(1);
+  const [cattleList, setCattleList] = useState<CattleDraft[]>(() => [createCattleDraft(1, '1')]);
+  const [errors, setErrors] = useState<ErrorMap>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [photoTarget, setPhotoTarget] = useState<{ cattleId: number; partId: number } | null>(null);
+  const [lightbox, setLightbox] = useState<LightboxState | null>(null);
+  const [pendingImport, setPendingImport] = useState<ImportResult | null>(null);
+  /** 새 개체 id · 지운 뒤 다시 추가해도 겹치지 않게 늘기만 한다 */
+  const nextIdRef = useRef(2);
+  const excelInputRef = useRef<HTMLInputElement>(null);
+
+  const selectedCompany = companies.find((c) => c.id === companyId);
+  const auctionNoOf = (cattle: CattleDraft) => previewAuctionNo(listingDate, selectedCompany?.companyNo, cattle.seqNo);
+
+  // ---- 상장일 마감 여부 ----
   useEffect(() => {
-    const checkClosed = async () => {
-      if (!listingDate) {
-        setIsDateClosed(false);
-        return;
-      }
-      
-      try {
-        const response = await fetch(`/api/auctions/check-closed?date=${listingDate}`);
-        if (response.ok) {
-          const data = await response.json();
-          setIsDateClosed(data.isClosed);
-        }
-      } catch (error) {
+    if (!listingDate) {
+      setIsDateClosed(false);
+      return;
+    }
+    let cancelled = false;
+    fetch(`/api/auctions/check-closed?date=${listingDate}`)
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data) => !cancelled && setIsDateClosed(Boolean(data?.isClosed)))
+      .catch((error) => {
         console.error('마감 여부 확인 실패:', error);
-        setIsDateClosed(false);
-      }
+        if (!cancelled) setIsDateClosed(false);
+      });
+    return () => {
+      cancelled = true;
     };
-    
-    checkClosed();
   }, [listingDate]);
-  
-  // 선택된 업체 정보
-  const selectedCompany = useMemo(() => {
-    return companies.find(c => c.id === companyId);
-  }, [companies, companyId]);
-  
-  // 다음 순번 (DB에서 조회)
-  const [startSeq, setStartSeq] = useState<number>(1);
-  
-  // 다음 순번 조회
+
+  // ---- 다음 순번 ----
   const fetchNextSeq = useCallback(async () => {
     if (!companyId || !listingDate) {
       setStartSeq(1);
       return;
     }
-    
     try {
-      const response = await fetch(
-        `/api/listings/next-seq?companyId=${companyId}&listingDate=${listingDate}`
-      );
-      if (response.ok) {
-        const data = await response.json();
-        // nextSeq에서 업체번호 prefix를 제외한 순번만 추출 (203 → 3)
-        const companyNoPrefix = data.companyNoPrefix;
-        const seqOnly = data.nextSeq - parseInt(`${companyNoPrefix}00`);
-        setStartSeq(seqOnly);
-      }
+      const response = await fetch(`/api/listings/next-seq?companyId=${companyId}&listingDate=${listingDate}`);
+      if (!response.ok) return;
+      const data = await response.json();
+      // nextSeq 에서 업체번호 접두를 뺀 순번만 (203 → 3)
+      setStartSeq(data.nextSeq - parseInt(`${data.companyNoPrefix}00`, 10));
     } catch (error) {
       console.error('다음 순번 조회 실패:', error);
     }
   }, [companyId, listingDate]);
-  
-  // 업체/날짜 변경 시 다음 순번 조회
+
   useEffect(() => {
-    fetchNextSeq();
+    void fetchNextSeq();
   }, [fetchNextSeq]);
-  
-  // 이미지 확대 모달
-  const [viewingImage, setViewingImage] = useState<string | null>(null);
-  
-  // 개체 목록 (startSeq 기반으로 초기화)
-  const [cattleList, setCattleList] = useState<CattleData[]>([
-    createNewCattle(1, '1')
-  ]);
-  
-  // startSeq 변경 시 개체 목록 순번 업데이트
+
+  // 순번은 늘 「시작 순번 + 자리」 · 개체를 지우거나 등록해 자리가 바뀌면 따라간다
   useEffect(() => {
-    setCattleList(prev => prev.map((cattle, index) => ({
-      ...cattle,
-      seqNo: String(startSeq + index),
-    })));
+    setCattleList((prev) => prev.map((cattle, index) => ({ ...cattle, seqNo: String(startSeq + index) })));
   }, [startSeq]);
 
-  // 상장일자 기반 날짜 코드 생성 (YYMMDD)
-  const getDateCode = () => {
-    if (!listingDate) return '';
-    const date = new Date(listingDate);
-    const year = String(date.getFullYear()).slice(-2);
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}${month}${day}`;
-  };
-
-  // 접수번호 생성 (업체번호 첫자리 + 순번)
-  // 예: 대구축협(업체번호 200), 순번 3 → 260205-203
-  const getAuctionNo = (seqNo: string) => {
-    if (!selectedCompany) return '-';
-    const dateCode = getDateCode();
-    const companyNoPrefix = selectedCompany.companyNo.charAt(0); // 업체번호 첫자리 (200 → 2)
-    const fullSeq = parseInt(`${companyNoPrefix}00`) + parseInt(seqNo || '1');
-    return `${dateCode}-${fullSeq}`;
-  };
-
-  // 상장번호 생성 (접수번호 + 부위번호)
-  // 예: 260205-203-01
-  const getListingNo = (seqNo: string, partIndex: number) => {
-    if (!selectedCompany) return '-';
-    const dateCode = getDateCode();
-    const companyNoPrefix = selectedCompany.companyNo.charAt(0);
-    const fullSeq = parseInt(`${companyNoPrefix}00`) + parseInt(seqNo || '1');
-    return `${dateCode}-${fullSeq}-${String(partIndex + 1).padStart(2, '0')}`;
-  };
-
-  // 이력번호 포맷팅
-  const formatTraceNo = (value: string) => {
-    const numbers = value.replace(/[^0-9]/g, '');
-    if (numbers.length <= 4) return numbers;
-    if (numbers.length <= 8) return `${numbers.slice(0, 4)}-${numbers.slice(4)}`;
-    return `${numbers.slice(0, 4)}-${numbers.slice(4, 8)}-${numbers.slice(8, 9)}`;
-  };
-
-  // 개체 추가
-  const addCattle = () => {
-    if (cattleList.length >= 10) {
-      alert('최대 10두까지 등록할 수 있습니다.');
-      return;
-    }
-    const newSeqNo = String(startSeq + cattleList.length);
-    setCattleList([...cattleList, createNewCattle(Date.now(), newSeqNo)]);
-  };
-
-  // 개체 삭제
-  const removeCattle = (id: number) => {
-    if (cattleList.length === 1) {
-      alert('최소 1두는 등록해야 합니다.');
-      return;
-    }
-    const newList = cattleList.filter(c => c.id !== id);
-    // 순번 재정렬 (startSeq 기반)
-    setCattleList(newList.map((c, idx) => ({ ...c, seqNo: String(startSeq + idx) })));
-  };
-
-  // 개체 정보 수정
-  const updateCattle = (id: number, field: keyof CattleData, value: string | boolean) => {
-    setCattleList(cattleList.map(c => {
-      if (c.id !== id) return c;
-      if (field === 'grade' && !String(value).startsWith('1++')) {
-        return { ...c, [field]: String(value), marbling: '' };
-      }
-      if (field === 'traceNo') {
-        return { ...c, [field]: formatTraceNo(String(value)) };
-      }
-      if (field === 'isExpanded') {
-        return { ...c, [field]: Boolean(value) };
-      }
-      return { ...c, [field]: String(value) };
-    }));
-  };
-
-  // 부위 정보 수정
-  const updatePart = (cattleId: number, partId: number, field: 'weight' | 'minPrice', value: string) => {
-    // 최저가격은 콤마 제거하고 숫자만 저장
-    const cleanValue = field === 'minPrice' ? value.replace(/,/g, '').replace(/[^0-9]/g, '') : value;
-    setCattleList(cattleList.map(c => {
-      if (c.id !== cattleId) return c;
-      return {
-        ...c,
-        parts: c.parts.map(p => p.id === partId ? { ...p, [field]: cleanValue } : p)
-      };
-    }));
-  };
-
-  // 부위 포함/제외 토글
-  const togglePartIncluded = (cattleId: number, partId: number) => {
-    setCattleList(cattleList.map(c => {
-      if (c.id !== cattleId) return c;
-      return {
-        ...c,
-        parts: c.parts.map(p => p.id === partId ? { ...p, isIncluded: !p.isIncluded } : p)
-      };
-    }));
-  };
-  
-  // 가격 표시용 포맷 (천단위 콤마)
-  const displayPrice = (value: string) => {
-    if (!value) return '';
-    const num = parseInt(value.replace(/,/g, ''), 10);
-    if (isNaN(num)) return '';
-    return num.toLocaleString('ko-KR');
-  };
-
-  // 접기/펼치기
-  const toggleExpand = (id: number) => {
-    setCattleList(cattleList.map(c => 
-      c.id === id ? { ...c, isExpanded: !c.isExpanded } : c
-    ));
-  };
-
-  // 이미지 업로드 중 상태
-  const [uploadingImages, setUploadingImages] = useState<{ [key: number]: boolean }>({});
-
-  // 개체 사진 업로드 (Storage 사용) · 첫 장이 대표
-  const handleImageUpload = async (cattleId: number, files: File[]) => {
-    const cattle = cattleList.find(c => c.id === cattleId);
-    if (!cattle) return;
-
-    setUploadingImages(prev => ({ ...prev, [cattleId]: true }));
-    const { urls, skipped } = await uploadPhotoFiles(files, MAX_LISTING_PHOTOS - cattle.images.length);
-    setUploadingImages(prev => ({ ...prev, [cattleId]: false }));
-
-    if (urls.length > 0) {
-      setCattleList(prev => prev.map(c => {
-        if (c.id !== cattleId) return c;
-        return { ...c, images: [...c.images, ...urls].slice(0, MAX_LISTING_PHOTOS) };
-      }));
-    }
-    if (skipped > 0) alert(`${skipped}장은 이미지가 아니거나 올리지 못했습니다.`);
-  };
-
-  // 이미지 삭제
-  const removeImage = (cattleId: number, index: number) => {
-    setCattleList(cattleList.map(c => {
-      if (c.id !== cattleId) return c;
-      return { ...c, images: c.images.filter((_, i) => i !== index) };
-    }));
-  };
-
-  // 대표 사진 바꾸기 · 그 장을 맨 앞으로
-  const setCoverImage = (cattleId: number, index: number) => {
-    setCattleList(prev => prev.map(c => (c.id === cattleId ? { ...c, images: moveToCover(c.images, index) } : c)));
-  };
-
-  // 부위 사진 한 장을 개체 대표로 · 이미 개체 사진에 있으면 앞으로, 없으면 맨 앞에 넣는다
-  const setCoverFromPartPhoto = (cattleId: number, src: string) => {
-    setCattleList(prev => prev.map(c => {
-      if (c.id !== cattleId) return c;
-      const at = c.images.indexOf(src);
-      const images = at >= 0 ? moveToCover(c.images, at) : [src, ...c.images].slice(0, MAX_LISTING_PHOTOS);
-      return { ...c, images };
-    }));
-  };
-
-  // 부위 사진 갱신
-  const updatePartImages = (cattleId: number, partId: number, images: string[]) => {
-    setCattleList(prev => prev.map(c => {
-      if (c.id !== cattleId) return c;
-      return { ...c, parts: c.parts.map(p => (p.id === partId ? { ...p, images } : p)) };
-    }));
-  };
-
-  // 부위 칸 썸네일 · 부위 사진 → 업체 부위 대표이미지 → 개체 대표 (라이브 화면과 같은 순서)
-  const groupImage = usePartGroupImageLookup();
-  const partCoverOf = (cattle: CattleData, part: PartData) =>
-    resolveFormPartCover({
-      partImages: part.images,
-      listingImages: cattle.images,
-      companyId: companyId || null,
-      partName: part.name,
-      lookup: groupImage,
+  // 틀렸다고 표시한 개체는 고칠 때마다 다시 검사해 바로 풀어 준다
+  useEffect(() => {
+    setErrors((prev) => {
+      const ids = Object.keys(prev).map(Number);
+      if (ids.length === 0) return prev;
+      return Object.fromEntries(
+        cattleList
+          .filter((cattle) => ids.includes(cattle.id))
+          .map((cattle) => [cattle.id, validateCattleDraft(cattle)] as const)
+          .filter(([, draftErrors]) => countErrors(draftErrors) > 0),
+      );
     });
+  }, [cattleList]);
 
-  // 부위 사진 모달 · 어느 개체의 어느 부위를 열었나
-  const [photoTarget, setPhotoTarget] = useState<{ cattleId: number; partId: number } | null>(null);
-  const photoCattle = photoTarget ? cattleList.find(c => c.id === photoTarget.cattleId) ?? null : null;
-  const photoPart = photoCattle && photoTarget ? photoCattle.parts.find(p => p.id === photoTarget.partId) ?? null : null;
-  // ←/→ 는 상장에 포함된 부위 사이에서만 돈다 · 빠진 부위는 사진을 달 일이 없다
-  const photoSiblings = photoCattle ? photoCattle.parts.filter(p => p.isIncluded) : [];
-  const photoAt = photoPart ? photoSiblings.findIndex(p => p.id === photoPart.id) : -1;
+  // ---- 개체 목록 ----
+  const patchCattle = (id: number, patch: Partial<CattleDraft>) =>
+    setCattleList((prev) => prev.map((cattle) => (cattle.id === id ? { ...cattle, ...patch } : cattle)));
+
+  const patchPart = (cattleId: number, partId: number, patch: Partial<PartDraft>) =>
+    setCattleList((prev) =>
+      prev.map((cattle) =>
+        cattle.id === cattleId ? { ...cattle, parts: cattle.parts.map((part) => (part.id === partId ? { ...part, ...patch } : part)) } : cattle,
+      ),
+    );
+
+  const addCattle = () => {
+    if (cattleList.length >= MAX_CATTLE_PER_SUBMIT) {
+      toast.warning(`한 번에 ${MAX_CATTLE_PER_SUBMIT}두까지 등록할 수 있습니다.`);
+      return;
+    }
+    const id = nextIdRef.current++;
+    setCattleList((prev) => [...prev, createCattleDraft(id, String(startSeq + prev.length))]);
+  };
+
+  const removeCattle = (id: number) => {
+    setCattleList((prev) => prev.filter((cattle) => cattle.id !== id).map((cattle, index) => ({ ...cattle, seqNo: String(startSeq + index) })));
+    if (photoTarget?.cattleId === id) setPhotoTarget(null);
+  };
+
+  const replaceCattleList = (drafts: CattleDraft[]) => {
+    const renumbered = drafts.map((draft, index) => ({ ...draft, id: nextIdRef.current + index, seqNo: String(startSeq + index) }));
+    nextIdRef.current += drafts.length;
+    setCattleList(renumbered);
+    setErrors({});
+    setPhotoTarget(null);
+  };
+
+  // ---- 엑셀 ----
+  const handleExcelFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    try {
+      setPendingImport(await parseListingWorkbook(file));
+    } catch (error) {
+      console.error('엑셀 읽기 실패:', error);
+      toast.error(error instanceof Error ? error.message : '엑셀 파일을 읽는 중 오류가 났습니다.');
+    }
+  };
+
+  const applyImport = () => {
+    if (!pendingImport) return;
+    replaceCattleList(pendingImport.drafts);
+    toast.success(`${pendingImport.drafts.length}두를 불러왔습니다.`);
+    setPendingImport(null);
+  };
+
+  // ---- 등록 ----
+  const handleSubmit = async () => {
+    if (!companyId) {
+      toast.error('상장업체를 선택해 주세요.');
+      return;
+    }
+    if (isDateClosed) {
+      toast.error('마감된 날짜에는 등록할 수 없습니다.');
+      return;
+    }
+
+    const nextErrors: ErrorMap = Object.fromEntries(
+      cattleList.map((cattle) => [cattle.id, validateCattleDraft(cattle)] as const).filter(([, draftErrors]) => countErrors(draftErrors) > 0),
+    );
+    const invalid = cattleList.filter((cattle) => nextErrors[cattle.id]);
+    if (invalid.length > 0) {
+      setErrors(nextErrors);
+      setCattleList((prev) => prev.map((cattle) => (nextErrors[cattle.id] ? { ...cattle, isExpanded: true } : cattle)));
+      toast.error('미입력 항목이 있어 등록하지 않았습니다.', {
+        description: invalid.map((cattle) => `${cattleList.indexOf(cattle) + 1}번 개체 ${countErrors(nextErrors[cattle.id])}곳`).join(' · '),
+      });
+      document.getElementById(`cattle-${invalid[0].id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    }
+
+    setIsSubmitting(true);
+    const failedIds: number[] = [];
+    // 한 두씩 등록 · 중간에 실패해도 나머지는 계속 가고, 끝나면 실패한 개체만 남긴다
+    for (const cattle of cattleList) {
+      try {
+        await createListing.mutateAsync(toCreateListingInput(cattle, listingDate, companyId));
+      } catch (error) {
+        console.error('상장 등록 실패:', error);
+        failedIds.push(cattle.id);
+      }
+    }
+
+    const succeeded = cattleList.length - failedIds.length;
+    if (failedIds.length === 0) {
+      toast.success(`${succeeded}두 상장 등록을 완료했습니다.`);
+      replaceCattleList([createCattleDraft(0, '1')]);
+    } else {
+      setCattleList((prev) => prev.filter((cattle) => failedIds.includes(cattle.id)));
+      toast.error(`${succeeded}두 등록, ${failedIds.length}두 실패`, {
+        description: '실패한 개체만 남겼습니다. 내용을 확인한 뒤 다시 등록해 주세요.',
+        duration: 8000,
+      });
+    }
+    await fetchNextSeq();
+    setIsSubmitting(false);
+  };
+
+  // ---- 사진 ----
+  const openLightbox = (cattle: CattleDraft, src: string) => {
+    const items = lightboxItemsOf(cattle);
+    const title = `${cattleList.indexOf(cattle) + 1}번 개체 · 접수번호 ${auctionNoOf(cattle)}`;
+    setLightbox({ title, items, index: Math.max(0, items.findIndex((item) => item.src === src)) });
+  };
+
+  const photoCattle = photoTarget ? cattleList.find((c) => c.id === photoTarget.cattleId) ?? null : null;
+  const photoPart = photoCattle && photoTarget ? photoCattle.parts.find((p) => p.id === photoTarget.partId) ?? null : null;
+  // ←/→ 는 상장에 포함된 부위 사이에서만 돈다
+  const photoSiblings = photoCattle ? photoCattle.parts.filter((p) => p.isIncluded) : [];
+  const photoAt = photoPart ? photoSiblings.findIndex((p) => p.id === photoPart.id) : -1;
   const photoPrev = photoAt > 0 ? photoSiblings[photoAt - 1] : null;
   const photoNext = photoAt >= 0 && photoAt < photoSiblings.length - 1 ? photoSiblings[photoAt + 1] : null;
 
-  // 증명서 업로드 ref
-  const slaughterCertInputRefs = useRef<{ [key: number]: HTMLInputElement | null }>({});
-  const gradeCertInputRefs = useRef<{ [key: number]: HTMLInputElement | null }>({});
-
-  // 증명서 업로드 중 상태
-  const [uploadingCerts, setUploadingCerts] = useState<{ [key: string]: boolean }>({});
-
-  // 증명서 업로드 처리 (Storage 사용)
-  const handleCertUpload = async (
-    cattleId: number, 
-    certType: 'slaughterCert' | 'gradeCert', 
-    e: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    // 파일 크기 제한 (5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      alert('파일 크기는 5MB 이하만 가능합니다.');
-      e.target.value = '';
-      return;
-    }
-
-    // 파일 형식 확인 (이미지만)
-    if (!file.type.startsWith('image/')) {
-      alert('이미지 파일만 업로드 가능합니다.');
-      e.target.value = '';
-      return;
-    }
-
-    const uploadKey = `${cattleId}-${certType}`;
-    setUploadingCerts(prev => ({ ...prev, [uploadKey]: true }));
-
-    try {
-      // Base64로 변환
-      const base64 = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = (event) => resolve(event.target?.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
-
-      // Storage에 업로드
-      const url = await uploadImage(base64, 'certificates');
-      
-      if (url) {
-        const certData: CertificateData = {
-          fileName: file.name,
-          fileData: url, // URL 저장
-          fileType: 'image'
-        };
-        
-        setCattleList(prev => prev.map(c => {
-          if (c.id !== cattleId) return c;
-          return { ...c, [certType]: certData };
-        }));
-      }
-    } catch (error) {
-      console.error('증명서 업로드 오류:', error);
-      alert('증명서 업로드에 실패했습니다.');
-    }
-
-    setUploadingCerts(prev => ({ ...prev, [uploadKey]: false }));
-    e.target.value = '';
-  };
-
-  // 증명서 삭제
-  const removeCert = (cattleId: number, certType: 'slaughterCert' | 'gradeCert') => {
-    setCattleList(cattleList.map(c => {
-      if (c.id !== cattleId) return c;
-      return { ...c, [certType]: null };
-    }));
-  };
-
-  // 증명서 열기 (모달로 크게 보기)
-  const openCert = (cert: CertificateData) => {
-    setViewingImage(cert.fileData);
-  };
-
-  // 폼 제출
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!companyId) {
-      alert('상장업체를 선택해주세요.');
-      return;
-    }
-    
-    setIsSubmitting(true);
-    
-    try {
-      // 각 개체별로 상장 등록
-      for (const cattle of cattleList) {
-        // 부위 데이터 변환
-        const parts: CreatePartInput[] = cattle.parts
-          .filter(part => part.isIncluded)
-          .map((part, index) => ({
-            partNo: index + 1,
-            partName: part.name,
-            weight: parseFloat(part.weight) || 0,
-            minPrice: parseInt(part.minPrice.replace(/,/g, '')) || 0,
-            isIncluded: part.isIncluded,
-            images: part.images,
-          }));
-
-        // 상장 데이터 생성
-        const listingInput: CreateListingInput = {
-          listingDate,
-          companyId,
-          breed: cattle.breed,
-          gender: cattle.gender,
-          grade: cattle.grade,
-          marblingScore: parseInt(cattle.fatMarbling) || null,
-          monthAge: parseInt(cattle.monthAge) || null,
-          carcassWeight: parseFloat(cattle.carcassWeight) || null,
-          unitPrice: parseInt(cattle.unitPrice) || null,
-          traceNo: cattle.traceNo || null,
-          backFat: parseFloat(cattle.backFat) || null,
-          eyeMuscle: parseFloat(cattle.eyeMuscle) || null,
-          meatColor: parseInt(cattle.meatColor) || null,
-          fatColor: parseInt(cattle.fatColor) || null,
-          texture: parseInt(cattle.texture) || null,
-          maturity: parseInt(cattle.maturity) || null,
-          slaughterHouse: cattle.slaughterHouse || null,
-          slaughterDate: cattle.slaughterDate || null,
-          slaughterNo: cattle.slaughterNo || null,
-          processDate: cattle.processDate || null,
-          processWeight: parseFloat(cattle.processWeight) || null,
-          images: cattle.images,
-          slaughterCert: cattle.slaughterCert ? {
-            fileName: cattle.slaughterCert.fileName,
-            fileData: cattle.slaughterCert.fileData,
-            fileType: cattle.slaughterCert.fileType,
-          } : null,
-          gradeCert: cattle.gradeCert ? {
-            fileName: cattle.gradeCert.fileName,
-            fileData: cattle.gradeCert.fileData,
-            fileType: cattle.gradeCert.fileType,
-          } : null,
-          parts,
-        };
-
-        await createListing.mutateAsync(listingInput);
-      }
-
-      alert(`${cattleList.length}두 상장 등록이 완료되었습니다.`);
-      setCattleList([createNewCattle(1, String(startSeq + cattleList.length))]);
-      fetchNextSeq();
-    } catch (error) {
-      console.error('상장 등록 실패:', error);
-      alert('상장 등록에 실패했습니다. 다시 시도해주세요.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  // 숫자 천단위 콤마 포맷
-  const formatNumber = (num: number) => num.toLocaleString('ko-KR');
-  
-  // 콤마 제거하고 숫자로 파싱
-  const parseNumber = (str: string) => String(str).replace(/,/g, '');
-
-  // 엑셀 템플릿 다운로드
-  const downloadExcelTemplate = () => {
-    const cattleHeaders = [
-      '순번', '축종', '성별', '등급', '근내지방등급', '개월령', '도체중', '경락단가(원/kg)', '이력번호',
-      '등지방', '등심면적', '근내지방', '육색', '지방색', '조직감', '성숙도',
-      '도축장', '도축일', '도축번호', '가공일', '가공중량'
-    ];
-
-    const sampleCattleData = [
-      ['1', '한우', '거세', '1++A', '9', '32', '520', '28000', '0023-4567-8', '15', '98', '9', '5', '3', '1', '2', '음성', '2026-01-15', '201', '2026-01-16', '312'],
-      ['2', '한우', '거세', '1+A',  '7', '30', '490', '25000', '0023-4567-9', '13', '94', '7', '5', '3', '1', '2', '음성', '2026-01-15', '202', '2026-01-16', '295'],
-      ['3', '한우', '암',   '1A',   '5', '28', '440', '20000', '0023-4568-0', '11', '88', '5', '4', '3', '1', '2', '음성', '2026-01-15', '203', '2026-01-16', '264'],
-      ['4', '한우', '거세', '1++B', '8', '34', '530', '27000', '0023-4568-1', '14', '96', '8', '5', '3', '1', '2', '음성', '2026-01-15', '204', '2026-01-16', '318'],
-      ['5', '한우', '거세', '2A',   '3', '26', '410', '18000', '0023-4568-2', '10', '82', '3', '4', '3', '1', '2', '음성', '2026-01-15', '205', '2026-01-16', '246'],
-    ];
-
-    const cattleSheet = XLSX.utils.aoa_to_sheet([cattleHeaders, ...sampleCattleData]);
-    cattleSheet['!cols'] = cattleHeaders.map(() => ({ wch: 12 }));
-
-    // 부위별 기준 데이터: [부위명, 기준가(1++), 최소중량, 최대중량]
-    const partBase: [string, number, number, number][] = [
-      ['등심(좌)',   95000,  9.5, 10.5],
-      ['등심(우)',   95000,  9.5, 10.5],
-      ['안심',      105000,  8.0,  9.0],
-      ['채끝',       90000, 11.0, 12.0],
-      ['치마',       95000,  2.0,  4.0],
-      ['부채',      110000,  3.5,  4.5],
-      ['업진',      100000,  2.0,  3.0],
-      ['토시·제비',   95000,  1.5,  2.5],
-      ['설도(좌)',   25000, 11.0, 11.5],
-      ['설도(우)',   25000, 11.0, 11.5],
-      ['앞다리',     35000, 32.0, 34.0],
-      ['우둔',       23000, 25.0, 28.0],
-      ['목심',       25000, 18.0, 20.0],
-      ['양지(좌)',   45000,  6.8,  7.3],
-      ['양지(우)',   45000,  6.8,  7.3],
-      ['사태',       23000, 18.0, 21.0],
-      ['꼬리',        4500, 19.0, 20.0],
-      ['족',          3000, 10.0, 12.0],
-      ['사골',        1500, 25.0, 27.0],
-      ['잡뼈',        1000, 24.0, 26.0],
-    ];
-
-    // 등급별 가격 보정 비율
-    const gradeMultipliers = [1.0, 0.90, 0.75, 1.0, 0.60];
-
-    // 개체별 +-5% 변동 시드 (결정적 데이터)
-    const variationSeeds = [
-      [1.02, 0.97, 1.04, 0.98, 1.01, 0.96, 1.03, 0.99, 1.02, 0.97, 1.04, 0.98, 1.01, 0.96, 1.03, 0.99, 1.02, 0.97, 1.04, 0.98],
-      [0.98, 1.03, 0.96, 1.02, 0.97, 1.04, 0.98, 1.01, 0.97, 1.03, 0.96, 1.02, 0.98, 1.04, 0.97, 1.01, 0.98, 1.03, 0.96, 1.02],
-      [1.01, 0.95, 1.03, 0.97, 1.05, 0.98, 0.96, 1.02, 1.01, 0.95, 1.03, 0.97, 1.05, 0.98, 0.96, 1.02, 1.01, 0.95, 1.03, 0.97],
-      [0.97, 1.04, 0.98, 1.03, 0.96, 1.01, 1.05, 0.97, 0.98, 1.04, 0.97, 1.03, 0.96, 1.01, 1.05, 0.97, 0.98, 1.04, 0.97, 1.03],
-      [1.03, 0.98, 1.01, 0.96, 1.04, 0.97, 1.02, 1.05, 1.03, 0.98, 1.01, 0.96, 1.04, 0.97, 1.02, 1.05, 1.03, 0.98, 1.01, 0.96],
-    ];
-
-    // 중량 시드 (0~1 범위, 최소~최대 범위 내 위치)
-    const weightSeeds = [
-      [0.5, 0.6, 0.4, 0.7, 0.3, 0.8, 0.5, 0.6, 0.4, 0.7, 0.5, 0.3, 0.6, 0.4, 0.7, 0.5, 0.3, 0.6, 0.4, 0.5],
-      [0.3, 0.7, 0.5, 0.4, 0.6, 0.3, 0.7, 0.4, 0.6, 0.3, 0.7, 0.5, 0.4, 0.6, 0.3, 0.7, 0.5, 0.4, 0.6, 0.3],
-      [0.7, 0.3, 0.6, 0.5, 0.4, 0.7, 0.3, 0.5, 0.7, 0.4, 0.3, 0.6, 0.5, 0.7, 0.4, 0.3, 0.6, 0.5, 0.7, 0.4],
-      [0.4, 0.8, 0.3, 0.6, 0.7, 0.4, 0.6, 0.3, 0.5, 0.8, 0.4, 0.7, 0.3, 0.5, 0.8, 0.4, 0.7, 0.3, 0.5, 0.6],
-      [0.6, 0.4, 0.7, 0.3, 0.5, 0.6, 0.4, 0.7, 0.3, 0.5, 0.6, 0.4, 0.7, 0.3, 0.5, 0.6, 0.4, 0.7, 0.3, 0.7],
-    ];
-
-    const roundTo1000 = (v: number) => Math.round(v / 1000) * 1000;
-
-    const partHeaders = ['순번', '부위명', '중량(kg)', '최저가격(원)'];
-    const samplePartData: string[][] = [];
-
-    for (let ci = 0; ci < 5; ci++) {
-      const mult = gradeMultipliers[ci];
-      for (let pi = 0; pi < partBase.length; pi++) {
-        const [name, basePrice, minW, maxW] = partBase[pi];
-        const price = roundTo1000(basePrice * mult * variationSeeds[ci][pi]);
-        const weight = minW + (maxW - minW) * weightSeeds[ci][pi];
-        samplePartData.push([
-          String(ci + 1),
-          name,
-          weight.toFixed(1),
-          formatNumber(price),
-        ]);
-      }
-    }
-
-    const partsSheet = XLSX.utils.aoa_to_sheet([partHeaders, ...samplePartData]);
-    partsSheet['!cols'] = [{ wch: 8 }, { wch: 12 }, { wch: 12 }, { wch: 14 }];
-
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, cattleSheet, '개체정보');
-    XLSX.utils.book_append_sheet(workbook, partsSheet, '부위별정보');
-
-    XLSX.writeFile(workbook, '부분육_상장등록_템플릿.xlsx');
-  };
-
-  // 엑셀 파일 업로드 ref
-  const excelInputRef = useRef<HTMLInputElement>(null);
-
-  // 엑셀 파일 업로드 처리
-  const handleExcelUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      try {
-        const data = new Uint8Array(event.target?.result as ArrayBuffer);
-        const workbook = XLSX.read(data, { type: 'array' });
-
-        // 개체정보 시트 파싱
-        const cattleSheet = workbook.Sheets['개체정보'];
-        if (!cattleSheet) {
-          alert('개체정보 시트를 찾을 수 없습니다.');
-          return;
-        }
-        const cattleData = XLSX.utils.sheet_to_json<Record<string, string>>(cattleSheet);
-
-        // 부위별정보 시트 파싱
-        const partsSheet = workbook.Sheets['부위별정보'];
-        if (!partsSheet) {
-          alert('부위별정보 시트를 찾을 수 없습니다.');
-          return;
-        }
-        const partsData = XLSX.utils.sheet_to_json<Record<string, string>>(partsSheet);
-
-        // 개체별로 그룹핑
-        const newCattleList: CattleData[] = cattleData.map((row, index) => {
-          const seqNo = String(row['순번'] || index + 1);
-          const cattle = createNewCattle(Date.now() + index, seqNo);
-          
-          // 개체 정보 매핑
-          cattle.breed = row['축종'] || '한우';
-          cattle.gender = row['성별'] || '';
-          cattle.grade = row['등급'] || '';
-          cattle.marbling = row['근내지방등급'] || '';
-          cattle.monthAge = row['개월령'] || '';
-          cattle.carcassWeight = row['도체중'] || '';
-          cattle.unitPrice = String(row['경락단가(원/kg)'] || '').replace(/,/g, '');
-          cattle.traceNo = formatTraceNo(row['이력번호'] || '');
-          cattle.backFat = row['등지방'] || '';
-          cattle.eyeMuscle = row['등심면적'] || '';
-          cattle.fatMarbling = row['근내지방'] || '';
-          cattle.meatColor = row['육색'] || '';
-          cattle.fatColor = row['지방색'] || '';
-          cattle.texture = row['조직감'] || '';
-          cattle.maturity = row['성숙도'] || '';
-          cattle.slaughterHouse = '농협 음성';
-          cattle.slaughterDate = row['도축일'] || '';
-          cattle.slaughterNo = row['도축번호'] || '';
-          cattle.processDate = row['가공일'] || '';
-          cattle.processWeight = row['가공중량'] || '';
-
-          // 해당 개체의 부위 정보 찾기
-          const cattleParts = partsData.filter(p => String(p['순번']) === seqNo);
-          if (cattleParts.length > 0) {
-            cattle.parts = cattle.parts.map(part => {
-              const partData = cattleParts.find(p => p['부위명'] === part.name);
-              if (partData) {
-                return {
-                  ...part,
-                  weight: parseNumber(String(partData['중량(kg)'] || '')),
-                  minPrice: parseNumber(String(partData['최저가격(원)'] || '')),
-                };
-              }
-              return part;
-            });
-          }
-
-          return cattle;
-        });
-
-        if (newCattleList.length === 0) {
-          alert('업로드할 개체 데이터가 없습니다.');
-          return;
-        }
-
-        if (newCattleList.length > 10) {
-          alert('최대 10두까지만 등록할 수 있습니다. 처음 10두만 등록됩니다.');
-          setCattleList(newCattleList.slice(0, 10));
-        } else {
-          setCattleList(newCattleList);
-        }
-
-        alert(`${Math.min(newCattleList.length, 10)}두의 데이터를 불러왔습니다.`);
-      } catch (error) {
-        console.error('엑셀 파싱 오류:', error);
-        alert('엑셀 파일을 읽는 중 오류가 발생했습니다. 템플릿 형식을 확인해주세요.');
-      }
-    };
-
-    reader.readAsArrayBuffer(file);
-    // 같은 파일 다시 선택 가능하도록 초기화
-    e.target.value = '';
-  };
-
-  // 공통 스타일
-  const thClass = "px-2 py-2 text-xs font-medium text-gray-600 whitespace-nowrap border border-gray-200 bg-gray-50 text-center";
-  const tdClass = "px-2 py-2 text-xs border border-gray-200 text-center";
-  const selectClass = "w-full px-2 py-1 border border-gray-200 text-xs text-center outline-none bg-white";
-  const inputClass = "px-2 py-1 border border-gray-200 text-xs text-center outline-none bg-white";
+  const dirtyCount = cattleList.filter(isCattleDraftDirty).length;
+  const canSubmit = !isSubmitting && !isDateClosed;
 
   return (
     <AdminLayout>
-      <style dangerouslySetInnerHTML={{ __html: hideSpinnerStyle }} />
-      
-      <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">부분육상장등록</h1>
-        <div className="flex items-center gap-2 text-sm text-gray-600">
-          <span className="font-medium text-gray-900">{cattleList.length}두</span>
-          <span>/ 최대 10두</span>
+      <div className="mb-6 flex items-end justify-between">
+        <h1 className="text-[22px] font-bold tracking-[-0.01em] text-slate-900">부분육 상장 등록</h1>
+        <span className="text-[13px] tabular-nums text-slate-500">
+          <span className="font-semibold text-slate-900">{cattleList.length}두</span> / 최대 {MAX_CATTLE_PER_SUBMIT}두
+        </span>
+      </div>
+
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-[2px] border border-slate-200 bg-white px-4 py-3">
+        <div className="flex flex-wrap items-center gap-5">
+          <div className="flex items-center gap-2">
+            <span className="text-[12px] font-medium text-slate-500">상장일자</span>
+            <AdminDateInput aria-label="상장일자" value={listingDate} onChange={setListingDate} className={cn(isDateClosed && 'border-rose-500 text-rose-600')} />
+            {isDateClosed && <span className="text-[12px] font-medium text-rose-600">마감된 날짜입니다</span>}
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-[12px] font-medium text-slate-500">상장업체</span>
+            <AdminSelect aria-label="상장업체" value={companyId} onChange={setCompanyId} options={companyOptions} placeholder="업체 선택" className="w-[170px]" />
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button type="button" onClick={downloadListingTemplate} className={ADMIN_BUTTON.secondary}>
+            <Download className="h-3.5 w-3.5" />
+            템플릿 다운로드
+          </button>
+          <input ref={excelInputRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={(event) => void handleExcelFile(event)} />
+          <button type="button" onClick={() => excelInputRef.current?.click()} disabled={isSubmitting} className={ADMIN_BUTTON.secondary}>
+            <FileSpreadsheet className="h-3.5 w-3.5" />
+            엑셀 업로드
+          </button>
+          <button
+            type="button"
+            onClick={() => void handleSubmit()}
+            disabled={!canSubmit}
+            title={isDateClosed ? '마감된 날짜에는 등록할 수 없습니다' : undefined}
+            className={cn(ADMIN_BUTTON.primary, 'min-w-[132px]')}
+          >
+            {isSubmitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+            {isSubmitting ? '등록 중…' : isDateClosed ? '마감됨' : `${cattleList.length}두 일괄 등록`}
+          </button>
         </div>
       </div>
 
-      <form onSubmit={handleSubmit}>
-        {/* 공통 정보 */}
-        <div className="bg-white shadow-sm border border-gray-100 p-4 mb-4">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="flex flex-wrap items-center gap-4">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-gray-600">상장일자</span>
-                <input
-                  type="date"
-                  value={listingDate}
-                  onChange={(e) => setListingDate(e.target.value)}
-                  required
-                  className={`px-3 py-1.5 border text-xs outline-none bg-white ${isDateClosed ? 'border-red-500 text-red-500' : 'border-gray-200'}`}
-                />
-                {isDateClosed && (
-                  <span className="text-xs text-red-500 font-medium">마감된 날짜입니다</span>
-                )}
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-gray-600">상장업체</span>
-                <select
-                  value={companyId}
-                  onChange={(e) => setCompanyId(e.target.value)}
-                  required
-                  className="px-3 py-1.5 border border-gray-200 text-xs outline-none bg-white min-w-[120px]"
-                >
-                  <option value="">선택</option>
-                  {companies.map(company => (
-                    <option key={company.id} value={company.id}>{company.name}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-            
-            {/* 엑셀 업로드/다운로드 및 등록 버튼 */}
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={downloadExcelTemplate}
-                className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 text-gray-600 text-xs hover:bg-gray-50"
-              >
-                <Download className="w-3.5 h-3.5" />
-                템플릿 다운로드
-              </button>
-              <button
-                type="button"
-                onClick={() => excelInputRef.current?.click()}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-600 text-white text-xs hover:bg-gray-700"
-              >
-                <FileSpreadsheet className="w-3.5 h-3.5" />
-                엑셀 업로드
-              </button>
-              <input
-                ref={excelInputRef}
-                type="file"
-                accept=".xlsx,.xls"
-                onChange={handleExcelUpload}
-                className="hidden"
-              />
-              <button 
-                type="submit" 
-                disabled={isSubmitting || isDateClosed} 
-                className={`flex items-center gap-1.5 px-4 py-1.5 text-white text-xs disabled:opacity-50 ${isDateClosed ? 'bg-gray-400 cursor-not-allowed' : 'bg-gray-700 hover:bg-gray-800'}`}
-                title={isDateClosed ? '마감된 날짜에는 등록할 수 없습니다' : ''}
-              >
-                {isSubmitting ? (
-                  <>
-                    <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    등록 중...
-                  </>
-                ) : isDateClosed ? (
-                  <>
-                    <X className="w-3.5 h-3.5" />
-                    마감됨 (등록 불가)
-                  </>
-                ) : (
-                  <>
-                    <Save className="w-3.5 h-3.5" />
-                    {cattleList.length}두 일괄 등록
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
+      {cattleList.map((cattle, index) => (
+        <CattleCard
+          key={cattle.id}
+          index={index}
+          cattle={cattle}
+          auctionNo={auctionNoOf(cattle)}
+          companyId={companyId || null}
+          errors={errors[cattle.id]}
+          canRemove={cattleList.length > 1}
+          disabled={isSubmitting}
+          onPatch={(patch) => patchCattle(cattle.id, patch)}
+          onPatchPart={(partId, patch) => patchPart(cattle.id, partId, patch)}
+          onToggleExpand={() => patchCattle(cattle.id, { isExpanded: !cattle.isExpanded })}
+          onRemove={() => removeCattle(cattle.id)}
+          onOpenPartPhotos={(partId) => setPhotoTarget({ cattleId: cattle.id, partId })}
+          onView={(src) => openLightbox(cattle, src)}
+        />
+      ))}
 
-        {/* 개체 목록 */}
-        {cattleList.map((cattle, cattleIndex) => (
-          <div key={cattle.id} className="bg-white shadow-sm border border-gray-100 mb-4 overflow-hidden">
-            {/* 개체 헤더 */}
-            <div 
-              className="flex items-center justify-between px-4 py-3 bg-gray-50 border-b border-gray-200 cursor-pointer"
-              onClick={() => toggleExpand(cattle.id)}
-            >
-              <div className="flex items-center gap-3">
-                <span className="flex items-center justify-center w-7 h-7 bg-gray-700 text-white text-sm font-bold">
-                  {cattleIndex + 1}
-                </span>
-                <span className="font-medium text-gray-900">
-                  {cattle.gender || '성별'} / {cattle.grade || '등급'}{cattle.marbling ? `(${cattle.marbling})` : ''} / {cattle.traceNo || '이력번호'}
-                </span>
-                <span className="text-xs text-gray-500 bg-gray-200 px-2 py-0.5">
-                  접수번호: {getAuctionNo(cattle.seqNo)}
-                </span>
-                <span className="text-xs text-gray-500 bg-gray-200 px-2 py-0.5">
-                  부위: {cattle.parts.filter(p => p.isIncluded).length}/{cattle.parts.length}
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                {cattleList.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={(e) => { e.stopPropagation(); removeCattle(cattle.id); }}
-                    className="flex items-center gap-1 px-2 py-1 text-xs text-gray-600 hover:text-gray-800"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    삭제
-                  </button>
-                )}
-                {cattle.isExpanded ? <ChevronUp className="w-5 h-5 text-gray-400" /> : <ChevronDown className="w-5 h-5 text-gray-400" />}
-              </div>
-            </div>
+      {cattleList.length < MAX_CATTLE_PER_SUBMIT && (
+        <button
+          type="button"
+          onClick={addCattle}
+          disabled={isSubmitting}
+          className="mb-4 flex h-11 w-full items-center justify-center gap-2 rounded-[2px] border border-dashed border-slate-300 text-[13px] font-medium text-slate-500 transition-colors hover:border-slate-900 hover:text-slate-900 disabled:opacity-40"
+        >
+          <Plus className="h-4 w-4" />
+          개체 추가
+        </button>
+      )}
 
-            {/* 개체 내용 (접기/펼치기) */}
-            {cattle.isExpanded && (
-              <div className="p-4 space-y-4">
-                {/* 개체 정보 테이블 */}
-                <div className="overflow-x-auto">
-                  <table className="w-full text-xs border-collapse">
-                    <thead>
-                      <tr>
-                        <th className={`${thClass} w-16`}>순번</th>
-                        <th className={`${thClass} w-28`}>접수번호</th>
-                        <th className={`${thClass} w-20`}>축종</th>
-                        <th className={`${thClass} w-20`}>성별</th>
-                        <th className={`${thClass} w-24`}>등급</th>
-                        <th className={`${thClass} w-20`}>근내지방</th>
-                        <th className={`${thClass} w-20`}>개월령</th>
-                        <th className={`${thClass} w-20`}>도체중</th>
-                        <th className={`${thClass} w-28`}>경락단가</th>
-                        <th className={`${thClass} w-36`}>이력번호</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr>
-                        <td className={`${tdClass} font-medium bg-gray-50`}>{cattle.seqNo}</td>
-                        <td className={`${tdClass} font-medium text-gray-900 bg-gray-100`}>{getAuctionNo(cattle.seqNo)}</td>
-                        <td className={tdClass}>
-                          <select value={cattle.breed} onChange={(e) => updateCattle(cattle.id, 'breed', e.target.value)} className={selectClass}>
-                            <option value="한우">한우</option>
-                          </select>
-                        </td>
-                        <td className={tdClass}>
-                          <select value={cattle.gender} onChange={(e) => updateCattle(cattle.id, 'gender', e.target.value)} required className={selectClass}>
-                            <option value="">선택</option>
-                            <option value="거세">거세</option>
-                            <option value="암">암</option>
-                          </select>
-                        </td>
-                        <td className={tdClass}>
-                          <select value={cattle.grade} onChange={(e) => updateCattle(cattle.id, 'grade', e.target.value)} required className={selectClass}>
-                            <option value="">선택</option>
-                            <option value="1++A">1++A</option>
-                            <option value="1++B">1++B</option>
-                            <option value="1++C">1++C</option>
-                            <option value="1+A">1+A</option>
-                            <option value="1+B">1+B</option>
-                            <option value="1+C">1+C</option>
-                            <option value="1A">1A</option>
-                            <option value="1B">1B</option>
-                            <option value="1C">1C</option>
-                            <option value="2A">2A</option>
-                            <option value="2B">2B</option>
-                            <option value="2C">2C</option>
-                          </select>
-                        </td>
-                        <td className={tdClass}>
-                          <select value={cattle.marbling} onChange={(e) => updateCattle(cattle.id, 'marbling', e.target.value)} disabled={!cattle.grade.startsWith('1++')} className={`${selectClass} disabled:bg-gray-100`}>
-                            <option value="">-</option>
-                            <option value="9">9</option>
-                            <option value="8">8</option>
-                            <option value="7">7</option>
-                          </select>
-                        </td>
-                        <td className={tdClass}>
-                          <input type="number" value={cattle.monthAge} onChange={(e) => updateCattle(cattle.id, 'monthAge', e.target.value)} placeholder="32" required className={`w-14 ${inputClass}`} />
-                        </td>
-                        <td className={tdClass}>
-                          <input type="number" value={cattle.carcassWeight} onChange={(e) => updateCattle(cattle.id, 'carcassWeight', e.target.value)} placeholder="520" required className={`w-14 ${inputClass}`} />
-                        </td>
-                        <td className={tdClass}>
-                          <div className="flex items-center justify-center gap-1">
-                            <input type="text" value={displayPrice(cattle.unitPrice)} onChange={(e) => updateCattle(cattle.id, 'unitPrice', e.target.value.replace(/,/g, '').replace(/[^0-9]/g, ''))} placeholder="0" className={`w-20 ${inputClass}`} />
-                            <span className="text-[10px] text-gray-400 whitespace-nowrap">원/kg</span>
-                          </div>
-                        </td>
-                        <td className={tdClass}>
-                          <div className="flex items-center justify-center gap-1">
-                            <span className="text-xs text-gray-500">002-</span>
-                            <input type="text" value={cattle.traceNo} onChange={(e) => updateCattle(cattle.id, 'traceNo', e.target.value)} placeholder="0000-0000-0" maxLength={11} required className={`w-28 ${inputClass}`} />
-                          </div>
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* 등급 판정 + 도축/가공 정보 */}
-                <div className="overflow-x-auto">
-                  <table className="w-full text-xs border-collapse">
-                    <thead>
-                      <tr>
-                        <th className={thClass}>등지방</th>
-                        <th className={thClass}>등심면적</th>
-                        <th className={thClass}>근내지방</th>
-                        <th className={thClass}>육색</th>
-                        <th className={thClass}>지방색</th>
-                        <th className={thClass}>조직감</th>
-                        <th className={thClass}>성숙도</th>
-                        <th className={thClass}>도축장</th>
-                        <th className={thClass}>도축일</th>
-                        <th className={thClass}>도축번호</th>
-                        <th className={thClass}>가공일</th>
-                        <th className={thClass}>가공중량</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr>
-                        <td className={tdClass}>
-                          <input type="number" value={cattle.backFat} onChange={(e) => updateCattle(cattle.id, 'backFat', e.target.value)} placeholder="15" required className={`w-12 ${inputClass}`} />
-                        </td>
-                        <td className={tdClass}>
-                          <input type="number" value={cattle.eyeMuscle} onChange={(e) => updateCattle(cattle.id, 'eyeMuscle', e.target.value)} placeholder="98" required className={`w-12 ${inputClass}`} />
-                        </td>
-                        <td className={tdClass}>
-                          <input type="number" value={cattle.fatMarbling} onChange={(e) => updateCattle(cattle.id, 'fatMarbling', e.target.value)} placeholder="9" required className={`w-12 ${inputClass}`} />
-                        </td>
-                        <td className={tdClass}>
-                          <input type="number" value={cattle.meatColor} onChange={(e) => updateCattle(cattle.id, 'meatColor', e.target.value)} placeholder="5" required className={`w-12 ${inputClass}`} />
-                        </td>
-                        <td className={tdClass}>
-                          <input type="number" value={cattle.fatColor} onChange={(e) => updateCattle(cattle.id, 'fatColor', e.target.value)} placeholder="3" required className={`w-12 ${inputClass}`} />
-                        </td>
-                        <td className={tdClass}>
-                          <input type="number" value={cattle.texture} onChange={(e) => updateCattle(cattle.id, 'texture', e.target.value)} placeholder="1" required className={`w-12 ${inputClass}`} />
-                        </td>
-                        <td className={tdClass}>
-                          <input type="number" value={cattle.maturity} onChange={(e) => updateCattle(cattle.id, 'maturity', e.target.value)} placeholder="2" required className={`w-12 ${inputClass}`} />
-                        </td>
-                        <td className={tdClass}>
-                          <span className="text-[10px] text-gray-700">농협 음성</span>
-                        </td>
-                        <td className={tdClass}>
-                          <input 
-                            type="date" 
-                            value={cattle.slaughterDate} 
-                            onChange={(e) => updateCattle(cattle.id, 'slaughterDate', e.target.value)} 
-                            required 
-                            className={`w-36 ${inputClass}`} 
-                          />
-                        </td>
-                        <td className={tdClass}>
-                          <input type="text" value={cattle.slaughterNo} onChange={(e) => updateCattle(cattle.id, 'slaughterNo', e.target.value)} placeholder="201" required className={`w-14 ${inputClass}`} />
-                        </td>
-                        <td className={tdClass}>
-                          <input 
-                            type="date" 
-                            value={cattle.processDate} 
-                            onChange={(e) => updateCattle(cattle.id, 'processDate', e.target.value)} 
-                            required 
-                            className={`w-36 ${inputClass}`} 
-                          />
-                        </td>
-                        <td className={tdClass}>
-                          <input type="number" value={cattle.processWeight} onChange={(e) => updateCattle(cattle.id, 'processWeight', e.target.value)} placeholder="312" required className={`w-14 ${inputClass}`} />
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* 부위별 정보 테이블 */}
-                <div className="overflow-x-auto">
-                  <table className="w-full text-xs border-collapse table-fixed">
-                    <thead>
-                      <tr>
-                        {[0, 1, 2].map(col => (
-                          <React.Fragment key={col}>
-                            <th className={`${thClass} w-[28px]`}></th>
-                            <th className={`${thClass} w-[110px]`}>상장번호</th>
-                            <th className={`${thClass} w-[124px]`}>부위</th>
-                            <th className={`${thClass} w-[70px]`}>중량</th>
-                            <th className={`${thClass} w-[85px]`}>최저가격</th>
-                          </React.Fragment>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {[0, 1, 2, 3, 4, 5, 6].map((rowIndex) => (
-                        <tr key={rowIndex}>
-                          {[0, 1, 2].map((colIndex) => {
-                            const partIndex = rowIndex + colIndex * 7;
-                            const part = cattle.parts[partIndex];
-                            
-                            if (!part) {
-                              return (
-                                <React.Fragment key={colIndex}>
-                                  <td className={`${tdClass} text-gray-400`}></td>
-                                  <td className={`${tdClass} text-gray-400`}>-</td>
-                                  <td className={`${tdClass} text-gray-400`}>-</td>
-                                  <td className={`${tdClass} text-gray-400`}>-</td>
-                                  <td className={`${tdClass} text-gray-400`}>-</td>
-                                </React.Fragment>
-                              );
-                            }
-                            
-                            const isIncluded = part.isIncluded;
-                            
-                            return (
-                              <React.Fragment key={colIndex}>
-                                <td className={`${tdClass} ${!isIncluded ? 'bg-gray-100' : ''}`}>
-                                  <input
-                                    type="checkbox"
-                                    checked={isIncluded}
-                                    onChange={() => togglePartIncluded(cattle.id, part.id)}
-                                    className="w-4 h-4 rounded appearance-none bg-white border border-gray-300 checked:bg-gray-700 checked:border-gray-700 relative cursor-pointer
-                                      after:content-['✓'] after:absolute after:inset-0 after:flex after:items-center after:justify-center after:text-white after:text-xs after:font-bold after:opacity-0 checked:after:opacity-100"
-                                  />
-                                </td>
-                                <td className={`${tdClass} whitespace-nowrap text-[10px] ${!isIncluded ? 'bg-gray-100 text-gray-400 line-through' : 'text-gray-600'}`}>
-                                  {isIncluded ? getListingNo(cattle.seqNo, partIndex) : '-'}
-                                </td>
-                                <td className={`${tdClass} font-medium whitespace-nowrap ${!isIncluded ? 'bg-gray-100' : 'bg-gray-50'}`}>
-                                  <span className="flex items-center justify-between gap-1">
-                                    <span className={!isIncluded ? 'text-gray-400 line-through' : 'text-gray-900'}>{part.name}</span>
-                                    <PartPhotoThumb
-                                      cover={partCoverOf(cattle, part)}
-                                      count={part.images.length}
-                                      disabled={!isIncluded}
-                                      onClick={() => setPhotoTarget({ cattleId: cattle.id, partId: part.id })}
-                                    />
-                                  </span>
-                                </td>
-                                <td className={`${tdClass} ${!isIncluded ? 'bg-gray-100' : ''}`}>
-                                  <input
-                                    type="number"
-                                    value={part.weight}
-                                    onChange={(e) => updatePart(cattle.id, part.id, 'weight', e.target.value)}
-                                    placeholder="0.0"
-                                    required={isIncluded}
-                                    disabled={!isIncluded}
-                                    step="0.1"
-                                    className={`w-16 ${inputClass} ${!isIncluded ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : ''}`}
-                                  />
-                                </td>
-                                <td className={`${tdClass} ${!isIncluded ? 'bg-gray-100' : ''}`}>
-                                  <input
-                                    type="text"
-                                    value={displayPrice(part.minPrice)}
-                                    onChange={(e) => updatePart(cattle.id, part.id, 'minPrice', e.target.value)}
-                                    placeholder="0"
-                                    required={isIncluded}
-                                    disabled={!isIncluded}
-                                    className={`w-20 ${inputClass} ${!isIncluded ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : ''}`}
-                                  />
-                                </td>
-                              </React.Fragment>
-                            );
-                          })}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* 사진 및 증명서 업로드 (한 줄) */}
-                <div className="flex items-center gap-3 pt-2 flex-wrap">
-                  {/* 개체 사진 · 첫 장이 대표 · 부위 사진은 부위 표의 카메라 아이콘에서 */}
-                  <ListingPhotoStrip
-                    images={cattle.images}
-                    uploading={!!uploadingImages[cattle.id]}
-                    onUpload={(files) => handleImageUpload(cattle.id, files)}
-                    onRemove={(index) => removeImage(cattle.id, index)}
-                    onSetCover={(index) => setCoverImage(cattle.id, index)}
-                    onView={setViewingImage}
-                  />
-
-                  {/* 구분선 */}
-                  <div className="w-px h-10 bg-gray-200 mx-2"></div>
-
-                  {/* 도축검사증명서 */}
-                  <span className="text-xs font-medium text-gray-600">도축검사증명서:</span>
-                  {cattle.slaughterCert ? (
-                    <div className="relative w-14 h-14 border border-gray-200 overflow-hidden bg-gray-50">
-                      <img 
-                        src={cattle.slaughterCert.fileData} 
-                        alt="도축검사증명서" 
-                        className="w-full h-full object-cover cursor-pointer hover:opacity-80"
-                        onClick={() => openCert(cattle.slaughterCert!)}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => removeCert(cattle.id, 'slaughterCert')}
-                        className="absolute top-0 right-0 w-4 h-4 bg-gray-700 text-white flex items-center justify-center hover:bg-gray-800"
-                      >
-                        <X className="w-2.5 h-2.5" />
-                      </button>
-                    </div>
-                  ) : (
-                    <>
-                      <input
-                        ref={el => { slaughterCertInputRefs.current[cattle.id] = el; }}
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => handleCertUpload(cattle.id, 'slaughterCert', e)}
-                        className="hidden"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => slaughterCertInputRefs.current[cattle.id]?.click()}
-                        className="w-14 h-14 border border-dashed border-gray-300 flex flex-col items-center justify-center text-gray-400 hover:border-gray-500 hover:text-gray-500 transition-colors bg-white"
-                      >
-                        <Upload className="w-3.5 h-3.5" />
-                        <span className="text-[9px] mt-0.5">업로드</span>
-                      </button>
-                    </>
-                  )}
-
-                  {/* 등급판정확인서 */}
-                  <span className="text-xs font-medium text-gray-600">등급판정확인서:</span>
-                  {cattle.gradeCert ? (
-                    <div className="relative w-14 h-14 border border-gray-200 overflow-hidden bg-gray-50">
-                      <img 
-                        src={cattle.gradeCert.fileData} 
-                        alt="등급판정확인서" 
-                        className="w-full h-full object-cover cursor-pointer hover:opacity-80"
-                        onClick={() => openCert(cattle.gradeCert!)}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => removeCert(cattle.id, 'gradeCert')}
-                        className="absolute top-0 right-0 w-4 h-4 bg-gray-700 text-white flex items-center justify-center hover:bg-gray-800"
-                      >
-                        <X className="w-2.5 h-2.5" />
-                      </button>
-                    </div>
-                  ) : (
-                    <>
-                      <input
-                        ref={el => { gradeCertInputRefs.current[cattle.id] = el; }}
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => handleCertUpload(cattle.id, 'gradeCert', e)}
-                        className="hidden"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => gradeCertInputRefs.current[cattle.id]?.click()}
-                        className="w-14 h-14 border border-dashed border-gray-300 flex flex-col items-center justify-center text-gray-400 hover:border-gray-500 hover:text-gray-500 transition-colors bg-white"
-                      >
-                        <Upload className="w-3.5 h-3.5" />
-                        <span className="text-[9px] mt-0.5">업로드</span>
-                      </button>
-                    </>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-        ))}
-
-        {/* 개체 추가 버튼 */}
-        {cattleList.length < 10 && (
-          <button
-            type="button"
-            onClick={addCattle}
-            className="w-full py-3 border-2 border-dashed border-gray-300 text-gray-500 hover:border-gray-500 hover:text-gray-600 transition-colors flex items-center justify-center gap-2 mb-4"
-          >
-            <Plus className="w-5 h-5" />
-            <span className="font-medium">개체 추가</span>
-          </button>
-        )}
-
-      </form>
-
-      {/* 부위 사진 모달 */}
-      {photoCattle && photoPart ? (
+      {photoCattle && photoPart && (
         <PartPhotoDialog
           open
           partName={photoPart.name}
-          listingPartNo={getListingNo(photoCattle.seqNo, photoCattle.parts.indexOf(photoPart))}
+          listingPartNo={partListingNo(auctionNoOf(photoCattle), photoPart.id)}
           images={photoPart.images}
-          listingImages={photoCattle.images}
-          fallback={resolveFormPartCover({
-            partImages: [],
-            listingImages: photoCattle.images,
-            companyId: companyId || null,
-            partName: photoPart.name,
-            lookup: groupImage,
-          })}
-          onChange={(images) => updatePartImages(photoCattle.id, photoPart.id, images)}
-          onSetListingCover={(src) => setCoverFromPartPhoto(photoCattle.id, src)}
+          fallback={resolveFormPartCover({ partImages: [], listingImages: photoCattle.images, companyId: companyId || null, partName: photoPart.name, lookup: groupImage })}
+          onChange={(images) => patchPart(photoCattle.id, photoPart.id, { images })}
+          onView={(src) => {
+            const items = photoPart.images.map((s, i) => ({ src: s, label: `${photoPart.name} ${i + 1}/${photoPart.images.length}`, kind: 'part' as const }));
+            setLightbox({ title: `${photoPart.name} · ${partListingNo(auctionNoOf(photoCattle), photoPart.id)}`, items, index: Math.max(0, items.findIndex((item) => item.src === src)) });
+          }}
           onPrev={photoPrev ? () => setPhotoTarget({ cattleId: photoCattle.id, partId: photoPrev.id }) : undefined}
           onNext={photoNext ? () => setPhotoTarget({ cattleId: photoCattle.id, partId: photoNext.id }) : undefined}
           onClose={() => setPhotoTarget(null)}
         />
-      ) : null}
+      )}
 
-      {/* 이미지 확대 모달 */}
-      {viewingImage && (
-        <div 
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-80"
-          onClick={() => setViewingImage(null)}
-        >
-          <div className="relative max-w-4xl max-h-[90vh]">
-            <img 
-              src={viewingImage} 
-              alt="확대 이미지" 
-              className="max-w-full max-h-[90vh] object-contain"
-            />
-            <button
-              type="button"
-              onClick={() => setViewingImage(null)}
-              className="absolute top-2 right-2 w-8 h-8 bg-white rounded-full flex items-center justify-center text-gray-700 hover:bg-gray-100"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-        </div>
+      {lightbox && (
+        <ImageLightbox
+          title={lightbox.title}
+          items={lightbox.items}
+          index={lightbox.index}
+          onIndexChange={(index) => setLightbox((prev) => (prev ? { ...prev, index } : prev))}
+          onClose={() => setLightbox(null)}
+        />
+      )}
+
+      {pendingImport && (
+        <ConfirmDialog
+          open
+          title={`엑셀에서 ${pendingImport.drafts.length}두 불러오기`}
+          description={
+            <>
+              {dirtyCount > 0 ? (
+                <span className="mb-1 block font-medium text-rose-600">지금 입력 중인 {dirtyCount}두의 내용이 모두 대체됩니다.</span>
+              ) : (
+                <span className="mb-1 block">현재 비어 있는 개체는 불러온 내용으로 대체됩니다.</span>
+              )}
+              {pendingImport.warnings.length > 0 && (
+                <ul className="mt-2 max-h-40 list-disc space-y-0.5 overflow-y-auto pl-4 text-[12px] text-slate-600">
+                  {pendingImport.warnings.map((warning) => (
+                    <li key={warning}>{warning}</li>
+                  ))}
+                </ul>
+              )}
+            </>
+          }
+          confirmLabel="불러오기"
+          destructive={dirtyCount > 0}
+          onConfirm={applyImport}
+          onCancel={() => setPendingImport(null)}
+        />
       )}
     </AdminLayout>
   );

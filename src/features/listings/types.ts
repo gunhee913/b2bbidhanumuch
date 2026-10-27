@@ -198,6 +198,8 @@ export interface UpdatePartInput {
   weight?: number;
   minPrice?: number;
   isIncluded?: boolean;
+  /** 부위 사진 · 빈 배열이면 경매장은 대표이미지 → 메인 사진으로 대신한다 */
+  images?: string[];
 }
 
 // 상장 목록 필터
