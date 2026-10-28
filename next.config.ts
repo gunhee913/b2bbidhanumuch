@@ -12,6 +12,10 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  async rewrites() {
+    // 모바일 앱 웹 체험판(Flutter web) · public/app/ 에 빌드 결과물 · /app 으로 들어오면 index.html
+    return [{ source: '/app', destination: '/app/index.html' }];
+  },
   async redirects() {
     // 공동구매 관리자가 /admin/mall(직거래몰 관리자)로 이동함 · 북마크 호환
     return [
